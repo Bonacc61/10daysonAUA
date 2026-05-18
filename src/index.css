@@ -1,0 +1,447 @@
+:root {
+  --yellow: #FFD23F;
+  --yellow-bg: #EAB308;
+  --red: #E63946;
+  --ink: #1A1A1A;
+  --cream: #FFFBF0;
+  --green: #22C55E;
+  --blue: #3B82F6;
+  --coral: #FF6B47;
+  --sand-50: #FAF7F2;
+  --sand-100: #F0EAE0;
+  --sand-200: #DDD3C4;
+  --sand-500: #847661;
+  --sand-700: #4A4135;
+  --sand-900: #1F1B14;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--ink);
+  background: var(--cream);
+}
+
+.font-display { font-family: 'Caprasimo', Georgia, serif; letter-spacing: -0.5px; }
+
+.chunky { background: var(--cream); border: 2px solid var(--ink); border-radius: 16px; box-shadow: 5px 5px 0 var(--ink); }
+
+.btn-red { background: var(--red); color: var(--cream); border: 3px solid var(--ink); padding: 12px 22px; font-weight: 700; border-radius: 14px; box-shadow: 4px 4px 0 var(--ink); cursor: pointer; font-family: inherit; font-size: 15px; letter-spacing: -0.2px; transition: transform 0.08s; }
+.btn-red:hover { background: #c92d3a; }
+.btn-red:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
+
+.btn-coral { background: var(--coral); color: var(--cream); border: 2px solid var(--ink); padding: 10px 18px; font-weight: 700; font-style: italic; font-family: 'Caprasimo', Georgia, serif; border-radius: 12px; box-shadow: 4px 4px 0 var(--ink); cursor: pointer; font-size: 15px; transition: transform 0.08s; }
+.btn-coral:hover { background: #ed5d3c; }
+.btn-coral:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
+
+.btn-ghost { background: transparent; color: var(--ink); border: 2px solid var(--ink); padding: 10px 16px; font-weight: 600; border-radius: 12px; cursor: pointer; font-family: inherit; font-size: 14px; transition: background 0.15s; }
+.btn-ghost:hover { background: rgba(0,0,0,0.04); }
+
+.chip-outline { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border: 2px solid var(--ink); border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--cream); }
+.chip-yellow { background: var(--yellow); color: var(--ink); }
+.chip-green  { background: var(--green); color: var(--cream); }
+.chip-coral  { background: var(--coral); color: var(--cream); }
+
+.bleed { width: 100%; }
+.container-1280 { max-width: 1280px; margin: 0 auto; padding: 0 36px; }
+
+.trip-slider {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 8px; border-radius: 999px;
+  background: linear-gradient(to right, var(--yellow) 0%, var(--yellow) var(--pct, 62%), #F5F1E8 var(--pct, 62%), #F5F1E8 100%);
+  outline: none; cursor: pointer; margin: 6px 0 2px; display: block; box-sizing: border-box;
+}
+.trip-slider::-webkit-slider-runnable-track { background: transparent; height: 8px; border-radius: 999px; }
+.trip-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--red); border: none;
+  box-shadow: 3px 3px 0 var(--ink); margin-top: -7px; cursor: pointer;
+}
+.trip-slider::-moz-range-track { background: transparent; height: 8px; border-radius: 999px; }
+.trip-slider::-moz-range-progress { background: var(--yellow); height: 8px; border-radius: 999px; }
+.trip-slider::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: var(--red); border: none; box-shadow: 3px 3px 0 var(--ink); cursor: pointer; }
+
+.sample-grid { display: flex; gap: 48px; align-items: flex-start; }
+.sample-left  { flex: 0 0 41.67%; min-width: 0; }
+.sample-right { flex: 1 1 auto; min-width: 0; }
+@media (max-width: 900px) {
+  .sample-grid { flex-direction: column; gap: 28px; }
+  .sample-left { flex: 0 0 auto; }
+}
+
+.cat-tab { padding: 10px 14px; font-size: 14px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.15s; background: transparent; border-top: none; border-left: none; border-right: none; color: var(--sand-700); font-family: inherit; }
+.cat-tab.active { color: var(--red); border-bottom-color: var(--red); }
+.cat-tab:hover { color: var(--ink); }
+
+.a-card { background: var(--cream); border: 2px solid var(--ink); border-radius: 16px; overflow: hidden; box-shadow: 5px 5px 0 var(--ink); transition: transform 0.15s; }
+.a-card:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--ink); }
+.a-card .a-img { height: 180px; overflow: hidden; position: relative; background: var(--sand-100); }
+.a-card .a-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.a-card .a-img .a-badge { position: absolute; top: 12px; left: 12px; background: var(--cream); border: 2px solid var(--ink); padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.a-card .a-img .a-rating { position: absolute; top: 12px; right: 12px; background: var(--ink); color: var(--yellow); padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
+
+.day-badge { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Caprasimo', Georgia, serif; font-size: 18px; color: white; border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); flex-shrink: 0; }
+
+details > summary { list-style: none; cursor: pointer; user-select: none; }
+details > summary::-webkit-details-marker, details > summary::marker { display: none; }
+.aruba-section .toggle::before { content: '+'; font-family: 'Caprasimo', Georgia, serif; font-size: 38px; line-height: 0.5; }
+.aruba-section[open] .toggle::before { content: '−'; }
+.faq-item[open] .faq-card { background: #FDE68A; border-color: rgba(26,26,26,0.3); }
+.faq-item[open] .faq-chev { transform: rotate(180deg); }
+.faq-chev { transition: transform 0.2s; }
+
+.fade-in { animation: fade 0.2s ease-out; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* 3D card flip for Itinerary cards
+   - Y axis (left ↔ right): triggered by clicking the image → shows ratings.
+   - X axis (top ↔ bottom): triggered by clicking Swap → one full revolution
+     while the activity content swaps at the half-way (edge-on) point.       */
+.flip-card { perspective: 1200px; }
+.flip-inner {
+  position: relative;
+  transition: transform 0.55s cubic-bezier(0.4, 0.0, 0.2, 1);
+  transform-style: preserve-3d;
+}
+.flip-card.flipped .flip-inner { transform: rotateY(180deg); }
+.flip-face {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+.flip-back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+}
+
+/* Top↕bottom swap flip — single smooth arc rather than a zig-zag keyframe
+   chain (the latter reads as robotic). The browser interpolates the
+   rotateX from 0 → −100° → 0 along a single ease-in-out-cubic curve, with
+   a gentle scale dip for depth. State swaps at the midpoint so the second
+   half of the arc reveals the new activity as the card lands.             */
+.flip-card.swap-flipping .flip-inner {
+  animation: swap-flip 0.9s cubic-bezier(0.65, 0, 0.35, 1);
+  transition: none;
+  transform-origin: center center;
+}
+@keyframes swap-flip {
+  /* Three keyframes only — every axis traces a single smooth arc, no zig-zag.
+     rotateX: top edge pitches forward past edge-on (top-down direction).
+     rotateY: card tilts to one side then returns — gives the 3D gyration.
+     rotateZ: tiny wheel-style roll for extra depth.
+     scale:   gentle dip so the card feels like it moves through space.       */
+  0%   { transform: rotateX(0deg)    rotateY(0deg)   rotateZ(0deg) scale(1); }
+  50%  { transform: rotateX(-100deg) rotateY(-22deg) rotateZ(6deg) scale(0.94); }
+  100% { transform: rotateX(0deg)    rotateY(0deg)   rotateZ(0deg) scale(1); }
+}
+
+/* Pill buttons used by Questionnaire */
+.pill-btn {
+  background: var(--cream);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--ink);
+  transition: transform 0.08s, background 0.15s;
+}
+.pill-btn:hover { background: var(--sand-50); }
+.pill-btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+.pill-btn.active {
+  background: var(--red);
+  color: var(--cream);
+}
+.pill-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Vertical itinerary timeline */
+.timeline-rail {
+  position: absolute;
+  left: 21px;
+  top: 56px;
+  bottom: -16px;
+  border-left: 2px dashed rgba(26, 26, 26, 0.25);
+}
+
+/* Itinerary layout: left practical-info rail + right timeline column.
+   The rail is sticky so users can reference it while scrolling through days. */
+.itinerary-layout {
+  display: grid;
+  grid-template-columns: 25% 1fr;
+  gap: 36px;
+  align-items: start;
+}
+.itinerary-rail {
+  position: sticky;
+  top: 20px;
+  align-self: start;
+}
+.itinerary-main { min-width: 0; }
+@media (max-width: 900px) {
+  .itinerary-layout { grid-template-columns: 1fr; gap: 24px; }
+  .itinerary-rail { position: static; }
+}
+
+/* Collapsible info card */
+.info-topic {
+  background: var(--cream);
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  margin-bottom: 10px;
+  box-shadow: 3px 3px 0 var(--ink);
+  overflow: hidden;
+}
+.info-topic > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  user-select: none;
+}
+.info-topic > summary::-webkit-details-marker,
+.info-topic > summary::marker { display: none; }
+.info-topic-title {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--ink);
+  line-height: 1.25;
+}
+.info-topic-chev {
+  display: inline-flex;
+  color: var(--ink);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.info-topic[open] .info-topic-chev { transform: rotate(180deg); }
+.info-topic[open] { background: #FDF5D6; }
+.info-topic-body {
+  padding: 0 14px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--sand-700);
+}
+.info-topic-body p { margin: 0 0 8px; }
+.info-topic-body p:last-child { margin-bottom: 0; }
+
+/* SSO / sign-in buttons — stacked vertically, full-width within a max card. */
+.sso-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+  max-width: 340px;
+  margin: 0 auto;
+}
+.sso-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  background: var(--cream);
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 4px 4px 0 var(--ink);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+  width: 100%;
+  text-align: left;
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+.sso-btn:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--ink); }
+.sso-btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
+.sso-logo-svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+  flex-shrink: 0;
+}
+.sso-label { flex: 1; }
+
+/* Sample-output practical-info grid (mirrors the Itinerary left rail). */
+.sample-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.sample-info-grid .info-topic {
+  background: var(--cream);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.sample-info-grid .info-topic[open] {
+  background: #FDF5D6;
+}
+@media (max-width: 900px) {
+  .sample-info-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* =========================================================================
+   Mobile-friendly breakpoints
+   Two tiers:
+     - up to 900px  → tablet / large phone (2-col-where-possible, lighter padding)
+     - up to 640px  → phone (stack everything, shrink type)
+   Inline styles in components need !important to be overridden here, hence
+   the heavy use of !important in this block.
+   ========================================================================= */
+
+@media (max-width: 900px) {
+  .container-1280 { padding: 0 20px; }
+
+  /* Good to know grid: 4 → 2 columns */
+  .gtk-grid { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Hero typography shrinks */
+  .hero-title { font-size: 44px !important; }
+
+  /* Hero parrot smaller */
+  .hero-mascot img { max-width: 360px !important; }
+}
+
+@media (max-width: 640px) {
+  .container-1280 { padding: 0 14px; }
+
+  /* ---------- Nav: hide text links, keep logo + Reddit pill ---------- */
+  .nav-link-text { display: none !important; }
+  .nav-logo { height: 30px !important; }
+  .nav-row { padding: 12px 14px !important; gap: 10px !important; }
+  .nav-reddit { padding: 6px 10px !important; font-size: 12px !important; }
+
+  /* ---------- Hero: stack text + parrot ---------- */
+  .hero-bleed { padding: 36px 0 48px !important; }
+  .hero-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 18px !important;
+  }
+  .hero-text  { flex: 1 1 auto !important; }
+  .hero-mascot {
+    flex: 0 0 auto !important;
+    order: -1 !important; /* parrot above the text on mobile */
+    margin: 0 auto !important;
+  }
+  .hero-mascot img { max-width: 220px !important; }
+  .hero-title {
+    font-size: 36px !important;
+    line-height: 1 !important;
+    letter-spacing: -0.6px !important;
+    margin-bottom: 14px !important;
+  }
+  .hero-sub { font-size: 15px !important; margin-bottom: 18px !important; }
+  .hero-slider-card { transform: none !important; max-width: 100% !important; }
+  .hero-cta-row { gap: 10px !important; }
+  .hero-cta-row .btn-red { font-size: 14px !important; padding: 11px 16px !important; }
+  /* Keep the hand-drawn arrow visible on mobile — pointing from slider card
+     down to the CTA. Shrink it and let it sit on its own line so it doesn't
+     overflow the CTA row. */
+  .hero-arrow {
+    width: 36px !important;
+    height: 44px !important;
+    margin-left: 4px !important;
+    margin-top: -4px !important;
+    transform: rotate(8deg);
+  }
+  .hero-reddit-pill { font-size: 12px !important; }
+
+  /* SSO section tightens on phone (buttons already stack via base styles) */
+  .sso-section { padding: 36px 14px 44px !important; }
+
+  /* Sample-output practical-info grid: single column */
+  .sample-info-grid { grid-template-columns: 1fr !important; }
+
+  /* ---------- Section summary / body: tighter padding ---------- */
+  .aruba-section > summary { padding: 18px 14px !important; }
+  .aruba-section > summary h2 { font-size: 26px !important; }
+  .aruba-section > div[style*="padding"] {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+    padding-bottom: 36px !important;
+  }
+
+  /* ---------- Good to know: 1 col on phone ---------- */
+  .gtk-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
+
+  /* ---------- Sample-output: timeline day-block padding shrinks ---------- */
+  .sample-right > div { padding-left: 44px !important; }
+  .sample-right .day-badge { width: 36px !important; height: 36px !important; font-size: 15px !important; }
+
+  /* ---------- Footer ---------- */
+  .footer-content { padding: 22px 14px !important; }
+
+  /* ---------- Explore: hide sidebar (filters stay accessible later) ---------- */
+  .explore-row { flex-direction: column !important; gap: 18px !important; }
+  .explore-sidebar { display: none !important; }
+  .explore-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
+  .explore-head { padding: 22px 14px !important; }
+  .explore-head h1 { font-size: 32px !important; }
+
+  /* ---------- Itinerary: tighter header + day card stacks ---------- */
+  .itin-header { padding: 22px 14px !important; }
+  .itin-header h1 { font-size: 32px !important; }
+  .itin-header-counter {
+    padding: 10px 14px !important;
+    gap: 10px !important;
+  }
+  .itin-header-counter .font-display { font-size: 22px !important; }
+  .itin-header-counter .btn-red { padding: 8px 10px !important; font-size: 12px !important; margin-left: 6px !important; }
+
+  /* Day-block heading + badge */
+  .itin-day-wrapper { padding-left: 48px !important; }
+  .itin-day-wrapper .day-badge { width: 36px !important; height: 36px !important; font-size: 15px !important; }
+  .itin-day-wrapper h2 { font-size: 24px !important; margin-top: 0 !important; }
+
+  /* Activity card: stack image above body */
+  .flip-card { height: auto !important; }
+  .itin-card-front, .itin-card-front > div:first-child {
+    flex-direction: column !important;
+    height: auto !important;
+  }
+  .itin-card-image-btn {
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    height: 160px !important;
+  }
+  .itin-card-body { padding: 12px 14px !important; }
+
+  /* Back face also needs height auto + stacked panels */
+  .itin-card-back { height: auto !important; min-height: 280px; padding: 14px !important; }
+  .itin-card-back-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  /* Sticky bottom action bar wraps */
+  .itin-action-bar {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    padding: 12px 14px !important;
+    gap: 8px !important;
+  }
+
+  /* ---------- Questionnaire: smaller heading + footer ---------- */
+  .questionnaire-content h2 { font-size: 30px !important; }
+  .questionnaire-footer { padding: 12px 0 !important; }
+  .questionnaire-footer .container-1280 { padding: 0 14px !important; }
+}
+
+/* Spinner */
+.spinner {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  border: 5px solid rgba(0,0,0,0.1);
+  border-top-color: var(--red);
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
