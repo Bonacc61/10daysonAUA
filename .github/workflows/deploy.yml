@@ -29,23 +29,22 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Configure SSH
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+      - name: Install lftp
         run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$SFTP_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lftp
 
-      - name: Deploy dist/ to TransIP via rsync over SSH
+      - name: Deploy dist/ to TransIP via SFTP
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_USER: ${{ secrets.SFTP_USER }}
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
           SFTP_PATH: ${{ secrets.SFTP_PATH }}
         run: |
-          rsync -avz --delete \
-            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
-            dist/ "$SFTP_USER@$SFTP_HOST:$SFTP_PATH"
+          lftp -u "$SFTP_USER,$SFTP_PASSWORD" "sftp://$SFTP_HOST" <<EOF
+          set sftp:auto-confirm yes
+          set net:max-retries 2
+          set net:reconnect-interval-base 5
+          mirror --reverse --delete --verbose ./dist/ $SFTP_PATH
+          bye
+          EOF
