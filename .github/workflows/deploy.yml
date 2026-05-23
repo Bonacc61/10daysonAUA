@@ -46,5 +46,8 @@ jobs:
           set net:max-retries 2
           set net:reconnect-interval-base 5
           mirror --reverse --delete --verbose ./dist/ $SFTP_PATH
+          # Force index.html every time: its byte-size is identical when only the
+          # hashed asset name inside changes, so lftp's size/time mirror skips it.
+          put -O $SFTP_PATH ./dist/index.html
           bye
           EOF
