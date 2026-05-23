@@ -49,7 +49,7 @@ export default function OtherSuggestionsList({
           fontFamily: 'inherit',
         }}
       >
-        {open ? '▾' : '▸'} Other suggestions ({items.length})
+        Other suggestions {open ? '−' : '+'}
       </button>
       {/* Drawer height animates in lockstep with the card height (see
           otherSuggestionsExpandedPx). CSS var lets the mobile media query
