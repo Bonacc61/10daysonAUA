@@ -1,0 +1,121 @@
+{
+    "productCode": "103020P7",
+    "title": "Luxury Private Yacht Charter Aruba - Eden Luca Yachts",
+    "description": "It is your private de luxe yacht trip | Undivided attention | Comfort and luxury\n\nThe uniqueness of this cruise is that you design the program with the captain were to go (taking into account the wind and waves, amount of hours for that day). Our Captain will give you advise about the best conditions at your day so you will have the best trip.\n\nYou will have the undivided attention of our knowledgeable as well as personable Captain and first mate serving your friends or family. \n\nPlus you are in the comfort and luxury of our beautiful ocean going motorized cruiser with strong and good serviced engines, so you are save to go.\n\nYou can sit, relax and enjoy the beautiful Arubean sea with your music in the background. We have USB or a Bluetooth connection.\nDuring your boat trip you can choose to go snorkeling, paddle or lie down on our sunset pad on the deck.",
+    "images": [
+        {
+            "imageSource": "SUPPLIER_PROVIDED",
+            "caption": "",
+            "isCover": true,
+            "variants": [
+                {
+                    "height": 100,
+                    "width": 100,
+                    "url": "https://media-cdn.tripadvisor.com/media/attractions-splice-spp-100x100/17/0d/d8/53.jpg"
+                },
+                {
+                    "height": 200,
+                    "width": 200,
+                    "url": "https://media-cdn.tripadvisor.com/media/attractions-splice-spp-200x200/17/0d/d8/53.jpg"
+                },
+                {
+                    "height": 400,
+                    "width": 400,
+                    "url": "https://media-cdn.tripadvisor.com/media/attractions-splice-spp-400x400/17/0d/d8/53.jpg"
+                },
+                {
+                    "height": 240,
+                    "width": 360,
+                    "url": "https://media-cdn.tripadvisor.com/media/attractions-splice-spp-360x240/17/0d/d8/53.jpg"
+                },
+                {
+                    "height": 320,
+                    "width": 480,
+                    "url": "https://media-cdn.tripadvisor.com/media/attractions-splice-spp-480x320/17/0d/d8/53.jpg"
+                },
+                {
+                    "height": 360,
+                    "width": 540,
+                    "url": "https://media-cdn.tripadvisor.com/media/attractions-splice-spp-540x360/17/0d/d8/53.jpg"
+                },
+                {
+                    "height": 446,
+                    "width": 674,
+                    "url": "https://media-cdn.tripadvisor.com/media/attractions-splice-spp-674x446/17/0d/d8/53.jpg"
+                },
+                {
+                    "height": 480,
+                    "width": 720,
+                    "url": "https://media-cdn.tripadvisor.com/media/attractions-splice-spp-720x480/17/0d/d8/53.jpg"
+                },
+                {
+                    "height": 118,
+                    "width": 210,
+                    "url": "https://media-cdn.tripadvisor.com/media/attractions-splice-spp-210x118/17/0d/d8/53.jpg"
+                },
+                {
+                    "height": 75,
+                    "width": 75,
+                    "url": "https://media-cdn.tripadvisor.com/media/attractions-splice-spp-75x75/17/0d/d8/53.jpg"
+                }
+            ]
+        }
+    ],
+    "reviews": {
+        "sources": [
+            {
+                "provider": "VIATOR",
+                "totalCount": 10,
+                "averageRating": 5
+            },
+            {
+                "provider": "TRIPADVISOR",
+                "totalCount": 180,
+                "averageRating": 5
+            }
+        ],
+        "totalReviews": 190,
+        "combinedAverageRating": 5
+    },
+    "duration": {
+        "variableDurationFromMinutes": 180,
+        "variableDurationToMinutes": 240
+    },
+    "confirmationType": "MANUAL",
+    "itineraryType": "STANDARD",
+    "pricing": {
+        "summary": {
+            "fromPrice": 2132
+        },
+        "currency": "USD"
+    },
+    "productUrl": "https://www.viator.com/tours/Aruba/Eden-Luca-Private-Yacht-Charters/d28-103020P7?mcid=42383&pid=P00302487&medium=api&api_version=2.0",
+    "destinations": [
+        {
+            "ref": "28",
+            "primary": true
+        }
+    ],
+    "tags": [
+        11928,
+        20255,
+        367661,
+        367658,
+        11929,
+        367653,
+        22046,
+        367664,
+        11938,
+        367654,
+        11941,
+        11885
+    ],
+    "flags": [
+        "FREE_CANCELLATION",
+        "PRIVATE_TOUR"
+    ],
+    "translationInfo": {
+        "containsMachineTranslatedText": false,
+        "translationSource": "ORIGINAL"
+    }
+}

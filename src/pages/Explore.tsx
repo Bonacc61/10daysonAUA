@@ -1,9 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Search, Star, MapPin, Clock, Dollar, Plus, Check, X } from '../components/Icons';
 import Footer from '../components/Footer';
 import GroupCard from '../components/GroupCard';
 import { CATEGORIES, BUDGET_FILTERS } from '../data/activities';
-import { getCatalog } from '../data/activitySource';
+import { useCatalog } from '../data/useCatalog';
 import type { ViatorGroup, ViatorItem } from '../types';
 import type { PageId } from '../App';
 
@@ -19,7 +19,7 @@ const GROUP_TAXONOMY_TO_CATEGORY: Record<string, typeof CATEGORIES[number]> = {
 };
 
 export default function Explore({ setPage }: Props) {
-  const catalog = useMemo(() => getCatalog(), []);
+  const catalog = useCatalog();
 
   const [category, setCategory] = useState<string>('All');
   const [search, setSearch] = useState('');

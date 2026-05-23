@@ -11,7 +11,8 @@ import { Bookmark, Chev, X } from '../components/Icons';
 import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
 import { SAMPLE_ITINERARY, INFO_TOPICS } from '../data/activities';
-import { getCatalog, otherItemsInGroup } from '../data/activitySource';
+import { otherItemsInGroup } from '../data/activitySource';
+import { useCatalog } from '../data/useCatalog';
 import { matchPool, blendPools } from '../data/matcher';
 import { answersToTags } from '../data/answerTags';
 import {
@@ -30,7 +31,7 @@ const SECTION_META: { id: Slot; label: string }[] = [
 ];
 
 export default function Itinerary({ setPage, answers }: Props) {
-  const catalog = useMemo(() => getCatalog(), []);
+  const catalog = useCatalog();
   const tags    = useMemo(() => answersToTags(answers), [answers]);
 
   const tripDays = Math.max(1, Math.min(answers.days || 5, SAMPLE_ITINERARY.length));
