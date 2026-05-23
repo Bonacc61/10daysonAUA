@@ -15,6 +15,10 @@ export type Activity = {
   rating: number;
   reviewCount: number;
   matched_by: MatchTag[];
+  // Set at runtime when a curated Viator product is matched to this local pick
+  // (loadCatalog merges it in). Editorial title/blurb stay; rating/image/link
+  // come from the matched product. Absent for purely-editorial picks.
+  viator_item_url?: string;
 };
 
 export type Day = {

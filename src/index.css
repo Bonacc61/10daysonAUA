@@ -535,9 +535,11 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   .itin-day-wrapper .day-badge { width: 36px !important; height: 36px !important; font-size: 15px !important; }
   .itin-day-wrapper h2 { font-size: 24px !important; margin-top: 0 !important; }
 
-  /* Activity card: stack image above body */
+  /* Activity + group cards: stack image above body. The split row carries the
+     .itin-card-split class on both card types (ActivityCardFront and the group
+     ItineraryBody), so the column-switch reaches the actual image+body row. */
   .flip-card { height: auto !important; }
-  .itin-card-front, .itin-card-front > div:first-child {
+  .itin-card-split {
     flex-direction: column !important;
     height: auto !important;
   }

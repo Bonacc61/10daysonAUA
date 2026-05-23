@@ -6,10 +6,19 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { GROUPS, ARUBA_DESTINATION_ID } from './groups.ts';
 import { normalizeProduct } from './normalize.ts';
-import { hasKey, ping, searchProducts } from './viator.ts';
+import { hasKey, ping, searchProducts, freetextSearch, getProduct } from './viator.ts';
 
 const SEARCH_COUNT = 24; // candidates fetched per group (room to backfill after de-dup)
 const EMIT_CAP = 8;      // cards emitted per group
+
+// Curated matches: local editorial pick id → real Viator product code. The card
+// keeps its editorial title/blurb but pulls rating/image/price/link from this product.
+const LOCAL_MATCHES: Record<string, string> = {
+  'boca-catalina-snorkel': '8936P1',          // Arusun Catamaran Sail w/ Snorkeling
+  'antilla-wreck-dive':    '2785AFTSNORKEL',  // Antilla Shipwreck & Catalina Bay Snorkel Sail
+  'natural-pool-jeep':     '6841POOL',        // Natural Pool & Indian Cave Jeep Safari
+  'oranjestad-walking':    '62666P1',         // Downtown Historic & Cultural Walking Tour
+};
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -27,6 +36,27 @@ serve(async (req) => {
   if (op === 'health') {
     try { return json(await ping()); }
     catch (e) { return json({ ok: false, error: String(e) }, 502); }
+  }
+  // TEMPORARY: find the best Viator product match for each bookable local pick.
+  if (op === 'match') {
+    const queries: Array<{ localId: string; q: string }> = [
+      { localId: 'boca-catalina-snorkel', q: 'Boca Catalina snorkel' },
+      { localId: 'antilla-wreck-dive',    q: 'Antilla shipwreck snorkel dive' },
+      { localId: 'arikok-hiking',         q: 'Arikok National Park hike' },
+      { localId: 'natural-pool-jeep',     q: 'Natural Pool Conchi jeep' },
+      { localId: 'kitesurfing-lesson',    q: 'kitesurfing lesson' },
+      { localId: 'baby-beach-snorkel',    q: 'Baby Beach snorkel' },
+      { localId: 'flamingo-renaissance',  q: 'flamingo island' },
+      { localId: 'oranjestad-walking',    q: 'Oranjestad walking tour' },
+    ];
+    const out: Record<string, unknown> = {};
+    await Promise.all(queries.map(async ({ localId, q }) => {
+      try {
+        const res = await freetextSearch(q, ARUBA_DESTINATION_ID, 2);
+        out[localId] = res.map(normalizeProduct).map((n) => ({ id: n.id, title: n.title, price: n.price_usd, rating: n.rating, reviews: n.review_count }));
+      } catch (e) { out[localId] = { error: String(e) }; }
+    }));
+    return json(out);
   }
   // TEMPORARY: report Aruba inventory count per candidate anchor tag.
   if (op === 'counts') {
@@ -87,7 +117,23 @@ serve(async (req) => {
       });
     }
 
-    return json({ groups, items, source: 'viator-live' });
+    // Live data for curated local-pick matches (rating/image/price/link).
+    const localMatches: Record<string, unknown> = {};
+    await Promise.all(Object.entries(LOCAL_MATCHES).map(async ([localId, code]) => {
+      try {
+        const n = normalizeProduct(await getProduct(code));
+        localMatches[localId] = {
+          rating: n.rating,
+          review_count: n.review_count,
+          image_url: n.image_url,
+          viator_item_url: n.viator_item_url,
+          price_usd: n.price_usd,
+          duration: n.duration,
+        };
+      } catch { /* leave unmatched → card stays editorial */ }
+    }));
+
+    return json({ groups, items, localMatches, source: 'viator-live' });
   } catch (e) {
     // Frontend falls back to the local stub on any failure.
     return json({ error: String(e) }, 502);

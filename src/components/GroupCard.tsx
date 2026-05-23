@@ -217,7 +217,7 @@ function ItineraryBody({
   onPickReason?: (reason: SwapReason) => void;
 }) {
   return (
-    <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+    <div className="itin-card-split" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
       {/* Bleeding-edge image — full card height; clicking flips to ratings */}
       <button
         className="itin-card-image-btn"

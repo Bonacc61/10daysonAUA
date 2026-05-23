@@ -50,7 +50,24 @@ export function loadCatalog(): Promise<Catalog> {
       if (data?.error || !Array.isArray(groups) || !Array.isArray(items) || items.length === 0) {
         throw new Error('viator-cards: empty/invalid payload');
       }
-      liveCatalog = { activities: ACTIVITIES, groups, items };
+      // Merge curated local-pick matches: override image/rating/reviews + attach
+      // the affiliate link, keeping the editorial title/blurb. Editorial picks
+      // (no match) pass through unchanged.
+      const matches: Record<string, {
+        rating?: number; review_count?: number; image_url?: string; viator_item_url?: string;
+      }> = data?.localMatches ?? {};
+      const activities = ACTIVITIES.map((a) => {
+        const m = matches[a.id];
+        if (!m) return a;
+        return {
+          ...a,
+          image: m.image_url || a.image,
+          rating: typeof m.rating === 'number' && m.rating > 0 ? m.rating : a.rating,
+          reviewCount: typeof m.review_count === 'number' ? m.review_count : a.reviewCount,
+          viator_item_url: m.viator_item_url,
+        };
+      });
+      liveCatalog = { activities, groups, items };
       return liveCatalog;
     } catch {
       return getCatalog(); // stub fallback

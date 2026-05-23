@@ -193,7 +193,12 @@ export default function Explore({ setPage }: Props) {
                           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Dollar size={11} /> {a.cost}</span>
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
-                          <button className="btn-ghost" style={{ flex: 1, padding: '9px 12px', fontSize: 13 }}>View details</button>
+                          {a.viator_item_url ? (
+                            <a className="btn-ghost" href={a.viator_item_url} target="_blank" rel="noopener noreferrer"
+                               style={{ flex: 1, padding: '9px 12px', fontSize: 13, textDecoration: 'none', textAlign: 'center', display: 'inline-block' }}>View details</a>
+                          ) : (
+                            <button className="btn-ghost" style={{ flex: 1, padding: '9px 12px', fontSize: 13 }}>View details</button>
+                          )}
                           <button
                             onClick={() => toggleAdd(a.id)}
                             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: 12, border: '2px solid var(--ink)', fontWeight: 700, fontFamily: 'inherit', fontSize: 13, cursor: 'pointer', background: isAdded ? 'var(--green)' : 'var(--red)', color: 'var(--cream)', boxShadow: '3px 3px 0 var(--ink)' }}

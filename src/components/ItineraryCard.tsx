@@ -97,7 +97,7 @@ function ActivityCardFront({
       <div className="card-header-band">
         <div className="chb-title">{a.category}</div>
       </div>
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <div className="itin-card-split" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <button
           className="itin-card-image-btn"
           onClick={onFlip}
@@ -123,9 +123,18 @@ function ActivityCardFront({
           <div style={{ display: 'flex', alignItems: 'flex-start',
                         justifyContent: 'space-between', gap: 12 }}>
             <div style={{ minWidth: 0 }}>
-              <h3 className="font-display" style={{
-                fontSize: 19, lineHeight: 1.15, margin: '0 0 6px', color: 'var(--ink)',
-              }}>{a.title}</h3>
+              {a.viator_item_url ? (
+                <a href={a.viator_item_url} target="_blank" rel="noopener noreferrer"
+                   style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <h3 className="font-display" style={{
+                    fontSize: 19, lineHeight: 1.15, margin: '0 0 6px', color: 'var(--ink)',
+                  }}>{a.title}</h3>
+                </a>
+              ) : (
+                <h3 className="font-display" style={{
+                  fontSize: 19, lineHeight: 1.15, margin: '0 0 6px', color: 'var(--ink)',
+                }}>{a.title}</h3>
+              )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 4,
                             color: 'var(--sand-500)', fontSize: 12, marginBottom: 6 }}>
                 <MapPin size={12} /><span>{a.location}</span>
@@ -154,7 +163,7 @@ function ActivityCardFront({
             </span>
           </div>
           <div style={{ marginTop: 'auto' }}>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button onClick={onApprove}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -172,6 +181,19 @@ function ActivityCardFront({
                          padding: '8px 13px', fontSize: 13 }}>
                 <Swap size={13} aria-hidden /> Swap this
               </button>
+              {a.viator_item_url && (
+                <a href={a.viator_item_url} target="_blank" rel="noopener noreferrer"
+                   style={{
+                     display: 'inline-flex', alignItems: 'center', gap: 6,
+                     padding: '8px 13px', borderRadius: 12,
+                     border: '2px solid var(--ink)', fontWeight: 700,
+                     fontFamily: 'inherit', fontSize: 13, cursor: 'pointer',
+                     background: 'var(--coral)', color: 'var(--cream)',
+                     textDecoration: 'none', boxShadow: '3px 3px 0 var(--ink)',
+                   }}>
+                  Book a tour ↗
+                </a>
+              )}
             </div>
             <SwapReasons open={!!showReasons} onPick={(r) => onPickReason?.(r)} />
           </div>
