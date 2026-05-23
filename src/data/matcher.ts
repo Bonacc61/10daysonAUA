@@ -1,5 +1,5 @@
 import type { Activity } from './activities';
-import type { ViatorGroup, ViatorItem, MatchTag, CardEntry, Slot } from '../types';
+import type { ViatorGroup, ViatorItem, MatchTag, CardEntry, Slot, SwapReason } from '../types';
 
 type PoolFilters = {
   rejectedIds: Set<string>;
@@ -63,4 +63,60 @@ export function blendPools(
   }
 
   return out;
+}
+
+// --- Reason-aware swap constraints -----------------------------------------
+// "Why swap?" chips must actually constrain the replacement, not just reject
+// the current pick (otherwise the rating-sorted, group-first pool can answer
+// "too pricey" with the most expensive tour). Pure + unit-tested.
+
+// Parse a "from" price out of a local activity cost string.
+// "Free" / "Free + $10 rental" → 0; "$65 guided" → 65; "$8–15 pp" → 8.
+export function parseActivityCost(cost: string): number {
+  if (/free/i.test(cost)) return 0;
+  const m = cost.match(/\d+/);
+  return m ? parseInt(m[0], 10) : 0;
+}
+
+export function entryPrice(e: CardEntry): number {
+  return e.kind === 'group' ? e.bestSeller.price_usd : parseActivityCost(e.activity.cost);
+}
+
+function entryCategory(e: CardEntry): string {
+  return e.kind === 'group' ? e.group.id : e.activity.category;
+}
+
+function entryRegion(e: CardEntry): string | undefined {
+  return e.kind === 'group' ? e.group.region : undefined;
+}
+
+// Filter candidates by the swap reason. If a constraint would empty the pool,
+// fall back to the unconstrained candidates so a swap always yields something.
+export function constrainBySwapReason(
+  candidates: CardEntry[],
+  reason: SwapReason,
+  current: CardEntry,
+): CardEntry[] {
+  const narrow = (pred: (c: CardEntry) => boolean) => {
+    const kept = candidates.filter(pred);
+    return kept.length ? kept : candidates;
+  };
+  switch (reason) {
+    case 'too-pricey': {
+      const cap = entryPrice(current);
+      return narrow((c) => entryPrice(c) < cap);
+    }
+    case 'too-far': {
+      const r = entryRegion(current);
+      return r ? narrow((c) => entryRegion(c) !== r) : candidates;
+    }
+    case 'not-our-vibe': {
+      const cat = entryCategory(current);
+      return narrow((c) => entryCategory(c) !== cat);
+    }
+    case 'done-it':
+    case 'just-show-another':
+    default:
+      return candidates;
+  }
 }

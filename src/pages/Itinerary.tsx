@@ -13,10 +13,11 @@ import ItineraryCard from '../components/ItineraryCard';
 import { SAMPLE_ITINERARY, INFO_TOPICS } from '../data/activities';
 import { otherItemsInGroup } from '../data/activitySource';
 import { useCatalog } from '../data/useCatalog';
-import { matchPool, blendPools } from '../data/matcher';
+import { matchPool, blendPools, constrainBySwapReason, entryPrice } from '../data/matcher';
 import { answersToTags } from '../data/answerTags';
+import { logEvent } from '../data/feedback';
 import {
-  seedPlan, addCard, removeCard, replaceCardEntry, moveCard,
+  seedPlan, addCard, removeCard, replaceCardEntry, moveCard, findCard,
   newUid, type PlannedDay, type PlannedCard,
 } from '../data/itineraryPlan';
 import type { CardEntry, SlotEntry, Slot, SwapReason, ViatorItem } from '../types';
@@ -66,12 +67,36 @@ export default function Itinerary({ setPage, answers }: Props) {
     if (next.has(uid)) next.delete(uid); else next.add(uid);
     return next;
   };
-  const onApprove  = (uid: string) => setApproved((s) => toggle(s, uid));
+  // Telemetry helper: resolve a card uid → { day, slot, id, kind } for logging.
+  const cardCtx = (uid: string) => {
+    const loc = findCard(plan, uid);
+    if (!loc) return null;
+    const e = loc.card.entry;
+    return {
+      day: plan[loc.dayIdx].day,
+      slot: loc.section,
+      id: e.kind === 'activity' ? e.id : e.bestSellerId,
+      kind: e.kind,
+    };
+  };
+
+  const onApprove = (uid: string) => {
+    if (!approved.has(uid)) {
+      const c = cardCtx(uid);
+      if (c) logEvent({ action: 'approve', day: c.day, slot: c.slot, from_id: c.id, from_kind: c.kind });
+    }
+    setApproved((s) => toggle(s, uid));
+  };
   const onFlip     = (uid: string) => setFlipped((s) => toggle(s, uid));
   const onOpenSwap = (uid: string) => setReasonOpen((s) => toggle(s, uid));
 
-  const onMove = (uid: string, toSection: Slot, toIndex: number) =>
+  const onMove = (uid: string, toSection: Slot, toIndex: number) => {
+    const c = cardCtx(uid);
+    if (c && c.slot !== toSection) {
+      logEvent({ action: 'move', day: c.day, slot: c.slot, to_section: toSection, from_id: c.id, from_kind: c.kind });
+    }
     setPlan((p) => moveCard(p, uid, toSection, toIndex));
+  };
 
   // "+ Add to itinerary" from an Other-suggestion row — appends a group card
   // (that item as best-seller) to the same day + section, with a fade-in.
@@ -80,10 +105,13 @@ export default function Itinerary({ setPage, answers }: Props) {
     setPlan((p) => addCard(p, dayNum, section, { kind: 'group', groupId: item.group_id, bestSellerId: item.id }, uid));
     setAppearing((s) => new Set(s).add(uid));
     window.setTimeout(() => setAppearing((s) => { const n = new Set(s); n.delete(uid); return n; }), 320);
+    logEvent({ action: 'add', day: dayNum, slot: section, to_id: item.id, to_kind: 'group', from_price: item.price_usd });
   };
 
   // Remove with a brief fade/collapse before unmounting.
   const onRemove = (uid: string) => {
+    const c = cardCtx(uid);
+    if (c) logEvent({ action: 'remove', day: c.day, slot: c.slot, from_id: c.id, from_kind: c.kind });
     setRemoving((s) => new Set(s).add(uid));
     window.setTimeout(() => {
       setPlan((p) => removeCard(p, uid));
@@ -100,30 +128,28 @@ export default function Itinerary({ setPage, answers }: Props) {
     const nextRejectedGroups = new Set(rejectedGroups);
     let next: SlotEntry | null = null;
 
-    if (entry.kind === 'group') {
-      if (reason === 'not-our-vibe') {
-        nextRejectedGroups.add(entry.group.id);
-        const { activities, groups } = matchPool(catalog.activities, catalog.groups, tags, slot);
-        const candidates = blendPools(activities, groups, catalog.items,
-          { rejectedIds: nextRejected, rejectedGroupIds: nextRejectedGroups });
-        const fresh = candidates.find((c) =>
-          c.kind === 'activity' ? c.activity.id !== entry.bestSeller.id : c.group.id !== entry.group.id);
-        if (fresh) next = fresh.kind === 'activity'
-          ? { kind: 'activity', id: fresh.activity.id }
-          : { kind: 'group', groupId: fresh.group.id, bestSellerId: fresh.bestSeller.id };
-      } else {
-        nextRejected.add(entry.bestSeller.id);
-        const pool = catalog.items
-          .filter((i) => i.group_id === entry.group.id && !nextRejected.has(i.id))
-          .sort((a, b) => (b.is_best_seller ? 1 : 0) - (a.is_best_seller ? 1 : 0) || a.display_order - b.display_order);
-        if (pool[0]) next = { kind: 'group', groupId: entry.group.id, bestSellerId: pool[0].id };
+    if (entry.kind === 'group' && reason !== 'not-our-vibe') {
+      // Rotate within the same Viator group, honouring the reason (too-pricey →
+      // a cheaper item in this group).
+      nextRejected.add(entry.bestSeller.id);
+      let pool = catalog.items.filter((i) => i.group_id === entry.group.id && !nextRejected.has(i.id));
+      if (reason === 'too-pricey') {
+        const cheaper = pool.filter((i) => i.price_usd < entry.bestSeller.price_usd);
+        if (cheaper.length) pool = cheaper;
       }
+      pool = pool.sort((a, b) => (b.is_best_seller ? 1 : 0) - (a.is_best_seller ? 1 : 0) || a.display_order - b.display_order);
+      if (pool[0]) next = { kind: 'group', groupId: entry.group.id, bestSellerId: pool[0].id };
     } else {
-      nextRejected.add(entry.activity.id);
+      // Cross-pool: reject the current pick (or the whole group for "not our
+      // vibe"), match, then apply the reason constraint to the candidates.
+      if (entry.kind === 'group') nextRejectedGroups.add(entry.group.id);
+      else nextRejected.add(entry.activity.id);
       const { activities, groups } = matchPool(catalog.activities, catalog.groups, tags, slot);
-      const candidates = blendPools(activities, groups, catalog.items,
-        { rejectedIds: nextRejected, rejectedGroupIds: nextRejectedGroups });
-      const fresh = candidates.find((c) => c.kind === 'activity' ? c.activity.id !== entry.activity.id : true);
+      const curId = entry.kind === 'activity' ? entry.activity.id : entry.group.id;
+      const pool = blendPools(activities, groups, catalog.items,
+        { rejectedIds: nextRejected, rejectedGroupIds: nextRejectedGroups })
+        .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId);
+      const fresh = constrainBySwapReason(pool, reason, entry)[0];
       if (fresh) next = fresh.kind === 'activity'
         ? { kind: 'activity', id: fresh.activity.id }
         : { kind: 'group', groupId: fresh.group.id, bestSellerId: fresh.bestSeller.id };
@@ -133,6 +159,14 @@ export default function Itinerary({ setPage, answers }: Props) {
     setRejectedGroups(nextRejectedGroups);
     if (!next) return;
     const newEntry = next;
+
+    logEvent({
+      action: 'swap', reason, slot,
+      from_id: entry.kind === 'activity' ? entry.activity.id : entry.bestSeller.id,
+      from_kind: entry.kind, from_price: entryPrice(entry),
+      to_id: newEntry.kind === 'activity' ? newEntry.id : newEntry.bestSellerId,
+      to_kind: newEntry.kind,
+    });
 
     setSwapping((s) => new Set(s).add(uid));
     window.setTimeout(() => setPlan((p) => replaceCardEntry(p, uid, newEntry)), 450);

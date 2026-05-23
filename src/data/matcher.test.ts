@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { matchPool, blendPools } from './matcher';
+import { matchPool, blendPools, parseActivityCost, entryPrice, constrainBySwapReason } from './matcher';
 import type { Activity } from './activities';
-import type { ViatorGroup, ViatorItem, MatchTag } from '../types';
+import type { ViatorGroup, ViatorItem, MatchTag, CardEntry } from '../types';
 import { DEFAULT_ANSWERS } from '../App';
 
 const mkActivity = (id: string, opts: Partial<Activity> = {}): Activity => ({
@@ -105,5 +105,60 @@ describe('blendPools — top-picks first, commercial tie-breaker', () => {
 describe('answer-tag end-to-end (sanity)', () => {
   it('DEFAULT_ANSWERS has adventureLevel 50', () => {
     expect(DEFAULT_ANSWERS.adventureLevel).toBe(50);
+  });
+});
+
+describe('parseActivityCost', () => {
+  it('treats "Free" as 0', () => expect(parseActivityCost('Free')).toBe(0));
+  it('treats "Free + $10 rental" as 0', () => expect(parseActivityCost('Free + $10 rental')).toBe(0));
+  it('extracts the from-price', () => {
+    expect(parseActivityCost('$65 guided')).toBe(65);
+    expect(parseActivityCost('$8–15 pp')).toBe(8);
+    expect(parseActivityCost('$11 + $45 tour')).toBe(11);
+  });
+});
+
+describe('constrainBySwapReason', () => {
+  const act = (id: string, cost: string, category: Activity['category'] = 'Activities'): CardEntry =>
+    ({ kind: 'activity', activity: mkActivity(id, { cost, category }) });
+  const grp = (id: string, price: number, region: ViatorGroup['region'] = 'palm-beach'): CardEntry =>
+    ({ kind: 'group', group: mkGroup(id, { region }), bestSeller: { ...mkItem(`${id}-bs`, id, true), price_usd: price }, others: [] });
+
+  it('too-pricey keeps only cheaper candidates (fixes the $25→$2132 yacht bug)', () => {
+    const current = act('cur', '$25');
+    const cands = [grp('yacht', 2132), act('cheap', '$15'), grp('mid', 80)];
+    const out = constrainBySwapReason(cands, 'too-pricey', current);
+    expect(out).toEqual([act('cheap', '$15')]);
+  });
+
+  it('too-pricey falls back to all candidates when none are cheaper', () => {
+    const current = act('cur', 'Free'); // 0 — nothing cheaper
+    const cands = [grp('a', 80), act('b', '$10')];
+    expect(constrainBySwapReason(cands, 'too-pricey', current)).toEqual(cands);
+  });
+
+  it('not-our-vibe excludes the same category/group', () => {
+    const current = act('cur', '$25', 'Watersports');
+    const cands = [act('w', '$30', 'Watersports'), act('f', '$30', 'Food')];
+    const out = constrainBySwapReason(cands, 'not-our-vibe', current);
+    expect(out.every((c) => c.kind === 'activity' && c.activity.category !== 'Watersports')).toBe(true);
+  });
+
+  it('too-far excludes the same region (group entries)', () => {
+    const current = grp('cur', 50, 'palm-beach');
+    const cands = [grp('same', 60, 'palm-beach'), grp('far', 60, 'noord')];
+    const out = constrainBySwapReason(cands, 'too-far', current);
+    expect(out).toEqual([grp('far', 60, 'noord')]);
+  });
+
+  it('just-show-another applies no constraint', () => {
+    const current = act('cur', '$25');
+    const cands = [grp('yacht', 2132), act('cheap', '$15')];
+    expect(constrainBySwapReason(cands, 'just-show-another', current)).toEqual(cands);
+  });
+
+  it('entryPrice reads group fromPrice and parses activity cost', () => {
+    expect(entryPrice(grp('g', 129))).toBe(129);
+    expect(entryPrice(act('a', '$65 guided'))).toBe(65);
   });
 });
