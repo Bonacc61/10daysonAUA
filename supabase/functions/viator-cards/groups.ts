@@ -33,7 +33,7 @@ export const GROUPS: GroupConfig[] = [
     matched_by: ['food-drink', 'culture-history', 'couple', 'friends'],
     region: 'islandwide',
     allowed_slots: ['evening'],
-    viator_group_url: `https://www.viator.com/Aruba-tours/Food-Wine-and-Nightlife/d28-g6?pid=${PID}`,
+    viator_group_url: `https://www.viator.com/Aruba/d28-ttd?pid=${PID}`,
   },
   {
     id: 'sailing-cruises',
@@ -43,7 +43,7 @@ export const GROUPS: GroupConfig[] = [
     matched_by: ['beach-chill', 'couple', 'cruise-day'],
     region: 'palm-beach',
     allowed_slots: ['afternoon', 'evening'],
-    viator_group_url: `https://www.viator.com/Aruba-tours/Cruises-Sailing-and-Water-Tours/d28-g12?pid=${PID}`,
+    viator_group_url: `https://www.viator.com/Aruba/d28-ttd?pid=${PID}`,
   },
   {
     id: 'watersports',
@@ -53,7 +53,7 @@ export const GROUPS: GroupConfig[] = [
     matched_by: ['watersports', 'beach-chill', 'med-adventure', 'high-adventure'],
     region: 'palm-beach',
     allowed_slots: ['morning', 'afternoon'],
-    viator_group_url: `https://www.viator.com/Aruba-tours/Water-Sports/d28-g15?pid=${PID}`,
+    viator_group_url: `https://www.viator.com/Aruba/d28-ttd?pid=${PID}`,
   },
   {
     id: 'adventure-tours',
@@ -63,6 +63,6 @@ export const GROUPS: GroupConfig[] = [
     matched_by: ['adventure', 'high-adventure', 'nature-hiking'],
     region: 'islandwide',
     allowed_slots: ['morning', 'afternoon'],
-    viator_group_url: `https://www.viator.com/Aruba-tours/Outdoor-Activities/d28-g16?pid=${PID}`,
+    viator_group_url: `https://www.viator.com/Aruba/d28-ttd?pid=${PID}`,
   },
 ];
