@@ -7,6 +7,7 @@
   --green: #22C55E;
   --blue: #3B82F6;
   --coral: #FF6B47;
+  --color-card-header-dark: #1B3A2F;
   --sand-50: #FAF7F2;
   --sand-100: #F0EAE0;
   --sand-200: #DDD3C4;
@@ -26,6 +27,139 @@ body {
 .font-display { font-family: 'Caprasimo', Georgia, serif; letter-spacing: -0.5px; }
 
 .chunky { background: var(--cream); border: 2px solid var(--ink); border-radius: 16px; box-shadow: 5px 5px 0 var(--ink); }
+
+/* Dark-green header band shared by Viator group cards and community activity cards.
+   Only visual difference between the two variants is the chevron on the clickable one. */
+.card-header-band {
+  background: var(--color-card-header-dark);
+  color: var(--cream);
+  padding: 10px 14px;
+  border-radius: 14px 14px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-decoration: none;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+.card-header-band .chb-title    { font-weight: 700; font-size: 13px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-header-band .chb-subtitle { font-size: 10px; opacity: 0.7; margin-top: 2px; line-height: 1.2; }
+.card-header-band .chb-chev     { font-size: 16px; line-height: 1; flex-shrink: 0; }
+a.card-header-band               { transition: filter 0.12s; }
+a.card-header-band:hover         { filter: brightness(1.18); }
+a.card-header-band:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+
+/* "Why swap?" reason chip strip — sits below the action row and animates
+   open/closed via the WRAPPER's height (not max-height). The wrapper height
+   transition is kept in lockstep with the flip-card height transition (both
+   0.3s ease) so the action row above stays put while the strip reveals.
+   See SWAP_REASONS_OPEN_PX in SwapReasons.tsx + REASONS_EXTRA in ItineraryCard. */
+.swap-reasons-wrap {
+  height: 0;
+  margin-top: 0;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  transition: height 0.3s ease, margin-top 0.3s ease, opacity 0.22s ease;
+}
+.swap-reasons-wrap.open {
+  height: 44px;
+  margin-top: 8px;
+  opacity: 1;
+  pointer-events: auto;
+}
+.swap-reasons-inner {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 8px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--cream);
+}
+.swap-reason-label { font-size: 11px; color: var(--sand-700); font-weight: 600; margin-right: 4px; }
+.swap-reason-chip {
+  font-size: 10px; padding: 3px 8px;
+  border: 1px solid var(--ink); border-radius: 999px;
+  background: #FEF3C7; cursor: pointer; font-family: inherit;
+}
+.swap-reason-chip.danger { background: #FEE2E2; }
+
+/* On mobile the flip-card is height:auto and the chip strip can wrap to 2-3
+   rows, so let the wrapper grow naturally rather than clipping at 44px. */
+@media (max-width: 768px) {
+  .swap-reasons-wrap.open { height: auto; }
+}
+
+/* "Other suggestions" drawer — height animates in lockstep with the card so
+   the content above stays put. Inline --sug-h carries the computed open height. */
+.other-suggestions-body {
+  height: var(--sug-h, 0);
+  overflow: hidden;
+  transition: height 0.3s ease;
+}
+@media (max-width: 768px) {
+  .other-suggestions-body.open { height: auto; }
+}
+
+/* "+ Add" button on each Other-suggestions row (Itinerary only). */
+.other-suggestion-add {
+  flex-shrink: 0;
+  font-size: 11px; font-weight: 700; font-family: inherit;
+  padding: 5px 10px; border-radius: 999px; cursor: pointer;
+  border: 2px solid var(--ink); background: var(--coral); color: var(--cream);
+  box-shadow: 2px 2px 0 var(--ink); transition: transform 0.08s;
+}
+.other-suggestion-add:hover  { background: #ed5d3c; }
+.other-suggestion-add:active { transform: translate(2px, 2px); box-shadow: none; }
+
+/* ── Itinerary day sections (drag-and-drop) ─────────────────────────── */
+.itin-section-label { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sand-500); margin-bottom: 8px; }
+.itin-section-label span { color: var(--sand-200); font-weight: 600; letter-spacing: 0.06em; }
+
+.itin-section-zone {
+  border-radius: 12px;
+  outline: 2px dashed transparent; outline-offset: 3px;
+  transition: background 0.15s, outline-color 0.15s;
+}
+.itin-section-zone.over  { background: rgba(255,107,71,0.10); outline-color: var(--coral); }
+.itin-section-zone.empty { min-height: 56px; }
+.itin-section-empty {
+  border: 2px dashed var(--sand-200); border-radius: 12px;
+  padding: 16px; text-align: center; color: var(--sand-500);
+  font-size: 12px; font-style: italic; line-height: 1.4;
+}
+
+/* Per-card drag handle + remove control cluster (top-right of each card). */
+.itin-sortable { position: relative; }
+.itin-card-controls { position: absolute; top: 8px; right: 8px; z-index: 7; display: flex; gap: 4px; }
+.itin-card-grip, .itin-card-remove {
+  width: 26px; height: 26px; border-radius: 8px; padding: 0;
+  border: 2px solid var(--ink); background: var(--cream); color: var(--ink);
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: 2px 2px 0 var(--ink); line-height: 1;
+}
+.itin-card-grip { cursor: grab; touch-action: none; font-size: 14px; }
+.itin-card-grip:active { cursor: grabbing; }
+.itin-card-remove:hover { background: #FEE2E2; }
+
+/* Add / remove card animations. */
+@keyframes card-appear { from { opacity: 0; transform: translateY(-10px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes card-remove { to { opacity: 0; transform: scale(0.95); } }
+.itin-sortable.appearing { animation: card-appear 0.3s ease; }
+.itin-sortable.removing  { animation: card-remove 0.24s ease forwards; pointer-events: none; }
+
+/* Nav "Log In" CTA. */
+.nav-login {
+  font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+  padding: 8px 16px; border-radius: 12px;
+  border: 2px solid var(--ink); background: var(--yellow); color: var(--ink);
+  box-shadow: 3px 3px 0 var(--ink); transition: transform 0.08s;
+}
+.nav-login:hover  { background: #ffda5c; }
+.nav-login:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
 
 .btn-red { background: var(--red); color: var(--cream); border: 3px solid var(--ink); padding: 12px 22px; font-weight: 700; border-radius: 14px; box-shadow: 4px 4px 0 var(--ink); cursor: pointer; font-family: inherit; font-size: 15px; letter-spacing: -0.2px; transition: transform 0.08s; }
 .btn-red:hover { background: #c92d3a; }
@@ -79,7 +213,6 @@ body {
 .a-card:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--ink); }
 .a-card .a-img { height: 180px; overflow: hidden; position: relative; background: var(--sand-100); }
 .a-card .a-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.a-card .a-img .a-badge { position: absolute; top: 12px; left: 12px; background: var(--cream); border: 2px solid var(--ink); padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
 .a-card .a-img .a-rating { position: absolute; top: 12px; right: 12px; background: var(--ink); color: var(--yellow); padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
 
 .day-badge { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Caprasimo', Georgia, serif; font-size: 18px; color: white; border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); flex-shrink: 0; }
@@ -99,7 +232,7 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
    - Y axis (left ↔ right): triggered by clicking the image → shows ratings.
    - X axis (top ↔ bottom): triggered by clicking Swap → one full revolution
      while the activity content swaps at the half-way (edge-on) point.       */
-.flip-card { perspective: 1200px; }
+.flip-card { perspective: 1200px; transition: height 0.3s ease; }
 .flip-inner {
   position: relative;
   transition: transform 0.55s cubic-bezier(0.4, 0.0, 0.2, 1);

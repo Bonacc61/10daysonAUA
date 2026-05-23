@@ -75,6 +75,15 @@ export default function Nav({ page, setPage }: Props) {
             <span aria-hidden="true" style={{ width: 18, height: 18, borderRadius: '50%', background: '#FF4500', color: 'white', fontWeight: 700, fontSize: 11, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>r</span>
             <span className="nav-reddit-text">Reddit FAQ</span>
           </a>
+          <button
+            className="nav-login"
+            onClick={() => {
+              setPage('itinerary');
+              setTimeout(() => document.getElementById('save')?.scrollIntoView({ behavior: 'smooth' }), 60);
+            }}
+          >
+            Log in
+          </button>
         </div>
       </div>
     </div>

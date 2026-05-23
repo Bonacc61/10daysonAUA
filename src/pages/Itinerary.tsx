@@ -1,114 +1,146 @@
-import { useState } from 'react';
-import { Star, MapPin, Clock, Dollar, Check, Swap, Sparkle, Bookmark, Chev } from '../components/Icons';
-import Footer from '../components/Footer';
+import { useMemo, useState } from 'react';
 import {
-  ACTIVITIES,
-  SAMPLE_ITINERARY,
-  INFO_TOPICS,
-  activityById,
-  type Activity,
-  type Day,
-} from '../data/activities';
+  DndContext, closestCorners, PointerSensor, TouchSensor, KeyboardSensor,
+  useSensor, useSensors, useDroppable, type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext, useSortable, sortableKeyboardCoordinates, verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Bookmark, Chev, X } from '../components/Icons';
+import Footer from '../components/Footer';
+import ItineraryCard from '../components/ItineraryCard';
+import { SAMPLE_ITINERARY, INFO_TOPICS } from '../data/activities';
+import { getCatalog, otherItemsInGroup } from '../data/activitySource';
+import { matchPool, blendPools } from '../data/matcher';
+import { answersToTags } from '../data/answerTags';
+import {
+  seedPlan, addCard, removeCard, replaceCardEntry, moveCard,
+  newUid, type PlannedDay, type PlannedCard,
+} from '../data/itineraryPlan';
+import type { CardEntry, SlotEntry, Slot, SwapReason, ViatorItem } from '../types';
 import type { PageId, Answers } from '../App';
 
 type Props = { setPage: (p: PageId) => void; answers: Answers };
-type SlotKey = 'morning' | 'afternoon' | 'evening';
 
-/* ------------------------------------------------------------ *
- * Mocked review data — keyed off activity id. Mirrors the bolt  *
- * Itinerary card-flip pattern (r/Aruba mentions + TripAdvisor). *
- * Falls back to a generic blurb when an id isn't covered.       *
- * ------------------------------------------------------------ */
-const REDDIT_QUOTES: Record<string, { rating: number; mentions: number; quote: string }> = {
-  'eagle-beach-morning': { rating: 4.6, mentions: 312, quote: "Get there at 6:30am if you want a divi-divi for yourself. By 10 it's gone." },
-  'california-lighthouse-sunset': { rating: 4.3, mentions: 184, quote: 'Park up top and walk down the cliff path — way less crowded than the lighthouse itself.' },
-  'boca-catalina-snorkel': { rating: 4.5, mentions: 226, quote: "Turtles for sure. Don't kick the reef — locals will yell at you and they're right." },
-  'oranjestad-walking': { rating: 4.0, mentions: 91,  quote: "Skip the cruise-ship hours (9–1). Late afternoon is way nicer." },
-  'antilla-wreck-dive':  { rating: 4.7, mentions: 173, quote: 'World-class. The shallow sections work fine for AOW. Bring a torch.' },
-  'arikok-hiking':       { rating: 4.4, mentions: 152, quote: 'Guided is worth it — half the cave paintings are unmarked.' },
-  'natural-pool-jeep':   { rating: 4.6, mentions: 138, quote: "Bouncy as hell on the way in. Bring something secure for sunglasses." },
-  'flamingo-renaissance':{ rating: 4.1, mentions: 467, quote: 'Worth it once if you have the photo on the bucket list. Otherwise overhyped.' },
-  'zeerovers-fresh-catch': { rating: 4.8, mentions: 244, quote: "Wahoo, plantains, cold Balashi. That's the entire move." },
-  'gasparito-restaurant':  { rating: 4.5, mentions: 109, quote: 'Book ahead, especially Friday. The keshi yena is legit.' },
-  'kitesurfing-lesson':    { rating: 4.6, mentions: 78,  quote: '15+ knots almost every afternoon. Vela is the school most locals send people to.' },
-  'baby-beach-snorkel':    { rating: 4.4, mentions: 198, quote: 'Hidden gem if you make the drive. Bring water — no shops nearby.' },
-};
-
-const TA_QUOTES: Record<string, string> = {
-  'eagle-beach-morning': 'A must-do in Aruba. Book the early morning slot for the best experience.',
-  'california-lighthouse-sunset': "Beautiful sunset view. Arrive 30 minutes early for the best photo spot.",
-  'boca-catalina-snorkel': "We saw 4 sea turtles in an hour. Guide was patient with beginners.",
-  'oranjestad-walking': "Loved the architecture and the history. Our guide was a local who told us great stories.",
-  'antilla-wreck-dive': "Top dive of our trip. Visibility was incredible.",
-};
-
-function reviewFor(id: string) {
-  return {
-    reddit: REDDIT_QUOTES[id] ?? { rating: 4.2, mentions: 60, quote: 'Solid pick. Goes on most r/Aruba shortlists.' },
-    ta:     TA_QUOTES[id]    ?? 'Highly recommended by recent visitors.',
-  };
-}
+const SECTION_META: { id: Slot; label: string }[] = [
+  { id: 'morning',   label: 'Morning' },
+  { id: 'afternoon', label: 'Afternoon' },
+  { id: 'evening',   label: 'Evening' },
+];
 
 export default function Itinerary({ setPage, answers }: Props) {
-  const [approved, setApproved] = useState<Set<string>>(new Set());
-  const [swapForSlot, setSwapForSlot] = useState<Record<string, string>>({});
-  const [flipped, setFlipped] = useState<Set<string>>(new Set());
-  // Slots currently mid swap-flip animation. Used to add a CSS class.
-  const [swapping, setSwapping] = useState<Set<string>>(new Set());
+  const catalog = useMemo(() => getCatalog(), []);
+  const tags    = useMemo(() => answersToTags(answers), [answers]);
 
-  const onApprove = (id: string) => {
-    setApproved((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const onSwap = (day: number, slot: SlotKey, currentId: string) => {
-    const slotKey = `${day}-${slot}`;
-    // Don't fire a second swap animation if one is already in flight for this slot.
-    if (swapping.has(slotKey)) return;
-
-    const cur = activityById(currentId);
-    if (!cur) return;
-    const candidates = ACTIVITIES.filter((a) => a.category === cur.category && a.id !== currentId && !approved.has(a.id));
-    const pool = candidates.length ? candidates : ACTIVITIES.filter((a) => a.id !== currentId && !approved.has(a.id));
-    if (pool.length === 0) return;
-    const next = pool[Math.floor(Math.random() * pool.length)];
-
-    // Start the top↕bottom flip; swap the activity at the half-way point
-    // (edge-on) so the second half of the flip reveals the new card content.
-    // Timings track the 0.9s swap-flip keyframe in index.css.
-    setSwapping((prev) => new Set(prev).add(slotKey));
-    window.setTimeout(() => {
-      setSwapForSlot((prev) => ({ ...prev, [slotKey]: next.id }));
-    }, 450);
-    window.setTimeout(() => {
-      setSwapping((prev) => {
-        const n = new Set(prev);
-        n.delete(slotKey);
-        return n;
-      });
-    }, 920);
-  };
-
-  const onFlip = (slotKey: string) => {
-    setFlipped((prev) => {
-      const next = new Set(prev);
-      if (next.has(slotKey)) next.delete(slotKey);
-      else next.add(slotKey);
-      return next;
-    });
-  };
-
-  // Show only as many days as the user picked, capped to the sample length.
   const tripDays = Math.max(1, Math.min(answers.days || 5, SAMPLE_ITINERARY.length));
-  const days = SAMPLE_ITINERARY.slice(0, tripDays);
+  const [plan, setPlan] = useState<PlannedDay[]>(() => seedPlan(SAMPLE_ITINERARY.slice(0, tripDays)));
 
-  // Total slots counted for the approved counter.
-  const totalSlots = days.reduce((acc, d) => acc + Number(!!d.morning) + Number(!!d.afternoon) + Number(!!d.evening), 0);
-  const approvedCount = approved.size;
+  // Per-card UI state, all keyed by card uid.
+  const [approved,   setApproved]   = useState<Set<string>>(new Set());
+  const [flipped,    setFlipped]    = useState<Set<string>>(new Set());
+  const [swapping,   setSwapping]   = useState<Set<string>>(new Set());
+  const [reasonOpen, setReasonOpen] = useState<Set<string>>(new Set());
+  const [appearing,  setAppearing]  = useState<Set<string>>(new Set());
+  const [removing,   setRemoving]   = useState<Set<string>>(new Set());
+  // Rejection memory feeds the swap matcher so it won't re-offer dismissed picks.
+  const [rejected,       setRejected]       = useState<Set<string>>(new Set());
+  const [rejectedGroups, setRejectedGroups] = useState<Set<string>>(new Set());
+
+  const resolveEntry = (slotEntry: SlotEntry): CardEntry | null => {
+    if (slotEntry.kind === 'activity') {
+      const a = catalog.activities.find((x) => x.id === slotEntry.id);
+      return a ? { kind: 'activity', activity: a } : null;
+    }
+    const g = catalog.groups.find((x) => x.id === slotEntry.groupId);
+    if (!g) return null;
+    const bs = catalog.items.find((x) => x.id === slotEntry.bestSellerId);
+    if (!bs) return null;
+    const others = otherItemsInGroup(g.id, bs.id, catalog);
+    return { kind: 'group', group: g, bestSeller: bs, others };
+  };
+
+  const toggle = (set: Set<string>, uid: string) => {
+    const next = new Set(set);
+    if (next.has(uid)) next.delete(uid); else next.add(uid);
+    return next;
+  };
+  const onApprove  = (uid: string) => setApproved((s) => toggle(s, uid));
+  const onFlip     = (uid: string) => setFlipped((s) => toggle(s, uid));
+  const onOpenSwap = (uid: string) => setReasonOpen((s) => toggle(s, uid));
+
+  const onMove = (uid: string, toSection: Slot, toIndex: number) =>
+    setPlan((p) => moveCard(p, uid, toSection, toIndex));
+
+  // "+ Add to itinerary" from an Other-suggestion row — appends a group card
+  // (that item as best-seller) to the same day + section, with a fade-in.
+  const onAddItem = (dayNum: number, section: Slot, item: ViatorItem) => {
+    const uid = newUid();
+    setPlan((p) => addCard(p, dayNum, section, { kind: 'group', groupId: item.group_id, bestSellerId: item.id }, uid));
+    setAppearing((s) => new Set(s).add(uid));
+    window.setTimeout(() => setAppearing((s) => { const n = new Set(s); n.delete(uid); return n; }), 320);
+  };
+
+  // Remove with a brief fade/collapse before unmounting.
+  const onRemove = (uid: string) => {
+    setRemoving((s) => new Set(s).add(uid));
+    window.setTimeout(() => {
+      setPlan((p) => removeCard(p, uid));
+      setRemoving((s) => { const n = new Set(s); n.delete(uid); return n; });
+      setApproved((s) => { const n = new Set(s); n.delete(uid); return n; });
+    }, 240);
+  };
+
+  const onSwap = (uid: string, slot: Slot, entry: CardEntry, reason: SwapReason) => {
+    if (swapping.has(uid)) return;
+    setReasonOpen((s) => { const n = new Set(s); n.delete(uid); return n; });
+
+    const nextRejected = new Set(rejected);
+    const nextRejectedGroups = new Set(rejectedGroups);
+    let next: SlotEntry | null = null;
+
+    if (entry.kind === 'group') {
+      if (reason === 'not-our-vibe') {
+        nextRejectedGroups.add(entry.group.id);
+        const { activities, groups } = matchPool(catalog.activities, catalog.groups, tags, slot);
+        const candidates = blendPools(activities, groups, catalog.items,
+          { rejectedIds: nextRejected, rejectedGroupIds: nextRejectedGroups });
+        const fresh = candidates.find((c) =>
+          c.kind === 'activity' ? c.activity.id !== entry.bestSeller.id : c.group.id !== entry.group.id);
+        if (fresh) next = fresh.kind === 'activity'
+          ? { kind: 'activity', id: fresh.activity.id }
+          : { kind: 'group', groupId: fresh.group.id, bestSellerId: fresh.bestSeller.id };
+      } else {
+        nextRejected.add(entry.bestSeller.id);
+        const pool = catalog.items
+          .filter((i) => i.group_id === entry.group.id && !nextRejected.has(i.id))
+          .sort((a, b) => (b.is_best_seller ? 1 : 0) - (a.is_best_seller ? 1 : 0) || a.display_order - b.display_order);
+        if (pool[0]) next = { kind: 'group', groupId: entry.group.id, bestSellerId: pool[0].id };
+      }
+    } else {
+      nextRejected.add(entry.activity.id);
+      const { activities, groups } = matchPool(catalog.activities, catalog.groups, tags, slot);
+      const candidates = blendPools(activities, groups, catalog.items,
+        { rejectedIds: nextRejected, rejectedGroupIds: nextRejectedGroups });
+      const fresh = candidates.find((c) => c.kind === 'activity' ? c.activity.id !== entry.activity.id : true);
+      if (fresh) next = fresh.kind === 'activity'
+        ? { kind: 'activity', id: fresh.activity.id }
+        : { kind: 'group', groupId: fresh.group.id, bestSellerId: fresh.bestSeller.id };
+    }
+
+    setRejected(nextRejected);
+    setRejectedGroups(nextRejectedGroups);
+    if (!next) return;
+    const newEntry = next;
+
+    setSwapping((s) => new Set(s).add(uid));
+    window.setTimeout(() => setPlan((p) => replaceCardEntry(p, uid, newEntry)), 450);
+    window.setTimeout(() => setSwapping((s) => { const n = new Set(s); n.delete(uid); return n; }), 920);
+  };
+
+  const allCards = plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening]);
+  const totalSlots = allCards.length;
+  const approvedCount = allCards.filter((c) => approved.has(c.uid)).length;
 
   return (
     <>
@@ -119,7 +151,7 @@ export default function Itinerary({ setPage, answers }: Props) {
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.7)', marginBottom: 8 }}>Your itinerary</div>
               <h1 className="font-display" style={{ fontSize: 44, margin: '0 0 6px', color: 'var(--ink)', lineHeight: 1 }}>{tripDays} days, hand-picked.</h1>
               <p style={{ fontStyle: 'italic', fontSize: 15, color: 'rgba(0,0,0,0.75)', margin: 0, maxWidth: 640 }}>
-                Approve what you like, swap what you don't. Tap any card to flip it and see what locals on r/Aruba say.
+                Approve what you like, swap what you don't, and drag cards between morning, afternoon and evening.
               </p>
             </div>
             <div className="chunky itin-header-counter" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -136,7 +168,6 @@ export default function Itinerary({ setPage, answers }: Props) {
       <div className="bleed" style={{ background: 'var(--cream)', padding: '48px 0 80px' }}>
         <div className="container-1280">
           <div className="itinerary-layout">
-            {/* LEFT — practical-info rail. Sticky so it stays in view as you scroll. */}
             <aside className="itinerary-rail">
               <div className="font-display" style={{ fontSize: 16, letterSpacing: '-0.2px', color: 'var(--ink)', margin: '4px 0 14px' }}>
                 Practical info
@@ -154,20 +185,27 @@ export default function Itinerary({ setPage, answers }: Props) {
               ))}
             </aside>
 
-            {/* RIGHT — day-by-day timeline. */}
             <div className="itinerary-main">
-              {days.map((d, i) => (
+              {plan.map((d, i) => (
                 <ItineraryDay
                   key={d.day}
                   d={d}
-                  isLast={i === days.length - 1}
-                  swapForSlot={swapForSlot}
-                  flippedSet={flipped}
-                  approvedSet={approved}
-                  swappingSet={swapping}
+                  dayIdx={i}
+                  isLast={i === plan.length - 1}
+                  approved={approved}
+                  flipped={flipped}
+                  swapping={swapping}
+                  reasonOpen={reasonOpen}
+                  appearing={appearing}
+                  removing={removing}
+                  resolveEntry={resolveEntry}
                   onApprove={onApprove}
-                  onSwap={onSwap}
                   onFlip={onFlip}
+                  onOpenSwap={onOpenSwap}
+                  onSwap={onSwap}
+                  onAddItem={onAddItem}
+                  onRemove={onRemove}
+                  onMove={onMove}
                 />
               ))}
 
@@ -191,13 +229,154 @@ export default function Itinerary({ setPage, answers }: Props) {
   );
 }
 
+type DayHandlers = {
+  approved: Set<string>; flipped: Set<string>; swapping: Set<string>;
+  reasonOpen: Set<string>; appearing: Set<string>; removing: Set<string>;
+  resolveEntry: (e: SlotEntry) => CardEntry | null;
+  onApprove: (uid: string) => void;
+  onFlip: (uid: string) => void;
+  onOpenSwap: (uid: string) => void;
+  onSwap: (uid: string, slot: Slot, e: CardEntry, reason: SwapReason) => void;
+  onAddItem: (dayNum: number, section: Slot, item: ViatorItem) => void;
+  onRemove: (uid: string) => void;
+};
+
+function ItineraryDay({
+  d, dayIdx, isLast, onMove, ...h
+}: { d: PlannedDay; dayIdx: number; isLast: boolean; onMove: (uid: string, toSection: Slot, toIndex: number) => void } & DayHandlers) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 160, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const sectionOf = (uid: string): Slot | null => {
+    for (const { id } of SECTION_META) if (d[id].some((c) => c.uid === uid)) return id;
+    return null;
+  };
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    if (!e.over) return;
+    const activeUid = String(e.active.id);
+    const overId = String(e.over.id);
+    let toSection: Slot;
+    let toIndex: number;
+    if (overId.startsWith('zone:')) {
+      toSection = overId.split(':')[2] as Slot;
+      toIndex = d[toSection].length;
+    } else {
+      const sec = sectionOf(overId);
+      if (!sec) return;
+      toSection = sec;
+      const idx = d[sec].findIndex((c) => c.uid === overId);
+      toIndex = idx < 0 ? d[sec].length : idx;
+    }
+    onMove(activeUid, toSection, toIndex);
+  };
+
+  return (
+    <div className="itin-day-wrapper" style={{ position: 'relative', paddingLeft: 64, paddingBottom: isLast ? 0 : 40 }}>
+      {!isLast && <div className="timeline-rail" />}
+      <div className="day-badge" style={{ position: 'absolute', left: 0, top: 4, background: d.color, width: 44, height: 44, fontSize: 18 }}>{d.day}</div>
+      <h2 className="font-display" style={{ fontSize: 30, lineHeight: 1, margin: '6px 0 20px', color: 'var(--ink)' }}>
+        Day {d.day} <span style={{ color: 'var(--sand-500)', fontSize: 22, marginLeft: 6 }}>—</span> {d.title}
+      </h2>
+      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+        {SECTION_META.map(({ id, label }) => (
+          <Section
+            key={id}
+            dayIdx={dayIdx}
+            dayNum={d.day}
+            section={id}
+            label={label}
+            cards={d[id]}
+            {...h}
+          />
+        ))}
+      </DndContext>
+    </div>
+  );
+}
+
+function Section({
+  dayIdx, dayNum, section, label, cards, ...h
+}: { dayIdx: number; dayNum: number; section: Slot; label: string; cards: PlannedCard[] } & DayHandlers) {
+  const { setNodeRef, isOver } = useDroppable({ id: `zone:${dayIdx}:${section}` });
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div className="itin-section-label">{label}</div>
+      <SortableContext items={cards.map((c) => c.uid)} strategy={verticalListSortingStrategy}>
+        <div ref={setNodeRef} className={`itin-section-zone${isOver ? ' over' : ''}${cards.length === 0 ? ' empty' : ''}`}>
+          {cards.length === 0 && <div className="itin-section-empty">Drop an activity here, or add one from a card's “Other suggestions”.</div>}
+          {cards.map((card) => {
+            const entry = h.resolveEntry(card.entry);
+            if (!entry) return null;
+            return (
+              <SortableCard key={card.uid} card={card} entry={entry} section={section} dayNum={dayNum} {...h} />
+            );
+          })}
+        </div>
+      </SortableContext>
+    </div>
+  );
+}
+
+function SortableCard({
+  card, entry, section, dayNum,
+  approved, flipped, swapping, reasonOpen, appearing, removing,
+  onApprove, onFlip, onOpenSwap, onSwap, onAddItem, onRemove,
+}: { card: PlannedCard; entry: CardEntry; section: Slot; dayNum: number } & DayHandlers) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.uid });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 20 : undefined,
+    position: 'relative' as const,
+    marginBottom: 16,
+  };
+  const cls = ['itin-sortable'];
+  if (appearing.has(card.uid)) cls.push('appearing');
+  if (removing.has(card.uid))  cls.push('removing');
+
+  return (
+    <div ref={setNodeRef} style={style} className={cls.join(' ')}>
+      <div className="itin-card-controls">
+        <button
+          className="itin-card-grip"
+          aria-label="Drag to move between morning, afternoon and evening"
+          {...attributes}
+          {...listeners}
+        >⠿</button>
+        <button
+          className="itin-card-remove"
+          aria-label="Remove from itinerary"
+          onClick={() => onRemove(card.uid)}
+        ><X size={13} aria-hidden /></button>
+      </div>
+      <ItineraryCard
+        entry={entry}
+        flipped={flipped.has(card.uid)}
+        swapping={swapping.has(card.uid)}
+        approved={approved.has(card.uid)}
+        onFlip={() => onFlip(card.uid)}
+        onApprove={() => onApprove(card.uid)}
+        onSwap={() => onOpenSwap(card.uid)}
+        showReasons={reasonOpen.has(card.uid)}
+        onPickReason={(reason) => onSwap(card.uid, section, entry, reason)}
+        onAddItem={(item) => onAddItem(dayNum, section, item)}
+      />
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------ *
  *  Sign-in panel — sits between the itinerary and the footer.  *
  *  Stub buttons; no auth yet. Provider chips use brand colours. *
  * ------------------------------------------------------------ */
 function SsoLogin() {
   return (
-    <div className="bleed" style={{ background: 'var(--sand-50)', borderTop: '2px solid var(--ink)' }}>
+    <div id="save" className="bleed" style={{ background: 'var(--sand-50)', borderTop: '2px solid var(--ink)' }}>
       <div className="container-1280 sso-section" style={{ padding: '48px 36px 56px', textAlign: 'center' }}>
         <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 8px', color: 'var(--ink)' }}>
           Save your trip.
@@ -253,201 +432,5 @@ function ProtonLogo() {
       <circle cx="18" cy="18" r="18" fill="#6D4AFF"/>
       <path fill="#FFFFFF" d="M11 9h7.6c3.5 0 5.9 2.1 5.9 5.4 0 3.4-2.6 5.5-6.1 5.5h-3.3V27H11V9zm7 8c1.9 0 3-1 3-2.5s-1.1-2.5-3-2.5h-2.8V17H18z"/>
     </svg>
-  );
-}
-
-function ItineraryDay({
-  d, isLast, swapForSlot, flippedSet, approvedSet, swappingSet, onApprove, onSwap, onFlip,
-}: {
-  d: Day;
-  isLast: boolean;
-  swapForSlot: Record<string, string>;
-  flippedSet: Set<string>;
-  approvedSet: Set<string>;
-  swappingSet: Set<string>;
-  onApprove: (id: string) => void;
-  onSwap: (day: number, slot: SlotKey, currentId: string) => void;
-  onFlip: (slotKey: string) => void;
-}) {
-  const renderSlot = (slotKey: SlotKey, slotLabel: string) => {
-    const slotId = `${d.day}-${slotKey}`;
-    const overrideId = swapForSlot[slotId];
-    const id = overrideId ?? d[slotKey];
-    if (!id) {
-      return (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--sand-500)', marginBottom: 8 }}>{slotLabel}</div>
-          <button className="btn-ghost" style={{ width: '100%', padding: 22, fontStyle: 'italic', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--coral)', borderColor: 'var(--coral)' }}>
-            <Sparkle size={16} /> suggest lunchspot
-          </button>
-        </div>
-      );
-    }
-    const a = activityById(id);
-    if (!a) return null;
-    return (
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--sand-500)', marginBottom: 8 }}>{slotLabel}</div>
-        <ItineraryCard
-          a={a}
-          flipped={flippedSet.has(slotId)}
-          swapping={swappingSet.has(slotId)}
-          onFlip={() => onFlip(slotId)}
-          onApprove={() => onApprove(id)}
-          onSwap={() => onSwap(d.day, slotKey, id)}
-          approved={approvedSet.has(id)}
-        />
-      </div>
-    );
-  };
-
-  return (
-    <div className="itin-day-wrapper" style={{ position: 'relative', paddingLeft: 64, paddingBottom: isLast ? 0 : 40 }}>
-      {!isLast && <div className="timeline-rail" />}
-      <div className="day-badge" style={{ position: 'absolute', left: 0, top: 4, background: d.color, width: 44, height: 44, fontSize: 18 }}>{d.day}</div>
-      <h2 className="font-display" style={{ fontSize: 30, lineHeight: 1, margin: '6px 0 20px', color: 'var(--ink)' }}>
-        Day {d.day} <span style={{ color: 'var(--sand-500)', fontSize: 22, marginLeft: 6 }}>—</span> {d.title}
-      </h2>
-      {renderSlot('morning',   'Morning')}
-      {renderSlot('afternoon', 'Afternoon')}
-      {renderSlot('evening',   'Evening')}
-    </div>
-  );
-}
-
-function ItineraryCard({
-  a, flipped, swapping, onFlip, onApprove, onSwap, approved,
-}: {
-  a: Activity;
-  flipped: boolean;
-  swapping: boolean;
-  onFlip: () => void;
-  onApprove: () => void;
-  onSwap: () => void;
-  approved: boolean;
-}) {
-  // Fixed height so the absolute-positioned back face matches the front.
-  const HEIGHT = 200;
-  const classes = ['flip-card', 'fade-in'];
-  if (flipped)  classes.push('flipped');
-  if (swapping) classes.push('swap-flipping');
-  return (
-    <div className={classes.join(' ')} style={{ height: HEIGHT }}>
-      <div className="flip-inner" style={{ height: '100%' }}>
-        <CardFront a={a} approved={approved} onFlip={onFlip} onApprove={onApprove} onSwap={onSwap} />
-        <CardBack  a={a} onFlip={onFlip} />
-      </div>
-    </div>
-  );
-}
-
-function CardFront({
-  a, approved, onFlip, onApprove, onSwap,
-}: {
-  a: Activity;
-  approved: boolean;
-  onFlip: () => void;
-  onApprove: () => void;
-  onSwap: () => void;
-}) {
-  return (
-    <div className="chunky flip-face itin-card-front" style={{ borderWidth: 2, height: '100%', overflow: 'hidden', padding: 0 }}>
-      <div style={{ display: 'flex', height: '100%' }}>
-        {/* Image — clicking flips */}
-        <button
-          className="itin-card-image-btn"
-          onClick={onFlip}
-          aria-label="See ratings"
-          style={{ flex: '0 0 200px', height: '100%', background: 'var(--sand-100)', border: 'none', padding: 0, cursor: 'pointer', position: 'relative', overflow: 'hidden' }}
-        >
-          <img src={a.image} alt={a.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-          <span style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(26,26,26,0.85)', color: 'var(--cream)', fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 999 }}>Tap for ratings ↻</span>
-        </button>
-
-        {/* Body */}
-        <div className="itin-card-body" style={{ flex: 1, padding: '14px 18px', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-            <div style={{ minWidth: 0 }}>
-              <h3 className="font-display" style={{ fontSize: 19, lineHeight: 1.15, margin: '0 0 6px', color: 'var(--ink)' }}>{a.title}</h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--sand-500)', fontSize: 12, marginBottom: 6 }}>
-                <MapPin size={12} /><span>{a.location}</span>
-              </div>
-            </div>
-            <span className="chip-outline" style={{ fontSize: 11, background: 'var(--yellow)', flexShrink: 0 }}>
-              <Star size={11} /> {a.rating}
-            </span>
-          </div>
-          <p style={{ fontSize: 12.5, lineHeight: 1.45, color: 'var(--sand-700)', margin: '0 0 10px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{a.description}</p>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-            <span className="chip-outline" style={{ fontSize: 11, padding: '2px 9px' }}><Clock size={11} /> {a.duration}</span>
-            <span className="chip-outline" style={{ fontSize: 11, padding: '2px 9px' }}><Dollar size={11} /> {a.cost}</span>
-            <span className="chip-outline chip-coral" style={{ fontSize: 11, padding: '2px 9px' }}>{a.fitReason}</span>
-          </div>
-          <div style={{ marginTop: 'auto', display: 'flex', gap: 8 }}>
-            <button
-              onClick={onApprove}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 12, border: '2px solid var(--ink)', fontWeight: 700, fontFamily: 'inherit', fontSize: 13, cursor: 'pointer', background: approved ? 'var(--green)' : 'var(--cream)', color: approved ? 'var(--cream)' : 'var(--ink)', boxShadow: '3px 3px 0 var(--ink)' }}
-            >
-              <Check size={13} /> {approved ? 'Approved' : 'Sounds good'}
-            </button>
-            <button onClick={onSwap} className="btn-ghost" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 13px', fontSize: 13 }}>
-              <Swap size={13} /> Swap
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CardBack({ a, onFlip }: { a: Activity; onFlip: () => void }) {
-  const { reddit, ta } = reviewFor(a.id);
-  return (
-    <div className="chunky flip-face flip-back itin-card-back" style={{ borderWidth: 2, height: '100%', padding: '16px 18px', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
-        <h3 className="font-display" style={{ fontSize: 18, margin: 0, color: 'var(--ink)' }}>{a.title}</h3>
-        <button onClick={onFlip} className="btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }}>← Back</button>
-      </div>
-      <div className="itin-card-back-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, flex: 1, minHeight: 0 }}>
-        {/* r/Aruba */}
-        <div style={{ background: '#FFF4E6', border: '2px solid #FF4500', borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#FF4500', color: 'white', fontWeight: 700, fontSize: 12, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>r</span>
-            <span style={{ fontWeight: 700, fontSize: 12, color: '#7A2A00' }}>r/Aruba</span>
-            <span style={{ fontSize: 10, color: '#B05500', marginLeft: 'auto' }}>{reddit.mentions} mentions</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ display: 'flex', gap: 1 }}>
-              {[1, 2, 3, 4, 5].map((s) => (
-                <Star key={s} size={12} fill={s <= Math.round(reddit.rating) ? '#FF4500' : 'transparent'} color="#FF4500" />
-              ))}
-            </div>
-            <span style={{ fontWeight: 700, fontSize: 12, color: '#7A2A00' }}>{reddit.rating}</span>
-          </div>
-          <p style={{ fontSize: 11.5, lineHeight: 1.4, color: '#7A2A00', margin: 0, fontStyle: 'italic', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
-            "{reddit.quote}"
-          </p>
-        </div>
-        {/* TripAdvisor */}
-        <div style={{ background: '#E9F7EF', border: '2px solid #22C55E', borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#22C55E', color: 'white', fontWeight: 700, fontSize: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>TA</span>
-            <span style={{ fontWeight: 700, fontSize: 12, color: '#155724' }}>TripAdvisor</span>
-            <span style={{ fontSize: 10, color: '#3A7D44', marginLeft: 'auto' }}>{a.reviewCount.toLocaleString()} reviews</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ display: 'flex', gap: 1 }}>
-              {[1, 2, 3, 4, 5].map((s) => (
-                <Star key={s} size={12} fill={s <= Math.round(a.rating) ? '#22C55E' : 'transparent'} color="#22C55E" />
-              ))}
-            </div>
-            <span style={{ fontWeight: 700, fontSize: 12, color: '#155724' }}>{a.rating}</span>
-          </div>
-          <p style={{ fontSize: 11.5, lineHeight: 1.4, color: '#155724', margin: 0, fontStyle: 'italic', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
-            "{ta}"
-          </p>
-        </div>
-      </div>
-    </div>
   );
 }

@@ -8,6 +8,14 @@ export default function Footer() {
           style={{ height: 30, width: 'auto', display: 'inline-block', verticalAlign: 'middle' }}
         />
         <div style={{ fontSize: 12, color: '#888', marginTop: 10 }}>Made on the island. ♥</div>
+        <p style={{
+          fontSize: 11, color: 'var(--sand-500)',
+          margin: '12px auto 0', maxWidth: 480,
+        }}>
+          Some links on this site are affiliate links. If you book through them, we may
+          earn a small commission at no extra cost to you. We only recommend things we'd
+          send a friend to.
+        </p>
       </div>
     </div>
   );

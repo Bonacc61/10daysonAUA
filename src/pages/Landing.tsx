@@ -12,6 +12,7 @@ import {
   type Activity,
   type Day,
 } from '../data/activities';
+import type { SlotEntry } from '../types';
 import type { PageId, Answers } from '../App';
 
 type Props = {
@@ -160,7 +161,18 @@ function Slot({ label, content }: { label: string; content: React.ReactNode }) {
 }
 
 function DayBlock({ d, isLast }: { d: Day; isLast: boolean }) {
-  const slot = (id: string | null) => (id ? <ActivityMini a={activityById(id)!} /> : <EmptySlot />);
+  // Sections are now lists; the landing preview shows the first entry of each.
+  const slot = (entries: SlotEntry[]) => {
+    const s = entries[0];
+    if (!s) return <EmptySlot />;
+    if (s.kind === 'activity') {
+      const a = activityById(s.id);
+      return a ? <ActivityMini a={a} /> : <EmptySlot />;
+    }
+    // 'group' kind: the sample-itinerary preview on the landing page doesn't
+    // currently include group entries, but be defensive.
+    return <EmptySlot />;
+  };
   return (
     <div style={{ position: 'relative', paddingLeft: 56, paddingBottom: 28 }}>
       {/* Vertical timeline rail — always rendered, even below the last day,
