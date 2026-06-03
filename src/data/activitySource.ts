@@ -1,6 +1,6 @@
 import { ACTIVITIES, type Activity } from './activities';
 import { VIATOR_GROUPS, VIATOR_ITEMS } from './viator-stub';
-import type { ViatorGroup, ViatorItem } from '../types';
+import type { ViatorGroup, ViatorItem, SlotEntry, CardEntry } from '../types';
 
 export type Catalog = {
   activities: Activity[];
@@ -86,4 +86,24 @@ export function itemsInGroup(groupId: string, catalog: Catalog): ViatorItem[] {
 
 export function otherItemsInGroup(groupId: string, bestSellerId: string, catalog: Catalog): ViatorItem[] {
   return itemsInGroup(groupId, catalog).filter((i) => i.id !== bestSellerId);
+}
+
+// Resolve a stored SlotEntry (id pointers) into a renderable CardEntry against
+// the *current* catalog. The stored item id can go stale when the catalog swaps
+// underneath the plan — the stub renders first, then the live Viator data swaps
+// in with different product codes (and a daily refresh can change them again).
+// When that happens we fall back to the group's current best-seller so the card
+// still renders, instead of returning null and leaving the slot blank.
+export function resolveSlotEntry(slotEntry: SlotEntry, catalog: Catalog): CardEntry | null {
+  if (slotEntry.kind === 'activity') {
+    const a = catalog.activities.find((x) => x.id === slotEntry.id);
+    return a ? { kind: 'activity', activity: a } : null;
+  }
+  const g = catalog.groups.find((x) => x.id === slotEntry.groupId);
+  if (!g) return null;
+  const bs = catalog.items.find((x) => x.id === slotEntry.bestSellerId)
+          ?? catalog.items.find((x) => x.group_id === g.id && x.is_best_seller)
+          ?? catalog.items.find((x) => x.group_id === g.id);
+  if (!bs) return null;
+  return { kind: 'group', group: g, bestSeller: bs, others: otherItemsInGroup(g.id, bs.id, catalog) };
 }

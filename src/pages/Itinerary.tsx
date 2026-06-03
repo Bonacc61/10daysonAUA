@@ -11,7 +11,7 @@ import { Bookmark, Chev, X } from '../components/Icons';
 import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
 import { INFO_TOPICS } from '../data/activities';
-import { otherItemsInGroup } from '../data/activitySource';
+import { resolveSlotEntry } from '../data/activitySource';
 import { useCatalog } from '../data/useCatalog';
 import { matchPool, blendPools, constrainBySwapReason, entryPrice } from '../data/matcher';
 import { answersToTags } from '../data/answerTags';
@@ -52,18 +52,7 @@ export default function Itinerary({ setPage, answers }: Props) {
   const [rejected,       setRejected]       = useState<Set<string>>(new Set());
   const [rejectedGroups, setRejectedGroups] = useState<Set<string>>(new Set());
 
-  const resolveEntry = (slotEntry: SlotEntry): CardEntry | null => {
-    if (slotEntry.kind === 'activity') {
-      const a = catalog.activities.find((x) => x.id === slotEntry.id);
-      return a ? { kind: 'activity', activity: a } : null;
-    }
-    const g = catalog.groups.find((x) => x.id === slotEntry.groupId);
-    if (!g) return null;
-    const bs = catalog.items.find((x) => x.id === slotEntry.bestSellerId);
-    if (!bs) return null;
-    const others = otherItemsInGroup(g.id, bs.id, catalog);
-    return { kind: 'group', group: g, bestSeller: bs, others };
-  };
+  const resolveEntry = (slotEntry: SlotEntry): CardEntry | null => resolveSlotEntry(slotEntry, catalog);
 
   const toggle = (set: Set<string>, uid: string) => {
     const next = new Set(set);
