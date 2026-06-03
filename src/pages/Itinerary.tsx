@@ -118,19 +118,26 @@ export default function Itinerary({ setPage, answers }: Props) {
     let next: SlotEntry | null = null;
 
     if (entry.kind === 'group' && reason !== 'not-our-vibe') {
-      // Rotate within the same Viator group, honouring the reason (too-pricey →
-      // a cheaper item in this group).
+      // Rotate within the same Viator group first.
       nextRejected.add(entry.bestSeller.id);
       let pool = catalog.items.filter((i) => i.group_id === entry.group.id && !nextRejected.has(i.id));
       if (reason === 'too-pricey') {
-        const cheaper = pool.filter((i) => i.price_usd < entry.bestSeller.price_usd);
-        if (cheaper.length) pool = cheaper;
+        // Cheapest item that's strictly cheaper than the current one. If none,
+        // leave `next` null so the cross-pool fallback finds a cheaper option
+        // elsewhere — never rotate to a pricier item in the same group.
+        pool = pool
+          .filter((i) => i.price_usd < entry.bestSeller.price_usd)
+          .sort((a, b) => a.price_usd - b.price_usd);
+      } else {
+        pool = pool.sort((a, b) => (b.is_best_seller ? 1 : 0) - (a.is_best_seller ? 1 : 0) || a.display_order - b.display_order);
       }
-      pool = pool.sort((a, b) => (b.is_best_seller ? 1 : 0) - (a.is_best_seller ? 1 : 0) || a.display_order - b.display_order);
       if (pool[0]) next = { kind: 'group', groupId: entry.group.id, bestSellerId: pool[0].id };
-    } else {
-      // Cross-pool: reject the current pick (or the whole group for "not our
-      // vibe"), match, then apply the reason constraint to the candidates.
+    }
+
+    if (!next) {
+      // Cross-pool: a different activity/group. Runs for "not our vibe", and as
+      // the fallback when the within-group rotation found nothing (e.g. "too
+      // pricey" with no cheaper item in this group → find a cheaper option here).
       if (entry.kind === 'group') nextRejectedGroups.add(entry.group.id);
       else nextRejected.add(entry.activity.id);
       const { activities, groups } = matchPool(catalog.activities, catalog.groups, tags, slot);

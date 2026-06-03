@@ -103,8 +103,13 @@ export function constrainBySwapReason(
   };
   switch (reason) {
     case 'too-pricey': {
+      // Only strictly-cheaper options, cheapest first. Unlike the other reasons,
+      // this does NOT fall back to the full pool when empty — surfacing a pricier
+      // pick for "too pricey" is exactly the bug. Empty => caller does not swap.
       const cap = entryPrice(current);
-      return narrow((c) => entryPrice(c) < cap);
+      return candidates
+        .filter((c) => entryPrice(c) < cap)
+        .sort((a, b) => entryPrice(a) - entryPrice(b));
     }
     case 'too-far': {
       const r = entryRegion(current);

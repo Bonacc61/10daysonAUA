@@ -124,17 +124,17 @@ describe('constrainBySwapReason', () => {
   const grp = (id: string, price: number, region: ViatorGroup['region'] = 'palm-beach'): CardEntry =>
     ({ kind: 'group', group: mkGroup(id, { region }), bestSeller: { ...mkItem(`${id}-bs`, id, true), price_usd: price }, others: [] });
 
-  it('too-pricey keeps only cheaper candidates (fixes the $25→$2132 yacht bug)', () => {
+  it('too-pricey keeps only cheaper candidates, cheapest first', () => {
     const current = act('cur', '$25');
-    const cands = [grp('yacht', 2132), act('cheap', '$15'), grp('mid', 80)];
+    const cands = [grp('yacht', 2132), act('cheap', '$15'), grp('mid', 80), act('cheapest', '$5')];
     const out = constrainBySwapReason(cands, 'too-pricey', current);
-    expect(out).toEqual([act('cheap', '$15')]);
+    expect(out).toEqual([act('cheapest', '$5'), act('cheap', '$15')]);
   });
 
-  it('too-pricey falls back to all candidates when none are cheaper', () => {
+  it('too-pricey returns nothing when none are cheaper (never suggests pricier)', () => {
     const current = act('cur', 'Free'); // 0 — nothing cheaper
     const cands = [grp('a', 80), act('b', '$10')];
-    expect(constrainBySwapReason(cands, 'too-pricey', current)).toEqual(cands);
+    expect(constrainBySwapReason(cands, 'too-pricey', current)).toEqual([]);
   });
 
   it('not-our-vibe excludes the same category/group', () => {
