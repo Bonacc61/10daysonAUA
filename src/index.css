@@ -580,3 +580,63 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   animation: spin 0.9s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- Good-to-knows: "Island intel" pinned tip board ---------- */
+.gtk-eyebrow {
+  display: inline-block;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--ink); background: var(--yellow);
+  border: 2px solid var(--ink); border-radius: 999px;
+  padding: 4px 12px; box-shadow: 3px 3px 0 var(--ink);
+  transform: rotate(-1.6deg);
+}
+.gtk-board {
+  background-image: radial-gradient(rgba(26,26,26,0.09) 1.5px, transparent 1.6px);
+  background-size: 20px 20px; background-position: -4px -4px;
+  border-radius: 18px; padding: 22px 16px;
+}
+.gtk-tag {
+  position: relative; background: var(--cream);
+  border: 2px solid var(--ink); border-radius: 14px;
+  padding: 24px 18px 18px;
+  box-shadow: 5px 6px 0 0 var(--accent);
+  transform: rotate(var(--tilt, -1.2deg));
+  transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease;
+}
+.gtk-tag:hover { transform: rotate(0deg) translateY(-5px); box-shadow: 9px 12px 0 0 var(--accent); z-index: 2; }
+.gtk-tag::before { /* washi tape */
+  content: ''; position: absolute; top: -8px; left: 24px;
+  width: 46px; height: 16px; background: var(--accent); opacity: .55;
+  border: 1.5px solid var(--ink); border-radius: 2px; transform: rotate(-4deg);
+}
+.gtk-tag-num {
+  position: absolute; top: 11px; right: 15px;
+  font-family: 'Caprasimo', Georgia, serif; font-size: 34px; line-height: 1;
+  color: var(--accent); opacity: .26; pointer-events: none;
+}
+.gtk-tag-stamp {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--ink); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 2px 2px 0 var(--ink); margin-bottom: 13px;
+}
+.gtk-tag-title { font-size: 20px; line-height: 1.05; color: var(--ink); margin: 0 0 6px; }
+.gtk-tag-body { font-size: 13px; line-height: 1.5; color: rgba(0,0,0,0.72); margin: 0; }
+@media (max-width: 720px) {
+  .gtk-tag { transform: none !important; }
+  .gtk-board { padding: 16px 10px; background-size: 18px 18px; }
+}
+
+.gtk-tag-flag {
+  display: inline-flex; align-items: center;
+  margin-bottom: 12px;
+  font-size: 9.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--ink); background: var(--yellow);
+  border: 1.5px solid var(--ink); border-radius: 7px;
+  padding: 4px 9px; box-shadow: 2px 2px 0 var(--ink);
+}
+.gtk-tag-sign {
+  display: block; margin-top: 12px; padding-top: 9px;
+  border-top: 1.5px dashed rgba(26,26,26,0.18);
+  font-style: italic; font-size: 12.5px; color: var(--sand-700);
+}

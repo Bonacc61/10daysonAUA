@@ -263,16 +263,23 @@ function SampleSection({ days, goPlan }: { days: string; goPlan: () => void }) {
 
 /* ---------- Good to know ---------- */
 
-function ChunkyCard({ card }: { card: typeof GTK_CARDS[number] }) {
+// Hand-placed tilts so the tags feel pinned to a board, not stamped on a grid.
+const GTK_TILTS = ['-1.4deg', '1.1deg', '-0.8deg', '1.3deg', '-1.2deg', '0.9deg', '-1.3deg', '1.2deg'];
+
+function TipTag({ card, index }: { card: typeof GTK_CARDS[number]; index: number }) {
   const IconCmp = iconFor(card.icon);
   return (
-    <div style={{ background: 'var(--cream)', border: '2px solid var(--ink)', borderRadius: 16, padding: '18px 18px 20px', boxShadow: `6px 6px 0 0 ${card.accent}` }}>
-      <div style={{ width: 40, height: 40, borderRadius: '50%', background: card.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14, color: 'white' }}>
-        <IconCmp size={20} />
-      </div>
-      <div className="font-display" style={{ fontSize: 19, lineHeight: 1.1, color: 'var(--ink)', marginBottom: 6 }}>{card.title}</div>
-      <div style={{ fontSize: 13, lineHeight: 1.5, color: 'rgba(0,0,0,0.7)' }}>{card.body}</div>
-    </div>
+    <article
+      className="gtk-tag"
+      style={{ '--accent': card.accent, '--tilt': GTK_TILTS[index % GTK_TILTS.length] } as CSSProperties}
+    >
+      <span className="gtk-tag-num">{String(index + 1).padStart(2, '0')}</span>
+      {card.note && <span className="gtk-tag-flag">{card.note}</span>}
+      <span className="gtk-tag-stamp"><IconCmp size={20} /></span>
+      <h3 className="font-display gtk-tag-title">{card.title}</h3>
+      <p className="gtk-tag-body">{card.body}</p>
+      {card.attribution && <span className="gtk-tag-sign">— {card.attribution}</span>}
+    </article>
   );
 }
 
@@ -281,15 +288,20 @@ function GoodToKnowSection() {
     <details className="aruba-section bleed" style={{ background: 'var(--yellow-bg)', borderTop: '2px solid var(--ink)' }}>
       <summary style={{ padding: '24px 36px' }}>
         <div className="container-1280" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, padding: 0 }}>
-          <h2 className="font-display" style={{ fontSize: 32, margin: 0, color: 'var(--ink)' }}>Good-to-knows.</h2>
+          <div>
+            <span className="gtk-eyebrow">Island intel</span>
+            <h2 className="font-display" style={{ fontSize: 32, margin: '12px 0 0', color: 'var(--ink)' }}>Good-to-knows.</h2>
+          </div>
           <span className="toggle" style={{ color: 'var(--ink)', flexShrink: 0, marginTop: 8 }} />
         </div>
       </summary>
       <div style={{ padding: '0 36px 56px' }}>
         <div className="container-1280" style={{ padding: 0 }}>
-          <p style={{ fontStyle: 'italic', fontSize: 15, lineHeight: 1.5, color: 'rgba(0,0,0,0.75)', margin: '0 0 22px', maxWidth: 720 }}>Things that'll smooth your trip.</p>
-          <div className="gtk-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 18 }}>
-            {GTK_CARDS.map((c) => <ChunkyCard key={c.title} card={c} />)}
+          <p style={{ fontStyle: 'italic', fontSize: 15, lineHeight: 1.5, color: 'rgba(0,0,0,0.8)', margin: '0 0 20px', maxWidth: 720 }}>The little things locals wish every visitor knew.</p>
+          <div className="gtk-board">
+            <div className="gtk-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 22 }}>
+              {GTK_CARDS.map((c, i) => <TipTag key={c.title} card={c} index={i} />)}
+            </div>
           </div>
         </div>
       </div>

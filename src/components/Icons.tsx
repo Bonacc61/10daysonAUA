@@ -39,5 +39,9 @@ export const Swap     = (p: IconProps) => <Icon {...p}><polyline points="17 1 21
 export const X        = (p: IconProps) => <Icon {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Icon>;
 export const Bookmark = (p: IconProps) => <Icon {...p}><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></Icon>;
 
-const ICON_MAP = { wind: Wind, sun: Sun, dollar: Dollar, card: Card, car: Car, shield: Shield, cloud: Cloud, msg: Msg };
+export const Doc      = (p: IconProps) => <Icon {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></Icon>;
+export const Drop     = (p: IconProps) => <Icon {...p}><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></Icon>;
+export const Wave     = (p: IconProps) => <Icon {...p}><path d="M2 8c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0"/><path d="M2 15c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0"/></Icon>;
+
+const ICON_MAP = { wind: Wind, sun: Sun, dollar: Dollar, card: Card, car: Car, shield: Shield, cloud: Cloud, msg: Msg, doc: Doc, drop: Drop, wave: Wave };
 export const iconFor = (name: keyof typeof ICON_MAP) => ICON_MAP[name];

@@ -35,10 +35,12 @@ export type Day = {
 export type FAQItem = { q: string; a: string };
 
 export type GoodToKnowCard = {
-  icon: 'wind' | 'sun' | 'dollar' | 'card' | 'car' | 'shield' | 'cloud' | 'msg';
+  icon: 'wind' | 'sun' | 'dollar' | 'card' | 'car' | 'shield' | 'cloud' | 'msg' | 'doc' | 'drop' | 'wave';
   accent: string;
   title: string;
   body: string;
+  note?: string;        // small "do this first" style flag (e.g. arrival steps)
+  attribution?: string; // a local's signature, rendered handwritten-style
 };
 
 export const ACTIVITIES: Activity[] = [
@@ -163,14 +165,16 @@ export const FAQ_ITEMS: FAQItem[] = [
 ];
 
 export const GTK_CARDS: GoodToKnowCard[] = [
-  { icon: 'wind',   accent: '#3B82F6', title: 'Wind',     body: 'Constant trade winds, 15–25 mph. Pleasant on a hot beach, brutal on a bad-hair day. Eagle and Arashi are more sheltered in afternoons.' },
-  { icon: 'sun',    accent: '#EF4444', title: 'Sun',      body: 'Below the hurricane belt + desert island = you burn fast. Reef-safe sunscreen is required in Arikok and most beaches.' },
-  { icon: 'dollar', accent: '#22C55E', title: 'Tipping',  body: 'Not expected by taxis, appreciated for great service. Restaurants often include 15% service charge — check the bill.' },
-  { icon: 'card',   accent: '#EAB308', title: 'Currency', body: 'USD accepted everywhere. Florin is the local currency. Cards work universally; carry small USD for tips and markets.' },
-  { icon: 'car',    accent: '#EF4444', title: 'Driving',  body: 'Right-hand side. Tourist-area roads are fine. North coast and Arikok need 4×4 — taking a regular rental off-road voids insurance.' },
-  { icon: 'shield', accent: '#3B82F6', title: 'Safety',   body: "Among the safest in the Caribbean. Don't leave valuables in a rental car — leave the glove box visibly open." },
-  { icon: 'cloud',  accent: '#22C55E', title: 'Weather',  body: 'Below the hurricane belt, year-round destination. Mid-January through May is driest.' },
-  { icon: 'msg',    accent: '#EAB308', title: 'Language', body: 'Everyone speaks English. Locals love when you try "bon dia" (good morning) and "danki" (thanks) in Papiamento.' },
+  { icon: 'doc',    accent: '#E63946', title: 'The ED-card & the $20 fee', note: 'Arrival form — do this first', body: "Every air arrival files a free ED-card at edcardaruba.aw within 7 days of landing, plus a one-time $20 sustainability fee (ages 8+, once per calendar year). Airlines check it before you board. Ignore any site charging $80+ to \"process\" it — they're middlemen. Cruise passengers are usually exempt." },
+  { icon: 'drop',   accent: '#3B82F6', title: 'Tap water', body: "Drink it — Aruba's tap meets WHO standards, so locals never buy bottled. With no freshwater rivers, the island desalinates Caribbean seawater (distillation + reverse osmosis) into crystal-clear water. Bring a refillable bottle and skip the plastic." },
+  { icon: 'wind',   accent: '#22C55E', title: 'Wind', body: "Steady trade winds, 15–25 mph: bliss on a hot beach, war on a bad-hair day — and why there are barely any mosquitoes. Eagle and Arashi stay calmest by afternoon." },
+  { icon: 'dollar', accent: '#EAB308', title: 'Tipping', attribution: 'the r/Aruba crew', body: "Restaurants often pool a 10–15% service charge (check the bill) split house-wide, so an extra 5–10% to your server is kind. Taxis run fixed government rates, cash only — just round up." },
+  { icon: 'car',    accent: '#FF6B47', title: 'Driving', attribution: 'your cab driver', body: "Right-hand side. Paved roads and Arikok's main route are fine in any car, but the Natural Pool and wild north coast need a real 4×4 — and taking a regular rental off-road voids your insurance. Donkeys, goats and iguanas legally have the right of way out in the cunucu, so slow down." },
+  { icon: 'wave',   accent: '#E63946', title: 'Where to swim', attribution: 'the lifeguard, & we mean it', body: "Stick to the calm leeward (west) side — Palm, Eagle, Baby Beach. The windward north and east coasts look spectacular, but the currents and undertow are genuinely dangerous. Don't swim there, no matter how good the photo looks." },
+  { icon: 'sun',    accent: '#EAB308', title: 'Sun', body: "A desert island just below the hurricane belt — you'll burn faster than you expect. Reef-safe sunscreen only: Aruba banned the oxybenzone kind, so check your bottle before you pack." },
+  { icon: 'card',   accent: '#22C55E', title: 'Currency', body: "The florin is pegged to the dollar (~1.79), so USD works everywhere and cards are fine. Keep small USD bills for tips, taxis and local food stalls." },
+  { icon: 'cloud',  accent: '#3B82F6', title: 'Weather', body: "Year-round ~82°F and below the hurricane belt, so the season barely matters. Rain is short showers, mostly Oct–Dec; Jan–May is the driest stretch." },
+  { icon: 'msg',    accent: '#FF6B47', title: 'Language', attribution: 'danki! kom weer', body: "English is everywhere and Dutch is official, but the mother tongue is Papiamento. Try bon dia (good day), danki (thanks) and dushi (sweet/lovely)." },
 ];
 
 export const activityById = (id: string | null): Activity | undefined =>
