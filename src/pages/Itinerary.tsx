@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext, closestCorners, PointerSensor, TouchSensor, KeyboardSensor,
   useSensor, useSensors, useDroppable, type DragEndEvent,
@@ -17,6 +17,9 @@ import { matchPool, blendPools, constrainBySwapReason, entryPrice } from '../dat
 import { answersToTags } from '../data/answerTags';
 import { generatePlan } from '../data/itineraryGenerator';
 import { logEvent } from '../data/feedback';
+import { useAuth } from '../lib/auth';
+import { loadTrip, upsertTrip } from '../lib/trips';
+import SignIn from '../components/SignIn';
 import {
   seedPlan, addCard, removeCard, replaceCardEntry, moveCard, findCard,
   newUid, type PlannedDay, type PlannedCard,
@@ -24,7 +27,7 @@ import {
 import type { CardEntry, SlotEntry, Slot, SwapReason, ViatorItem } from '../types';
 import type { PageId, Answers } from '../App';
 
-type Props = { setPage: (p: PageId) => void; answers: Answers };
+type Props = { setPage: (p: PageId) => void; answers: Answers; setAnswers: (a: Answers) => void };
 
 const SECTION_META: { id: Slot; label: string }[] = [
   { id: 'morning',   label: 'Morning' },
@@ -32,7 +35,7 @@ const SECTION_META: { id: Slot; label: string }[] = [
   { id: 'evening',   label: 'Evening' },
 ];
 
-export default function Itinerary({ setPage, answers }: Props) {
+export default function Itinerary({ setPage, answers, setAnswers }: Props) {
   const catalog = useCatalog();
   const tags    = useMemo(() => answersToTags(answers), [answers]);
 
@@ -51,6 +54,39 @@ export default function Itinerary({ setPage, answers }: Props) {
   // Rejection memory feeds the swap matcher so it won't re-offer dismissed picks.
   const [rejected,       setRejected]       = useState<Set<string>>(new Set());
   const [rejectedGroups, setRejectedGroups] = useState<Set<string>>(new Set());
+
+  // --- Per-user persistence (Supabase trips row) ---------------------------
+  const { user } = useAuth();
+  const [hydrated, setHydrated] = useState(false);
+  const hydratedUser = useRef<string | null>(null);
+
+  // On sign-in, load the saved trip and hydrate it (the saved trip wins).
+  useEffect(() => {
+    if (!user) { setHydrated(false); hydratedUser.current = null; return; }
+    if (hydratedUser.current === user.id) return;
+    hydratedUser.current = user.id;
+    setHydrated(false);
+    loadTrip(user.id).then((t) => {
+      if (t) {
+        setPlan(t.plan);
+        setRejected(t.rejected);
+        setRejectedGroups(t.rejectedGroups);
+        setAnswers(t.answers);
+      }
+      setHydrated(true);
+    });
+  }, [user, setAnswers]);
+
+  // Debounced persist once hydrated — so we never overwrite the saved plan with
+  // the freshly-generated one before it has loaded. Writes answers + plan (which
+  // carries the activities) + swap memory.
+  useEffect(() => {
+    if (!user || !hydrated) return;
+    const id = window.setTimeout(() => {
+      void upsertTrip(user.id, { answers, plan, rejected, rejectedGroups });
+    }, 800);
+    return () => window.clearTimeout(id);
+  }, [user, hydrated, answers, plan, rejected, rejectedGroups]);
 
   const resolveEntry = (slotEntry: SlotEntry): CardEntry | null => resolveSlotEntry(slotEntry, catalog);
 
@@ -245,7 +281,7 @@ export default function Itinerary({ setPage, answers }: Props) {
         </div>
       </div>
 
-      <div id="sso-login"><SsoLogin /></div>
+      <div id="sso-login"><SignIn /></div>
       <Footer />
     </>
   );
@@ -393,63 +429,3 @@ function SortableCard({
  *  Sign-in panel — sits between the itinerary and the footer.  *
  *  Stub buttons; no auth yet. Provider chips use brand colours. *
  * ------------------------------------------------------------ */
-function SsoLogin() {
-  return (
-    <div id="save" className="bleed" style={{ background: 'var(--sand-50)', borderTop: '2px solid var(--ink)' }}>
-      <div className="container-1280 sso-section" style={{ padding: '48px 36px 56px', textAlign: 'center' }}>
-        <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 8px', color: 'var(--ink)' }}>
-          Save your trip.
-        </h2>
-        <p style={{ fontStyle: 'italic', fontSize: 15, color: 'rgba(0,0,0,0.65)', margin: '0 0 28px' }}>
-          Log in to save, book and share your itinerary.
-        </p>
-        <div className="sso-grid">
-          <button type="button" className="sso-btn" aria-label="Continue with Gmail">
-            <GmailLogo />
-            <span className="sso-label">Continue with Gmail</span>
-          </button>
-          <button type="button" className="sso-btn" aria-label="Continue with Apple Mail">
-            <AppleLogo />
-            <span className="sso-label">Continue with Mail</span>
-          </button>
-          <button type="button" className="sso-btn" aria-label="Continue with Protonmail">
-            <ProtonLogo />
-            <span className="sso-label">Continue with Protonmail</span>
-          </button>
-        </div>
-        <p style={{ fontSize: 12, color: 'var(--sand-500)', marginTop: 18 }}>
-          We only use your email to save your plan. No spam, ever.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-/* Inline brand logos (simplified, recognisable). All sized to 22px square. */
-function GmailLogo() {
-  return (
-    <svg className="sso-logo-svg" viewBox="0 0 256 256" aria-hidden="true">
-      <path fill="#4285f4" d="M58.18 192.05V93.14L27.51 65.08C13.02 71.8 0 87.1 0 105.14v66.69c0 11.32 9.14 20.22 20.19 20.22z"/>
-      <path fill="#34a853" d="M197.82 192.05V93.14l30.67-28.06c14.49 6.72 27.51 22.02 27.51 40.06v66.69c0 11.32-9.14 20.22-20.19 20.22z"/>
-      <path fill="#fbbc04" d="M197.82 63.06V93.14l58.18-37.06V41.79c0-13.43-15.34-21.1-26.07-13.04z"/>
-      <path fill="#ea4335" d="M58.18 93.14V63.06L128 110.85l69.82-47.79v30.08L128 140.92z"/>
-      <path fill="#c5221f" d="M0 41.79v14.29l58.18 37.06V63.06l-32.11-24.31C15.34 30.69 0 28.36 0 41.79z"/>
-    </svg>
-  );
-}
-function AppleLogo() {
-  return (
-    <svg className="sso-logo-svg" viewBox="0 0 24 24" aria-hidden="true">
-      <path fill="#1A1A1A" d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-    </svg>
-  );
-}
-function ProtonLogo() {
-  return (
-    <svg className="sso-logo-svg" viewBox="0 0 36 36" aria-hidden="true">
-      {/* Stylised Proton wordmark icon — purple circle with a stylised "P". */}
-      <circle cx="18" cy="18" r="18" fill="#6D4AFF"/>
-      <path fill="#FFFFFF" d="M11 9h7.6c3.5 0 5.9 2.1 5.9 5.4 0 3.4-2.6 5.5-6.1 5.5h-3.3V27H11V9zm7 8c1.9 0 3-1 3-2.5s-1.1-2.5-3-2.5h-2.8V17H18z"/>
-    </svg>
-  );
-}

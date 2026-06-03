@@ -4,6 +4,7 @@ import Landing from './pages/Landing';
 import Explore from './pages/Explore';
 import Questionnaire from './pages/Questionnaire';
 import Itinerary from './pages/Itinerary';
+import { AuthProvider } from './lib/auth';
 
 export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary';
 
@@ -38,12 +39,12 @@ export default function App() {
   }, [page]);
 
   return (
-    <>
+    <AuthProvider>
       <Nav page={page} setPage={setPage} />
       {page === 'landing'       && <Landing       setPage={setPage} answers={answers} setAnswers={setAnswers} />}
       {page === 'questionnaire' && <Questionnaire setPage={setPage} answers={answers} setAnswers={setAnswers} />}
       {page === 'explore'       && <Explore       setPage={setPage} />}
-      {page === 'itinerary'     && <Itinerary     setPage={setPage} answers={answers} />}
-    </>
+      {page === 'itinerary'     && <Itinerary     setPage={setPage} answers={answers} setAnswers={setAnswers} />}
+    </AuthProvider>
   );
 }
