@@ -20,8 +20,8 @@ type Props = {
   group: ViatorGroup;
   bestSeller: ViatorItem;
   others: ViatorItem[];
-  approved: boolean;
-  onApprove: () => void;
+  approved?: boolean;     // Explore-only ("Add"/"Added" state); itinerary no longer approves
+  onApprove?: () => void; // Explore-only ("Add to plan")
   onSwap: () => void;
   onFlip: () => void;
   variant?: 'itinerary' | 'explore';
@@ -59,14 +59,12 @@ export default function GroupCard({
         ? <ExploreBody
             bestSeller={bestSeller}
             others={others}
-            approved={approved}
-            onApprove={onApprove}
+            approved={!!approved}
+            onApprove={onApprove ?? (() => {})}
           />
         : <ItineraryBody
             bestSeller={bestSeller}
             location={REGION_LABELS[bestSeller.region ?? group.region]}
-            approved={approved}
-            onApprove={onApprove}
             onSwap={onSwap}
             onFlip={onFlip}
             showReasons={showReasons}
@@ -205,12 +203,10 @@ function ExploreBody({
 // activity card (ActivityCardFront), with the group-specific SUGGESTED label.
 // The flip-to-back face is wired by the parent (ItineraryCard).
 function ItineraryBody({
-  bestSeller, location, approved, onApprove, onSwap, onFlip, showReasons, onPickReason,
+  bestSeller, location, onSwap, onFlip, showReasons, onPickReason,
 }: {
   bestSeller: ViatorItem;
   location: string;
-  approved: boolean;
-  onApprove: () => void;
   onSwap: () => void;
   onFlip: () => void;
   showReasons?: boolean;
@@ -290,20 +286,6 @@ function ItineraryBody({
 
         <div style={{ marginTop: 'auto' }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              onClick={onApprove}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                padding: '8px 14px', borderRadius: 12,
-                border: '2px solid var(--ink)', fontWeight: 700,
-                fontFamily: 'inherit', fontSize: 13, cursor: 'pointer',
-                background: approved ? 'var(--green)' : 'var(--cream)',
-                color: approved ? 'var(--cream)' : 'var(--ink)',
-                boxShadow: '3px 3px 0 var(--ink)',
-              }}
-            >
-              <Check size={13} aria-hidden /> {approved ? 'Approved' : 'Sounds good'}
-            </button>
             <button onClick={onSwap} className="btn-ghost"
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,

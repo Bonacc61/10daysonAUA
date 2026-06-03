@@ -10,11 +10,12 @@ import { CSS } from '@dnd-kit/utilities';
 import { Bookmark, Chev, X } from '../components/Icons';
 import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
-import { SAMPLE_ITINERARY, INFO_TOPICS } from '../data/activities';
+import { INFO_TOPICS } from '../data/activities';
 import { otherItemsInGroup } from '../data/activitySource';
 import { useCatalog } from '../data/useCatalog';
 import { matchPool, blendPools, constrainBySwapReason, entryPrice } from '../data/matcher';
 import { answersToTags } from '../data/answerTags';
+import { generatePlan } from '../data/itineraryGenerator';
 import { logEvent } from '../data/feedback';
 import {
   seedPlan, addCard, removeCard, replaceCardEntry, moveCard, findCard,
@@ -35,11 +36,13 @@ export default function Itinerary({ setPage, answers }: Props) {
   const catalog = useCatalog();
   const tags    = useMemo(() => answersToTags(answers), [answers]);
 
-  const tripDays = Math.max(1, Math.min(answers.days || 5, SAMPLE_ITINERARY.length));
-  const [plan, setPlan] = useState<PlannedDay[]>(() => seedPlan(SAMPLE_ITINERARY.slice(0, tripDays)));
+  // Build the initial itinerary from the answers + the live catalog (Viator
+  // groups + local picks), honoring the requested day count (1–14). Generated
+  // once on mount; user edits (approve/swap/drag) then own the plan.
+  const [plan, setPlan] = useState<PlannedDay[]>(() => seedPlan(generatePlan(answers, catalog)));
+  const tripDays = plan.length;
 
   // Per-card UI state, all keyed by card uid.
-  const [approved,   setApproved]   = useState<Set<string>>(new Set());
   const [flipped,    setFlipped]    = useState<Set<string>>(new Set());
   const [swapping,   setSwapping]   = useState<Set<string>>(new Set());
   const [reasonOpen, setReasonOpen] = useState<Set<string>>(new Set());
@@ -80,15 +83,13 @@ export default function Itinerary({ setPage, answers }: Props) {
     };
   };
 
-  const onApprove = (uid: string) => {
-    if (!approved.has(uid)) {
-      const c = cardCtx(uid);
-      if (c) logEvent({ action: 'approve', day: c.day, slot: c.slot, from_id: c.id, from_kind: c.kind });
-    }
-    setApproved((s) => toggle(s, uid));
-  };
   const onFlip     = (uid: string) => setFlipped((s) => toggle(s, uid));
   const onOpenSwap = (uid: string) => setReasonOpen((s) => toggle(s, uid));
+
+  // "Save trip" / "Save" → scroll to the sign-in panel at the bottom. Saving the
+  // trip means signing in (SSO), so the buttons take the user there.
+  const scrollToSignIn = () =>
+    document.getElementById('sso-login')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   const onMove = (uid: string, toSection: Slot, toIndex: number) => {
     const c = cardCtx(uid);
@@ -116,7 +117,6 @@ export default function Itinerary({ setPage, answers }: Props) {
     window.setTimeout(() => {
       setPlan((p) => removeCard(p, uid));
       setRemoving((s) => { const n = new Set(s); n.delete(uid); return n; });
-      setApproved((s) => { const n = new Set(s); n.delete(uid); return n; });
     }, 240);
   };
 
@@ -173,9 +173,6 @@ export default function Itinerary({ setPage, answers }: Props) {
     window.setTimeout(() => setSwapping((s) => { const n = new Set(s); n.delete(uid); return n; }), 920);
   };
 
-  const allCards = plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening]);
-  const totalSlots = allCards.length;
-  const approvedCount = allCards.filter((c) => approved.has(c.uid)).length;
 
   return (
     <>
@@ -186,15 +183,12 @@ export default function Itinerary({ setPage, answers }: Props) {
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.7)', marginBottom: 8 }}>Your itinerary</div>
               <h1 className="font-display" style={{ fontSize: 44, margin: '0 0 6px', color: 'var(--ink)', lineHeight: 1 }}>{tripDays} days, hand-picked.</h1>
               <p style={{ fontStyle: 'italic', fontSize: 15, color: 'rgba(0,0,0,0.75)', margin: 0, maxWidth: 640 }}>
-                Approve what you like, swap what you don't, and drag cards between morning, afternoon and evening.
+                Swap what you don't love, and drag cards between morning, afternoon and evening.
               </p>
             </div>
-            <div className="chunky itin-header-counter" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{ fontSize: 12, color: 'var(--sand-500)' }}>Approved</div>
-              <div className="font-display" style={{ fontSize: 30, color: 'var(--red)', lineHeight: 0.9 }}>
-                {approvedCount}<span style={{ fontSize: 15, color: 'var(--ink)', marginLeft: 4 }}>/ {totalSlots}</span>
-              </div>
-              <button className="btn-red" onClick={() => setPage('explore')} style={{ padding: '10px 14px', fontSize: 13, borderWidth: 2, marginLeft: 10 }}>Add more →</button>
+            <div className="chunky itin-header-counter" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button className="btn-ghost" onClick={() => setPage('explore')} style={{ padding: '10px 14px', fontSize: 13 }}>+ Add more →</button>
+              <button className="btn-red" onClick={scrollToSignIn} style={{ padding: '10px 16px', fontSize: 14, borderWidth: 2 }}>Save trip</button>
             </div>
           </div>
         </div>
@@ -227,14 +221,12 @@ export default function Itinerary({ setPage, answers }: Props) {
                   d={d}
                   dayIdx={i}
                   isLast={i === plan.length - 1}
-                  approved={approved}
                   flipped={flipped}
                   swapping={swapping}
                   reasonOpen={reasonOpen}
                   appearing={appearing}
                   removing={removing}
                   resolveEntry={resolveEntry}
-                  onApprove={onApprove}
                   onFlip={onFlip}
                   onOpenSwap={onOpenSwap}
                   onSwap={onSwap}
@@ -246,9 +238,8 @@ export default function Itinerary({ setPage, answers }: Props) {
 
               <div style={{ position: 'sticky', bottom: 16, marginTop: 32, display: 'flex', justifyContent: 'center', zIndex: 5 }}>
                 <div className="chunky itin-action-bar" style={{ padding: '14px 22px', display: 'inline-flex', alignItems: 'center', gap: 16, background: 'var(--ink)', color: 'var(--cream)' }}>
-                  <span style={{ fontWeight: 600, fontSize: 14 }}>{approvedCount} approved</span>
                   <button className="btn-red" style={{ padding: '10px 18px', fontSize: 14 }}>Share itinerary</button>
-                  <button className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'var(--cream)', fontSize: 14, padding: '9px 14px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <button onClick={scrollToSignIn} className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'var(--cream)', fontSize: 14, padding: '9px 14px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     <Bookmark size={14} /> Save
                   </button>
                 </div>
@@ -258,17 +249,16 @@ export default function Itinerary({ setPage, answers }: Props) {
         </div>
       </div>
 
-      <SsoLogin />
+      <div id="sso-login"><SsoLogin /></div>
       <Footer />
     </>
   );
 }
 
 type DayHandlers = {
-  approved: Set<string>; flipped: Set<string>; swapping: Set<string>;
+  flipped: Set<string>; swapping: Set<string>;
   reasonOpen: Set<string>; appearing: Set<string>; removing: Set<string>;
   resolveEntry: (e: SlotEntry) => CardEntry | null;
-  onApprove: (uid: string) => void;
   onFlip: (uid: string) => void;
   onOpenSwap: (uid: string) => void;
   onSwap: (uid: string, slot: Slot, e: CardEntry, reason: SwapReason) => void;
@@ -358,8 +348,8 @@ function Section({
 
 function SortableCard({
   card, entry, section, dayNum,
-  approved, flipped, swapping, reasonOpen, appearing, removing,
-  onApprove, onFlip, onOpenSwap, onSwap, onAddItem, onRemove,
+  flipped, swapping, reasonOpen, appearing, removing,
+  onFlip, onOpenSwap, onSwap, onAddItem, onRemove,
 }: { card: PlannedCard; entry: CardEntry; section: Slot; dayNum: number } & DayHandlers) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.uid });
   const style = {
@@ -393,9 +383,7 @@ function SortableCard({
         entry={entry}
         flipped={flipped.has(card.uid)}
         swapping={swapping.has(card.uid)}
-        approved={approved.has(card.uid)}
         onFlip={() => onFlip(card.uid)}
-        onApprove={() => onApprove(card.uid)}
         onSwap={() => onOpenSwap(card.uid)}
         showReasons={reasonOpen.has(card.uid)}
         onPickReason={(reason) => onSwap(card.uid, section, entry, reason)}

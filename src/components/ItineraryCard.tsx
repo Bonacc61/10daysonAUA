@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Activity } from '../data/activities';
 import type { CardEntry, SwapReason, ViatorItem } from '../types';
-import { Star, MapPin, Clock, Dollar, Check, Swap } from './Icons';
+import { Star, MapPin, Clock, Dollar, Swap } from './Icons';
 import GroupCard from './GroupCard';
 import CardBack from './CardBack';
 import SwapReasons, { SWAP_REASONS_OPEN_PX } from './SwapReasons';
@@ -11,9 +11,7 @@ type Props = {
   entry: CardEntry;
   flipped: boolean;
   swapping: boolean;
-  approved: boolean;
   onFlip: () => void;
-  onApprove: () => void;
   onSwap: () => void;
   // True after "Swap this" is pressed — reveals the "Why swap?" chip strip
   // below the (still-visible) action row.
@@ -34,7 +32,7 @@ const BASE_HEIGHT = 284;
 const REASONS_EXTRA = SWAP_REASONS_OPEN_PX;
 
 export default function ItineraryCard({
-  entry, flipped, swapping, approved, onFlip, onApprove, onSwap,
+  entry, flipped, swapping, onFlip, onSwap,
   showReasons = false, onPickReason, onAddItem,
 }: Props) {
   // Per-card state for the group's "Other suggestions" expand/collapse.
@@ -56,12 +54,12 @@ export default function ItineraryCard({
     : <CardBack kind="group"    bestSeller={entry.bestSeller}  onFlip={onFlip} />;
 
   const front = entry.kind === 'activity'
-    ? <ActivityCardFront a={entry.activity} approved={approved}
-                         onFlip={onFlip} onApprove={onApprove} onSwap={onSwap}
+    ? <ActivityCardFront a={entry.activity}
+                         onFlip={onFlip} onSwap={onSwap}
                          showReasons={showReasons} onPickReason={onPickReason} />
     : <GroupCard group={entry.group} bestSeller={entry.bestSeller}
-                 others={entry.others} approved={approved}
-                 onApprove={onApprove} onSwap={onSwap} onFlip={onFlip}
+                 others={entry.others}
+                 onSwap={onSwap} onFlip={onFlip}
                  showReasons={showReasons} onPickReason={onPickReason}
                  suggestionsOpen={suggestionsOpen}
                  onToggleSuggestions={() => setSuggestionsOpen((v) => !v)}
@@ -80,12 +78,10 @@ export default function ItineraryCard({
 // Local activity (non-Viator) card front face — preserved from the original
 // inline CardFront in Itinerary.tsx, with the same look and behavior.
 function ActivityCardFront({
-  a, approved, onFlip, onApprove, onSwap, showReasons, onPickReason,
+  a, onFlip, onSwap, showReasons, onPickReason,
 }: {
   a: Activity;
-  approved: boolean;
   onFlip: () => void;
-  onApprove: () => void;
   onSwap: () => void;
   showReasons?: boolean;
   onPickReason?: (reason: SwapReason) => void;
@@ -164,18 +160,6 @@ function ActivityCardFront({
           </div>
           <div style={{ marginTop: 'auto' }}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button onClick={onApprove}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '8px 14px', borderRadius: 12,
-                  border: '2px solid var(--ink)', fontWeight: 700,
-                  fontFamily: 'inherit', fontSize: 13, cursor: 'pointer',
-                  background: approved ? 'var(--green)' : 'var(--cream)',
-                  color: approved ? 'var(--cream)' : 'var(--ink)',
-                  boxShadow: '3px 3px 0 var(--ink)',
-                }}>
-                <Check size={13} aria-hidden /> {approved ? 'Approved' : 'Sounds good'}
-              </button>
               <button onClick={onSwap} className="btn-ghost"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
                          padding: '8px 13px', fontSize: 13 }}>
