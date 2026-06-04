@@ -1,29 +1,15 @@
 import { useState, type CSSProperties } from 'react';
 import { Search, Star, MapPin, Clock, Dollar, Plus, Check, X } from '../components/Icons';
 import Footer from '../components/Footer';
-import GroupCard from '../components/GroupCard';
 import { CATEGORIES } from '../data/activities';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
-import {
-  filterExploreEntries,
-  groupPasses,
-  itemCategory,
-  type ExploreEntry,
-} from '../data/exploreItems';
-import type { ViatorGroup, ViatorItem } from '../types';
+import { filterExploreEntries, itemCategory } from '../data/exploreItems';
+import type { ViatorItem } from '../types';
 import type { Answers } from '../App';
 import type { PageId } from '../App';
 
 type Props = { setPage: (p: PageId) => void; answers: Answers };
-
-// Map Viator taxonomy ids → existing UI category buckets (group cards only).
-const GROUP_TAXONOMY_TO_CATEGORY: Record<string, typeof CATEGORIES[number]> = {
-  'adventure-tours':         'Activities',
-  'watersports':             'Watersports',
-  'sailing-cruises':         'Tours',
-  'food-drink-experiences':  'Food',
-};
 
 // Vibe pill copy/colour from an adventure value (mirrors vibePass thresholds).
 function vibePill(adventure: number): { label: string; bg: string } {
@@ -41,14 +27,14 @@ const pillStyle: CSSProperties = {
   fontSize: 10, fontWeight: 800, padding: '2px 9px', zIndex: 2,
 };
 
-function Slider({ label, badge, value, onChange, lo, hi, hint }: {
-  label: string; badge?: string; value: number; onChange: (v: number) => void; lo: string; hi: string; hint: string;
+function Slider({ label, value, onChange, lo, hi, hint }: {
+  label: string; value: number; onChange: (v: number) => void; lo: string; hi: string; hint: string;
 }) {
   const sliderStyle = { ['--pct' as string]: value + '%' } as CSSProperties;
   return (
     <div className="chunky" style={{ padding: 18, marginBottom: 16 }}>
-      <h3 style={{ fontWeight: 700, fontSize: 13, margin: '0 0 8px', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 8 }}>
-        {label}{badge && <span style={{ background: 'var(--red)', color: 'var(--cream)', fontSize: 10, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: 999, border: '2px solid var(--ink)' }}>{badge}</span>}
+      <h3 style={{ fontWeight: 700, fontSize: 13, margin: '0 0 8px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+        {label}
       </h3>
       <input type="range" min={0} max={100} value={value} className="trip-slider" style={sliderStyle}
         onChange={(e) => onChange(Number(e.target.value))} aria-label={label} />
@@ -84,26 +70,8 @@ export default function Explore({ setPage, answers }: Props) {
 
   const groupName = (item: ViatorItem) => catalog.groups.find((g) => g.id === item.group_id)?.name ?? '';
 
-  // Merged, filtered, ranked list of individual item + local-pick tiles.
+  // Every individual Viator item URL + local pick, as its own filterable tile.
   const entries = filterExploreEntries(catalog, { category, search, vibe, price });
-
-  // Group tiles: pinned on top. Shown when category/search match AND any item
-  // in the group clears both sliders (groupPasses).
-  const groupTiles: { g: ViatorGroup; bs: ViatorItem }[] = catalog.groups
-    .map((g) => {
-      const bs = catalog.items.find((i) => i.group_id === g.id && i.is_best_seller);
-      return bs ? { g, bs } : null;
-    })
-    .filter((x): x is { g: ViatorGroup; bs: ViatorItem } => x !== null)
-    .filter(({ g, bs }) => {
-      const grpCat = GROUP_TAXONOMY_TO_CATEGORY[g.id] ?? 'Tours';
-      const catOk = category === 'All' || grpCat === category;
-      const s = search.toLowerCase();
-      const searchOk = search === '' ||
-        g.name.toLowerCase().includes(s) || g.tagline.toLowerCase().includes(s) || bs.title.toLowerCase().includes(s);
-      return catOk && searchOk && groupPasses(g, catalog, vibe, price);
-    })
-    .sort((a, b) => a.g.display_order - b.g.display_order);
 
   const toggleAdd = (id: string) => {
     setAdded((prev) => {
@@ -113,7 +81,7 @@ export default function Explore({ setPage, answers }: Props) {
     });
   };
 
-  const totalCount = groupTiles.length + entries.length;
+  const totalCount = entries.length;
 
   return (
     <>
@@ -155,8 +123,8 @@ export default function Explore({ setPage, answers }: Props) {
         <div className="container-1280">
           <div className="explore-row" style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }}>
             <aside className="explore-sidebar" style={{ flex: '0 0 240px' }}>
-              <Slider label="Vibe" badge="New" value={vibe} onChange={setVibe} lo="🌴 Chill" hi="Adrenaline 🪂" hint={vibeHint(vibe)} />
-              <Slider label="Price" badge="New" value={price} onChange={setPrice} lo="🆓 Free" hi="Splurge 💸" hint={priceHint(price)} />
+              <Slider label="Vibe" value={vibe} onChange={setVibe} lo="🌴 Chill" hi="Adrenaline 🪂" hint={vibeHint(vibe)} />
+              <Slider label="Price" value={price} onChange={setPrice} lo="✨ Free" hi="Splurge 💸" hint={priceHint(price)} />
               {added.size > 0 && (
                 <div className="chunky" style={{ padding: 18, background: 'var(--green)', color: 'var(--cream)' }}>
                   <div className="font-display" style={{ fontSize: 18, marginBottom: 6 }}>{added.size} added</div>
@@ -174,26 +142,7 @@ export default function Explore({ setPage, answers }: Props) {
                 </p>
               </div>
               <div className="explore-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }}>
-                {/* Group tiles first (pinned) */}
-                {groupTiles.map(({ g, bs }) => {
-                  const others = catalog.items
-                    .filter((i) => i.group_id === g.id && i.id !== bs.id)
-                    .sort((a, b) => a.display_order - b.display_order);
-                  const id = `group:${g.id}`;
-                  return (
-                    <div key={id} style={{ minHeight: 0 }}>
-                      <GroupCard
-                        group={g} bestSeller={bs} others={others}
-                        approved={added.has(id)}
-                        onApprove={() => toggleAdd(id)}
-                        onSwap={() => {/* not rendered in explore variant */}}
-                        onFlip={() => {/* not rendered in explore variant */}}
-                        variant="explore"
-                      />
-                    </div>
-                  );
-                })}
-                {/* Merged individual tiles: Viator items + local picks, ranked */}
+                {/* Every individual Viator item + local pick, ranked */}
                 {entries.map((e) => (
                   e.kind === 'item'
                     ? <ItemTile key={`item:${e.item.id}`} item={e.item} groupName={groupName(e.item)} adventure={e.adventure} added={added.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />

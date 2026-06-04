@@ -48,10 +48,17 @@ export function itemCategory(item: ViatorItem): Category {
 // products, which arrive with only a title (no adventure field, no per-item
 // tags). Prefix-at-word-start matching ("zip" → "ziplining", "sail" → "sailing")
 // while avoiding mid-word false hits. Checked adrenaline → chill → moderate.
+// Tiers are checked top-to-bottom; first hit wins. Order matters: adrenaline
+// vehicles beat everything; specific chill (snorkel/sail) and moderate
+// (jeep/kayak) beat the broad generic-chill catch-all, so a "Jeep Tour" stays
+// balanced while a plain "Island Tour" / "Airport Transfer" lands chill.
 const ADV_KEYWORDS: { value: number; words: string[] }[] = [
-  { value: 85, words: ['utv', 'atv', 'quad', 'buggy', 'zip', 'kite', 'jet ski', 'jetski', 'jet-ski', 'jet boat', 'off-road', 'off road', 'offroad', 'cliff', 'dune', 'parasail', 'tubing', 'snuba', 'wakeboard', 'flyboard', 'e-foil', 'efoil', 'rappel', 'abseil', 'bungee', 'skydiv', 'paraglid'] },
+  { value: 85, words: ['utv', 'atv', 'quad', 'buggy', 'zip', 'kite', 'jet ski', 'jetski', 'jet-ski', 'jet boat', 'off-road', 'off road', 'offroad', 'cliff', 'dune', 'parasail', 'tubing', 'snuba', 'seabob', 'talon', 'raider', 'wakeboard', 'flyboard', 'e-foil', 'efoil', 'rappel', 'abseil', 'bungee', 'skydiv', 'paraglid'] },
   { value: 18, words: ['snorkel', 'sail', 'cruis', 'sunset', 'dinner', 'lunch', 'brunch', 'tasting', 'distiller', 'rum', 'wine', 'cocktail', 'cooking', 'culinary', 'massage', 'wellness', 'beach', 'picnic', 'photoshoot', 'romantic', 'glass bottom', 'glass-bottom', 'catamaran', 'boat', 'yacht', 'relax', 'scenic', 'sightseeing', 'walking', 'food tour', 'mangrove', 'turtle', 'flamingo', 'lounge', 'day pass', 'tapas', 'chocolate'] },
-  { value: 50, words: ['hik', 'jeep', 'safari', '4x4', '4×4', 'bike', 'biking', 'cycling', 'kayak', 'paddle', 'horseback', 'horse rid', 'cave', 'segway', 'scuba', 'dive', 'diving', 'nature', 'eco'] },
+  { value: 50, words: ['hik', 'jeep', 'safari', '4x4', '4×4', '4wd', 'bike', 'biking', 'cycling', 'kayak', 'paddle', 'horseback', 'horse rid', 'cave', 'segway', 'scooter', 'harley', 'scuba', 'dive', 'diving', 'nature', 'eco'] },
+  // Generic-chill catch-all (checked last): broad sightseeing / logistics words
+  // so an otherwise-unmatched "Island Tour", "Transfer", "Bus" reads as chill.
+  { value: 18, words: ['tour', 'transfer', 'transport', 'pickup', 'pick up', 'pick-up', 'shuttle', 'bus', 'van', 'excursion', 'sightsee', 'highlight', 'landmark', 'daypass', 'day trip', 'submarine', 'sanctuary', 'waterpark', 'water park', 'pub crawl', 'happy hour', 'sip', 'paint', 'breakfast', 'mimosa', 'museum', 'historic', 'cultural', 'culture', 'photo shoot', 'sea glass', 'rental', 'animal', 'all-inclusive', 'all inclusive'] },
 ];
 const ADV_KEYWORD_RE = ADV_KEYWORDS.map((k) => ({
   value: k.value,

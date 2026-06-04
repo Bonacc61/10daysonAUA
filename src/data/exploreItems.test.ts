@@ -84,8 +84,25 @@ describe('keywordAdventure', () => {
     expect(v!).toBeLessThan(67);
   });
 
+  test('generic island tours / transfers / buses default to chill', () => {
+    for (const t of ['Aruba Island Tour', 'Private Airport Transfer in Aruba', 'Aruba Atlantis Submarine Tour', 'Best of Aruba by Bus', 'Highlights of Aruba Island Tour']) {
+      expect(keywordAdventure(t)!).toBeLessThanOrEqual(33);
+    }
+  });
+
+  test('thrill vehicles score high even when titled "tour"', () => {
+    expect(keywordAdventure('Aruba Seabob Scooter Reef Tour')!).toBeGreaterThanOrEqual(67);
+    expect(keywordAdventure('Honda Talon 4 Seater Rental')!).toBeGreaterThanOrEqual(67);
+  });
+
+  test('a jeep tour stays balanced — the generic "tour" default must not override it', () => {
+    const v = keywordAdventure('Full day Aruba Jeep Tour Arikok Park');
+    expect(v!).toBeGreaterThan(33);
+    expect(v!).toBeLessThan(67);
+  });
+
   test('returns undefined when no keyword matches (caller falls back)', () => {
-    expect(keywordAdventure('A Generic Aruba Experience')).toBeUndefined();
+    expect(keywordAdventure('A Mystery Aruba Outing')).toBeUndefined();
   });
 });
 

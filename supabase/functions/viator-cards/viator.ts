@@ -52,10 +52,13 @@ export async function getProduct(code: string): Promise<ViatorProduct> {
 
 export type SearchResult = { products: ViatorProduct[]; totalCount: number };
 
+const PAGE_MAX = 50; // Viator /products/search hard cap on `count` per request
+
 export async function searchProducts(
   destinationId: number,
   tagIds: number[],
   count: number,
+  start = 1,
 ): Promise<SearchResult> {
   const r = await fetch(`${BASE}/products/search`, {
     method: 'POST',
@@ -63,7 +66,7 @@ export async function searchProducts(
     body: JSON.stringify({
       filtering: { destination: String(destinationId), tags: tagIds },
       sorting: { sort: 'TRAVELER_RATING', order: 'DESCENDING' },
-      pagination: { start: 1, count },
+      pagination: { start, count },
       currency: 'USD',
     }),
   });
@@ -73,4 +76,27 @@ export async function searchProducts(
   }
   const body = await r.json();
   return { products: body?.products ?? [], totalCount: body?.totalCount ?? 0 };
+}
+
+// Fetch up to `max` products for a tag by paging (50/request). Page 1 reveals
+// totalCount; the remaining pages are fetched in parallel, so wall time is
+// ~2 round-trips no matter how many pages are needed.
+export async function searchProductsPaged(
+  destinationId: number,
+  tagIds: number[],
+  max: number,
+): Promise<SearchResult> {
+  const first = await searchProducts(destinationId, tagIds, Math.min(PAGE_MAX, max), 1);
+  const target = Math.min(first.totalCount || first.products.length, max);
+  const products = [...first.products];
+
+  const starts: number[] = [];
+  for (let start = products.length + 1; start <= target; start += PAGE_MAX) starts.push(start);
+  if (starts.length) {
+    const rest = await Promise.all(
+      starts.map((start) => searchProducts(destinationId, tagIds, Math.min(PAGE_MAX, target - start + 1), start)),
+    );
+    for (const r of rest) products.push(...r.products);
+  }
+  return { products: products.slice(0, target), totalCount: first.totalCount };
 }
