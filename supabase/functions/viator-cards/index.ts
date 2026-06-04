@@ -6,7 +6,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { GROUPS, ARUBA_DESTINATION_ID } from './groups.ts';
 import { normalizeProduct } from './normalize.ts';
-import { hasKey, ping, searchProducts, searchProductsPaged, freetextSearch, getProduct } from './viator.ts';
+import { hasKey, ping, searchProducts, searchProductsPaged, freetextSearch, getProduct, getTags } from './viator.ts';
 
 // Max products fetched AND emitted per group (paged, 50/request). Represents
 // nearly the full live Aruba inventory (adventure ~105, watersports ~67,
@@ -38,6 +38,13 @@ serve(async (req) => {
   if (op === 'health') {
     try { return json(await ping()); }
     catch (e) { return json({ ok: false, error: String(e) }, 502); }
+  }
+  // TEMPORARY (taxonomy build): dump Viator tag tree (id → name → parents).
+  if (op === 'taxonomy') {
+    try {
+      const tags = await getTags();
+      return json(tags.map((t) => ({ id: t.tagId, name: t.allNamesByLocale?.en ?? '', parents: t.parentTagIds ?? [] })));
+    } catch (e) { return json({ error: String(e) }, 502); }
   }
   // TEMPORARY: find the best Viator product match for each bookable local pick.
   if (op === 'match') {
@@ -100,6 +107,7 @@ serve(async (req) => {
           review_count: it.review_count,
           viator_item_url: it.viator_item_url,
           description: it.description,
+          tags: it.tags,
           is_best_seller: order === 0,
           display_order: order,
         });

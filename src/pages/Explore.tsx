@@ -1,10 +1,9 @@
 import { useState, type CSSProperties } from 'react';
 import { Search, Star, MapPin, Clock, Dollar, Plus, Check, X } from '../components/Icons';
 import Footer from '../components/Footer';
-import { CATEGORIES } from '../data/activities';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
-import { filterExploreEntries, bookingUrl } from '../data/exploreItems';
+import { filterExploreEntries, bookingUrl, SECTIONS, sectionLabel, primarySection } from '../data/exploreItems';
 import type { ViatorItem } from '../types';
 import type { Answers } from '../App';
 import type { PageId } from '../App';
@@ -74,13 +73,12 @@ function priceHint(p: number): string {
 export default function Explore({ setPage, answers }: Props) {
   const catalog = useCatalog();
 
-  const [category, setCategory] = useState<string>('All');
+  const [section, setSection] = useState<string>('All');
   const [search, setSearch] = useState('');
   const [vibe, setVibe] = useState<number>(answers.adventureLevel ?? 50);
   const [price, setPrice] = useState<number>(50);
   const [added, setAdded] = useState<Set<string>>(new Set());
 
-  const groupName = (item: ViatorItem) => catalog.groups.find((g) => g.id === item.group_id)?.name ?? '';
   // Region per Viator item: its own override, else its group's region (coarse for
   // now; precise per-item locations are the planned backend follow-up).
   const regionOf = (item: ViatorItem) => {
@@ -90,7 +88,7 @@ export default function Explore({ setPage, answers }: Props) {
   const groupUrl = (item: ViatorItem) => catalog.groups.find((g) => g.id === item.group_id)?.viator_group_url ?? '';
 
   // Every individual Viator item URL + local pick, as its own filterable tile.
-  const entries = filterExploreEntries(catalog, { category, search, vibe, price });
+  const entries = filterExploreEntries(catalog, { section, search, vibe, price });
 
   const toggleAdd = (id: string) => {
     setAdded((prev) => {
@@ -129,9 +127,9 @@ export default function Explore({ setPage, answers }: Props) {
           </div>
 
           <div style={{ display: 'flex', gap: 6, marginTop: 18, overflowX: 'auto' }}>
-            {CATEGORIES.map((cat) => (
-              <button key={cat} className={`cat-tab${cat === category ? ' active' : ''}`} onClick={() => setCategory(cat)}>
-                {cat}
+            {[{ key: 'All', label: 'All' }, ...SECTIONS].map((tab) => (
+              <button key={tab.key} className={`cat-tab${tab.key === section ? ' active' : ''}`} onClick={() => setSection(tab.key)}>
+                {tab.label}
               </button>
             ))}
           </div>
@@ -157,15 +155,15 @@ export default function Explore({ setPage, answers }: Props) {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
                 <p style={{ fontSize: 14, color: 'var(--sand-700)', margin: 0 }}>
                   <strong style={{ color: 'var(--ink)' }}>{totalCount}</strong> results
-                  {category !== 'All' && ` in ${category}`}
+                  {section !== 'All' && ` in ${sectionLabel(section as never)}`}
                 </p>
               </div>
               <div className="explore-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }}>
                 {/* Every individual Viator item + local pick, ranked */}
                 {entries.map((e) => (
                   e.kind === 'item'
-                    ? <ItemTile key={`item:${e.item.id}`} item={e.item} groupName={groupName(e.item)} groupUrl={groupUrl(e.item)} region={regionOf(e.item)} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />
-                    : <ActivityTile key={e.activity.id} a={e.activity} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} />
+                    ? <ItemTile key={`item:${e.item.id}`} item={e.item} section={sectionLabel(primarySection(e.sections))} groupUrl={groupUrl(e.item)} region={regionOf(e.item)} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />
+                    : <ActivityTile key={e.activity.id} a={e.activity} section={sectionLabel(primarySection(e.sections))} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} />
                 ))}
               </div>
               {totalCount === 0 && (
@@ -209,14 +207,14 @@ function CardActions({ bookNow, added, onAdd }: { bookNow: string | null; added:
   );
 }
 
-function ItemTile({ item, groupName, groupUrl, region, adventure, bookNow, added, onAdd }: { item: ViatorItem; groupName: string; groupUrl: string; region: string; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
+function ItemTile({ item, section, groupUrl, region, adventure, bookNow, added, onAdd }: { item: ViatorItem; section: string; groupUrl: string; region: string; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
   const url = item.viator_item_url;
   const ext = { target: '_blank', rel: 'noopener noreferrer' } as const;
   return (
     <div className="a-card fade-in">
-      {/* Header → the group's Viator category page */}
+      {/* Header (primary section) → the group's Viator category page */}
       <a className="card-header-band" href={groupUrl} {...ext}>
-        <span className="chb-title" style={{ flex: 1 }}>{groupName}</span>
+        <span className="chb-title" style={{ flex: 1 }}>{section}</span>
         <HeaderVibePill adventure={adventure} />
       </a>
       {/* Image + rating → the Viator activity page (rating = its reviews) */}
@@ -252,7 +250,7 @@ function ItemTile({ item, groupName, groupUrl, region, adventure, bookNow, added
   );
 }
 
-function ActivityTile({ a, adventure, bookNow, added, onAdd }: { a: Activity; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
+function ActivityTile({ a, section, adventure, bookNow, added, onAdd }: { a: Activity; section: string; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
   const url = a.viator_item_url; // present only on matched local picks
   const ext = { target: '_blank', rel: 'noopener noreferrer' } as const;
   const imgInner = <><img src={a.image} alt={a.title} loading="lazy" /><span className="a-rating"><Star size={12} aria-hidden /> {a.rating}</span></>;
@@ -260,7 +258,7 @@ function ActivityTile({ a, adventure, bookNow, added, onAdd }: { a: Activity; ad
   return (
     <div className="a-card fade-in">
       <div className="card-header-band">
-        <span className="chb-title" style={{ flex: 1 }}>{a.category}</span>
+        <span className="chb-title" style={{ flex: 1 }}>{section}</span>
         <HeaderVibePill adventure={adventure} />
         <LocalMark />
       </div>

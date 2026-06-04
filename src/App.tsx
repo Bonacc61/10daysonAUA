@@ -30,9 +30,37 @@ export const DEFAULT_ANSWERS: Answers = {
   specialNotes: '',
 };
 
+const PATH_TO_PAGE: Record<string, PageId> = {
+  '/explore': 'explore',
+  '/itinerary': 'itinerary',
+  '/questionnaire': 'questionnaire',
+};
+const PAGE_TO_PATH: Record<PageId, string> = {
+  landing: '/',
+  questionnaire: '/questionnaire',
+  explore: '/explore',
+  itinerary: '/itinerary',
+};
+
+function pageFromUrl(): PageId {
+  return PATH_TO_PAGE[window.location.pathname] ?? 'landing';
+}
+
 export default function App() {
-  const [page, setPage] = useState<PageId>('landing');
+  const [page, setPageState] = useState<PageId>(pageFromUrl);
   const [answers, setAnswers] = useState<Answers>(DEFAULT_ANSWERS);
+
+  function setPage(p: PageId) {
+    const path = PAGE_TO_PATH[p];
+    if (window.location.pathname !== path) window.history.pushState({}, '', path);
+    setPageState(p);
+  }
+
+  useEffect(() => {
+    const onPop = () => setPageState(pageFromUrl());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });

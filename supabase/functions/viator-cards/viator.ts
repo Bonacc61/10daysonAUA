@@ -50,6 +50,17 @@ export async function getProduct(code: string): Promise<ViatorProduct> {
   return await r.json();
 }
 
+export type ViatorTag = { tagId: number; parentTagIds?: number[]; allNamesByLocale?: Record<string, string> };
+
+// Full Viator tag taxonomy (id → name → parentTagIds). Used to roll a product's
+// tags up to our curated sections.
+export async function getTags(): Promise<ViatorTag[]> {
+  const r = await fetch(`${BASE}/products/tags`, { headers: headers() });
+  if (!r.ok) throw new Error(`Viator tags ${r.status}`);
+  const body = await r.json();
+  return body?.tags ?? [];
+}
+
 export type SearchResult = { products: ViatorProduct[]; totalCount: number };
 
 const PAGE_MAX = 50; // Viator /products/search hard cap on `count` per request

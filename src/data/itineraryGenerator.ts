@@ -14,7 +14,7 @@
 import type { Answers } from '../App';
 import type { Catalog } from './activitySource';
 import type { Activity, Day } from './activities';
-import type { CardEntry, MatchTag, Region, Slot, SlotEntry } from '../types';
+import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, blendPools, entryPrice } from './matcher';
 import { answersToTags } from './answerTags';
@@ -27,17 +27,18 @@ const SLOT_TOD: Record<Slot, Activity['timeOfDay']> = {
 
 const NO_FILTER = { rejectedIds: new Set<string>(), rejectedGroupIds: new Set<string>() };
 
-// interest tag → local activity categories it favours. This is what tailors the
+// interest tag → Explore sections it favours. This is what tailors the
 // wildcard-tagged local picks (groups already differentiate via matched_by).
-const INTEREST_CATEGORIES: Partial<Record<MatchTag, Activity['category'][]>> = {
-  'beach-chill':     ['Beaches'],
-  'watersports':     ['Watersports'],
-  'food-drink':      ['Food'],
-  'nature-hiking':   ['Activities', 'Tours'],
-  'adventure':       ['Activities', 'Watersports', 'Tours'],
-  'culture-history': ['Tours', 'Food'],
-  'nightlife':       ['Food'],
-  'wellness-spa':    ['Beaches'],
+// Same section taxonomy Explore filters on (see exploreItems.ts SECTIONS).
+const INTEREST_SECTIONS: Partial<Record<MatchTag, Section[]>> = {
+  'beach-chill':     ['beaches'],
+  'watersports':     ['cruises-water'],
+  'food-drink':      ['food-drink'],
+  'nature-hiking':   ['adventures-outdoor', 'tours-sightseeing'],
+  'adventure':       ['adventures-outdoor', 'cruises-water', 'tours-sightseeing'],
+  'culture-history': ['culture-history', 'tours-sightseeing'],
+  'nightlife':       ['food-drink'],
+  'wellness-spa':    ['beaches'],
 };
 
 // mulberry32 — tiny deterministic PRNG so a seed reproduces a plan exactly.
@@ -75,13 +76,13 @@ function toSlotEntry(e: CardEntry): SlotEntry {
     : { kind: 'group', groupId: e.group.id, bestSellerId: e.bestSeller.id };
 }
 
-function scoreEntry(e: CardEntry, tags: Set<MatchTag>, prefCats: Set<string>): number {
+function scoreEntry(e: CardEntry, tags: Set<MatchTag>, prefSections: Set<Section>): number {
   let score = 0;
   // tag overlap (groups carry real tags; wildcard activities contribute 0 here)
   const tagged = e.kind === 'group' ? e.group.matched_by : e.activity.matched_by;
   for (const t of tagged) if (tags.has(t)) score += 2;
-  // interest ↔ category affinity — tailors the wildcard local picks
-  if (e.kind === 'activity' && prefCats.has(e.activity.category)) score += 3;
+  // interest ↔ section affinity — tailors the wildcard local picks
+  if (e.kind === 'activity' && (e.activity.sections ?? []).some((s) => prefSections.has(s))) score += 3;
   // budget fit
   const price = entryPrice(e);
   if (tags.has('budget')) score += price === 0 ? 2 : price < 50 ? 1 : price > 100 ? -1 : 0;
@@ -92,7 +93,7 @@ function scoreEntry(e: CardEntry, tags: Set<MatchTag>, prefCats: Set<string>): n
 type Ctx = {
   catalog: Catalog;
   tags: Set<MatchTag>;
-  prefCats: Set<string>;
+  prefSections: Set<Section>;
   rand: () => number;
   lastUsedDay: Map<string, number>;
 };
@@ -119,7 +120,7 @@ function candidatesFor(ctx: Ctx, slot: Slot, useTags: Set<MatchTag> | null): Car
 const BAND = 1;
 
 function ranked(ctx: Ctx, cands: CardEntry[], anchor: Region | undefined): CardEntry[] {
-  const scored = cands.map((e) => ({ e, s: scoreEntry(e, ctx.tags, ctx.prefCats) }));
+  const scored = cands.map((e) => ({ e, s: scoreEntry(e, ctx.tags, ctx.prefSections) }));
   const maxS = scored.reduce((m, x) => Math.max(m, x.s), -Infinity);
   // Shuffle the within-BAND top band (variety on regen), then stably partition
   // by anchor-region so clustering only breaks ties — the shuffle order survives
@@ -189,12 +190,12 @@ export function generatePlan(
   opts: { seed?: number } = {},
 ): Day[] {
   const tags = answersToTags(answers);
-  const prefCats = new Set<string>();
-  for (const t of tags) for (const c of INTEREST_CATEGORIES[t] ?? []) prefCats.add(c);
+  const prefSections = new Set<Section>();
+  for (const t of tags) for (const s of INTEREST_SECTIONS[t] ?? []) prefSections.add(s);
 
   const nDays = Math.max(1, Math.min(answers.days || 1, 14));
   const seed = ((opts.seed ?? 0) ^ hashAnswers(answers)) >>> 0;
-  const ctx: Ctx = { catalog, tags, prefCats, rand: rng(seed + 1), lastUsedDay: new Map() };
+  const ctx: Ctx = { catalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map() };
 
   const days: Day[] = [];
   for (let d = 1; d <= nDays; d += 1) {

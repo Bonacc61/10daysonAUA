@@ -1,18 +1,68 @@
 import type { Activity } from './activities';
-import type { ViatorGroup, ViatorItem, MatchTag } from '../types';
+import type { ViatorGroup, ViatorItem, MatchTag, Section } from '../types';
 import type { Catalog } from './activitySource';
 import { parseActivityCost } from './matcher';
 
 // Content bucket for a tile — CATEGORIES without the 'All' filter sentinel.
+// Retained only as the last-resort input to the adventure (vibe) proxy.
 export type Category = 'Beaches' | 'Activities' | 'Watersports' | 'Food' | 'Tours';
+
+// === Explore sections (Viator-tag driven taxonomy) =========================
+// Tab order also defines each entry's "primary" section (first match wins).
+export const SECTIONS: { key: Section; label: string }[] = [
+  { key: 'cruises-water', label: 'Cruises & Water' },
+  { key: 'adventures-outdoor', label: 'Adventures & Outdoor' },
+  { key: 'tours-sightseeing', label: 'Tours & Sightseeing' },
+  { key: 'food-drink', label: 'Food & Drink' },
+  { key: 'culture-history', label: 'Culture & History' },
+  { key: 'beaches', label: 'Beaches' },
+];
+const SECTION_ORDER = SECTIONS.map((s) => s.key);
+
+// Viator CATEGORY tag id → section. Only real category tags are listed; the many
+// attribute/quality tags products also carry (Private & Luxury, Shore Excursions,
+// Weather Dependent, …) are intentionally ignored. Tuned to Aruba's live tree.
+const TAG_SECTION: Record<number, Section> = {
+  // Cruises & Water (On the Water cluster + cruises/sailing + water tours)
+  21442: 'cruises-water', 21701: 'cruises-water', 20255: 'cruises-water',
+  11912: 'cruises-water', 11888: 'cruises-water', 12047: 'cruises-water',
+  12021: 'cruises-water', 12062: 'cruises-water', 11974: 'cruises-water',
+  11885: 'cruises-water', 11963: 'cruises-water',
+  // Adventures & Outdoor (extreme + on-the-ground + nature/wildlife + adventure)
+  11923: 'adventures-outdoor', 11903: 'adventures-outdoor', 21440: 'adventures-outdoor',
+  22046: 'adventures-outdoor', 21704: 'adventures-outdoor', 12035: 'adventures-outdoor',
+  21421: 'adventures-outdoor', 12038: 'adventures-outdoor', 11902: 'adventures-outdoor',
+  11973: 'adventures-outdoor',
+  // Food & Drink (incl. classes/workshops: cooking, sip & paint)
+  21911: 'food-drink', 21915: 'food-drink', 11891: 'food-drink', 21567: 'food-drink',
+};
+
+// Sections from a product's Viator tags. Unmapped/attribute-only → catch-all
+// (Tours & Sightseeing), so nothing is ever hidden.
+export function sectionsForTags(tags?: number[]): Section[] {
+  const out = new Set<Section>();
+  for (const t of tags ?? []) { const s = TAG_SECTION[t]; if (s) out.add(s); }
+  if (out.size === 0) out.add('tours-sightseeing');
+  return [...out];
+}
+
+// Primary (first by tab order) section — used for the card header label.
+export function primarySection(sections: Section[]): Section {
+  for (const key of SECTION_ORDER) if (sections.includes(key)) return key;
+  return 'tours-sightseeing';
+}
+
+export function sectionLabel(key: Section): string {
+  return SECTIONS.find((s) => s.key === key)?.label ?? '';
+}
 
 // A single renderable Explore tile: a Viator item or a local pick, pre-tagged
 // with its category and resolved adventure value so the view never recomputes.
 export type ExploreEntry =
-  | { kind: 'item'; item: ViatorItem; category: Category; adventure: number }
-  | { kind: 'activity'; activity: Activity; category: Category; adventure: number };
+  | { kind: 'item'; item: ViatorItem; category: Category; adventure: number; sections: Section[] }
+  | { kind: 'activity'; activity: Activity; category: Category; adventure: number; sections: Section[] };
 
-export type ExploreFilters = { category: string; search: string; vibe: number; price: number };
+export type ExploreFilters = { section: string; search: string; vibe: number; price: number };
 
 // Map a Viator group id → existing UI category bucket. New groups: 1 line each.
 const GROUP_TAXONOMY_TO_CATEGORY: Record<string, Category> = {
@@ -156,12 +206,15 @@ export function filterExploreEntries(catalog: Catalog, opts: ExploreFilters): Ex
       item,
       category: itemCategory(item),
       adventure: itemAdventure(item, catalog.groups),
+      // Editorial sections (stub) win; live items derive from their Viator tags.
+      sections: item.sections ?? sectionsForTags(item.tags),
     })),
     ...catalog.activities.map((activity): ExploreEntry => ({
       kind: 'activity',
       activity,
       category: activity.category as Category,
       adventure: advValue({ adventure: activity.adventure, title: activity.title, matched_by: activity.matched_by, category: activity.category as Category }),
+      sections: activity.sections ?? ['tours-sightseeing'],
     })),
   ];
 
@@ -176,7 +229,7 @@ export function filterExploreEntries(catalog: Catalog, opts: ExploreFilters): Ex
 
   return entries
     .filter((e) =>
-      (opts.category === 'All' || e.category === opts.category) &&
+      (opts.section === 'All' || e.sections.includes(opts.section as Section)) &&
       pricePass(priceValue(priceOf(e)), opts.price) &&
       vibePass(e.adventure, opts.vibe) &&
       matchSearch(e),
