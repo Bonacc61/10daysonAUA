@@ -513,9 +513,9 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   /* ---------- Footer ---------- */
   .footer-content { padding: 22px 14px !important; }
 
-  /* ---------- Explore: hide sidebar (filters stay accessible later) ---------- */
+  /* ---------- Explore: stack the filter sidebar (Vibe/Price sliders) above the grid ---------- */
   .explore-row { flex-direction: column !important; gap: 18px !important; }
-  .explore-sidebar { display: none !important; }
+  .explore-sidebar { flex: 0 0 auto !important; width: 100% !important; }
   .explore-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
   .explore-head { padding: 22px 14px !important; }
   .explore-head h1 { font-size: 32px !important; }

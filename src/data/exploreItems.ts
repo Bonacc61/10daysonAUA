@@ -119,6 +119,13 @@ export function priceOf(entry: ExploreEntry): number {
   return entry.kind === 'item' ? entry.item.price_usd : parseActivityCost(entry.activity.cost);
 }
 
+// The "Book now" target for a card, or null when it isn't bookable: needs a
+// Viator booking link AND a non-zero price (free activities aren't booked/paid).
+export function bookingUrl(entry: ExploreEntry): string | null {
+  const url = entry.kind === 'item' ? entry.item.viator_item_url : entry.activity.viator_item_url;
+  return url && priceOf(entry) > 0 ? url : null;
+}
+
 // An item inherits its group's matched_by as the adventure-tag fallback (used
 // only when the item has no curated `adventure`).
 function groupTagsFor(item: ViatorItem, groups: ViatorGroup[]): MatchTag[] {
