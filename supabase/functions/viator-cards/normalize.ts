@@ -34,8 +34,17 @@ export type NormalizedItem = {
   review_count: number;  // reviews.totalReviews
   image_url: string;     // largest cover-image variant
   viator_item_url: string; // productUrl (PID already included by the API)
+  description: string;   // short blurb from the product summary (trimmed)
   tags: number[];
 };
+
+// Collapse whitespace and trim a product description to a short card blurb.
+function shortDescription(d?: string): string {
+  if (!d) return '';
+  const s = d.replace(/\s+/g, ' ').trim();
+  if (s.length <= 200) return s;
+  return s.slice(0, 197).replace(/\s+\S*$/, '') + '…';
+}
 
 // Minutes → compact hours/minutes label. 180 → "3 hrs", 90 → "1.5 hrs", 45 → "45 min".
 function label(min: number): string {
@@ -85,6 +94,7 @@ export function normalizeProduct(p: ViatorProduct): NormalizedItem {
     review_count: p.reviews?.totalReviews ?? 0,
     image_url: coverImage(p.images),
     viator_item_url: p.productUrl ?? '',
+    description: shortDescription(p.description),
     tags: p.tags ?? [],
   };
 }
