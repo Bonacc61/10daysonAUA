@@ -36,7 +36,7 @@ const SECTION_META: { id: Slot; label: string }[] = [
 ];
 
 export default function Itinerary({ setPage, answers, setAnswers }: Props) {
-  const catalog = useCatalog();
+  const { catalog } = useCatalog();
   const tags    = useMemo(() => answersToTags(answers), [answers]);
 
   // Build the initial itinerary from the answers + the live catalog (Viator

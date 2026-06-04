@@ -70,8 +70,24 @@ function priceHint(p: number): string {
   return p <= 6 ? 'Free only — no-cost activities.' : 'Leaning cheap — filtering out pricier picks.';
 }
 
+function SkeletonCard() {
+  return (
+    <div className="a-card" style={{ overflow: 'hidden' }}>
+      <div style={{ height: 38, background: 'var(--sand-100)', borderBottom: '2px solid var(--ink)' }} />
+      <div style={{ height: 180, background: 'var(--sand-100)' }} />
+      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ height: 18, width: '75%', background: 'var(--sand-100)', borderRadius: 4 }} />
+        <div style={{ height: 13, width: '45%', background: 'var(--sand-100)', borderRadius: 4 }} />
+        <div style={{ height: 13, width: '90%', background: 'var(--sand-100)', borderRadius: 4 }} />
+        <div style={{ height: 13, width: '70%', background: 'var(--sand-100)', borderRadius: 4 }} />
+        <div style={{ height: 36, background: 'var(--sand-100)', borderRadius: 6, marginTop: 6 }} />
+      </div>
+    </div>
+  );
+}
+
 export default function Explore({ setPage, answers }: Props) {
-  const catalog = useCatalog();
+  const { catalog, loading } = useCatalog();
 
   const [section, setSection] = useState<string>('All');
   const [search, setSearch] = useState('');
@@ -152,21 +168,24 @@ export default function Explore({ setPage, answers }: Props) {
             </aside>
 
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-                <p style={{ fontSize: 14, color: 'var(--sand-700)', margin: 0 }}>
-                  <strong style={{ color: 'var(--ink)' }}>{totalCount}</strong> results
-                  {section !== 'All' && ` in ${sectionLabel(section as never)}`}
-                </p>
-              </div>
+              {!loading && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                  <p style={{ fontSize: 14, color: 'var(--sand-700)', margin: 0 }}>
+                    <strong style={{ color: 'var(--ink)' }}>{totalCount}</strong> results
+                    {section !== 'All' && ` in ${sectionLabel(section as never)}`}
+                  </p>
+                </div>
+              )}
               <div className="explore-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }}>
-                {/* Every individual Viator item + local pick, ranked */}
-                {entries.map((e) => (
-                  e.kind === 'item'
-                    ? <ItemTile key={`item:${e.item.id}`} item={e.item} section={sectionLabel(primarySection(e.sections))} groupUrl={groupUrl(e.item)} region={regionOf(e.item)} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />
-                    : <ActivityTile key={e.activity.id} a={e.activity} section={sectionLabel(primarySection(e.sections))} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} />
-                ))}
+                {loading
+                  ? Array.from({ length: 12 }, (_, i) => <SkeletonCard key={i} />)
+                  : entries.map((e) => (
+                    e.kind === 'item'
+                      ? <ItemTile key={`item:${e.item.id}`} item={e.item} section={sectionLabel(primarySection(e.sections))} groupUrl={groupUrl(e.item)} region={regionOf(e.item)} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />
+                      : <ActivityTile key={e.activity.id} a={e.activity} section={sectionLabel(primarySection(e.sections))} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} />
+                  ))}
               </div>
-              {totalCount === 0 && (
+              {!loading && totalCount === 0 && (
                 <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--sand-500)' }}>
                   <p className="font-display" style={{ fontSize: 24, margin: 0 }}>No results found</p>
                   <p style={{ fontSize: 14, marginTop: 6 }}>Recenter the Vibe / Price sliders or clear search.</p>
