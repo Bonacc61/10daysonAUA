@@ -217,28 +217,22 @@ function ItemTile({ item, section, groupUrl, region, adventure, bookNow, added, 
         <span className="chb-title" style={{ flex: 1 }}>{section}</span>
         <HeaderVibePill adventure={adventure} />
       </a>
-      {/* Image + rating → the Viator activity page (rating = its reviews) */}
-      <a className="a-img" href={url} {...ext} style={{ display: 'block' }}>
-        <img src={item.image_url} alt={item.title} loading="lazy" />
-        <span className="a-rating"><Star size={12} aria-hidden /> {item.rating}</span>
-      </a>
+      {url
+        ? <a className="a-img" href={url} {...ext} style={{ display: 'block' }}><img src={item.image_url} alt={item.title} loading="lazy" /><span className="a-rating"><Star size={12} aria-hidden /> {item.rating}</span></a>
+        : <div className="a-img"><img src={item.image_url} alt={item.title} loading="lazy" /><span className="a-rating"><Star size={12} aria-hidden /> {item.rating}</span></div>}
       <div style={{ padding: 16 }}>
-        {/* Title → the Viator activity page */}
-        <a href={url} {...ext} className="card-title-link" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{item.title}</h3>
-        </a>
-        {/* Region is coarse (group-level) for now; precise per-item locations are a planned follow-up. */}
+        {url
+          ? <a href={url} {...ext} className="card-title-link" style={{ textDecoration: 'none', color: 'inherit' }}><h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{item.title}</h3></a>
+          : <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{item.title}</h3>}
         {region && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--sand-500)', fontSize: 12, marginBottom: 10 }}>
             <MapPin size={12} /><span>{region}</span>
           </div>
         )}
         {item.description && (
-          <a href={url} {...ext} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-            <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--sand-700)', margin: '0 0 12px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-              {item.description}
-            </p>
-          </a>
+          url
+            ? <a href={url} {...ext} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}><p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--sand-700)', margin: '0 0 12px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description}</p></a>
+            : <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--sand-700)', margin: '0 0 12px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description}</p>
         )}
         <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Clock size={11} /> {item.duration}</span>
