@@ -28,6 +28,12 @@ export type Region =
 
 export type Slot = 'morning' | 'afternoon' | 'evening';
 
+// Explore taxonomy — Viator-tag-driven sections (see exploreItems.ts for the
+// tag→section map). Beaches & culture-history are local-only (no Viator tags).
+export type Section =
+  | 'cruises-water' | 'adventures-outdoor' | 'tours-sightseeing'
+  | 'food-drink' | 'culture-history' | 'beaches';
+
 // === Viator group + item ===
 export type ViatorGroup = {
   id: string;
@@ -55,6 +61,8 @@ export type ViatorItem = {
   display_order: number;
   region?: Region;         // overrides group region if set
   adventure?: number;      // curated 0 (chill) … 100 (adrenaline); drives the Explore Vibe slider
+  tags?: number[];         // Viator taxonomy tag ids → mapped to Explore sections
+  sections?: Section[];    // editorial override (stub items); live items derive sections from tags
   description?: string;    // 2-3 sentence summary; rendered in the Explore variant body
   fitReason?: string;      // short coral chip — why this matches (mirrors Activity.fitReason)
   reddit_quote?: { rating: number; mentions: number; quote: string };

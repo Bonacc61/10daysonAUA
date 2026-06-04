@@ -8,6 +8,8 @@ import {
   pricePass,
   priceOf,
   bookingUrl,
+  sectionsForTags,
+  primarySection,
   filterExploreEntries,
   groupPasses,
   type ExploreEntry,
@@ -168,13 +170,13 @@ describe('pricePass', () => {
 // --- priceOf ---------------------------------------------------------------
 describe('priceOf', () => {
   test('reads price_usd for an item', () => {
-    const e: ExploreEntry = { kind: 'item', item: { price_usd: 129 } as ViatorItem, category: 'Activities', adventure: 90 };
+    const e: ExploreEntry = { kind: 'item', item: { price_usd: 129 } as ViatorItem, category: 'Activities', adventure: 90, sections: [] };
     expect(priceOf(e)).toBe(129);
   });
 
   test('parses a local activity cost string ("Free" -> 0)', () => {
-    const free: ExploreEntry = { kind: 'activity', activity: { cost: 'Free' } as never, category: 'Beaches', adventure: 8 };
-    const paid: ExploreEntry = { kind: 'activity', activity: { cost: '$65 guided' } as never, category: 'Tours', adventure: 40 };
+    const free: ExploreEntry = { kind: 'activity', activity: { cost: 'Free' } as never, category: 'Beaches', adventure: 8, sections: [] };
+    const paid: ExploreEntry = { kind: 'activity', activity: { cost: '$65 guided' } as never, category: 'Tours', adventure: 40, sections: [] };
     expect(priceOf(free)).toBe(0);
     expect(priceOf(paid)).toBe(65);
   });
@@ -183,9 +185,9 @@ describe('priceOf', () => {
 // --- bookingUrl (drives the "Book now" button) -----------------------------
 describe('bookingUrl', () => {
   const item = (over: Partial<ViatorItem>): ExploreEntry =>
-    ({ kind: 'item', item: { price_usd: 100, viator_item_url: 'https://viator/x', ...over } as ViatorItem, category: 'Tours', adventure: 50 });
+    ({ kind: 'item', item: { price_usd: 100, viator_item_url: 'https://viator/x', ...over } as ViatorItem, category: 'Tours', adventure: 50, sections: [] });
   const act = (cost: string, url?: string): ExploreEntry =>
-    ({ kind: 'activity', activity: { cost, viator_item_url: url } as never, category: 'Food', adventure: 20 });
+    ({ kind: 'activity', activity: { cost, viator_item_url: url } as never, category: 'Food', adventure: 20, sections: [] });
 
   test('a paid Viator item is bookable', () => {
     expect(bookingUrl(item({}))).toBe('https://viator/x');
@@ -209,10 +211,44 @@ describe('bookingUrl', () => {
   });
 });
 
+// --- sectionsForTags / primarySection (Viator tag → section mapping) -------
+describe('sectionsForTags', () => {
+  test('maps category tags to their section', () => {
+    expect(sectionsForTags([11912])).toEqual(['cruises-water']);      // Snorkeling
+    expect(sectionsForTags([22046])).toEqual(['adventures-outdoor']); // Adventure Tours
+    expect(sectionsForTags([21911])).toEqual(['food-drink']);         // Food & Drink
+  });
+
+  test('multi-membership: a product in two categories joins both sections', () => {
+    const s = sectionsForTags([11912, 21911]); // snorkel + food
+    expect(s).toContain('cruises-water');
+    expect(s).toContain('food-drink');
+  });
+
+  test('attribute/quality tags are ignored', () => {
+    // 367661 = "Short term availability", 11938 = "Private and Luxury" (not categories)
+    expect(sectionsForTags([367661, 11938, 22046])).toEqual(['adventures-outdoor']);
+  });
+
+  test('no category tag → catch-all Tours & Sightseeing', () => {
+    expect(sectionsForTags([367661, 11938])).toEqual(['tours-sightseeing']);
+    expect(sectionsForTags([])).toEqual(['tours-sightseeing']);
+    expect(sectionsForTags(undefined)).toEqual(['tours-sightseeing']);
+  });
+});
+
+describe('primarySection', () => {
+  test('returns the first section by tab order', () => {
+    expect(primarySection(['food-drink', 'cruises-water'])).toBe('cruises-water');
+    expect(primarySection(['beaches'])).toBe('beaches');
+    expect(primarySection([])).toBe('tours-sightseeing');
+  });
+});
+
 // --- filterExploreEntries (integration against the real stub catalog) ------
 describe('filterExploreEntries', () => {
   const catalog: Catalog = getCatalog();
-  const ALL = { category: 'All', search: '', vibe: 50, price: 50 };
+  const ALL = { section: 'All', search: '', vibe: 50, price: 50 };
 
   test('at default slider positions, every item and activity appears (nothing silently dropped)', () => {
     const out = filterExploreEntries(catalog, ALL);
@@ -248,9 +284,10 @@ describe('filterExploreEntries', () => {
     expect(ids).toContain('snorkel-catamaran');
   });
 
-  test('category and search each narrow the results', () => {
-    const food = filterExploreEntries(catalog, { ...ALL, category: 'Food' });
-    expect(food.every((e) => e.category === 'Food')).toBe(true);
+  test('section and search each narrow the results', () => {
+    const cw = filterExploreEntries(catalog, { ...ALL, section: 'cruises-water' });
+    expect(cw.length).toBeGreaterThan(0);
+    expect(cw.every((e) => e.sections.includes('cruises-water'))).toBe(true);
 
     const search = filterExploreEntries(catalog, { ...ALL, search: 'snorkel' });
     expect(search.length).toBeGreaterThan(0);
