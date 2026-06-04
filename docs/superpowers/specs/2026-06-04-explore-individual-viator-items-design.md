@@ -1,186 +1,119 @@
-# Explore — Individual Viator items, vibe-filtered (Phase 1)
+# Explore — individual Viator items, vibe & price filtered
 
 - **Date:** 2026-06-04
-- **Status:** Approved design, pre-implementation
-- **Scope:** Frontend only (`10daysonaruba.com`, the production repo). No backend / edge-function changes.
+- **Status:** Implemented & deployed to production
+- **Scope:** Frontend (`src/pages/Explore.tsx` + `src/data/exploreItems.ts`) **and** the `viator-cards` Supabase edge function.
 - **Branch:** `feat/explore-phase1-items`
+
+> This started as a frontend-only "Phase 1". During the build it absorbed two items originally deferred to later phases — **fetching far more inventory** (edge-function paging) and a **title-keyword adventure classifier** so live items are labelled correctly. The spec below reflects what shipped.
 
 ## Problem
 
-On the Explore page (`src/pages/Explore.tsx`) every Viator activity is buried inside one of four **group cards** (`adventure-tours`, `watersports`, `sailing-cruises`, `food-drink-experiences`). Each `GroupCard` surfaces only the group's best-seller; the other items in the group are passed as `others` but never get their own representation. So of ~20 stub items (and the live catalog), only ~4 are individually visible.
+On the old Explore page every Viator activity was buried inside one of four **group cards** (`adventure-tours`, `watersports`, `sailing-cruises`, `food-drink-experiences`). Each `GroupCard` surfaced only the group's best-seller, and the edge function only emitted 8 items/group (32 total), so the vast majority of Aruba's bookable Viator inventory was invisible and unfilterable.
 
-We want **every Viator item/activity to have its own tile on Explore**, and we want the user to be able to narrow the list to their preferred **vibe** (relax ⇆ adrenaline) and **price** (free ⇆ splurge).
+We want **every individual Viator item URL represented as its own tile**, as many as feasible, each filterable by **vibe** (relax ⇆ adrenaline) and **price** (free ⇆ splurge).
 
 ## Goals
 
-1. Render **every item in `catalog.items`** as its own tile on Explore, alongside the existing group cards and local activity tiles.
-2. Add **two graded sliders** that compose (logical AND) with each other and the other filters:
-   - **"Vibe"** (Chill → Adrenaline).
-   - **"Price"** (Free → Splurge) — **replaces** the clickable Budget buttons.
+1. Render **every item in `catalog.items`** as its own tile — a single flat, ranked grid of individual Viator items + local picks. **No group cards.**
+2. Fetch **as many bookable Viator activities as possible** (not the old 32).
+3. Two graded sliders that compose (logical AND) with each other, category, and search:
+   - **"Vibe"** (Chill → Adrenaline), seeded from `answers.adventureLevel`.
+   - **"Price"** (Free → Splurge) — **replaces** the old Budget buttons.
    - e.g. Chill + Free ⇒ free beaches / sunset walks; Adrenaline + Splurge ⇒ kitesurf / UTV-tour tier.
-3. Keep **category / search** filters working over the new item tiles.
-4. Each tile shows a **provenance badge** ("Viator" vs "Local pick") and a **vibe pill** (Chill / Balanced / Adrenaline) so the filtering is legible.
-5. Correct per-activity vibe labelling — a relaxing snorkel cruise must not read as "adrenaline".
+4. Each tile shows a **provenance badge** ("Viator" vs "Local pick") and a **vibe pill** (Chill / Balanced / Adrenaline).
+5. Correct per-activity vibe labelling for **both** stub and **live** data — a relaxing snorkel/mangrove cruise must not read as "adrenaline".
 
-## Non-goals (deferred to later phases)
+## Non-goals (still deferred)
 
-- Raising the catalog cap or fetching more of Viator's inventory (`EMIT_CAP`, Partner API paging) — **Phase 2/3**.
-- Deriving vibe from Viator's per-product `tags` taxonomy — **Phase 2**.
-- Caching / cron / Explore pagination — **Phase 3**.
-- Interest/group-type based *ranking* of tiles (beyond best-seller + rating) — deferred; Phase 1's questionnaire personalization is the vibe slider (seeded from `answers.adventureLevel`) plus the price slider.
-- Fixing the pre-existing fact that Explore's "Add → Build itinerary" shortlist is local-only and does not carry the selection into the itinerary — out of scope, untouched.
+- Deriving vibe from Viator's per-product numeric `tags` taxonomy — not emitted by the function; we use a **title-keyword classifier** instead (below). A future phase can emit `tags` and map them.
+- Caching / cron prefetch and **Explore pagination / virtualization** — the grid renders all (~260) tiles at once. If that gets heavy, add windowing.
+- Interest/group-type based *ranking* of tiles beyond best-seller + rating.
+- The pre-existing "Add → Build itinerary" shortlist being local-only — untouched.
 
 ## Design overview
 
-Explore renders, top to bottom:
+Explore renders **one flat, ranked grid**: every Viator item tile + every local-pick tile that passes the filters, sorted by best-seller boost then rating. All filter/score logic lives in the pure, unit-tested `src/data/exploreItems.ts` so `Explore.tsx` stays a thin view.
 
-1. **Group cards** (pinned) — unchanged `GroupCard` in `variant="explore"`. A group card is shown only if **any item in that group clears both the vibe and price sliders** (plus the category/search checks on its best-seller), so e.g. "Watersports" still appears while the Vibe slider is on Chill because it contains a chill snorkel cruise.
-2. **One merged, ranked grid** of every Viator item tile + every local activity tile that passes all filters. Sorted: best-seller boost, then rating.
+## Backend — Viator inventory (`supabase/functions/viator-cards`)
 
-Best-sellers therefore appear twice — once in their group card and once as their own tile. This redundancy was reviewed and accepted (the group card is a "browse the whole category on Viator" affordance; the item tile is the specific bookable activity).
+- `viator.ts` gains `searchProductsPaged(destinationId, tagIds, max)`: page 1 (50/request) reveals `totalCount`, then the remaining pages are fetched **in parallel**, so wall time is ~2 round-trips regardless of page count. `searchProducts` gains a `start` param.
+- `index.ts` replaces `SEARCH_COUNT`/`EMIT_CAP` (8/group) with `PER_GROUP_MAX = 150` and emits **all** unique products per group (cross-group de-dupe, first group wins).
+- Result: **~238 live items** (was 32), fetched in ~5s. Per-group after de-dupe: food-drink 40, sailing 140, watersports 33, adventure 25. `verify_jwt` stays on; on any error the frontend still falls back to the stub.
+- Deployed via `supabase functions deploy viator-cards` (project `mrfblzsihpecockhsnqe`).
 
-All filter/score logic lives in a new pure, unit-tested module so `Explore.tsx` stays a thin view.
+## Data model — `adventure` value + resolution
 
-## Data model change — curated `adventure` value
+Optional curated value `adventure?: number` (0 chill → 100 adrenaline) added to `ViatorItem` (`src/types.ts`) and `Activity` (`src/data/activities.ts`), populated inline for the stub catalog (see Appendix A).
 
-Add an optional curated adventure value (0 = full chill → 100 = full adrenaline) to both catalog entry types:
+`advValue()` resolves an entry's adventure score in precedence order:
 
-```ts
-// src/types.ts — ViatorItem
-adventure?: number;   // 0 chill … 100 adrenaline (curated)
+1. **Curated `adventure`** (stub items / local picks).
+2. **Title-keyword classifier** `keywordAdventure(title)` — the key step for **live** items, which arrive with only a title (no `adventure`, no per-item tags). Four tiers, first hit wins (prefix-at-word-start matching, e.g. `zip`→`ziplining`):
+   - **85 (adrenaline):** utv, atv, quad, buggy, zip, kite, jet ski, off-road, cliff, dune, parasail, tubing, snuba, seabob, talon, raider, wakeboard, flyboard, e-foil, rappel, bungee, skydiv, paraglid …
+   - **18 (chill):** snorkel, sail, cruis, sunset, dinner, tasting, rum, wine, cooking, beach, catamaran, boat, yacht, mangrove, turtle, flamingo …
+   - **50 (moderate):** hik, jeep, safari, 4x4/4wd, bike, kayak, paddle, horseback, cave, segway, scooter, harley, scuba, dive, nature …
+   - **18 (generic-chill catch-all, checked last):** tour, transfer, transport, pickup, shuttle, bus, van, excursion, sightsee, highlight, landmark, submarine, sanctuary, waterpark, pub crawl, sip, paint, breakfast, museum, historic … — so a plain "Island Tour"/"Airport Transfer" reads chill **without** overriding jeep/kayak → balanced.
+3. **Explicit adventure `MatchTag`s** averaged (`low/med/high` → 15/55/88).
+4. **Category proxy** (`Beaches 8, Food 18, Tours 40, Watersports 72, Activities 68`).
 
-// src/data/activities.ts — Activity
-adventure?: number;
-```
+Verified on the 238 live items: only **1** reaches the tag/category fallback; spread 🪂41 / ⚖48 / 🌴148.
 
-Populate it inline for every entry in `src/data/viator-stub.ts` (20 items) and `src/data/activities.ts` (19 picks). The curated values used in the approved mockup are the reference (see Appendix A). This is cheap because the catalog is hand-maintained (~40 entries) and it removes the mislabelling entirely.
-
-**Fallback for entries without a curated value** (e.g. items fetched live by `loadCatalog()` in a later phase): derive in `advValue()` from explicit adventure `MatchTag`s (`low/med/high-adventure` → 15 / 55 / 88, averaged), else a per-category proxy (`Beaches 8, Food 18, Tours 40, Watersports 72, Activities 68`).
-
-## New module — `src/data/exploreItems.ts` (pure, tested)
-
-Mirrors the style of `src/data/matcher.ts` (pure functions, no React). API:
+## `src/data/exploreItems.ts` (pure, tested)
 
 ```ts
 type ExploreEntry =
   | { kind: 'item'; item: ViatorItem; category: Category; adventure: number }
   | { kind: 'activity'; activity: Activity; category: Category; adventure: number };
 
-// Category bucket for a Viator item (moves GROUP_TAXONOMY_TO_CATEGORY here).
-// `Category` here is a content bucket — 'Beaches' | 'Activities' | 'Watersports'
-// | 'Food' | 'Tours' — i.e. CATEGORIES without the 'All' filter sentinel.
-itemCategory(item: ViatorItem, groups: ViatorGroup[]): Category
-
-// Curated value if present, else adventure-tag avg, else category proxy.
-advValue(entry: { adventure?: number; matched_by?: MatchTag[]; category: Category }): number
-
-// Graded vibe filter. See semantics below.
-vibePass(adventure: number, vibe: number): boolean
-
-// Entry price: ViatorItem.price_usd | parsed Activity.cost ("Free" → 0).
-priceOf(entry: ExploreEntry): number
-// Price → 0..100 expensiveness, banded: Free 0, <$50 38, $50–100 63, $100+ 90.
-priceValue(price: number): number
-// Graded price filter — identical mechanic to vibePass.
-pricePass(priceValue: number, price: number): boolean
-
-// The full pipeline: build entries from the catalog, apply category/search and
-// the vibe + price graded filters, sort by best-seller then rating.
-filterExploreEntries(
-  catalog: Catalog,
-  opts: { category: string; search: string; vibe: number; price: number },
-): ExploreEntry[]
-
-// Whether a group card should show: any item in the group clears BOTH sliders.
-groupPasses(group: ViatorGroup, catalog: Catalog, vibe: number, price: number): boolean
+itemCategory(item): Category                              // group_id → bucket (no 'All')
+keywordAdventure(title): number | undefined               // 4-tier title classifier
+advValue({ adventure?, title?, matched_by?, category }): number   // resolution above
+vibePass(adventure, vibe): boolean                        // graded; see below
+priceOf(entry): number                                    // price_usd | parsed cost ("Free"→0)
+priceValue(price): number                                 // Free 0 / <$50 38 / $50–100 63 / $100+ 90
+pricePass(priceValue, price): boolean                     // same mechanic as vibePass
+filterExploreEntries(catalog, { category, search, vibe, price }): ExploreEntry[]
+groupPasses(group, catalog, vibe, price): boolean         // retained utility (tested; unused by the flat grid)
 ```
 
-### Vibe slider semantics (graded hard filter)
+### Slider semantics (both graded hard filters)
 
-`vibe ∈ [0,100]`, center = 50. Let `t = (vibe - 50) / 50` (∈ [-1, +1]).
+`v ∈ [0,100]`, centre 50, `t = (v - 50) / 50`:
+- `t === 0` → show everything.
+- `t > 0` → keep `value >= t * 67` (drops the lowest first; at 100 only the top third ≥ 67).
+- `t < 0` → keep `value <= 100 - |t| * 67` (at 0 only the bottom third ≤ 33 — for Price, only Free survives).
 
-- `t === 0` (center): **show everything**.
-- `t > 0` (toward adrenaline): keep entries with `adventure >= t * 67` — drops the chillest first; at `vibe = 100` only `adventure ≥ 67` survive.
-- `t < 0` (toward chill): keep entries with `adventure <= 100 - |t| * 67` — drops the most intense first; at `vibe = 0` only `adventure ≤ 33` survive.
+Vibe pill: **🪂 Adrenaline** (`adv ≥ 67`), **🌴 Chill** (`adv ≤ 33`), else **⚖ Balanced**.
 
-The constant `67` makes the extremes resolve to exactly the high (≥67) / low (≤33) thirds. Verified counts against the current stub (39 entries): `vibe 0 → 26`, `25 → 31`, `50 → 39`, `75 → 13`, `100 → 8` — a smooth gradient, everything at center, only the matching extreme at the ends.
+**The two sliders AND together** (verified against the stub): *Chill+Free* → the free beach/walk picks; *Adrenaline+Splurge* → UTV ($129) + Kitesurf ($120) tier; *centre/centre* → everything.
 
-The vibe pill on a tile reads **🪂 Adrenaline** (`adv ≥ 67`), **🌴 Chill** (`adv ≤ 33`), else **⚖ Balanced**.
+## Rendering (`src/pages/Explore.tsx`)
 
-### Price slider semantics (graded hard filter)
-
-Identical graded mechanic to the vibe slider, over a **banded** price value so the ends resolve cleanly and outliers behave (the $1,450 private charter just reads as "$100+"):
-
-| Price | `priceValue` |
-|---|---|
-| Free ($0) | 0 |
-| under $50 | 38 |
-| $50–$100 | 63 |
-| $100+ | 90 |
-
-`price ∈ [0,100]`, center = 50, `t = (price - 50) / 50`:
-- `t === 0`: show everything.
-- `t > 0` (toward splurge): keep `priceValue >= t * 67` — at `price = 100`, only `$100+` survives.
-- `t < 0` (toward free): keep `priceValue <= 100 - |t| * 67` — at `price = 0`, only **Free** survives.
-
-`priceOf` reuses the existing cost parser (`parseActivityCost` from `matcher.ts`: `/free/i → 0`, else first integer).
-
-**The two sliders AND together** — verified against the current stub:
-- *Chill + Free* (`vibe 0, price 0`) → 10 tiles, all $0 and chill (beaches, sunset spots, snorkel lagoons); the guided $11 hike correctly drops out.
-- *Adrenaline + Splurge* (`vibe 100, price 100`) → UTV cliff-jumping ($129) + Kitesurfing ($120) tier.
-- *Center / center* → all 39.
-
-## Rendering changes (`src/pages/Explore.tsx`)
-
-- Replace the inline item-filtering with `filterExploreEntries(catalog, {category, search, vibe, price})`.
-- Group-card list keeps its current build but its visibility filter becomes `groupPasses(g, catalog, vibe, price)`.
-- Render order: group cards, then the merged entry grid (`item` → Viator tile, `activity` → existing local tile markup).
-- **Provenance badge** top-left of each tile: "Viator" (cream) vs "Local pick" (yellow). **Vibe pill** top-right.
-- Viator item tile fields: header band = `itemCategory`; image `image_url`; rating `rating`; title `title`; context line = group name; optional coral `fitReason` chip; clamped `description`; chips `duration` + `$price_usd`; "View details" → `viator_item_url` (`target="_blank" rel="noopener"`); Add button keyed `item:${id}`.
-- Local activity tile: unchanged except the added provenance badge + vibe pill.
-
-### Sidebar slider controls
-
-The clickable **Budget** button group is **removed**. The sidebar gets two range inputs (`0–100`, reusing the existing `.trip-slider` styling), each with end labels and a one-line live description:
-
-- **Vibe** — "🌴 Chill" / "Adrenaline 🪂". Seeded from `answers.adventureLevel`.
-- **Price** — "🆓 Free" / "Splurge 💸". Defaults to centre (50 = all prices).
-
-Both are **local component state** and do **not** write back to the trip plan. The Price slider is *not* seeded from `answers.budget`: the questionnaire's budget labels don't map cleanly to a position ("Money no object" means *no* price constraint, i.e. centre, not "splurge-only"), so it starts centred.
-
-### App wiring (`src/App.tsx`)
-
-`Explore` currently receives only `setPage`. Pass `answers` so the vibe slider can seed from `answers.adventureLevel`:
-
-```tsx
-{page === 'explore' && <Explore setPage={setPage} answers={answers} />}
-```
-
-`Explore`'s props type gains `answers: Answers`.
+- Single grid from `filterExploreEntries(catalog, {category, search, vibe, price})`; no group cards.
+- Subtitle reflects the real loaded total (`catalog.items.length` activities + local picks).
+- Tile: provenance badge top-left ("Viator" cream / "Local pick" yellow), vibe pill top-right, header band = category, image, rating, title, group-name/location line, optional coral `fitReason`, clamped description, `duration` + `$price` chips, "View details" → URL (`target="_blank" rel="noopener"`), Add button.
+- Sidebar: two `.trip-slider` range inputs — **Vibe** ("🌴 Chill" / "Adrenaline 🪂", seeded from `answers.adventureLevel`) and **Price** ("✨ Free" / "Splurge 💸", default centre). No "New" badges. The Budget button group is removed. Both are local state; neither writes back to the trip plan.
+- `src/App.tsx` passes `answers` to `Explore`.
 
 ## Edge cases
 
-- **No questionnaire completed:** `answers.adventureLevel` defaults to 50 → slider starts centered → everything shown. Correct.
-- **Free extreme of the Price slider:** only $0 entries survive. All Viator items are paid, so the Free end surfaces only free local picks. Expected.
-- **Live catalog swap:** `useCatalog()` swaps stub → live mid-session. Live items lack a curated `adventure`, so `advValue()` falls back to tags/category proxy. Tiles still render and filter; precision improves in Phase 2.
-- **Empty result set:** existing "No results" panel, with copy nudging the user to loosen the vibe slider / filters.
-- **Items with missing `description`/`fitReason`:** chips/blurb render conditionally (already handled by `?`-guards).
+- **No questionnaire:** `adventureLevel` defaults to 50 → both sliders centred → everything shown.
+- **Live catalog swap:** live items have no curated `adventure`; `advValue()` uses the title classifier (then tags/proxy). Only ~1/238 needs the fallback.
+- **Free extreme:** all Viator items are paid → only free local picks survive. Expected.
+- **Empty set:** "No results" panel nudging the user to recentre the sliders / clear search.
 
-## Testing — `src/data/exploreItems.test.ts` (vitest)
+## Testing — `src/data/exploreItems.test.ts` (vitest, 82 tests in suite)
 
-- `itemCategory` maps each group id to the right bucket; unknown → `'Tours'`.
-- `advValue`: curated value wins; tag-average fallback; category-proxy fallback.
-- `vibePass`: center passes all; `vibe=100` passes only `adv≥67` and rejects `adv<67`; `vibe=0` passes only `adv≤33`; monotonic (raising vibe never re-admits a chiller item).
-- `priceValue`: $0→0, $49→38, $50/$100→63, $101+→90.
-- `pricePass`: center passes all; `price=0` passes only Free; `price=100` passes only `$100+`; monotonic.
-- **Slider composition**: `vibe=0, price=0` ⇒ exactly the 10 free chill picks; `vibe=100, price=100` ⇒ the UTV + kitesurf set; `vibe=50, price=50` ⇒ all entries.
-- `filterExploreEntries`: every catalog item appears at default slider positions (no item silently dropped); category/search/vibe/price each narrow correctly; sort puts best-sellers ahead of equal-rated non-best-sellers.
-- `groupPasses`: a mixed group (watersports) shows at both chill and adrenaline extremes; a uniform group (food-drink) hides at full adrenaline; the all-paid groups hide at the Free extreme.
+- `itemCategory`, `advValue` precedence (curated > keyword > tag > proxy), `vibePass`/`pricePass` extremes + monotonicity, `priceValue` bands.
+- `keywordAdventure`: adrenaline / chill / moderate hits; adrenaline beats chill in a mixed title; generic "tour/transfer/bus" → chill; thrill vehicles (seabob/talon) high even when titled "tour"; jeep tour stays balanced; unmatched → undefined.
+- `filterExploreEntries`: nothing dropped at defaults; each filter narrows; best-seller sorts first. Slider composition: Chill+Free / Adrenaline+Splurge / centre.
+- `groupPasses` retained-utility behaviour.
 
-## Appendix A — curated adventure values (reference)
+## Appendix A — curated stub adventure values
 
 Viator items: utv-cave-pool 90 · jeep-arikok 68 · horseback-beach 45 · atv-quad 85 · ziplining 88 · snorkel-catamaran 28 · kitesurf-lesson 85 · jetski-rental 75 · paddleboard-tour 32 · scuba-discovery 58 · sunset-sail 12 · pirate-cruise 48 · private-charter 18 · dolphin-watch 22 · lunch-cruise 15 · beach-dinner 8 · food-tour 22 · rum-tasting 15 · cooking-class 14 · wine-dinner 8
 
 Local picks: eagle-beach-morning 8 · baby-beach-snorkel 18 · arikok-hiking 55 · california-lighthouse-sunset 8 · flamingo-renaissance 12 · boca-catalina-snorkel 32 · antilla-wreck-dive 60 · zeerovers-fresh-catch 12 · gasparito-restaurant 8 · oranjestad-walking 20 · kitesurfing-lesson 85 · natural-pool-jeep 70 · malmok-beach 28 · tres-trapi 25 · manchebo-beach 6 · divi-beach 6 · mangel-halto 25 · rodgers-beach 8 · boca-grandi 30
 
-These are an editorial starting point and can be tuned during implementation.
+(Live items are classified by title, not these values.)
