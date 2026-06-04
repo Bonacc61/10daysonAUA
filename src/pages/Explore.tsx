@@ -4,7 +4,7 @@ import Footer from '../components/Footer';
 import { CATEGORIES } from '../data/activities';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
-import { filterExploreEntries, itemCategory } from '../data/exploreItems';
+import { filterExploreEntries, bookingUrl } from '../data/exploreItems';
 import type { ViatorItem } from '../types';
 import type { Answers } from '../App';
 import type { PageId } from '../App';
@@ -18,13 +18,25 @@ function vibePill(adventure: number): { label: string; bg: string } {
   return { label: '⚖ Balanced', bg: 'var(--sand-50)' };
 }
 
-const provStyle: CSSProperties = {
-  position: 'absolute', top: 10, left: 10, border: '2px solid var(--ink)', borderRadius: 999,
-  fontSize: 10, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '2px 9px', zIndex: 2,
-};
-const pillStyle: CSSProperties = {
-  position: 'absolute', top: 10, right: 10, border: '2px solid var(--ink)', borderRadius: 999,
-  fontSize: 10, fontWeight: 800, padding: '2px 9px', zIndex: 2,
+// Header tags (sit inline in the card-header-band flex row): a "Local pick" tag
+// for editorial picks and the vibe pill. Viator items carry no provenance mark.
+function LocalMark() {
+  return (
+    <span style={{ flexShrink: 0, background: 'var(--yellow)', color: 'var(--ink)', border: '2px solid var(--ink)', borderRadius: 999, fontSize: 9, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '2px 7px', whiteSpace: 'nowrap' }}>Local pick</span>
+  );
+}
+function HeaderVibePill({ adventure }: { adventure: number }) {
+  const p = vibePill(adventure);
+  return (
+    <span style={{ flexShrink: 0, background: p.bg, color: 'var(--ink)', border: '2px solid var(--ink)', borderRadius: 999, fontSize: 10, fontWeight: 800, padding: '2px 8px', whiteSpace: 'nowrap' }}>{p.label}</span>
+  );
+}
+
+// Region slug → human label (Region type in types.ts).
+const REGION_LABEL: Record<string, string> = {
+  'palm-beach': 'Palm Beach', 'eagle-beach': 'Eagle Beach', 'noord': 'Noord',
+  'oranjestad': 'Oranjestad', 'san-nicolas': 'San Nicolas', 'arikok': 'Arikok',
+  'savaneta': 'Savaneta', 'islandwide': 'Island-wide',
 };
 
 function Slider({ label, value, onChange, lo, hi, hint }: {
@@ -69,6 +81,12 @@ export default function Explore({ setPage, answers }: Props) {
   const [added, setAdded] = useState<Set<string>>(new Set());
 
   const groupName = (item: ViatorItem) => catalog.groups.find((g) => g.id === item.group_id)?.name ?? '';
+  // Region per Viator item: its own override, else its group's region (coarse for
+  // now; precise per-item locations are the planned backend follow-up).
+  const regionOf = (item: ViatorItem) => {
+    const slug = item.region ?? catalog.groups.find((g) => g.id === item.group_id)?.region;
+    return slug ? REGION_LABEL[slug] ?? slug : '';
+  };
 
   // Every individual Viator item URL + local pick, as its own filterable tile.
   const entries = filterExploreEntries(catalog, { category, search, vibe, price });
@@ -145,8 +163,8 @@ export default function Explore({ setPage, answers }: Props) {
                 {/* Every individual Viator item + local pick, ranked */}
                 {entries.map((e) => (
                   e.kind === 'item'
-                    ? <ItemTile key={`item:${e.item.id}`} item={e.item} groupName={groupName(e.item)} adventure={e.adventure} added={added.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />
-                    : <ActivityTile key={e.activity.id} a={e.activity} adventure={e.adventure} added={added.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} />
+                    ? <ItemTile key={`item:${e.item.id}`} item={e.item} groupName={groupName(e.item)} region={regionOf(e.item)} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />
+                    : <ActivityTile key={e.activity.id} a={e.activity} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} />
                 ))}
               </div>
               {totalCount === 0 && (
@@ -165,33 +183,50 @@ export default function Explore({ setPage, answers }: Props) {
   );
 }
 
-function AddButton({ added, onAdd }: { added: boolean; onAdd: () => void }) {
+function AddButton({ added, onAdd, fill }: { added: boolean; onAdd: () => void; fill?: boolean }) {
   return (
     <button
       onClick={onAdd}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: 12, border: '2px solid var(--ink)', fontWeight: 700, fontFamily: 'inherit', fontSize: 13, cursor: 'pointer', background: added ? 'var(--green)' : 'var(--red)', color: 'var(--cream)', boxShadow: '3px 3px 0 var(--ink)' }}
+      style={{ ...(fill ? { flex: 1 } : null), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 14px', borderRadius: 12, border: '2px solid var(--ink)', fontWeight: 700, fontFamily: 'inherit', fontSize: 13, cursor: 'pointer', background: added ? 'var(--green)' : 'var(--red)', color: 'var(--cream)', boxShadow: '3px 3px 0 var(--ink)' }}
     >
       {added ? <><Check size={13} /> Added</> : <><Plus size={13} /> Add</>}
     </button>
   );
 }
 
-function ItemTile({ item, groupName, adventure, added, onAdd }: { item: ViatorItem; groupName: string; adventure: number; added: boolean; onAdd: () => void }) {
-  const pill = vibePill(adventure);
+// Card action row: "Book now" (only when bookable — paid + has a Viator link)
+// plus the shortlist Add button. Free / unbookable cards show just Add.
+function CardActions({ bookNow, added, onAdd }: { bookNow: string | null; added: boolean; onAdd: () => void }) {
   return (
-    <div className="a-card fade-in" style={{ position: 'relative' }}>
-      <span style={{ ...provStyle, background: 'var(--cream)' }}>Viator</span>
-      <span style={{ ...pillStyle, background: pill.bg }}>{pill.label}</span>
-      <div className="card-header-band"><div className="chb-title">{itemCategory(item)}</div></div>
+    <div style={{ display: 'flex', gap: 8 }}>
+      {bookNow && (
+        <a className="btn-ghost" href={bookNow} target="_blank" rel="noopener noreferrer"
+           style={{ flex: 1, padding: '9px 12px', fontSize: 13, textDecoration: 'none', textAlign: 'center', display: 'inline-block' }}>Book now</a>
+      )}
+      <AddButton added={added} onAdd={onAdd} fill={!bookNow} />
+    </div>
+  );
+}
+
+function ItemTile({ item, groupName, region, adventure, bookNow, added, onAdd }: { item: ViatorItem; groupName: string; region: string; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
+  return (
+    <div className="a-card fade-in">
+      <div className="card-header-band">
+        <span className="chb-title" style={{ flex: 1 }}>{groupName}</span>
+        <HeaderVibePill adventure={adventure} />
+      </div>
       <div className="a-img">
         <img src={item.image_url} alt={item.title} loading="lazy" />
         <span className="a-rating"><Star size={12} aria-hidden /> {item.rating}</span>
       </div>
       <div style={{ padding: 16 }}>
         <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{item.title}</h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--sand-500)', fontSize: 12, marginBottom: 10 }}>
-          <MapPin size={12} /><span>{groupName}</span>
-        </div>
+        {/* Region is coarse (group-level) for now; precise per-item locations are a planned follow-up. */}
+        {region && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--sand-500)', fontSize: 12, marginBottom: 10 }}>
+            <MapPin size={12} /><span>{region}</span>
+          </div>
+        )}
         {item.description && (
           <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--sand-700)', margin: '0 0 12px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {item.description}
@@ -201,23 +236,20 @@ function ItemTile({ item, groupName, adventure, added, onAdd }: { item: ViatorIt
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Clock size={11} /> {item.duration}</span>
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Dollar size={11} /> {item.price_usd}</span>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <a className="btn-ghost" href={item.viator_item_url} target="_blank" rel="noopener noreferrer"
-             style={{ flex: 1, padding: '9px 12px', fontSize: 13, textDecoration: 'none', textAlign: 'center', display: 'inline-block' }}>View details</a>
-          <AddButton added={added} onAdd={onAdd} />
-        </div>
+        <CardActions bookNow={bookNow} added={added} onAdd={onAdd} />
       </div>
     </div>
   );
 }
 
-function ActivityTile({ a, adventure, added, onAdd }: { a: Activity; adventure: number; added: boolean; onAdd: () => void }) {
-  const pill = vibePill(adventure);
+function ActivityTile({ a, adventure, bookNow, added, onAdd }: { a: Activity; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
   return (
-    <div className="a-card fade-in" style={{ position: 'relative' }}>
-      <span style={{ ...provStyle, background: 'var(--yellow)' }}>Local pick</span>
-      <span style={{ ...pillStyle, background: pill.bg }}>{pill.label}</span>
-      <div className="card-header-band"><div className="chb-title">{a.category}</div></div>
+    <div className="a-card fade-in">
+      <div className="card-header-band">
+        <span className="chb-title" style={{ flex: 1 }}>{a.category}</span>
+        <HeaderVibePill adventure={adventure} />
+        <LocalMark />
+      </div>
       <div className="a-img">
         <img src={a.image} alt={a.title} loading="lazy" />
         <span className="a-rating"><Star size={12} aria-hidden /> {a.rating}</span>
@@ -234,15 +266,7 @@ function ActivityTile({ a, adventure, added, onAdd }: { a: Activity; adventure: 
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Clock size={11} /> {a.duration}</span>
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Dollar size={11} /> {a.cost}</span>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {a.viator_item_url ? (
-            <a className="btn-ghost" href={a.viator_item_url} target="_blank" rel="noopener noreferrer"
-               style={{ flex: 1, padding: '9px 12px', fontSize: 13, textDecoration: 'none', textAlign: 'center', display: 'inline-block' }}>View details</a>
-          ) : (
-            <button className="btn-ghost" style={{ flex: 1, padding: '9px 12px', fontSize: 13 }}>View details</button>
-          )}
-          <AddButton added={added} onAdd={onAdd} />
-        </div>
+        <CardActions bookNow={bookNow} added={added} onAdd={onAdd} />
       </div>
     </div>
   );

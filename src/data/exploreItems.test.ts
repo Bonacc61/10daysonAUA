@@ -7,6 +7,7 @@ import {
   priceValue,
   pricePass,
   priceOf,
+  bookingUrl,
   filterExploreEntries,
   groupPasses,
   type ExploreEntry,
@@ -176,6 +177,35 @@ describe('priceOf', () => {
     const paid: ExploreEntry = { kind: 'activity', activity: { cost: '$65 guided' } as never, category: 'Tours', adventure: 40 };
     expect(priceOf(free)).toBe(0);
     expect(priceOf(paid)).toBe(65);
+  });
+});
+
+// --- bookingUrl (drives the "Book now" button) -----------------------------
+describe('bookingUrl', () => {
+  const item = (over: Partial<ViatorItem>): ExploreEntry =>
+    ({ kind: 'item', item: { price_usd: 100, viator_item_url: 'https://viator/x', ...over } as ViatorItem, category: 'Tours', adventure: 50 });
+  const act = (cost: string, url?: string): ExploreEntry =>
+    ({ kind: 'activity', activity: { cost, viator_item_url: url } as never, category: 'Food', adventure: 20 });
+
+  test('a paid Viator item is bookable', () => {
+    expect(bookingUrl(item({}))).toBe('https://viator/x');
+  });
+
+  test('a free item (price 0) is not bookable', () => {
+    expect(bookingUrl(item({ price_usd: 0 }))).toBeNull();
+  });
+
+  test('a paid local pick with a booking link is bookable', () => {
+    expect(bookingUrl(act('$65 guided', 'https://viator/y'))).toBe('https://viator/y');
+  });
+
+  test('a free local pick is never bookable, even with a link', () => {
+    expect(bookingUrl(act('Free', 'https://viator/z'))).toBeNull();
+    expect(bookingUrl(act('Free + $10 rental', 'https://viator/z'))).toBeNull();
+  });
+
+  test('a paid local pick without a link is not bookable', () => {
+    expect(bookingUrl(act('$35 pp'))).toBeNull();
   });
 });
 
