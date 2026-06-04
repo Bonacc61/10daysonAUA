@@ -99,6 +99,7 @@ serve(async (req) => {
           rating: it.rating,
           review_count: it.review_count,
           viator_item_url: it.viator_item_url,
+          description: it.description,
           is_best_seller: order === 0,
           display_order: order,
         });

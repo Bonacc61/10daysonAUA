@@ -87,6 +87,7 @@ export default function Explore({ setPage, answers }: Props) {
     const slug = item.region ?? catalog.groups.find((g) => g.id === item.group_id)?.region;
     return slug ? REGION_LABEL[slug] ?? slug : '';
   };
+  const groupUrl = (item: ViatorItem) => catalog.groups.find((g) => g.id === item.group_id)?.viator_group_url ?? '';
 
   // Every individual Viator item URL + local pick, as its own filterable tile.
   const entries = filterExploreEntries(catalog, { category, search, vibe, price });
@@ -163,7 +164,7 @@ export default function Explore({ setPage, answers }: Props) {
                 {/* Every individual Viator item + local pick, ranked */}
                 {entries.map((e) => (
                   e.kind === 'item'
-                    ? <ItemTile key={`item:${e.item.id}`} item={e.item} groupName={groupName(e.item)} region={regionOf(e.item)} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />
+                    ? <ItemTile key={`item:${e.item.id}`} item={e.item} groupName={groupName(e.item)} groupUrl={groupUrl(e.item)} region={regionOf(e.item)} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />
                     : <ActivityTile key={e.activity.id} a={e.activity} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} />
                 ))}
               </div>
@@ -208,19 +209,26 @@ function CardActions({ bookNow, added, onAdd }: { bookNow: string | null; added:
   );
 }
 
-function ItemTile({ item, groupName, region, adventure, bookNow, added, onAdd }: { item: ViatorItem; groupName: string; region: string; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
+function ItemTile({ item, groupName, groupUrl, region, adventure, bookNow, added, onAdd }: { item: ViatorItem; groupName: string; groupUrl: string; region: string; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
+  const url = item.viator_item_url;
+  const ext = { target: '_blank', rel: 'noopener noreferrer' } as const;
   return (
     <div className="a-card fade-in">
-      <div className="card-header-band">
+      {/* Header → the group's Viator category page */}
+      <a className="card-header-band" href={groupUrl} {...ext}>
         <span className="chb-title" style={{ flex: 1 }}>{groupName}</span>
         <HeaderVibePill adventure={adventure} />
-      </div>
-      <div className="a-img">
+      </a>
+      {/* Image + rating → the Viator activity page (rating = its reviews) */}
+      <a className="a-img" href={url} {...ext} style={{ display: 'block' }}>
         <img src={item.image_url} alt={item.title} loading="lazy" />
         <span className="a-rating"><Star size={12} aria-hidden /> {item.rating}</span>
-      </div>
+      </a>
       <div style={{ padding: 16 }}>
-        <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{item.title}</h3>
+        {/* Title → the Viator activity page */}
+        <a href={url} {...ext} className="card-title-link" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{item.title}</h3>
+        </a>
         {/* Region is coarse (group-level) for now; precise per-item locations are a planned follow-up. */}
         {region && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--sand-500)', fontSize: 12, marginBottom: 10 }}>
@@ -228,9 +236,11 @@ function ItemTile({ item, groupName, region, adventure, bookNow, added, onAdd }:
           </div>
         )}
         {item.description && (
-          <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--sand-700)', margin: '0 0 12px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-            {item.description}
-          </p>
+          <a href={url} {...ext} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+            <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--sand-700)', margin: '0 0 12px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+              {item.description}
+            </p>
+          </a>
         )}
         <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Clock size={11} /> {item.duration}</span>
@@ -243,6 +253,10 @@ function ItemTile({ item, groupName, region, adventure, bookNow, added, onAdd }:
 }
 
 function ActivityTile({ a, adventure, bookNow, added, onAdd }: { a: Activity; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
+  const url = a.viator_item_url; // present only on matched local picks
+  const ext = { target: '_blank', rel: 'noopener noreferrer' } as const;
+  const imgInner = <><img src={a.image} alt={a.title} loading="lazy" /><span className="a-rating"><Star size={12} aria-hidden /> {a.rating}</span></>;
+  // No header link: local picks have no Viator group.
   return (
     <div className="a-card fade-in">
       <div className="card-header-band">
@@ -250,18 +264,26 @@ function ActivityTile({ a, adventure, bookNow, added, onAdd }: { a: Activity; ad
         <HeaderVibePill adventure={adventure} />
         <LocalMark />
       </div>
-      <div className="a-img">
-        <img src={a.image} alt={a.title} loading="lazy" />
-        <span className="a-rating"><Star size={12} aria-hidden /> {a.rating}</span>
-      </div>
+      {url
+        ? <a className="a-img" href={url} {...ext} style={{ display: 'block' }}>{imgInner}</a>
+        : <div className="a-img">{imgInner}</div>}
       <div style={{ padding: 16 }}>
-        <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{a.title}</h3>
+        {url
+          ? <a href={url} {...ext} className="card-title-link" style={{ textDecoration: 'none', color: 'inherit' }}><h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{a.title}</h3></a>
+          : <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{a.title}</h3>}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--sand-500)', fontSize: 12, marginBottom: 10 }}>
           <MapPin size={12} /><span>{a.location}</span>
         </div>
-        <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--sand-700)', margin: '0 0 12px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-          {a.description}
-        </p>
+        {(() => {
+          const desc = (
+            <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--sand-700)', margin: '0 0 12px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+              {a.description}
+            </p>
+          );
+          return url
+            ? <a href={url} {...ext} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>{desc}</a>
+            : desc;
+        })()}
         <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Clock size={11} /> {a.duration}</span>
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Dollar size={11} /> {a.cost}</span>
