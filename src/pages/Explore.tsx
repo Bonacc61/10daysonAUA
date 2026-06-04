@@ -205,7 +205,7 @@ function AddButton({ added, onAdd, fill }: { added: boolean; onAdd: () => void; 
   return (
     <button
       onClick={onAdd}
-      style={{ ...(fill ? { flex: 1 } : null), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 14px', borderRadius: 12, border: '2px solid var(--ink)', fontWeight: 700, fontFamily: 'inherit', fontSize: 13, cursor: 'pointer', background: added ? 'var(--green)' : 'var(--red)', color: 'var(--cream)', boxShadow: '3px 3px 0 var(--ink)' }}
+      style={{ ...(fill ? { flex: 1 } : null), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 14px', borderRadius: 12, border: '2px solid var(--ink)', fontWeight: 700, fontFamily: 'inherit', fontSize: 13, cursor: 'pointer', background: added ? 'var(--green)' : 'var(--yellow-bg)', color: added ? 'var(--cream)' : 'var(--ink)', boxShadow: '3px 3px 0 var(--ink)' }}
     >
       {added ? <><Check size={13} /> Added</> : <><Plus size={13} /> Add</>}
     </button>
@@ -218,8 +218,8 @@ function CardActions({ bookNow, added, onAdd }: { bookNow: string | null; added:
   return (
     <div style={{ display: 'flex', gap: 8 }}>
       {bookNow && (
-        <a className="btn-ghost" href={bookNow} target="_blank" rel="noopener noreferrer"
-           style={{ flex: 1, padding: '9px 12px', fontSize: 13, textDecoration: 'none', textAlign: 'center', display: 'inline-block' }}>Book now</a>
+        <a href={bookNow} target="_blank" rel="noopener noreferrer"
+           style={{ flex: 1, padding: '9px 12px', fontSize: 13, fontWeight: 700, textDecoration: 'none', textAlign: 'center', display: 'inline-block', borderRadius: 12, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '3px 3px 0 var(--ink)' }}>Book now</a>
       )}
       <AddButton added={added} onAdd={onAdd} fill={!bookNow} />
     </div>
