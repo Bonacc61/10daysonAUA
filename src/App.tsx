@@ -43,7 +43,7 @@ export default function App() {
       <Nav page={page} setPage={setPage} />
       {page === 'landing'       && <Landing       setPage={setPage} answers={answers} setAnswers={setAnswers} />}
       {page === 'questionnaire' && <Questionnaire setPage={setPage} answers={answers} setAnswers={setAnswers} />}
-      {page === 'explore'       && <Explore       setPage={setPage} />}
+      {page === 'explore'       && <Explore       setPage={setPage} answers={answers} />}
       {page === 'itinerary'     && <Itinerary     setPage={setPage} answers={answers} setAnswers={setAnswers} />}
     </AuthProvider>
   );

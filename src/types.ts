@@ -54,6 +54,7 @@ export type ViatorItem = {
   is_best_seller: boolean;
   display_order: number;
   region?: Region;         // overrides group region if set
+  adventure?: number;      // curated 0 (chill) … 100 (adrenaline); drives the Explore Vibe slider
   description?: string;    // 2-3 sentence summary; rendered in the Explore variant body
   fitReason?: string;      // short coral chip — why this matches (mirrors Activity.fitReason)
   reddit_quote?: { rating: number; mentions: number; quote: string };

@@ -6,10 +6,12 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { GROUPS, ARUBA_DESTINATION_ID } from './groups.ts';
 import { normalizeProduct } from './normalize.ts';
-import { hasKey, ping, searchProducts, freetextSearch, getProduct } from './viator.ts';
+import { hasKey, ping, searchProducts, searchProductsPaged, freetextSearch, getProduct } from './viator.ts';
 
-const SEARCH_COUNT = 24; // candidates fetched per group (room to backfill after de-dup)
-const EMIT_CAP = 8;      // cards emitted per group
+// Max products fetched AND emitted per group (paged, 50/request). Represents
+// nearly the full live Aruba inventory (adventure ~105, watersports ~67,
+// food ~40, sailing ~233) while bounding payload + latency. Raise to widen.
+const PER_GROUP_MAX = 150;
 
 // Curated matches: local editorial pick id → real Viator product code. The card
 // keeps its editorial title/blurb but pulls rating/image/price/link from this product.
@@ -78,12 +80,11 @@ serve(async (req) => {
       const g = GROUPS[i];
       // filtering.tags is an AND across all ids, and a parent tag also returns
       // its child-tag products — so search with the single broad anchor (tagIds[0]).
-      const { products, totalCount } = await searchProducts(ARUBA_DESTINATION_ID, [g.tagIds[0]], SEARCH_COUNT);
+      const { products, totalCount } = await searchProductsPaged(ARUBA_DESTINATION_ID, [g.tagIds[0]], PER_GROUP_MAX);
 
       const groupItems = products
         .map(normalizeProduct)
-        .filter((it) => it.id && !seen.has(it.id))
-        .slice(0, EMIT_CAP);
+        .filter((it) => it.id && !seen.has(it.id));
 
       let order = 0;
       for (const it of groupItems) {
