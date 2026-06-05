@@ -82,6 +82,20 @@ function coverImage(images: ViatorProduct['images']): string {
   return variants.reduce((best, v) => (v.width > best.width ? v : best), variants[0]).url;
 }
 
+// Strip API-only tracking params (medium=api, api_version) that cause Viator
+// to behave differently when a browser navigates to the URL. Keep pid + mcid.
+function affiliateUrl(raw: string): string {
+  try {
+    const u = new URL(raw);
+    const pid = u.searchParams.get('pid');
+    const mcid = u.searchParams.get('mcid');
+    u.search = '';
+    if (pid) u.searchParams.set('pid', pid);
+    if (mcid) u.searchParams.set('mcid', mcid);
+    return u.toString();
+  } catch { return raw; }
+}
+
 export function normalizeProduct(p: ViatorProduct): NormalizedItem {
   const rating = p.reviews?.combinedAverageRating ?? 0;
   return {
@@ -93,7 +107,7 @@ export function normalizeProduct(p: ViatorProduct): NormalizedItem {
     rating: Math.round(rating * 10) / 10,
     review_count: p.reviews?.totalReviews ?? 0,
     image_url: coverImage(p.images),
-    viator_item_url: p.productUrl ?? '',
+    viator_item_url: affiliateUrl(p.productUrl ?? ''),
     description: shortDescription(p.description),
     tags: p.tags ?? [],
   };
