@@ -1,4 +1,5 @@
 import React, { type CSSProperties, useState } from 'react';
+import { supabase } from '../lib/supabase';
 import {
   Clock, Users, Sparkle, Chev, iconFor,
 } from '../components/Icons';
@@ -346,14 +347,33 @@ function FAQSection() {
 function ContactSection() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', comment: '' });
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.email) return;
-    setSent(true);
+    setSubmitting(true);
+    setError(null);
+    try {
+      if (supabase) {
+        const { error: err } = await supabase.from('contact_submissions').insert({
+          name: form.name,
+          email: form.email,
+          phone: form.phone || null,
+          comment: form.comment || null,
+        });
+        if (err) throw err;
+      }
+      setSent(true);
+    } catch {
+      setError('Something went wrong — please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const inputStyle: CSSProperties = {
@@ -399,8 +419,11 @@ function ContactSection() {
               <label style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--ink)' }}>Comment</label>
               <textarea style={{ ...inputStyle, resize: 'vertical', minHeight: 120 }} placeholder="Tell us what's on your mind…" value={form.comment} onChange={set('comment')} />
             </div>
+            {error && <p style={{ fontSize: 13, color: 'var(--red)', margin: 0 }}>{error}</p>}
             <div>
-              <button type="submit" className="btn-red" style={{ padding: '13px 28px', fontSize: 15 }}>Send message →</button>
+              <button type="submit" className="btn-red" disabled={submitting} style={{ padding: '13px 28px', fontSize: 15, opacity: submitting ? 0.6 : 1 }}>
+                {submitting ? 'Sending…' : 'Send message →'}
+              </button>
             </div>
           </form>
         )}
