@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useState, type CSSProperties, type MouseEvent } from 'react';
 import { Search, Star, MapPin, Clock, Dollar, Plus, Check, X } from '../components/Icons';
 import Footer from '../components/Footer';
 import type { Activity } from '../data/activities';
@@ -225,13 +225,16 @@ function CardActions({ bookNow, added, onAdd }: { bookNow: string | null; added:
   );
 }
 
+function openItem(url: string, e: MouseEvent) {
+  if ((e.target as HTMLElement).closest('a, button')) return;
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
 function ItemTile({ item, section, sectionUrl: _sectionUrl, region, adventure, bookNow, added, onAdd }: { item: ViatorItem; section: string; sectionUrl: string | null; region: string; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
-  const url = item.viator_item_url;
-  const ext = { target: '_blank', rel: 'noopener noreferrer' } as const;
+  const url = item.viator_item_url ? viatorLink(item.viator_item_url) : null;
   const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><HeaderVibePill adventure={adventure} /></>;
   return (
-    <div className="a-card fade-in" style={{ position: 'relative' }}>
-      {url && <a href={viatorLink(url)} {...ext} aria-label={item.title} style={{ position: 'absolute', inset: 0, zIndex: 0, borderRadius: 'inherit' }} />}
+    <div className="a-card fade-in" style={{ cursor: url ? 'pointer' : 'default' }} onClick={url ? (e) => openItem(url, e) : undefined}>
       <div className="card-header-band">{headerInner}</div>
       <div className="a-img"><img src={item.image_url} alt={item.title} loading="lazy" /><span className="a-rating"><Star size={12} aria-hidden /> {item.rating}</span></div>
       <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -248,19 +251,17 @@ function ItemTile({ item, section, sectionUrl: _sectionUrl, region, adventure, b
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Clock size={11} /> {item.duration}</span>
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Dollar size={11} /> {item.price_usd}</span>
         </div>
-        <div style={{ marginTop: 'auto', position: 'relative', zIndex: 1 }}><CardActions bookNow={bookNow} added={added} onAdd={onAdd} /></div>
+        <div style={{ marginTop: 'auto' }}><CardActions bookNow={bookNow} added={added} onAdd={onAdd} /></div>
       </div>
     </div>
   );
 }
 
 function ActivityTile({ a, section, sectionUrl: _sectionUrl, adventure, bookNow, added, onAdd }: { a: Activity; section: string; sectionUrl: string | null; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
-  const url = a.viator_item_url; // present only on matched local picks
-  const ext = { target: '_blank', rel: 'noopener noreferrer' } as const;
+  const url = a.viator_item_url ? viatorLink(a.viator_item_url) : null;
   const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><HeaderVibePill adventure={adventure} /><LocalMark /></>;
   return (
-    <div className="a-card fade-in" style={{ position: 'relative' }}>
-      {url && <a href={viatorLink(url)} {...ext} aria-label={a.title} style={{ position: 'absolute', inset: 0, zIndex: 0, borderRadius: 'inherit' }} />}
+    <div className="a-card fade-in" style={{ cursor: url ? 'pointer' : 'default' }} onClick={url ? (e) => openItem(url, e) : undefined}>
       <div className="card-header-band">{headerInner}</div>
       <div className="a-img"><img src={a.image} alt={a.title} loading="lazy" /><span className="a-rating"><Star size={12} aria-hidden /> {a.rating}</span></div>
       <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -275,7 +276,7 @@ function ActivityTile({ a, section, sectionUrl: _sectionUrl, adventure, bookNow,
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Clock size={11} /> {a.duration}</span>
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Dollar size={11} /> {a.cost}</span>
         </div>
-        <div style={{ marginTop: 'auto', position: 'relative', zIndex: 1 }}><CardActions bookNow={bookNow} added={added} onAdd={onAdd} /></div>
+        <div style={{ marginTop: 'auto' }}><CardActions bookNow={bookNow} added={added} onAdd={onAdd} /></div>
       </div>
     </div>
   );
