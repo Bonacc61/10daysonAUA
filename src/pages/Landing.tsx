@@ -363,10 +363,15 @@ function ContactSection() {
   };
 
   return (
-    <div className="bleed" style={{ background: 'var(--cream)', borderTop: '2px solid var(--ink)', padding: '56px 36px' }}>
+    <details className="aruba-section bleed" style={{ background: 'var(--cream)', borderTop: '2px solid var(--ink)' }}>
+      <summary style={{ padding: '24px 36px' }}>
+        <div className="container-1280" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, padding: 0 }}>
+          <h2 className="font-display" style={{ fontSize: 32, margin: 0, color: 'var(--ink)' }}>Contact us.</h2>
+          <span className="toggle" style={{ color: 'var(--ink)', flexShrink: 0, marginTop: 8 }} />
+        </div>
+      </summary>
+      <div style={{ padding: '0 36px 56px' }}>
       <div className="container-1280" style={{ padding: 0, maxWidth: 640 }}>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--sand-500)' }}>Get in touch</span>
-        <h2 className="font-display" style={{ fontSize: 32, margin: '10px 0 6px', color: 'var(--ink)' }}>Contact us.</h2>
         <p style={{ fontStyle: 'italic', fontSize: 15, color: 'rgba(0,0,0,0.65)', margin: '0 0 32px' }}>Questions, feedback, or just want to say hello — we'd love to hear from you.</p>
 
         {sent ? (
@@ -400,6 +405,7 @@ function ContactSection() {
           </form>
         )}
       </div>
-    </div>
+      </div>
+    </details>
   );
 }
