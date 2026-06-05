@@ -377,22 +377,25 @@ function ContactSection() {
   };
 
   const inputStyle: CSSProperties = {
-    width: '100%', padding: '12px 16px', border: '2px solid var(--ink)', borderRadius: 12,
-    fontSize: 15, fontFamily: 'inherit', background: 'var(--cream)', outline: 'none',
-    boxSizing: 'border-box',
+    width: '100%', padding: '12px 16px', border: '2px solid rgba(255,255,255,0.35)', borderRadius: 12,
+    fontSize: 15, fontFamily: 'inherit', background: 'rgba(255,255,255,0.08)', outline: 'none',
+    boxSizing: 'border-box', color: '#fff',
+  };
+  const labelStyle: CSSProperties = {
+    fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.7)',
   };
 
   return (
-    <details className="aruba-section bleed" style={{ background: 'var(--cream)', borderTop: '2px solid var(--ink)' }}>
+    <details className="aruba-section bleed" style={{ background: 'var(--ink)', borderTop: '2px solid var(--ink)' }}>
       <summary style={{ padding: '24px 36px' }}>
         <div className="container-1280" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, padding: 0 }}>
-          <h2 className="font-display" style={{ fontSize: 32, margin: 0, color: 'var(--ink)' }}>Contact us.</h2>
-          <span className="toggle" style={{ color: 'var(--ink)', flexShrink: 0, marginTop: 8 }} />
+          <h2 className="font-display" style={{ fontSize: 32, margin: 0, color: '#fff' }}>Contact us.</h2>
+          <span className="toggle" style={{ color: '#fff', flexShrink: 0, marginTop: 8 }} />
         </div>
       </summary>
       <div style={{ padding: '0 36px 56px' }}>
       <div className="container-1280" style={{ padding: 0, maxWidth: 640 }}>
-        <p style={{ fontStyle: 'italic', fontSize: 15, color: 'rgba(0,0,0,0.65)', margin: '0 0 32px' }}>Questions, feedback, or just want to say hello — we'd love to hear from you.</p>
+        <p style={{ fontStyle: 'italic', fontSize: 15, color: 'rgba(255,255,255,0.6)', margin: '0 0 32px' }}>Questions, feedback, or just want to say hello — we'd love to hear from you.</p>
 
         {sent ? (
           <div className="chunky" style={{ padding: 28, background: 'var(--green)', color: 'var(--cream)', textAlign: 'center' }}>
@@ -403,23 +406,23 @@ function ContactSection() {
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--ink)' }}>Name *</label>
+                <label style={labelStyle}>Name *</label>
                 <input style={inputStyle} type="text" placeholder="Your name" value={form.name} onChange={set('name')} required />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--ink)' }}>Email *</label>
+                <label style={labelStyle}>Email *</label>
                 <input style={inputStyle} type="email" placeholder="you@example.com" value={form.email} onChange={set('email')} required />
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--ink)' }}>Phone number</label>
+              <label style={labelStyle}>Phone number</label>
               <input style={inputStyle} type="tel" placeholder="+1 (555) 000-0000" value={form.phone} onChange={set('phone')} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--ink)' }}>Comment</label>
+              <label style={labelStyle}>Comment</label>
               <textarea style={{ ...inputStyle, resize: 'vertical', minHeight: 120 }} placeholder="Tell us what's on your mind…" value={form.comment} onChange={set('comment')} />
             </div>
-            {error && <p style={{ fontSize: 13, color: 'var(--red)', margin: 0 }}>{error}</p>}
+            {error && <p style={{ fontSize: 13, color: 'var(--coral)', margin: 0 }}>{error}</p>}
             <div>
               <button type="submit" className="btn-red" disabled={submitting} style={{ padding: '13px 28px', fontSize: 15, opacity: submitting ? 0.6 : 1 }}>
                 {submitting ? 'Sending…' : 'Send message →'}
