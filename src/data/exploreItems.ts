@@ -183,9 +183,12 @@ export function priceOf(entry: ExploreEntry): number {
   return entry.kind === 'item' ? entry.item.price_usd : parseActivityCost(entry.activity.cost);
 }
 
-// Append medium=link to a Viator product URL so affiliate routing works correctly.
+// Ensure medium=link is present on a Viator product URL. The edge function
+// already sets it, so this is a no-op for live data and a safety net for any
+// URL that arrives without it (stub or manually set).
 export function viatorLink(url: string): string {
   if (!url) return url;
+  if (url.includes('medium=link')) return url;
   return url + (url.includes('?') ? '&' : '?') + 'medium=link';
 }
 

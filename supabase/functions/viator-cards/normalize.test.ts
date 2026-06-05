@@ -27,12 +27,39 @@ describe('normalizeProduct — against a real Aruba product payload', () => {
     expect(n.image_url).toContain('720x480');
   });
 
-  it('keeps the PID-stamped affiliate URL', () => {
+  it('uses the direct /tours/ product page URL (not the TTD category URL)', () => {
+    expect(n.viator_item_url).toContain('/tours/Aruba/');
+    expect(n.viator_item_url).toContain('d28-103020P7');
     expect(n.viator_item_url).toContain('pid=P00302487');
+    expect(n.viator_item_url).toContain('medium=link');
+    expect(n.viator_item_url).not.toContain('d28-ttd');
   });
 
   it('carries the tag ids for grouping', () => {
     expect(n.tags).toContain(11928);
+  });
+});
+
+describe('normalizeProduct — TTD URL → direct product URL conversion', () => {
+  it('converts a TTD category URL to a direct /tours/ product page URL', () => {
+    const n = normalizeProduct({
+      productCode: '5595462P1',
+      title: 'Discovery Papiamento Distillery',
+      productUrl: 'https://www.viator.com/Aruba/d28-ttd/p-5595462P1?pid=P00302487&mcid=42383',
+    });
+    expect(n.viator_item_url).toBe(
+      'https://www.viator.com/tours/Aruba/Discovery-Papiamento-Distillery/d28-5595462P1?pid=P00302487&mcid=42383&medium=link'
+    );
+  });
+
+  it('does not double-add medium=link when raw URL already has it', () => {
+    const n = normalizeProduct({
+      productCode: 'X1',
+      title: 'Test Tour',
+      productUrl: 'https://www.viator.com/tours/Aruba/Test-Tour/d28-X1?pid=P00302487&medium=link',
+    });
+    const count = (n.viator_item_url.match(/medium=link/g) ?? []).length;
+    expect(count).toBe(1);
   });
 });
 

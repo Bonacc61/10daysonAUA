@@ -82,19 +82,26 @@ function coverImage(images: ViatorProduct['images']): string {
   return variants.reduce((best, v) => (v.width > best.width ? v : best), variants[0]).url;
 }
 
-// Strip API-only tracking params, keep affiliate params + set medium=link so
-// Viator routes the URL as a link click (not an API call).
-function affiliateUrl(raw: string): string {
+// Build the canonical Viator product page URL from the product code + title.
+// The API's productUrl field uses a "TTD" category-browse format
+// (/Aruba/d28-ttd/p-{code}) that lands on a 400-thumbnail page, not the
+// individual product. We construct the direct URL instead:
+//   https://www.viator.com/tours/Aruba/{slug}/d28-{code}
+// and preserve the affiliate params (pid/mcid) from the raw productUrl.
+function productPageUrl(code: string, title: string, raw: string): string {
+  let pid: string | null = null;
+  let mcid: string | null = null;
   try {
     const u = new URL(raw);
-    const pid = u.searchParams.get('pid');
-    const mcid = u.searchParams.get('mcid');
-    u.search = '';
-    if (pid) u.searchParams.set('pid', pid);
-    if (mcid) u.searchParams.set('mcid', mcid);
-    u.searchParams.set('medium', 'link');
-    return u.toString();
-  } catch { return raw; }
+    pid = u.searchParams.get('pid');
+    mcid = u.searchParams.get('mcid');
+  } catch { /* no params available */ }
+  const slug = title.replace(/[^a-zA-Z0-9 ]/g, '').replace(/ +/g, '-');
+  const u = new URL(`https://www.viator.com/tours/Aruba/${slug}/d28-${code}`);
+  if (pid) u.searchParams.set('pid', pid);
+  if (mcid) u.searchParams.set('mcid', mcid);
+  u.searchParams.set('medium', 'link');
+  return u.toString();
 }
 
 export function normalizeProduct(p: ViatorProduct): NormalizedItem {
@@ -108,7 +115,7 @@ export function normalizeProduct(p: ViatorProduct): NormalizedItem {
     rating: Math.round(rating * 10) / 10,
     review_count: p.reviews?.totalReviews ?? 0,
     image_url: coverImage(p.images),
-    viator_item_url: affiliateUrl(p.productUrl ?? ''),
+    viator_item_url: productPageUrl(p.productCode, p.title, p.productUrl ?? ''),
     description: shortDescription(p.description),
     tags: p.tags ?? [],
   };
