@@ -3,7 +3,7 @@ import { Search, Star, MapPin, Clock, Dollar, Plus, Check, X } from '../componen
 import Footer from '../components/Footer';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
-import { filterExploreEntries, bookingUrl, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL } from '../data/exploreItems';
+import { filterExploreEntries, bookingUrl, viatorLink, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL } from '../data/exploreItems';
 import type { Section } from '../types';
 import type { ViatorItem } from '../types';
 import type { Answers } from '../App';
@@ -231,7 +231,7 @@ function ItemTile({ item, section, sectionUrl, region, adventure, bookNow, added
   const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><HeaderVibePill adventure={adventure} /></>;
   return (
     <div className="a-card fade-in" style={{ position: 'relative' }}>
-      {url && <a href={url} {...ext} aria-label={item.title} style={{ position: 'absolute', inset: 0, zIndex: 0, borderRadius: 'inherit' }} />}
+      {url && <a href={viatorLink(url)} {...ext} aria-label={item.title} style={{ position: 'absolute', inset: 0, zIndex: 0, borderRadius: 'inherit' }} />}
       {sectionUrl
         ? <a className="card-header-band" href={sectionUrl} {...ext} style={{ position: 'relative', zIndex: 1 }}>{headerInner}</a>
         : <div className="card-header-band">{headerInner}</div>}
@@ -262,7 +262,7 @@ function ActivityTile({ a, section, sectionUrl, adventure, bookNow, added, onAdd
   const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><HeaderVibePill adventure={adventure} /><LocalMark /></>;
   return (
     <div className="a-card fade-in" style={{ position: 'relative' }}>
-      {url && <a href={url} {...ext} aria-label={a.title} style={{ position: 'absolute', inset: 0, zIndex: 0, borderRadius: 'inherit' }} />}
+      {url && <a href={viatorLink(url)} {...ext} aria-label={a.title} style={{ position: 'absolute', inset: 0, zIndex: 0, borderRadius: 'inherit' }} />}
       {sectionUrl
         ? <a className="card-header-band" href={sectionUrl} {...ext} style={{ position: 'relative', zIndex: 1 }}>{headerInner}</a>
         : <div className="card-header-band">{headerInner}</div>}

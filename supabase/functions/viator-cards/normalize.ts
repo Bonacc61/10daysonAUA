@@ -82,8 +82,8 @@ function coverImage(images: ViatorProduct['images']): string {
   return variants.reduce((best, v) => (v.width > best.width ? v : best), variants[0]).url;
 }
 
-// Strip API-only tracking params (medium=api, api_version) that cause Viator
-// to behave differently when a browser navigates to the URL. Keep pid + mcid.
+// Strip API-only tracking params, keep affiliate params + set medium=link so
+// Viator routes the URL as a link click (not an API call).
 function affiliateUrl(raw: string): string {
   try {
     const u = new URL(raw);
@@ -92,6 +92,7 @@ function affiliateUrl(raw: string): string {
     u.search = '';
     if (pid) u.searchParams.set('pid', pid);
     if (mcid) u.searchParams.set('mcid', mcid);
+    u.searchParams.set('medium', 'link');
     return u.toString();
   } catch { return raw; }
 }
