@@ -225,16 +225,14 @@ function CardActions({ bookNow, added, onAdd }: { bookNow: string | null; added:
   );
 }
 
-function ItemTile({ item, section, sectionUrl, region, adventure, bookNow, added, onAdd }: { item: ViatorItem; section: string; sectionUrl: string | null; region: string; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
+function ItemTile({ item, section, sectionUrl: _sectionUrl, region, adventure, bookNow, added, onAdd }: { item: ViatorItem; section: string; sectionUrl: string | null; region: string; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
   const url = item.viator_item_url;
   const ext = { target: '_blank', rel: 'noopener noreferrer' } as const;
   const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><HeaderVibePill adventure={adventure} /></>;
   return (
     <div className="a-card fade-in" style={{ position: 'relative' }}>
       {url && <a href={viatorLink(url)} {...ext} aria-label={item.title} style={{ position: 'absolute', inset: 0, zIndex: 0, borderRadius: 'inherit' }} />}
-      {sectionUrl
-        ? <a className="card-header-band" href={sectionUrl} {...ext} style={{ position: 'relative', zIndex: 1 }}>{headerInner}</a>
-        : <div className="card-header-band">{headerInner}</div>}
+      <div className="card-header-band">{headerInner}</div>
       <div className="a-img"><img src={item.image_url} alt={item.title} loading="lazy" /><span className="a-rating"><Star size={12} aria-hidden /> {item.rating}</span></div>
       <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
         <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{item.title}</h3>
@@ -256,16 +254,14 @@ function ItemTile({ item, section, sectionUrl, region, adventure, bookNow, added
   );
 }
 
-function ActivityTile({ a, section, sectionUrl, adventure, bookNow, added, onAdd }: { a: Activity; section: string; sectionUrl: string | null; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
+function ActivityTile({ a, section, sectionUrl: _sectionUrl, adventure, bookNow, added, onAdd }: { a: Activity; section: string; sectionUrl: string | null; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
   const url = a.viator_item_url; // present only on matched local picks
   const ext = { target: '_blank', rel: 'noopener noreferrer' } as const;
   const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><HeaderVibePill adventure={adventure} /><LocalMark /></>;
   return (
     <div className="a-card fade-in" style={{ position: 'relative' }}>
       {url && <a href={viatorLink(url)} {...ext} aria-label={a.title} style={{ position: 'absolute', inset: 0, zIndex: 0, borderRadius: 'inherit' }} />}
-      {sectionUrl
-        ? <a className="card-header-band" href={sectionUrl} {...ext} style={{ position: 'relative', zIndex: 1 }}>{headerInner}</a>
-        : <div className="card-header-band">{headerInner}</div>}
+      <div className="card-header-band">{headerInner}</div>
       <div className="a-img"><img src={a.image} alt={a.title} loading="lazy" /><span className="a-rating"><Star size={12} aria-hidden /> {a.rating}</span></div>
       <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
         <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{a.title}</h3>
