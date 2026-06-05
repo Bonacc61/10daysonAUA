@@ -230,32 +230,27 @@ function ItemTile({ item, section, sectionUrl, region, adventure, bookNow, added
   const ext = { target: '_blank', rel: 'noopener noreferrer' } as const;
   const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><HeaderVibePill adventure={adventure} /></>;
   return (
-    <div className="a-card fade-in">
+    <div className="a-card fade-in" style={{ position: 'relative' }}>
+      {url && <a href={url} {...ext} aria-label={item.title} style={{ position: 'absolute', inset: 0, zIndex: 0, borderRadius: 'inherit' }} />}
       {sectionUrl
-        ? <a className="card-header-band" href={sectionUrl} {...ext}>{headerInner}</a>
+        ? <a className="card-header-band" href={sectionUrl} {...ext} style={{ position: 'relative', zIndex: 1 }}>{headerInner}</a>
         : <div className="card-header-band">{headerInner}</div>}
-      {url
-        ? <a className="a-img" href={url} {...ext} style={{ display: 'block' }}><img src={item.image_url} alt={item.title} loading="lazy" /><span className="a-rating"><Star size={12} aria-hidden /> {item.rating}</span></a>
-        : <div className="a-img"><img src={item.image_url} alt={item.title} loading="lazy" /><span className="a-rating"><Star size={12} aria-hidden /> {item.rating}</span></div>}
+      <div className="a-img"><img src={item.image_url} alt={item.title} loading="lazy" /><span className="a-rating"><Star size={12} aria-hidden /> {item.rating}</span></div>
       <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {url
-          ? <a href={url} {...ext} className="card-title-link" style={{ textDecoration: 'none', color: 'inherit' }}><h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{item.title}</h3></a>
-          : <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{item.title}</h3>}
+        <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{item.title}</h3>
         {region && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--sand-500)', fontSize: 12, marginBottom: 10 }}>
             <MapPin size={12} /><span>{region}</span>
           </div>
         )}
         {item.description && (
-          url
-            ? <a href={url} {...ext} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}><p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--sand-700)', margin: '0 0 12px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description}</p></a>
-            : <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--sand-700)', margin: '0 0 12px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description}</p>
+          <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--sand-700)', margin: '0 0 12px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description}</p>
         )}
         <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Clock size={11} /> {item.duration}</span>
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Dollar size={11} /> {item.price_usd}</span>
         </div>
-        <div style={{ marginTop: 'auto' }}><CardActions bookNow={bookNow} added={added} onAdd={onAdd} /></div>
+        <div style={{ marginTop: 'auto', position: 'relative', zIndex: 1 }}><CardActions bookNow={bookNow} added={added} onAdd={onAdd} /></div>
       </div>
     </div>
   );
@@ -264,38 +259,27 @@ function ItemTile({ item, section, sectionUrl, region, adventure, bookNow, added
 function ActivityTile({ a, section, sectionUrl, adventure, bookNow, added, onAdd }: { a: Activity; section: string; sectionUrl: string | null; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
   const url = a.viator_item_url; // present only on matched local picks
   const ext = { target: '_blank', rel: 'noopener noreferrer' } as const;
-  const imgInner = <><img src={a.image} alt={a.title} loading="lazy" /><span className="a-rating"><Star size={12} aria-hidden /> {a.rating}</span></>;
   const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><HeaderVibePill adventure={adventure} /><LocalMark /></>;
   return (
-    <div className="a-card fade-in">
+    <div className="a-card fade-in" style={{ position: 'relative' }}>
+      {url && <a href={url} {...ext} aria-label={a.title} style={{ position: 'absolute', inset: 0, zIndex: 0, borderRadius: 'inherit' }} />}
       {sectionUrl
-        ? <a className="card-header-band" href={sectionUrl} {...ext}>{headerInner}</a>
+        ? <a className="card-header-band" href={sectionUrl} {...ext} style={{ position: 'relative', zIndex: 1 }}>{headerInner}</a>
         : <div className="card-header-band">{headerInner}</div>}
-      {url
-        ? <a className="a-img" href={url} {...ext} style={{ display: 'block' }}>{imgInner}</a>
-        : <div className="a-img">{imgInner}</div>}
+      <div className="a-img"><img src={a.image} alt={a.title} loading="lazy" /><span className="a-rating"><Star size={12} aria-hidden /> {a.rating}</span></div>
       <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {url
-          ? <a href={url} {...ext} className="card-title-link" style={{ textDecoration: 'none', color: 'inherit' }}><h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{a.title}</h3></a>
-          : <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{a.title}</h3>}
+        <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{a.title}</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--sand-500)', fontSize: 12, marginBottom: 10 }}>
           <MapPin size={12} /><span>{a.location}</span>
         </div>
-        {(() => {
-          const desc = (
-            <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--sand-700)', margin: '0 0 12px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-              {a.description}
-            </p>
-          );
-          return url
-            ? <a href={url} {...ext} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>{desc}</a>
-            : desc;
-        })()}
+        <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--sand-700)', margin: '0 0 12px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          {a.description}
+        </p>
         <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Clock size={11} /> {a.duration}</span>
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Dollar size={11} /> {a.cost}</span>
         </div>
-        <div style={{ marginTop: 'auto' }}><CardActions bookNow={bookNow} added={added} onAdd={onAdd} /></div>
+        <div style={{ marginTop: 'auto', position: 'relative', zIndex: 1 }}><CardActions bookNow={bookNow} added={added} onAdd={onAdd} /></div>
       </div>
     </div>
   );
