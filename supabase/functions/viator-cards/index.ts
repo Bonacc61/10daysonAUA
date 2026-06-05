@@ -3,10 +3,40 @@
 // so the frontend merges editorial fields by id and falls back to the stub on
 // any error. JWT verification stays ON (anon key required) — not a public proxy.
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { GROUPS, ARUBA_DESTINATION_ID } from './groups.ts';
 import { normalizeProduct } from './normalize.ts';
 import { hasKey, ping, searchProducts, searchProductsPaged, freetextSearch, getProduct, getTags } from './viator.ts';
+
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+function supabaseAdmin() {
+  return createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+}
+
+async function readCache(): Promise<{ payload: unknown; cachedAt: Date } | null> {
+  try {
+    const { data } = await supabaseAdmin()
+      .from('catalog_cache')
+      .select('payload, cached_at')
+      .eq('id', 'main')
+      .single();
+    if (!data) return null;
+    return { payload: data.payload, cachedAt: new Date(data.cached_at) };
+  } catch { return null; }
+}
+
+async function writeCache(payload: unknown): Promise<void> {
+  try {
+    await supabaseAdmin()
+      .from('catalog_cache')
+      .upsert({ id: 'main', payload, cached_at: new Date().toISOString() });
+  } catch { /* non-fatal */ }
+}
 
 // Max products fetched AND emitted per group (paged, 50/request). Represents
 // nearly the full live Aruba inventory (adventure ~105, watersports ~67,
@@ -78,6 +108,12 @@ serve(async (req) => {
     return json(counts);
   }
 
+  // Serve from cache if fresh enough, stale cache as fallback on Viator failure.
+  const cached = await readCache();
+  if (cached && (Date.now() - cached.cachedAt.getTime() < CACHE_TTL_MS)) {
+    return json({ ...(cached.payload as object), source: 'cache' });
+  }
+
   try {
     const groups: unknown[] = [];
     const items: unknown[] = [];
@@ -143,9 +179,12 @@ serve(async (req) => {
       } catch { /* leave unmatched → card stays editorial */ }
     }));
 
-    return json({ groups, items, localMatches, source: 'viator-live' });
+    const payload = { groups, items, localMatches };
+    await writeCache(payload);
+    return json({ ...payload, source: 'viator-live' });
   } catch (e) {
-    // Frontend falls back to the local stub on any failure.
+    // Serve stale cache rather than failing completely.
+    if (cached) return json({ ...(cached.payload as object), source: 'cache-stale' });
     return json({ error: String(e) }, 502);
   }
 });
