@@ -288,11 +288,11 @@ function GoodToKnowSection() {
     <details className="aruba-section bleed" style={{ background: 'var(--yellow-bg)', borderTop: '2px solid var(--ink)' }}>
       <summary style={{ padding: '24px 36px' }}>
         <div className="container-1280" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, padding: 0 }}>
-          <div>
+          <h2 className="font-display" style={{ fontSize: 32, margin: 0, color: 'var(--ink)' }}>Good-to-knows.</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
             <span className="gtk-eyebrow">Island intel</span>
-            <h2 className="font-display" style={{ fontSize: 32, margin: '12px 0 0', color: 'var(--ink)' }}>Good-to-knows.</h2>
+            <span className="toggle" style={{ color: 'var(--ink)' }} />
           </div>
-          <span className="toggle" style={{ color: 'var(--ink)', flexShrink: 0, marginTop: 8 }} />
         </div>
       </summary>
       <div style={{ padding: '0 36px 56px' }}>
