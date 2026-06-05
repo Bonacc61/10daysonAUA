@@ -1,4 +1,4 @@
-import { type CSSProperties } from 'react';
+import React, { type CSSProperties, useState } from 'react';
 import {
   Clock, Users, Sparkle, Chev, iconFor,
 } from '../components/Icons';
@@ -119,6 +119,7 @@ export default function Landing({ setPage, answers, setAnswers }: Props) {
       <SampleSection days={label} goPlan={goPlan} />
       <GoodToKnowSection />
       <FAQSection />
+      <ContactSection />
       <Footer />
     </>
   );
@@ -337,5 +338,68 @@ function FAQSection() {
         </div>
       </div>
     </details>
+  );
+}
+
+/* ---------- Contact ---------- */
+
+function ContactSection() {
+  const [form, setForm] = useState({ name: '', email: '', phone: '', comment: '' });
+  const [sent, setSent] = useState(false);
+
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name || !form.email) return;
+    setSent(true);
+  };
+
+  const inputStyle: CSSProperties = {
+    width: '100%', padding: '12px 16px', border: '2px solid var(--ink)', borderRadius: 12,
+    fontSize: 15, fontFamily: 'inherit', background: 'var(--cream)', outline: 'none',
+    boxSizing: 'border-box',
+  };
+
+  return (
+    <div className="bleed" style={{ background: 'var(--cream)', borderTop: '2px solid var(--ink)', padding: '56px 36px' }}>
+      <div className="container-1280" style={{ padding: 0, maxWidth: 640 }}>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--sand-500)' }}>Get in touch</span>
+        <h2 className="font-display" style={{ fontSize: 32, margin: '10px 0 6px', color: 'var(--ink)' }}>Contact us.</h2>
+        <p style={{ fontStyle: 'italic', fontSize: 15, color: 'rgba(0,0,0,0.65)', margin: '0 0 32px' }}>Questions, feedback, or just want to say hello — we'd love to hear from you.</p>
+
+        {sent ? (
+          <div className="chunky" style={{ padding: 28, background: 'var(--green)', color: 'var(--cream)', textAlign: 'center' }}>
+            <p className="font-display" style={{ fontSize: 22, margin: '0 0 6px' }}>Message sent!</p>
+            <p style={{ fontSize: 14, opacity: 0.9, margin: 0 }}>We'll get back to you soon.</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--ink)' }}>Name *</label>
+                <input style={inputStyle} type="text" placeholder="Your name" value={form.name} onChange={set('name')} required />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--ink)' }}>Email *</label>
+                <input style={inputStyle} type="email" placeholder="you@example.com" value={form.email} onChange={set('email')} required />
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--ink)' }}>Phone number</label>
+              <input style={inputStyle} type="tel" placeholder="+1 (555) 000-0000" value={form.phone} onChange={set('phone')} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--ink)' }}>Comment</label>
+              <textarea style={{ ...inputStyle, resize: 'vertical', minHeight: 120 }} placeholder="Tell us what's on your mind…" value={form.comment} onChange={set('comment')} />
+            </div>
+            <div>
+              <button type="submit" className="btn-red" style={{ padding: '13px 28px', fontSize: 15 }}>Send message →</button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
   );
 }
