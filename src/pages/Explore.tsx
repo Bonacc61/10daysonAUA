@@ -237,7 +237,7 @@ function ItemTile({ item, section, sectionUrl, region, adventure, bookNow, added
       {url
         ? <a className="a-img" href={url} {...ext} style={{ display: 'block' }}><img src={item.image_url} alt={item.title} loading="lazy" /><span className="a-rating"><Star size={12} aria-hidden /> {item.rating}</span></a>
         : <div className="a-img"><img src={item.image_url} alt={item.title} loading="lazy" /><span className="a-rating"><Star size={12} aria-hidden /> {item.rating}</span></div>}
-      <div style={{ padding: 16 }}>
+      <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
         {url
           ? <a href={url} {...ext} className="card-title-link" style={{ textDecoration: 'none', color: 'inherit' }}><h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{item.title}</h3></a>
           : <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{item.title}</h3>}
@@ -255,7 +255,7 @@ function ItemTile({ item, section, sectionUrl, region, adventure, bookNow, added
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Clock size={11} /> {item.duration}</span>
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Dollar size={11} /> {item.price_usd}</span>
         </div>
-        <CardActions bookNow={bookNow} added={added} onAdd={onAdd} />
+        <div style={{ marginTop: 'auto' }}><CardActions bookNow={bookNow} added={added} onAdd={onAdd} /></div>
       </div>
     </div>
   );
@@ -274,7 +274,7 @@ function ActivityTile({ a, section, sectionUrl, adventure, bookNow, added, onAdd
       {url
         ? <a className="a-img" href={url} {...ext} style={{ display: 'block' }}>{imgInner}</a>
         : <div className="a-img">{imgInner}</div>}
-      <div style={{ padding: 16 }}>
+      <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
         {url
           ? <a href={url} {...ext} className="card-title-link" style={{ textDecoration: 'none', color: 'inherit' }}><h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{a.title}</h3></a>
           : <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{a.title}</h3>}
@@ -295,7 +295,7 @@ function ActivityTile({ a, section, sectionUrl, adventure, bookNow, added, onAdd
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Clock size={11} /> {a.duration}</span>
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Dollar size={11} /> {a.cost}</span>
         </div>
-        <CardActions bookNow={bookNow} added={added} onAdd={onAdd} />
+        <div style={{ marginTop: 'auto' }}><CardActions bookNow={bookNow} added={added} onAdd={onAdd} /></div>
       </div>
     </div>
   );
