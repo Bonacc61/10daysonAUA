@@ -3,7 +3,8 @@ import { Search, Star, MapPin, Clock, Dollar, Plus, Check, X } from '../componen
 import Footer from '../components/Footer';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
-import { filterExploreEntries, bookingUrl, SECTIONS, sectionLabel, primarySection } from '../data/exploreItems';
+import { filterExploreEntries, bookingUrl, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL } from '../data/exploreItems';
+import type { Section } from '../types';
 import type { ViatorItem } from '../types';
 import type { Answers } from '../App';
 import type { PageId } from '../App';
@@ -101,8 +102,6 @@ export default function Explore({ setPage, answers }: Props) {
     const slug = item.region ?? catalog.groups.find((g) => g.id === item.group_id)?.region;
     return slug ? REGION_LABEL[slug] ?? slug : '';
   };
-  const groupUrl = (item: ViatorItem) => catalog.groups.find((g) => g.id === item.group_id)?.viator_group_url ?? '';
-
   // Every individual Viator item URL + local pick, as its own filterable tile.
   const entries = filterExploreEntries(catalog, { section, search, vibe, price });
 
@@ -181,8 +180,8 @@ export default function Explore({ setPage, answers }: Props) {
                   ? Array.from({ length: 12 }, (_, i) => <SkeletonCard key={i} />)
                   : entries.map((e) => (
                     e.kind === 'item'
-                      ? <ItemTile key={`item:${e.item.id}`} item={e.item} section={sectionLabel(primarySection(e.sections))} groupUrl={groupUrl(e.item)} region={regionOf(e.item)} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />
-                      : <ActivityTile key={e.activity.id} a={e.activity} section={sectionLabel(primarySection(e.sections))} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} />
+                      ? <ItemTile key={`item:${e.item.id}`} item={e.item} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} region={regionOf(e.item)} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />
+                      : <ActivityTile key={e.activity.id} a={e.activity} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} />
                   ))}
               </div>
               {!loading && totalCount === 0 && (
@@ -226,16 +225,15 @@ function CardActions({ bookNow, added, onAdd }: { bookNow: string | null; added:
   );
 }
 
-function ItemTile({ item, section, groupUrl, region, adventure, bookNow, added, onAdd }: { item: ViatorItem; section: string; groupUrl: string; region: string; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
+function ItemTile({ item, section, sectionUrl, region, adventure, bookNow, added, onAdd }: { item: ViatorItem; section: string; sectionUrl: string | null; region: string; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
   const url = item.viator_item_url;
   const ext = { target: '_blank', rel: 'noopener noreferrer' } as const;
+  const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><HeaderVibePill adventure={adventure} /></>;
   return (
     <div className="a-card fade-in">
-      {/* Header (primary section) → the group's Viator category page */}
-      <a className="card-header-band" href={groupUrl} {...ext}>
-        <span className="chb-title" style={{ flex: 1 }}>{section}</span>
-        <HeaderVibePill adventure={adventure} />
-      </a>
+      {sectionUrl
+        ? <a className="card-header-band" href={sectionUrl} {...ext}>{headerInner}</a>
+        : <div className="card-header-band">{headerInner}</div>}
       {url
         ? <a className="a-img" href={url} {...ext} style={{ display: 'block' }}><img src={item.image_url} alt={item.title} loading="lazy" /><span className="a-rating"><Star size={12} aria-hidden /> {item.rating}</span></a>
         : <div className="a-img"><img src={item.image_url} alt={item.title} loading="lazy" /><span className="a-rating"><Star size={12} aria-hidden /> {item.rating}</span></div>}
@@ -263,18 +261,16 @@ function ItemTile({ item, section, groupUrl, region, adventure, bookNow, added, 
   );
 }
 
-function ActivityTile({ a, section, adventure, bookNow, added, onAdd }: { a: Activity; section: string; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
+function ActivityTile({ a, section, sectionUrl, adventure, bookNow, added, onAdd }: { a: Activity; section: string; sectionUrl: string | null; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
   const url = a.viator_item_url; // present only on matched local picks
   const ext = { target: '_blank', rel: 'noopener noreferrer' } as const;
   const imgInner = <><img src={a.image} alt={a.title} loading="lazy" /><span className="a-rating"><Star size={12} aria-hidden /> {a.rating}</span></>;
-  // No header link: local picks have no Viator group.
+  const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><HeaderVibePill adventure={adventure} /><LocalMark /></>;
   return (
     <div className="a-card fade-in">
-      <div className="card-header-band">
-        <span className="chb-title" style={{ flex: 1 }}>{section}</span>
-        <HeaderVibePill adventure={adventure} />
-        <LocalMark />
-      </div>
+      {sectionUrl
+        ? <a className="card-header-band" href={sectionUrl} {...ext}>{headerInner}</a>
+        : <div className="card-header-band">{headerInner}</div>}
       {url
         ? <a className="a-img" href={url} {...ext} style={{ display: 'block' }}>{imgInner}</a>
         : <div className="a-img">{imgInner}</div>}

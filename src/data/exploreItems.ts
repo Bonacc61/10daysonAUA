@@ -56,6 +56,20 @@ export function sectionLabel(key: Section): string {
   return SECTIONS.find((s) => s.key === key)?.label ?? '';
 }
 
+const PID = 'P00302487';
+const MCID = '42383';
+const AFFILIATE = `pid=${PID}&mcid=${MCID}&medium=link`;
+
+// Viator category page for each section — affiliate-tagged, opens in a new tab.
+export const SECTION_VIATOR_URL: Partial<Record<Section, string>> = {
+  'cruises-water':      `https://www.viator.com/Aruba-tours/Cruises-Sailing-and-Water-Tours/d28-g3?${AFFILIATE}`,
+  'adventures-outdoor': `https://www.viator.com/Aruba-tours/Adventure-Tours/d28-tag22046/2?${AFFILIATE}`,
+  'tours-sightseeing':  `https://www.viator.com/Aruba-tours/Full-day-Tours/d28-g12-c94?${AFFILIATE}`,
+  'culture-history':    `https://www.viator.com/Aruba-tours/Cultural-and-Theme-Tours/d28-g4?${AFFILIATE}`,
+  // food-drink: URL to be added
+  // beaches: no Viator category page
+};
+
 // A single renderable Explore tile: a Viator item or a local pick, pre-tagged
 // with its category and resolved adventure value so the view never recomputes.
 export type ExploreEntry =
