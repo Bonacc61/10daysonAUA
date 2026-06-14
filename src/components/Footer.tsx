@@ -1,4 +1,8 @@
 export default function Footer() {
+  // Short build id, injected at build time (see vite.config.ts). Lets us confirm
+  // at a glance which deploy a browser is actually running — no more guessing
+  // whether a fix has loaded or is stale in cache.
+  const build = typeof __APP_BUILD__ === 'string' ? __APP_BUILD__ : 'dev';
   return (
     <div className="bleed" style={{ background: 'var(--ink)', color: 'var(--cream)', textAlign: 'center' }}>
       <div className="container-1280 footer-content" style={{ padding: '28px 36px' }}>
@@ -16,6 +20,9 @@ export default function Footer() {
           earn a small commission at no extra cost to you. We only recommend things we'd
           send a friend to.
         </p>
+        <div style={{ fontSize: 10, color: '#555', marginTop: 14, letterSpacing: '0.04em' }}>
+          build {build}
+        </div>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { Star, MapPin, Clock, Dollar, Check, Swap, Plus } from './Icons';
 import GroupHeader from './GroupHeader';
 import OtherSuggestionsList from './OtherSuggestionsList';
 import SwapReasons from './SwapReasons';
+import { productUrlFor } from '../data/exploreItems';
 
 // Region code → display label, shown with a MapPin in the itinerary card body.
 const REGION_LABELS: Record<Region, string> = {
@@ -43,6 +44,11 @@ export default function GroupCard({
   variant = 'itinerary', showReasons, onPickReason,
   suggestionsOpen, onToggleSuggestions, onAddItem,
 }: Props) {
+  // One canonical product URL for the suggested tour, used by the header band,
+  // the hero image, and the title link. Guaranteed to be a real product page or
+  // null — never the generic Aruba browse page.
+  const tourUrl = productUrlFor(bestSeller);
+
   return (
     <div className="chunky" style={{
       borderWidth: 2, padding: 0, overflow: 'hidden',
@@ -53,17 +59,19 @@ export default function GroupCard({
         ? { height: '100%', display: 'flex', flexDirection: 'column' as const }
         : {}),
     }}>
-      <GroupHeader group={group} href={bestSeller.viator_item_url} />
+      <GroupHeader group={group} href={tourUrl ?? undefined} />
 
       {variant === 'explore'
         ? <ExploreBody
             bestSeller={bestSeller}
+            tourUrl={tourUrl}
             others={others}
             approved={!!approved}
             onApprove={onApprove ?? (() => {})}
           />
         : <ItineraryBody
             bestSeller={bestSeller}
+            tourUrl={tourUrl}
             location={REGION_LABELS[bestSeller.region ?? group.region]}
             onSwap={onSwap}
             onFlip={onFlip}
@@ -86,9 +94,10 @@ export default function GroupCard({
 // No "Sounds good"/"Swap this" buttons here; left action button matches the
 // community-card "View details" affordance (no-op for now, like community cards).
 function ExploreBody({
-  bestSeller, others, approved, onApprove,
+  bestSeller, tourUrl, others, approved, onApprove,
 }: {
   bestSeller: ViatorItem;
+  tourUrl: string | null;
   others: ViatorItem[];
   approved: boolean;
   onApprove: () => void;
@@ -105,11 +114,11 @@ function ExploreBody({
       {/* Full-width hero — same 180px height as .a-card .a-img. The whole
           hero is an outbound affiliate link (carries the PID via the URL). */}
       <a
-        href={bestSeller.viator_item_url}
+        href={tourUrl ?? undefined}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={`View ${bestSeller.title}`}
-        style={{ display: 'block', height: 180, overflow: 'hidden', position: 'relative', background: 'var(--sand-100)' }}
+        style={{ display: 'block', height: 180, overflow: 'hidden', position: 'relative', background: 'var(--sand-100)', cursor: tourUrl ? 'pointer' : 'default' }}
       >
         <img src={bestSeller.image_url} alt={bestSeller.title}
              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
@@ -133,7 +142,7 @@ function ExploreBody({
 
         {/* Best-seller title — outbound affiliate link */}
         <a
-          href={bestSeller.viator_item_url}
+          href={tourUrl ?? undefined}
           target="_blank"
           rel="noopener noreferrer"
           style={{ textDecoration: 'none', color: 'inherit' }}
@@ -164,9 +173,9 @@ function ExploreBody({
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
-          {/* "View details" — same as the community card (no-op affordance for now) */}
+          {/* "View details" — opens the suggested tour */}
           <a
-            href={bestSeller.viator_item_url}
+            href={tourUrl ?? undefined}
             target="_blank"
             rel="noopener noreferrer"
             className="btn-ghost"
@@ -203,9 +212,10 @@ function ExploreBody({
 // activity card (ActivityCardFront), with the group-specific SUGGESTED label.
 // The flip-to-back face is wired by the parent (ItineraryCard).
 function ItineraryBody({
-  bestSeller, location, onSwap, onFlip, showReasons, onPickReason,
+  bestSeller, tourUrl, location, onSwap, onFlip, showReasons, onPickReason,
 }: {
   bestSeller: ViatorItem;
+  tourUrl: string | null;
   location: string;
   onSwap: () => void;
   onFlip: () => void;
@@ -246,16 +256,22 @@ function ItineraryBody({
         <div style={{ display: 'flex', alignItems: 'flex-start',
                       justifyContent: 'space-between', gap: 12 }}>
           <div style={{ minWidth: 0 }}>
-            <a
-              href={bestSeller.viator_item_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ textDecoration: 'none', color: 'inherit' }}
-            >
+            {tourUrl ? (
+              <a
+                href={tourUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ textDecoration: 'none', color: 'inherit' }}
+              >
+                <h3 className="font-display" style={{
+                  fontSize: 19, lineHeight: 1.15, margin: '0 0 6px', color: 'var(--ink)',
+                }}>{bestSeller.title}</h3>
+              </a>
+            ) : (
               <h3 className="font-display" style={{
                 fontSize: 19, lineHeight: 1.15, margin: '0 0 6px', color: 'var(--ink)',
               }}>{bestSeller.title}</h3>
-            </a>
+            )}
             {location && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 4,
                             color: 'var(--sand-500)', fontSize: 12, marginBottom: 6 }}>

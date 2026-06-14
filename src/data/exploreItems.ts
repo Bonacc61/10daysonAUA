@@ -269,3 +269,18 @@ export function groupPasses(group: ViatorGroup, catalog: Catalog, vibe: number, 
       pricePass(priceValue(i.price_usd), price),
   );
 }
+
+// A guaranteed Viator *product-page* URL for an item, or null. Prefers the
+// item's own product URL; if that's missing or is a browse/category page (e.g.
+// the generic /Aruba/d28-ttd thumbnail page), it rebuilds a direct product link
+// from the product code — Viator resolves a product by its d28-<code> token
+// alone, so the slug is cosmetic. It NEVER returns a category/browse page.
+export function productUrlFor(item: { id?: string; viator_item_url?: string }): string | null {
+  const u = item.viator_item_url;
+  if (u && u.includes("/d28-") && !u.includes("d28-ttd")) return viatorLink(u);
+  // Live Viator product codes start with a digit (e.g. 444239P2); stub ids do not.
+  if (item.id && /^[0-9]/.test(item.id)) {
+    return `https://www.viator.com/tours/Aruba/-/d28-${item.id}?${AFFILIATE}`;
+  }
+  return null;
+}
