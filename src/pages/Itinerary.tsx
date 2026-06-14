@@ -22,7 +22,7 @@ import { loadTrip, upsertTrip } from '../lib/trips';
 import SignIn from '../components/SignIn';
 import {
   seedPlan, addCard, removeCard, replaceCardEntry, moveCard, findCard,
-  newUid, type PlannedDay, type PlannedCard,
+  newUid, SECTIONS, type PlannedDay, type PlannedCard,
 } from '../data/itineraryPlan';
 import type { CardEntry, SlotEntry, Slot, SwapReason, ViatorItem } from '../types';
 import type { PageId, Answers } from '../App';
@@ -178,8 +178,23 @@ export default function Itinerary({ setPage, answers, setAnswers }: Props) {
       else nextRejected.add(entry.activity.id);
       const { activities, groups } = matchPool(catalog.activities, catalog.groups, tags, slot);
       const curId = entry.kind === 'activity' ? entry.activity.id : entry.group.id;
+
+      // Build exclusion sets: rejection history + everything already in the plan
+      // (so we never suggest an activity the user already has on another day).
+      const excludeIds = new Set(nextRejected);
+      const excludeGroupIds = new Set(nextRejectedGroups);
+      for (const day of plan) {
+        for (const section of SECTIONS) {
+          for (const card of day[section]) {
+            if (card.uid === uid) continue;
+            if (card.entry.kind === 'activity') excludeIds.add(card.entry.id);
+            else excludeGroupIds.add(card.entry.groupId);
+          }
+        }
+      }
+
       const pool = blendPools(activities, groups, catalog.items,
-        { rejectedIds: nextRejected, rejectedGroupIds: nextRejectedGroups })
+        { rejectedIds: excludeIds, rejectedGroupIds: excludeGroupIds })
         .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId);
       const fresh = constrainBySwapReason(pool, reason, entry)[0];
       if (fresh) next = fresh.kind === 'activity'
