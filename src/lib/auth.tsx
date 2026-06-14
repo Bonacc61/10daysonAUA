@@ -15,6 +15,10 @@ type AuthValue = {
 
 const AuthContext = createContext<AuthValue | undefined>(undefined);
 
+// Where the user lands after a Google / magic-link sign-in. The save section
+// lives on the itinerary page, so return them there — not the landing page.
+const POST_SIGNIN_PATH = '/itinerary';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,16 +35,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user: session?.user ?? null,
     loading,
     signInWithGoogle: async () => {
+      // Flag the return trip so <SignedInToast> can confirm with a brief toast.
+      try { localStorage.setItem('justSignedIn', '1'); } catch { /* ignore */ }
       await supabase?.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin },
+        options: { redirectTo: window.location.origin + POST_SIGNIN_PATH },
       });
     },
     signInWithEmail: async (email: string) => {
       if (!supabase) return { error: 'Sign-in is not configured yet.' };
+      try { localStorage.setItem('justSignedIn', '1'); } catch { /* ignore */ }
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: window.location.origin },
+        options: { emailRedirectTo: window.location.origin + POST_SIGNIN_PATH },
       });
       return { error: error?.message ?? null };
     },

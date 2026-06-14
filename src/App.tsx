@@ -4,6 +4,7 @@ import Landing from './pages/Landing';
 import Explore from './pages/Explore';
 import Questionnaire from './pages/Questionnaire';
 import Itinerary from './pages/Itinerary';
+import SignedInToast from './components/SignedInToast';
 import { AuthProvider } from './lib/auth';
 
 export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary';
@@ -68,6 +69,7 @@ export default function App() {
 
   return (
     <AuthProvider>
+      <SignedInToast />
       <Nav page={page} setPage={setPage} />
       {page === 'landing'       && <Landing       setPage={setPage} answers={answers} setAnswers={setAnswers} />}
       {page === 'questionnaire' && <Questionnaire setPage={setPage} answers={answers} setAnswers={setAnswers} />}
