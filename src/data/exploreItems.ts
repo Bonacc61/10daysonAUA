@@ -188,12 +188,9 @@ export function priceOf(entry: ExploreEntry): number {
 // URL that arrives without it (stub or manually set).
 export function viatorLink(url: string): string {
   if (!url) return url;
-  // Force a code-only path: Viator resolves a product by its d28-<code> token,
-  // but our title-derived slug sometimes differs from Viator's canonical slug
-  // and bounces the visitor to a search results page. Rewriting the slug to "-"
-  // makes every product link land on the product page. The query string (incl.
-  // the pid affiliate id) is left untouched, so commission tracking is kept.
-  url = url.replace(/(\/tours\/[^/?#]+\/)[^/?#]+(\/d28-[A-Za-z0-9]+)/, '$1-$2');
+  // Ensure medium=link is present. The edge function now serves Viator's own
+  // canonical product URLs (correct slug + pid), so we must NOT rewrite the
+  // path here — Viator's affiliate routing needs that exact slug to resolve.
   if (url.includes('medium=link')) return url;
   return url + (url.includes('?') ? '&' : '?') + 'medium=link';
 }

@@ -89,12 +89,27 @@ function coverImage(images: ViatorProduct['images']): string {
 //   https://www.viator.com/tours/Aruba/{slug}/d28-{code}
 // and preserve the affiliate params (pid/mcid) from the raw productUrl.
 function productPageUrl(code: string, title: string, raw: string): string {
+  // Prefer Viator's own canonical product URL from the API: its slug is the one
+  // Viator's affiliate routing resolves directly once the pid is attached. A
+  // slug we rebuild from the title often differs from Viator's canonical slug
+  // and gets bounced to a search page. So reuse the API URL and only normalise
+  // the tracking params: drop the API markers, force medium=link, keep pid/mcid.
+  try {
+    const u = new URL(raw);
+    if (/^\/tours\/.+\/d28-/i.test(u.pathname)) {
+      u.searchParams.delete('api_version');
+      u.searchParams.set('medium', 'link');
+      return u.toString();
+    }
+  } catch { /* fall through to a constructed URL */ }
+  // Fallback (raw is a non-product/TTD URL or unparseable): build a /tours/
+  // product URL from the title slug + code, carrying any affiliate params.
   let pid: string | null = null;
   let mcid: string | null = null;
   try {
-    const u = new URL(raw);
-    pid = u.searchParams.get('pid');
-    mcid = u.searchParams.get('mcid');
+    const ru = new URL(raw);
+    pid = ru.searchParams.get('pid');
+    mcid = ru.searchParams.get('mcid');
   } catch { /* no params available */ }
   const slug = title.replace(/[^a-zA-Z0-9 ]/g, '').replace(/ +/g, '-');
   const u = new URL(`https://www.viator.com/tours/Aruba/${slug}/d28-${code}`);
