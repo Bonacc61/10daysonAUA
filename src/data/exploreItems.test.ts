@@ -190,7 +190,7 @@ describe('bookingUrl', () => {
     ({ kind: 'activity', activity: { cost, viator_item_url: url } as never, category: 'Food', adventure: 20, sections: [] });
 
   test('a paid Viator item is bookable', () => {
-    expect(bookingUrl(item({}))).toBe('https://viator/x');
+    expect(bookingUrl(item({}))).toBe('https://viator/x?medium=link');
   });
 
   test('a free item (price 0) is not bookable', () => {
@@ -198,7 +198,7 @@ describe('bookingUrl', () => {
   });
 
   test('a paid local pick with a booking link is bookable', () => {
-    expect(bookingUrl(act('$65 guided', 'https://viator/y'))).toBe('https://viator/y');
+    expect(bookingUrl(act('$65 guided', 'https://viator/y'))).toBe('https://viator/y?medium=link');
   });
 
   test('a free local pick is never bookable, even with a link', () => {
