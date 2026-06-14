@@ -116,12 +116,45 @@ export default function Itinerary({ setPage, answers, setAnswers }: Props) {
   const scrollToSignIn = () =>
     document.getElementById('sso-login')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  const onMove = (uid: string, toSection: Slot, toIndex: number) => {
+  // A single drag context spans the whole plan so cards can be dragged across
+  // days, not just between the sections of one day.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 160, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const onMove = (uid: string, toDayIdx: number, toSection: Slot, toIndex: number) => {
     const c = cardCtx(uid);
-    if (c && c.slot !== toSection) {
+    const toDay = plan[toDayIdx]?.day;
+    if (c && (c.slot !== toSection || c.day !== toDay)) {
       logEvent({ action: 'move', day: c.day, slot: c.slot, to_section: toSection, from_id: c.id, from_kind: c.kind });
     }
-    setPlan((p) => moveCard(p, uid, toSection, toIndex));
+    setPlan((p) => moveCard(p, uid, toDayIdx, toSection, toIndex));
+  };
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    if (!e.over) return;
+    const activeUid = String(e.active.id);
+    const overId = String(e.over.id);
+    let toDayIdx: number;
+    let toSection: Slot;
+    let toIndex: number;
+    if (overId.startsWith('zone:')) {
+      // Empty/section drop target: "zone:<dayIdx>:<section>" → append to the end.
+      const [, dayStr, sec] = overId.split(':');
+      toDayIdx = Number(dayStr);
+      toSection = sec as Slot;
+      toIndex = plan[toDayIdx]?.[toSection].length ?? 0;
+    } else {
+      // Dropped over another card: take its day/section/index across the plan.
+      const loc = findCard(plan, overId);
+      if (!loc) return;
+      toDayIdx = loc.dayIdx;
+      toSection = loc.section;
+      toIndex = loc.index;
+    }
+    onMove(activeUid, toDayIdx, toSection, toIndex);
   };
 
   // "+ Add to itinerary" from an Other-suggestion row — appends a group card
@@ -230,7 +263,7 @@ export default function Itinerary({ setPage, answers, setAnswers }: Props) {
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.7)', marginBottom: 8 }}>Your itinerary</div>
               <h1 className="font-display" style={{ fontSize: 44, margin: '0 0 6px', color: 'var(--ink)', lineHeight: 1 }}>{tripDays} days, hand-picked.</h1>
               <p style={{ fontStyle: 'italic', fontSize: 15, color: 'rgba(0,0,0,0.75)', margin: 0, maxWidth: 640 }}>
-                Swap what you don't love, and drag cards between morning, afternoon and evening.
+                Swap what you don't love, and drag cards between days and between morning, afternoon and evening.
               </p>
             </div>
             <div className="chunky itin-header-counter" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -262,26 +295,27 @@ export default function Itinerary({ setPage, answers, setAnswers }: Props) {
             </aside>
 
             <div className="itinerary-main">
-              {plan.map((d, i) => (
-                <ItineraryDay
-                  key={d.day}
-                  d={d}
-                  dayIdx={i}
-                  isLast={i === plan.length - 1}
-                  flipped={flipped}
-                  swapping={swapping}
-                  reasonOpen={reasonOpen}
-                  appearing={appearing}
-                  removing={removing}
-                  resolveEntry={resolveEntry}
-                  onFlip={onFlip}
-                  onOpenSwap={onOpenSwap}
-                  onSwap={onSwap}
-                  onAddItem={onAddItem}
-                  onRemove={onRemove}
-                  onMove={onMove}
-                />
-              ))}
+              <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+                {plan.map((d, i) => (
+                  <ItineraryDay
+                    key={d.day}
+                    d={d}
+                    dayIdx={i}
+                    isLast={i === plan.length - 1}
+                    flipped={flipped}
+                    swapping={swapping}
+                    reasonOpen={reasonOpen}
+                    appearing={appearing}
+                    removing={removing}
+                    resolveEntry={resolveEntry}
+                    onFlip={onFlip}
+                    onOpenSwap={onOpenSwap}
+                    onSwap={onSwap}
+                    onAddItem={onAddItem}
+                    onRemove={onRemove}
+                  />
+                ))}
+              </DndContext>
 
               <div style={{ position: 'sticky', bottom: 16, marginTop: 32, display: 'flex', justifyContent: 'center', zIndex: 5 }}>
                 <div className="chunky itin-action-bar" style={{ padding: '14px 22px', display: 'inline-flex', alignItems: 'center', gap: 16, background: 'var(--ink)', color: 'var(--cream)' }}>
@@ -314,38 +348,8 @@ type DayHandlers = {
 };
 
 function ItineraryDay({
-  d, dayIdx, isLast, onMove, ...h
-}: { d: PlannedDay; dayIdx: number; isLast: boolean; onMove: (uid: string, toSection: Slot, toIndex: number) => void } & DayHandlers) {
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 160, tolerance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
-  const sectionOf = (uid: string): Slot | null => {
-    for (const { id } of SECTION_META) if (d[id].some((c) => c.uid === uid)) return id;
-    return null;
-  };
-
-  const handleDragEnd = (e: DragEndEvent) => {
-    if (!e.over) return;
-    const activeUid = String(e.active.id);
-    const overId = String(e.over.id);
-    let toSection: Slot;
-    let toIndex: number;
-    if (overId.startsWith('zone:')) {
-      toSection = overId.split(':')[2] as Slot;
-      toIndex = d[toSection].length;
-    } else {
-      const sec = sectionOf(overId);
-      if (!sec) return;
-      toSection = sec;
-      const idx = d[sec].findIndex((c) => c.uid === overId);
-      toIndex = idx < 0 ? d[sec].length : idx;
-    }
-    onMove(activeUid, toSection, toIndex);
-  };
-
+  d, dayIdx, isLast, ...h
+}: { d: PlannedDay; dayIdx: number; isLast: boolean } & DayHandlers) {
   return (
     <div className="itin-day-wrapper" style={{ position: 'relative', paddingLeft: 64, paddingBottom: isLast ? 0 : 40 }}>
       {!isLast && <div className="timeline-rail" />}
@@ -353,19 +357,17 @@ function ItineraryDay({
       <h2 className="font-display" style={{ fontSize: 30, lineHeight: 1, margin: '6px 0 20px', color: 'var(--ink)' }}>
         Day {d.day} <span style={{ color: 'var(--sand-500)', fontSize: 22, marginLeft: 6 }}>—</span> {d.title}
       </h2>
-      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
-        {SECTION_META.map(({ id, label }) => (
-          <Section
-            key={id}
-            dayIdx={dayIdx}
-            dayNum={d.day}
-            section={id}
-            label={label}
-            cards={d[id]}
-            {...h}
-          />
-        ))}
-      </DndContext>
+      {SECTION_META.map(({ id, label }) => (
+        <Section
+          key={id}
+          dayIdx={dayIdx}
+          dayNum={d.day}
+          section={id}
+          label={label}
+          cards={d[id]}
+          {...h}
+        />
+      ))}
     </div>
   );
 }
@@ -416,7 +418,7 @@ function SortableCard({
       <div className="itin-card-controls">
         <button
           className="itin-card-grip"
-          aria-label="Drag to move between morning, afternoon and evening"
+          aria-label="Drag to move between days and between morning, afternoon and evening"
           {...attributes}
           {...listeners}
         >⠿</button>

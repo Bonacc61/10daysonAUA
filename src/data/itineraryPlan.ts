@@ -75,27 +75,37 @@ function arrayMove<T>(arr: T[], from: number, to: number): T[] {
   return next;
 }
 
-// Move a card within its own day — either reorder inside a section or move it
-// to a different section at `toIndex`. Cross-day moves are not supported.
-export function moveCard(plan: PlannedDay[], uid: string, toSection: Slot, toIndex: number): PlannedDay[] {
+// Move a card to a (possibly different) day + section, landing at `toIndex`.
+// Handles all three cases: reorder within a section, move between sections of
+// the same day, and move across days.
+export function moveCard(
+  plan: PlannedDay[], uid: string, toDayIdx: number, toSection: Slot, toIndex: number,
+): PlannedDay[] {
   const loc = findCard(plan, uid);
   if (!loc) return plan;
-  const { dayIdx, section: fromSection, index: fromIndex, card } = loc;
+  const { dayIdx: fromDayIdx, section: fromSection, index: fromIndex, card } = loc;
 
+  // Pure reorder inside a single section.
+  if (fromDayIdx === toDayIdx && fromSection === toSection) {
+    return plan.map((d, i) => {
+      if (i !== toDayIdx) return d;
+      const clamped = Math.max(0, Math.min(toIndex, d[toSection].length - 1));
+      return { ...d, [toSection]: arrayMove(d[toSection], fromIndex, clamped) };
+    });
+  }
+
+  // Cross-section and/or cross-day: pull from the source list and splice into
+  // the target list. When the move is same-day-different-section, both edits
+  // land on the same day object, so apply them cumulatively.
   return plan.map((d, i) => {
-    if (i !== dayIdx) return d;
-    const next: PlannedDay = {
-      ...d,
-      morning: [...d.morning], afternoon: [...d.afternoon], evening: [...d.evening],
-    };
-    if (fromSection === toSection) {
-      const clamped = Math.max(0, Math.min(toIndex, next[toSection].length - 1));
-      next[toSection] = arrayMove(next[toSection], fromIndex, clamped);
-    } else {
-      next[fromSection] = next[fromSection].filter((c) => c.uid !== uid);
+    let next = d;
+    if (i === fromDayIdx) {
+      next = { ...next, [fromSection]: next[fromSection].filter((c) => c.uid !== uid) };
+    }
+    if (i === toDayIdx) {
       const target = [...next[toSection]];
       target.splice(Math.max(0, Math.min(toIndex, target.length)), 0, card);
-      next[toSection] = target;
+      next = { ...next, [toSection]: target };
     }
     return next;
   });
