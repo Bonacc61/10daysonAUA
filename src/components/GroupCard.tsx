@@ -53,7 +53,7 @@ export default function GroupCard({
         ? { height: '100%', display: 'flex', flexDirection: 'column' as const }
         : {}),
     }}>
-      <GroupHeader group={group} />
+      <GroupHeader group={group} href={bestSeller.viator_item_url} />
 
       {variant === 'explore'
         ? <ExploreBody
