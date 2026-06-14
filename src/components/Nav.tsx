@@ -1,4 +1,5 @@
 import type { PageId } from '../App';
+import { useAuth } from '../lib/auth';
 
 type Props = {
   page: PageId;
@@ -6,6 +7,8 @@ type Props = {
 };
 
 export default function Nav({ page, setPage }: Props) {
+  const { user } = useAuth();
+
   const link = (id: PageId, label: string) => (
     <button
       key={id}
@@ -81,8 +84,9 @@ export default function Nav({ page, setPage }: Props) {
               setPage('itinerary');
               setTimeout(() => document.getElementById('save')?.scrollIntoView({ behavior: 'smooth' }), 60);
             }}
+            title={user ? `Signed in as ${user.email}` : undefined}
           >
-            Log in
+            {user ? 'My trip' : 'Log in'}
           </button>
         </div>
       </div>
