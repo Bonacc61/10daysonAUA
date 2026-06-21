@@ -90,7 +90,10 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin }: Pro
     return () => window.clearTimeout(id);
   }, [user, hydrated, answers, plan, rejected, rejectedGroups]);
 
-  const resolveEntry = (slotEntry: SlotEntry): CardEntry | null => resolveSlotEntry(slotEntry, catalog);
+  // Pass the questionnaire answers so the card face + "Other suggestions" only
+  // ever show items that fit (e.g. nothing far over budget). This is the display
+  // chokepoint — the plan stores only ids, so the shown items are rebuilt here.
+  const resolveEntry = (slotEntry: SlotEntry): CardEntry | null => resolveSlotEntry(slotEntry, catalog, tags);
 
   const toggle = (set: Set<string>, uid: string) => {
     const next = new Set(set);

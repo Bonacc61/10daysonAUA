@@ -90,9 +90,15 @@ export function refaceForAnswers(entries: CardEntry[], tags: Set<MatchTag>): Car
   const out: CardEntry[] = [];
   for (const e of entries) {
     if (e.kind !== 'group') { out.push(e); continue; }
+    // Pick the best-FITTING item as the card face (→ the stored bestSellerId),
+    // so the group is scored and chosen by what the traveller would actually be
+    // shown, not an arbitrary best-seller. Drop groups with nothing that fits.
+    // The rendered "Other suggestions" are filtered at DISPLAY time in
+    // resolveSlotEntry — the plan only stores the face id, so that's the one
+    // place that controls every item the card shows.
     const pool = [e.bestSeller, ...e.others];
     const face = bestItemForAnswers(pool, tags);
-    if (!face) continue; // nothing in this group fits the budget → not offered
+    if (!face) continue;
     out.push({ ...e, bestSeller: face, others: pool.filter((i) => i.id !== face.id) });
   }
   return out;

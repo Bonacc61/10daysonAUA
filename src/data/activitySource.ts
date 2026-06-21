@@ -1,7 +1,8 @@
 import { ACTIVITIES, type Activity } from './activities';
 import { VIATOR_GROUPS, VIATOR_ITEMS } from './viator-stub';
 import { LUNCHSPOTS } from './lunchspots';
-import type { ViatorGroup, ViatorItem, SlotEntry, CardEntry } from '../types';
+import { fitItem, bestItemForAnswers } from './itemFit';
+import type { ViatorGroup, ViatorItem, SlotEntry, CardEntry, MatchTag } from '../types';
 
 export type Catalog = {
   activities: Activity[];
@@ -95,7 +96,17 @@ export function otherItemsInGroup(groupId: string, bestSellerId: string, catalog
 // in with different product codes (and a daily refresh can change them again).
 // When that happens we fall back to the group's current best-seller so the card
 // still renders, instead of returning null and leaving the slot blank.
-export function resolveSlotEntry(slotEntry: SlotEntry, catalog: Catalog): CardEntry | null {
+//
+// This is also the single chokepoint that controls EVERY item a card shows —
+// the plan stores only {groupId, bestSellerId}, so the face and the whole "Other
+// suggestions" list (entry.others) are rebuilt here. When `tags` (the
+// questionnaire answers) are passed, items that don't fit (e.g. an item far over
+// budget) are dropped from both the face and the suggestions, and a stale or
+// now-over-budget stored face self-heals to the best-fitting item — so no card
+// can surface something the answers rule out, however the plan was produced.
+export function resolveSlotEntry(
+  slotEntry: SlotEntry, catalog: Catalog, tags?: Set<MatchTag>,
+): CardEntry | null {
   if (slotEntry.kind === 'activity') {
     const a = catalog.activities.find((x) => x.id === slotEntry.id)
       ?? LUNCHSPOTS.find((x) => x.id === slotEntry.id);
@@ -103,9 +114,19 @@ export function resolveSlotEntry(slotEntry: SlotEntry, catalog: Catalog): CardEn
   }
   const g = catalog.groups.find((x) => x.id === slotEntry.groupId);
   if (!g) return null;
-  const bs = catalog.items.find((x) => x.id === slotEntry.bestSellerId)
-          ?? catalog.items.find((x) => x.group_id === g.id && x.is_best_seller)
-          ?? catalog.items.find((x) => x.group_id === g.id);
+
+  const all = itemsInGroup(g.id, catalog);
+  if (all.length === 0) return null;
+  // Answer-aware filter; never blank the card, so keep the raw list if nothing fits.
+  const fitting = tags ? all.filter((i) => !fitItem(i, tags).rejected) : all;
+  const pool = fitting.length ? fitting : all;
+
+  // Face: the stored pick if it's still in-budget, else the best-fitting item,
+  // else the group best-seller / first.
+  const bs = pool.find((x) => x.id === slotEntry.bestSellerId)
+          ?? (tags ? bestItemForAnswers(pool, tags) : null)
+          ?? pool.find((x) => x.is_best_seller)
+          ?? pool[0];
   if (!bs) return null;
-  return { kind: 'group', group: g, bestSeller: bs, others: otherItemsInGroup(g.id, bs.id, catalog) };
+  return { kind: 'group', group: g, bestSeller: bs, others: pool.filter((i) => i.id !== bs.id) };
 }
