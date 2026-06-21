@@ -46,9 +46,11 @@ export function findCard(plan: PlannedDay[], uid: string): CardLocation | null {
   return null;
 }
 
-export function addCard(plan: PlannedDay[], dayNum: number, section: Slot, entry: SlotEntry, uid: string): PlannedDay[] {
+export function addCard(plan: PlannedDay[], dayNum: number, section: Slot, entry: SlotEntry, uid: string, atStart = false): PlannedDay[] {
   return plan.map((d) =>
-    d.day === dayNum ? { ...d, [section]: [...d[section], { uid, entry }] } : d);
+    d.day === dayNum
+      ? { ...d, [section]: atStart ? [{ uid, entry }, ...d[section]] : [...d[section], { uid, entry }] }
+      : d);
 }
 
 export function removeCard(plan: PlannedDay[], uid: string): PlannedDay[] {

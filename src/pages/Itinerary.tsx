@@ -173,7 +173,7 @@ export default function Itinerary({ setPage, answers, setAnswers }: Props) {
   const onSuggestLunch = (dayNum: number) => {
     const day = plan.find((d) => d.day === dayNum);
     if (!day) return;
-    const prevCard = day.afternoon[day.afternoon.length - 1] ?? day.morning[day.morning.length - 1] ?? null;
+    const prevCard = day.morning[day.morning.length - 1] ?? day.afternoon[day.afternoon.length - 1] ?? null;
     let prevRegion;
     if (prevCard) {
       const e = resolveEntry(prevCard.entry);
@@ -188,7 +188,7 @@ export default function Itinerary({ setPage, answers, setAnswers }: Props) {
     const pick = suggestLunchspot(prevRegion, usedIds);
     if (!pick) return;
     const uid = newUid();
-    setPlan((p) => addCard(p, dayNum, 'afternoon', { kind: 'activity', id: pick.id }, uid));
+    setPlan((p) => addCard(p, dayNum, 'afternoon', { kind: 'activity', id: pick.id }, uid, true));
     setAppearing((s) => new Set(s).add(uid));
     window.setTimeout(() => setAppearing((s) => { const n = new Set(s); n.delete(uid); return n; }), 320);
     logEvent({ action: 'add', day: dayNum, slot: 'afternoon', to_id: pick.id, to_kind: 'activity' });

@@ -669,3 +669,14 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   cursor: pointer; box-shadow: 2px 2px 0 var(--ink); white-space: nowrap;
 }
 .itin-card-back-btn:hover { background: var(--sand-50); }
+
+
+/* "Book now" button on bookable itinerary cards (paid + Viator link). */
+.itin-book-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 13px; border-radius: 12px;
+  border: 2px solid var(--ink); font-weight: 700;
+  font-family: inherit; font-size: 13px; cursor: pointer;
+  background: var(--red); color: var(--cream);
+  text-decoration: none; box-shadow: 3px 3px 0 var(--ink);
+}

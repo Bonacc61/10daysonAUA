@@ -6,6 +6,8 @@ import GroupCard from './GroupCard';
 import CardBack from './CardBack';
 import SwapReasons, { SWAP_REASONS_OPEN_PX } from './SwapReasons';
 import { otherSuggestionsExpandedPx } from './OtherSuggestionsList';
+import { productUrlFor, viatorLink } from '../data/exploreItems';
+import { parseActivityCost } from '../data/matcher';
 
 type Props = {
   entry: CardEntry;
@@ -40,6 +42,12 @@ export default function ItineraryCard({
   // required by the flip-animation CSS — can grow when the list opens.
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 
+  // A "Book now" target for any bookable card (paid + has a Viator link). Lunch
+  // spots and free editorial picks have no link, so they get no button.
+  const bookUrl: string | null = entry.kind === 'group'
+    ? (entry.bestSeller.viator_item_url && entry.bestSeller.price_usd > 0 ? productUrlFor(entry.bestSeller) : null)
+    : (entry.activity.viator_item_url && parseActivityCost(entry.activity.cost) > 0 ? viatorLink(entry.activity.viator_item_url) : null);
+
   const otherCount = entry.kind === 'group' ? entry.others.length : 0;
   const height = BASE_HEIGHT
     + (suggestionsOpen ? otherSuggestionsExpandedPx(otherCount) : 0)
@@ -54,11 +62,11 @@ export default function ItineraryCard({
     : <CardBack kind="group"    bestSeller={entry.bestSeller}  onFlip={onFlip} />;
 
   const front = entry.kind === 'activity'
-    ? <ActivityCardFront a={entry.activity}
+    ? <ActivityCardFront a={entry.activity} bookUrl={bookUrl}
                          onFlip={onFlip} onSwap={onSwap}
                          showReasons={showReasons} onPickReason={onPickReason} />
     : <GroupCard group={entry.group} bestSeller={entry.bestSeller}
-                 others={entry.others}
+                 others={entry.others} bookUrl={bookUrl}
                  onSwap={onSwap} onFlip={onFlip}
                  showReasons={showReasons} onPickReason={onPickReason}
                  suggestionsOpen={suggestionsOpen}
@@ -78,9 +86,10 @@ export default function ItineraryCard({
 // Local activity (non-Viator) card front face — preserved from the original
 // inline CardFront in Itinerary.tsx, with the same look and behavior.
 function ActivityCardFront({
-  a, onFlip, onSwap, showReasons, onPickReason,
+  a, bookUrl, onFlip, onSwap, showReasons, onPickReason,
 }: {
   a: Activity;
+  bookUrl: string | null;
   onFlip: () => void;
   onSwap: () => void;
   showReasons?: boolean;
@@ -165,17 +174,9 @@ function ActivityCardFront({
                          padding: '8px 13px', fontSize: 13 }}>
                 <Swap size={13} aria-hidden /> Swap this
               </button>
-              {a.viator_item_url && (
-                <a href={a.viator_item_url} target="_blank" rel="noopener noreferrer"
-                   style={{
-                     display: 'inline-flex', alignItems: 'center', gap: 6,
-                     padding: '8px 13px', borderRadius: 12,
-                     border: '2px solid var(--ink)', fontWeight: 700,
-                     fontFamily: 'inherit', fontSize: 13, cursor: 'pointer',
-                     background: 'var(--coral)', color: 'var(--cream)',
-                     textDecoration: 'none', boxShadow: '3px 3px 0 var(--ink)',
-                   }}>
-                  Book a tour ↗
+              {bookUrl && (
+                <a href={bookUrl} target="_blank" rel="noopener noreferrer" className="itin-book-btn">
+                  Book now
                 </a>
               )}
             </div>

@@ -21,6 +21,7 @@ type Props = {
   group: ViatorGroup;
   bestSeller: ViatorItem;
   others: ViatorItem[];
+  bookUrl?: string | null;
   approved?: boolean;     // Explore-only ("Add"/"Added" state); itinerary no longer approves
   onApprove?: () => void; // Explore-only ("Add to plan")
   onSwap: () => void;
@@ -42,7 +43,7 @@ type Props = {
 export default function GroupCard({
   group, bestSeller, others, approved, onApprove, onSwap, onFlip,
   variant = 'itinerary', showReasons, onPickReason,
-  suggestionsOpen, onToggleSuggestions, onAddItem,
+  suggestionsOpen, onToggleSuggestions, onAddItem, bookUrl,
 }: Props) {
   // One canonical product URL for the suggested tour, used by the header band,
   // the hero image, and the title link. Guaranteed to be a real product page or
@@ -72,6 +73,7 @@ export default function GroupCard({
         : <ItineraryBody
             bestSeller={bestSeller}
             tourUrl={tourUrl}
+            bookUrl={bookUrl ?? null}
             location={REGION_LABELS[bestSeller.region ?? group.region]}
             onSwap={onSwap}
             onFlip={onFlip}
@@ -212,10 +214,11 @@ function ExploreBody({
 // activity card (ActivityCardFront), with the group-specific SUGGESTED label.
 // The flip-to-back face is wired by the parent (ItineraryCard).
 function ItineraryBody({
-  bestSeller, tourUrl, location, onSwap, onFlip, showReasons, onPickReason,
+  bestSeller, tourUrl, bookUrl, location, onSwap, onFlip, showReasons, onPickReason,
 }: {
   bestSeller: ViatorItem;
   tourUrl: string | null;
+  bookUrl: string | null;
   location: string;
   onSwap: () => void;
   onFlip: () => void;
@@ -309,6 +312,9 @@ function ItineraryBody({
               }}>
               <Swap size={13} aria-hidden /> Swap this
             </button>
+            {bookUrl && (
+              <a href={bookUrl} target="_blank" rel="noopener noreferrer" className="itin-book-btn">Book now</a>
+            )}
           </div>
           <SwapReasons open={!!showReasons} onPick={(r) => onPickReason?.(r)} />
         </div>
