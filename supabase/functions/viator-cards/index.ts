@@ -41,7 +41,7 @@ async function writeCache(payload: unknown): Promise<void> {
 // Max products fetched AND emitted per group (paged, 50/request). Represents
 // nearly the full live Aruba inventory (adventure ~105, watersports ~67,
 // food ~40, sailing ~233) while bounding payload + latency. Raise to widen.
-const PER_GROUP_MAX = 150;
+const PER_GROUP_MAX = 400;
 
 // Curated matches: local editorial pick id → real Viator product code. The card
 // keeps its editorial title/blurb but pulls rating/image/price/link from this product.
