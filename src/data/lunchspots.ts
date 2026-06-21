@@ -63,6 +63,10 @@ export function cardRegion(entry: CardEntry): Region | undefined {
 
 // Pick a lunch spot near the previous card's region. Prefers a region match and
 // an as-yet-unused spot; falls back to any unused, then any. null only if empty.
+export function isLunchspot(id: string): boolean {
+  return LUNCHSPOTS.some((l) => l.id === id);
+}
+
 export function suggestLunchspot(prevRegion: Region | undefined, usedIds: Set<string>): Activity | null {
   const fresh = LUNCHSPOTS.filter((l) => !usedIds.has(l.id));
   const pool = fresh.length ? fresh : LUNCHSPOTS;

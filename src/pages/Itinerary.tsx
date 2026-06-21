@@ -24,7 +24,7 @@ import {
   seedPlan, addCard, removeCard, replaceCardEntry, moveCard, findCard,
   newUid, SECTIONS, type PlannedDay, type PlannedCard,
 } from '../data/itineraryPlan';
-import { suggestLunchspot, cardRegion } from '../data/lunchspots';
+import { suggestLunchspot, cardRegion, isLunchspot, LUNCHSPOTS } from '../data/lunchspots';
 import type { CardEntry, SlotEntry, Slot, SwapReason, ViatorItem } from '../types';
 import type { PageId, Answers } from '../App';
 
@@ -208,6 +208,28 @@ export default function Itinerary({ setPage, answers, setAnswers }: Props) {
   const onSwap = (uid: string, slot: Slot, entry: CardEntry, reason: SwapReason) => {
     if (swapping.has(uid)) return;
     setReasonOpen((s) => { const n = new Set(s); n.delete(uid); return n; });
+
+    // Lunch spots only ever swap to other lunch spots — never a regular activity.
+    if (entry.kind === 'activity' && isLunchspot(entry.activity.id)) {
+      const curId = entry.activity.id;
+      const nextRej = new Set(rejected);
+      nextRej.add(curId);
+      const pool = (rej: Set<string>): CardEntry[] =>
+        LUNCHSPOTS
+          .filter((l) => l.id !== curId && !rej.has(l.id))
+          .map((l): CardEntry => ({ kind: 'activity', activity: l }));
+      const freshLunch = constrainBySwapReason(pool(nextRej), reason, entry)[0]
+        ?? constrainBySwapReason(pool(new Set<string>()), reason, entry)[0];
+      setRejected(nextRej);
+      if (!freshLunch || freshLunch.kind !== 'activity') return;
+      const toId = freshLunch.activity.id;
+      logEvent({ action: 'swap', reason, slot, from_id: curId, from_kind: 'activity',
+                 from_price: entryPrice(entry), to_id: toId, to_kind: 'activity' });
+      setSwapping((s) => new Set(s).add(uid));
+      window.setTimeout(() => setPlan((p) => replaceCardEntry(p, uid, { kind: 'activity', id: toId })), 450);
+      window.setTimeout(() => setSwapping((s) => { const n = new Set(s); n.delete(uid); return n; }), 920);
+      return;
+    }
 
     const nextRejected = new Set(rejected);
     const nextRejectedGroups = new Set(rejectedGroups);
@@ -428,6 +450,11 @@ function Section({
   return (
     <div style={{ marginBottom: 16 }}>
       <div className="itin-section-label">{label}</div>
+      {section === 'afternoon' && (
+        <button type="button" className="itin-lunch-btn" onClick={() => h.onSuggestLunch(dayNum)}>
+          <span className="itin-lunch-spark" aria-hidden>✦</span>Suggest lunchspot
+        </button>
+      )}
       <SortableContext items={cards.map((c) => c.uid)} strategy={verticalListSortingStrategy}>
         <div ref={setNodeRef} className={`itin-section-zone${isOver ? ' over' : ''}${cards.length === 0 ? ' empty' : ''}`}>
           {cards.length === 0 && <div className="itin-section-empty">Drop an activity here, or add one from a card's “Other suggestions”.</div>}
@@ -440,11 +467,6 @@ function Section({
           })}
         </div>
       </SortableContext>
-      {section === 'afternoon' && (
-        <button type="button" className="itin-lunch-btn" onClick={() => h.onSuggestLunch(dayNum)}>
-          <span className="itin-lunch-spark" aria-hidden>✦</span>Suggest lunchspot
-        </button>
-      )}
     </div>
   );
 }
