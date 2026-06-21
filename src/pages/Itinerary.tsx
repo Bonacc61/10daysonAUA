@@ -229,7 +229,17 @@ export default function Itinerary({ setPage, answers, setAnswers }: Props) {
       const pool = blendPools(activities, groups, catalog.items,
         { rejectedIds: excludeIds, rejectedGroupIds: excludeGroupIds })
         .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId);
-      const fresh = constrainBySwapReason(pool, reason, entry)[0];
+      let fresh = constrainBySwapReason(pool, reason, entry)[0];
+      // "Too pricey" on an already-cheap card can find nothing cheaper within the
+      // slot/vibe-matched pool, which would silently do nothing. Broaden to the
+      // whole catalog (any slot/vibe) so we still surface a cheaper option — e.g.
+      // a free beach or local pick — rather than ignoring the click.
+      if (!fresh && reason === 'too-pricey') {
+        const widePool = blendPools(catalog.activities, catalog.groups, catalog.items,
+          { rejectedIds: excludeIds, rejectedGroupIds: excludeGroupIds })
+          .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId);
+        fresh = constrainBySwapReason(widePool, reason, entry)[0];
+      }
       if (fresh) next = fresh.kind === 'activity'
         ? { kind: 'activity', id: fresh.activity.id }
         : { kind: 'group', groupId: fresh.group.id, bestSellerId: fresh.bestSeller.id };
