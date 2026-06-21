@@ -28,7 +28,7 @@ import { suggestLunchspot, cardRegion, isLunchspot, LUNCHSPOTS } from '../data/l
 import type { CardEntry, SlotEntry, Slot, SwapReason, ViatorItem } from '../types';
 import type { PageId, Answers } from '../App';
 
-type Props = { setPage: (p: PageId) => void; answers: Answers; setAnswers: (a: Answers) => void };
+type Props = { setPage: (p: PageId) => void; answers: Answers; setAnswers: (a: Answers) => void; onLogin: () => void };
 
 const SECTION_META: { id: Slot; label: string }[] = [
   { id: 'morning',   label: 'Morning' },
@@ -36,7 +36,7 @@ const SECTION_META: { id: Slot; label: string }[] = [
   { id: 'evening',   label: 'Evening' },
 ];
 
-export default function Itinerary({ setPage, answers, setAnswers }: Props) {
+export default function Itinerary({ setPage, answers, setAnswers, onLogin }: Props) {
   const { catalog } = useCatalog();
   const tags    = useMemo(() => answersToTags(answers), [answers]);
 
@@ -114,8 +114,7 @@ export default function Itinerary({ setPage, answers, setAnswers }: Props) {
 
   // "Save trip" / "Save" → scroll to the sign-in panel at the bottom. Saving the
   // trip means signing in (SSO), so the buttons take the user there.
-  const scrollToSignIn = () =>
-    document.getElementById('sso-login')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const scrollToSignIn = onLogin;
 
   // A single drag context spans the whole plan so cards can be dragged across
   // days, not just between the sections of one day.

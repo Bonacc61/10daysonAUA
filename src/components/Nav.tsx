@@ -4,9 +4,10 @@ import { useAuth } from '../lib/auth';
 type Props = {
   page: PageId;
   setPage: (p: PageId) => void;
+  onLogin: () => void;
 };
 
-export default function Nav({ page, setPage }: Props) {
+export default function Nav({ page, setPage, onLogin }: Props) {
   const { user } = useAuth();
 
   const link = (id: PageId, label: string) => (
@@ -80,10 +81,7 @@ export default function Nav({ page, setPage }: Props) {
           </a>
           <button
             className="nav-login"
-            onClick={() => {
-              setPage('itinerary');
-              setTimeout(() => document.getElementById('save')?.scrollIntoView({ behavior: 'smooth' }), 60);
-            }}
+            onClick={onLogin}
             title={user ? `Signed in as ${user.email}` : undefined}
           >
             {user ? 'My trip' : 'Log in'}

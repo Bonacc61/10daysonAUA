@@ -680,3 +680,27 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   background: var(--red); color: var(--cream);
   text-decoration: none; box-shadow: 3px 3px 0 var(--ink);
 }
+
+
+/* Login modal — centered card over a blurred page. */
+.login-modal-backdrop {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  animation: login-fade 0.15s ease;
+}
+@keyframes login-fade { from { opacity: 0; } to { opacity: 1; } }
+.login-modal-card {
+  position: relative; width: 100%; max-width: 380px;
+  background: var(--cream); border: 2px solid var(--ink); border-radius: 16px;
+  box-shadow: 6px 6px 0 var(--ink); padding: 30px 26px; text-align: center;
+}
+.login-modal-close {
+  position: absolute; top: 10px; right: 12px;
+  width: 28px; height: 28px; border-radius: 8px;
+  border: 2px solid var(--ink); background: var(--cream); color: var(--ink);
+  font-size: 13px; cursor: pointer; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.login-modal-close:hover { background: var(--sand-50); }
