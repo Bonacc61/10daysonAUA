@@ -81,7 +81,7 @@ export default function Nav({ page, setPage, onLogin }: Props) {
           </a>
           <button
             className="nav-login"
-            onClick={onLogin}
+            onClick={() => (user ? setPage('itinerary') : onLogin())}
             title={user ? `Signed in as ${user.email}` : undefined}
           >
             {user ? 'My trip' : 'Log in'}
