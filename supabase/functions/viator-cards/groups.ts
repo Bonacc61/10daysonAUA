@@ -65,4 +65,24 @@ export const GROUPS: GroupConfig[] = [
     allowed_slots: ['morning', 'afternoon'],
     viator_group_url: `https://www.viator.com/Aruba/d28-ttd?pid=${PID}`,
   },
+  {
+    id: 'sightseeing-tours',
+    name: 'Sightseeing Tours',
+    displayOrder: 5,
+    tagIds: [21725], // Sightseeing Tours (158 Aruba) - land/city/island guided tours
+    matched_by: ['culture-history', 'nature-hiking', 'couple', 'friends', 'multi-gen', 'low-adventure'],
+    region: 'islandwide',
+    allowed_slots: ['morning', 'afternoon'],
+    viator_group_url: `https://www.viator.com/Aruba/d28-ttd?pid=${PID}`,
+  },
+  {
+    id: 'art-culture-history',
+    name: 'Culture & History',
+    displayOrder: 6,
+    tagIds: [21910], // Art & Culture (89 Aruba) - museums, historic & cultural tours
+    matched_by: ['culture-history', 'couple', 'friends', 'multi-gen', 'low-adventure'],
+    region: 'islandwide',
+    allowed_slots: ['morning', 'afternoon', 'evening'],
+    viator_group_url: `https://www.viator.com/Aruba/d28-ttd?pid=${PID}`,
+  },
 ];

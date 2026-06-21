@@ -35,6 +35,10 @@ const TAG_SECTION: Record<number, Section> = {
   11973: 'adventures-outdoor',
   // Food & Drink (incl. classes/workshops: cooking, sip & paint)
   21911: 'food-drink', 21915: 'food-drink', 11891: 'food-drink', 21567: 'food-drink',
+  // Tours & Sightseeing (guided land/city/island tours)
+  21725: 'tours-sightseeing', 21768: 'tours-sightseeing',
+  // Culture & History (art & culture cluster)
+  21910: 'culture-history', 21511: 'culture-history', 21516: 'culture-history',
 };
 
 // Sections from a product's Viator tags. Unmapped/attribute-only → catch-all
@@ -84,6 +88,8 @@ const GROUP_TAXONOMY_TO_CATEGORY: Record<string, Category> = {
   'watersports': 'Watersports',
   'sailing-cruises': 'Tours',
   'food-drink-experiences': 'Food',
+  'sightseeing-tours': 'Tours',
+  'art-culture-history': 'Tours',
 };
 
 // Adventure value (0 chill … 100 adrenaline) for an explicit adventure tag.
