@@ -313,7 +313,7 @@ function ItineraryBody({
               <Swap size={13} aria-hidden /> Swap this
             </button>
             {bookUrl && (
-              <a href={bookUrl} target="_blank" rel="noopener noreferrer" className="itin-book-btn">Book now</a>
+              <a href={bookUrl} target="_blank" rel="noopener noreferrer" className="itin-book-btn">Book now ↗</a>
             )}
           </div>
           <SwapReasons open={!!showReasons} onPick={(r) => onPickReason?.(r)} />

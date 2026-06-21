@@ -176,7 +176,7 @@ function ActivityCardFront({
               </button>
               {bookUrl && (
                 <a href={bookUrl} target="_blank" rel="noopener noreferrer" className="itin-book-btn">
-                  Book now
+                  Book now ↗
                 </a>
               )}
             </div>
