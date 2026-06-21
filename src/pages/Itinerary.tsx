@@ -167,7 +167,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin }: Pro
     logEvent({ action: 'add', day: dayNum, slot: section, to_id: item.id, to_kind: 'group', from_price: item.price_usd });
   };
 
-  // "Suggest lunchspot" (afternoon) — append a curated lunch spot near the
+  // "Suggest lunch spot" (afternoon) — append a curated lunch spot near the
   // previous card's region (your morning / early-afternoon location).
   const onSuggestLunch = (dayNum: number) => {
     const day = plan.find((d) => d.day === dayNum);
@@ -451,7 +451,7 @@ function Section({
       <div className="itin-section-label">{label}</div>
       {section === 'afternoon' && (
         <button type="button" className="itin-lunch-btn" onClick={() => h.onSuggestLunch(dayNum)}>
-          <span className="itin-lunch-spark" aria-hidden>✦</span>Suggest lunchspot
+          <span className="itin-lunch-spark" aria-hidden>✦</span>Suggest lunch spot
         </button>
       )}
       <SortableContext items={cards.map((c) => c.uid)} strategy={verticalListSortingStrategy}>
