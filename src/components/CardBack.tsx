@@ -52,13 +52,11 @@ export default function CardBack(props: Props) {
     <div className="chunky flip-face flip-back itin-card-back"
          style={{ borderWidth: 2, height: '100%', padding: '16px 18px',
                   display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between',
-                    alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
-        <h3 className="font-display" style={{ fontSize: 18, margin: 0, color: 'var(--ink)' }}>
+      <div style={{ marginBottom: 10, paddingRight: 112 }}>
+        <h3 className="font-display" style={{ fontSize: 18, margin: 0, color: 'var(--ink)',
+                                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {title}
         </h3>
-        <button onClick={props.onFlip} className="btn-ghost"
-                style={{ padding: '4px 10px', fontSize: 12 }}>← Back</button>
       </div>
       <div className="itin-card-back-grid" style={{
         display: 'grid', gridTemplateColumns: '1fr 1fr',

@@ -24,6 +24,7 @@ import {
   seedPlan, addCard, removeCard, replaceCardEntry, moveCard, findCard,
   newUid, SECTIONS, type PlannedDay, type PlannedCard,
 } from '../data/itineraryPlan';
+import { suggestLunchspot, cardRegion } from '../data/lunchspots';
 import type { CardEntry, SlotEntry, Slot, SwapReason, ViatorItem } from '../types';
 import type { PageId, Answers } from '../App';
 
@@ -165,6 +166,32 @@ export default function Itinerary({ setPage, answers, setAnswers }: Props) {
     setAppearing((s) => new Set(s).add(uid));
     window.setTimeout(() => setAppearing((s) => { const n = new Set(s); n.delete(uid); return n; }), 320);
     logEvent({ action: 'add', day: dayNum, slot: section, to_id: item.id, to_kind: 'group', from_price: item.price_usd });
+  };
+
+  // "Suggest lunchspot" (afternoon) — append a curated lunch spot near the
+  // previous card's region (your morning / early-afternoon location).
+  const onSuggestLunch = (dayNum: number) => {
+    const day = plan.find((d) => d.day === dayNum);
+    if (!day) return;
+    const prevCard = day.afternoon[day.afternoon.length - 1] ?? day.morning[day.morning.length - 1] ?? null;
+    let prevRegion;
+    if (prevCard) {
+      const e = resolveEntry(prevCard.entry);
+      if (e) prevRegion = cardRegion(e);
+    }
+    const usedIds = new Set(
+      day.afternoon
+        .map((c) => c.entry)
+        .filter((e): e is { kind: 'activity'; id: string } => e.kind === 'activity')
+        .map((e) => e.id),
+    );
+    const pick = suggestLunchspot(prevRegion, usedIds);
+    if (!pick) return;
+    const uid = newUid();
+    setPlan((p) => addCard(p, dayNum, 'afternoon', { kind: 'activity', id: pick.id }, uid));
+    setAppearing((s) => new Set(s).add(uid));
+    window.setTimeout(() => setAppearing((s) => { const n = new Set(s); n.delete(uid); return n; }), 320);
+    logEvent({ action: 'add', day: dayNum, slot: 'afternoon', to_id: pick.id, to_kind: 'activity' });
   };
 
   // Remove with a brief fade/collapse before unmounting.
@@ -333,6 +360,7 @@ export default function Itinerary({ setPage, answers, setAnswers }: Props) {
                     onSwap={onSwap}
                     onAddItem={onAddItem}
                     onRemove={onRemove}
+                    onSuggestLunch={onSuggestLunch}
                   />
                 ))}
               </DndContext>
@@ -365,6 +393,7 @@ type DayHandlers = {
   onSwap: (uid: string, slot: Slot, e: CardEntry, reason: SwapReason) => void;
   onAddItem: (dayNum: number, section: Slot, item: ViatorItem) => void;
   onRemove: (uid: string) => void;
+  onSuggestLunch: (dayNum: number) => void;
 };
 
 function ItineraryDay({
@@ -411,6 +440,11 @@ function Section({
           })}
         </div>
       </SortableContext>
+      {section === 'afternoon' && (
+        <button type="button" className="itin-lunch-btn" onClick={() => h.onSuggestLunch(dayNum)}>
+          <span className="itin-lunch-spark" aria-hidden>✦</span>Suggest lunchspot
+        </button>
+      )}
     </div>
   );
 }
@@ -436,6 +470,14 @@ function SortableCard({
   return (
     <div ref={setNodeRef} style={style} className={cls.join(' ')}>
       <div className="itin-card-controls">
+        {flipped.has(card.uid) && (
+          <button
+            type="button"
+            className="itin-card-back-btn"
+            aria-label="Back to card"
+            onClick={() => onFlip(card.uid)}
+          >← Back</button>
+        )}
         <button
           className="itin-card-grip"
           aria-label="Drag to move between days and between morning, afternoon and evening"

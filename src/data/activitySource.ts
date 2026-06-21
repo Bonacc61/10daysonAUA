@@ -1,5 +1,6 @@
 import { ACTIVITIES, type Activity } from './activities';
 import { VIATOR_GROUPS, VIATOR_ITEMS } from './viator-stub';
+import { LUNCHSPOTS } from './lunchspots';
 import type { ViatorGroup, ViatorItem, SlotEntry, CardEntry } from '../types';
 
 export type Catalog = {
@@ -96,7 +97,8 @@ export function otherItemsInGroup(groupId: string, bestSellerId: string, catalog
 // still renders, instead of returning null and leaving the slot blank.
 export function resolveSlotEntry(slotEntry: SlotEntry, catalog: Catalog): CardEntry | null {
   if (slotEntry.kind === 'activity') {
-    const a = catalog.activities.find((x) => x.id === slotEntry.id);
+    const a = catalog.activities.find((x) => x.id === slotEntry.id)
+      ?? LUNCHSPOTS.find((x) => x.id === slotEntry.id);
     return a ? { kind: 'activity', activity: a } : null;
   }
   const g = catalog.groups.find((x) => x.id === slotEntry.groupId);

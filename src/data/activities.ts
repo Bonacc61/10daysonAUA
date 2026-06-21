@@ -1,4 +1,4 @@
-import type { MatchTag, SlotEntry, Section } from '../types';
+import type { MatchTag, SlotEntry, Section, Region } from '../types';
 
 export type Activity = {
   id: string;
@@ -21,6 +21,8 @@ export type Activity = {
   // (loadCatalog merges it in). Editorial title/blurb stay; rating/image/link
   // come from the matched product. Absent for purely-editorial picks.
   viator_item_url?: string;
+  // Optional explicit region — used by lunch spots + region-aware suggestions.
+  region?: Region;
 };
 
 export type Day = {
