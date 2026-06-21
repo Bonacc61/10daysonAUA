@@ -321,6 +321,13 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin }: Pro
     window.setTimeout(() => setSwapping((s) => { const n = new Set(s); n.delete(uid); return n; }), 920);
   };
 
+  // Rename a day's theme title. The title lives on the plan, so the debounced
+  // persist above saves it automatically for signed-in users.
+  const onRenameDay = (dayIdx: number, title: string) => {
+    setPlan((p) => p.map((d, i) => (i === dayIdx ? { ...d, title } : d)));
+    logEvent({ action: 'rename', day: plan[dayIdx]?.day });
+  };
+
 
   return (
     <>
@@ -370,6 +377,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin }: Pro
                     d={d}
                     dayIdx={i}
                     isLast={i === plan.length - 1}
+                    onRenameDay={onRenameDay}
                     flipped={flipped}
                     swapping={swapping}
                     reasonOpen={reasonOpen}
@@ -418,26 +426,89 @@ type DayHandlers = {
 };
 
 function ItineraryDay({
-  d, dayIdx, isLast, ...h
-}: { d: PlannedDay; dayIdx: number; isLast: boolean } & DayHandlers) {
+  d, dayIdx, isLast, onRenameDay, ...h
+}: { d: PlannedDay; dayIdx: number; isLast: boolean;
+     onRenameDay: (dayIdx: number, title: string) => void } & DayHandlers) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(d.title);
+  const [collapsed, setCollapsed] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus + select the title text the moment we enter edit mode.
+  useEffect(() => {
+    if (editing) { inputRef.current?.focus(); inputRef.current?.select(); }
+  }, [editing]);
+
+  const startEdit = () => { setDraft(d.title); setEditing(true); };
+  const commit = () => {
+    const t = draft.trim();
+    if (t && t !== d.title) onRenameDay(dayIdx, t);
+    setEditing(false);
+  };
+  const cancel = () => { setEditing(false); setDraft(d.title); };
+
+  const count = d.morning.length + d.afternoon.length + d.evening.length;
+
   return (
     <div className="itin-day-wrapper" style={{ position: 'relative', paddingLeft: 64, paddingBottom: isLast ? 0 : 40 }}>
       {!isLast && <div className="timeline-rail" />}
       <div className="day-badge" style={{ position: 'absolute', left: 0, top: 4, background: d.color, width: 44, height: 44, fontSize: 18 }}>{d.day}</div>
-      <h2 className="font-display" style={{ fontSize: 30, lineHeight: 1, margin: '6px 0 20px', color: 'var(--ink)' }}>
-        Day {d.day} <span style={{ color: 'var(--sand-500)', fontSize: 22, marginLeft: 6 }}>—</span> {d.title}
-      </h2>
-      {SECTION_META.map(({ id, label }) => (
-        <Section
-          key={id}
-          dayIdx={dayIdx}
-          dayNum={d.day}
-          section={id}
-          label={label}
-          cards={d[id]}
-          {...h}
-        />
-      ))}
+      <div className="itin-day-head">
+        <h2 className="font-display" style={{ fontSize: 30, lineHeight: 1, margin: 0, color: 'var(--ink)' }}>
+          Day {d.day} <span style={{ color: 'var(--sand-500)', fontSize: 22, margin: '0 6px' }}>—</span>
+          {editing ? (
+            <input
+              ref={inputRef}
+              className="itin-day-title-input"
+              value={draft}
+              size={Math.max(8, draft.length + 1)}
+              maxLength={40}
+              aria-label="Edit day title"
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); commit(); }
+                else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+              }}
+            />
+          ) : (
+            <span
+              className="itin-day-title"
+              onDoubleClick={startEdit}
+              title="Double-click to rename this day"
+            >
+              {d.title}
+              <button type="button" className="itin-day-edit" onClick={startEdit} aria-label={`Rename day ${d.day}`}>✎</button>
+            </span>
+          )}
+        </h2>
+        <button
+          type="button"
+          className="itin-day-collapse"
+          onClick={() => setCollapsed((c) => !c)}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? `Expand day ${d.day}` : `Collapse day ${d.day}`}
+        >
+          <span className={`itin-day-chev${collapsed ? ' collapsed' : ''}`}><Chev size={20} sw={2.5} /></span>
+        </button>
+      </div>
+      {collapsed ? (
+        <button type="button" className="itin-day-collapsed-note" onClick={() => setCollapsed(false)}>
+          {count} {count === 1 ? 'activity' : 'activities'} · tap to expand
+        </button>
+      ) : (
+        SECTION_META.map(({ id, label }) => (
+          <Section
+            key={id}
+            dayIdx={dayIdx}
+            dayNum={d.day}
+            section={id}
+            label={label}
+            cards={d[id]}
+            {...h}
+          />
+        ))
+      )}
     </div>
   );
 }

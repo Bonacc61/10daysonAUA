@@ -20,7 +20,7 @@ function sessionId(): string {
 }
 
 export type FeedbackEvent = {
-  action: 'swap' | 'approve' | 'add' | 'remove' | 'move';
+  action: 'swap' | 'approve' | 'add' | 'remove' | 'move' | 'rename';
   reason?: string;
   day?: number;
   slot?: string;
