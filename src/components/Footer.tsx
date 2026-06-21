@@ -7,7 +7,11 @@ export default function Footer() {
     <div className="bleed" style={{ background: 'var(--ink)', color: 'var(--cream)', textAlign: 'center' }}>
       <div className="container-1280 footer-content" style={{ padding: '28px 36px' }}>
         <img
-          src="/logo-horizontal-dark.png"
+          /* New light/dark-green logo (same file as the nav). Footer bg is dark
+             (var(--ink)), so check legibility of the dark-green parts; swap to a
+             dedicated dark-bg variant here if it reads poorly. ?v= token matches
+             Nav.tsx — bump both when the logo file is replaced. */
+          src="/logo-horizontal.png?v=20260621"
           alt="10 days on Aruba"
           style={{ height: 30, width: 'auto', display: 'inline-block', verticalAlign: 'middle' }}
         />
