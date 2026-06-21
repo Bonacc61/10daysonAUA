@@ -14,6 +14,7 @@ import { INFO_TOPICS } from '../data/activities';
 import { resolveSlotEntry } from '../data/activitySource';
 import { useCatalog } from '../data/useCatalog';
 import { matchPool, blendPools, constrainBySwapReason, entryPrice } from '../data/matcher';
+import { fitItem, refaceForAnswers } from '../data/itemFit';
 import { answersToTags } from '../data/answerTags';
 import { generatePlan } from '../data/itineraryGenerator';
 import { logEvent } from '../data/feedback';
@@ -235,9 +236,12 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin }: Pro
     let next: SlotEntry | null = null;
 
     if (entry.kind === 'group' && reason !== 'not-our-vibe') {
-      // Rotate within the same Viator group first.
+      // Rotate within the same Viator group first. Skip over-budget items so
+      // "show another" can't rotate to e.g. a $2300 yacht for a budget traveller.
       nextRejected.add(entry.bestSeller.id);
-      let pool = catalog.items.filter((i) => i.group_id === entry.group.id && !nextRejected.has(i.id));
+      let pool = catalog.items.filter(
+        (i) => i.group_id === entry.group.id && !nextRejected.has(i.id) && !fitItem(i, tags).rejected,
+      );
       if (reason === 'too-pricey') {
         // Cheapest item that's strictly cheaper than the current one. If none,
         // leave `next` null so the cross-pool fallback finds a cheaper option
@@ -274,8 +278,8 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin }: Pro
         }
       }
 
-      const pool = blendPools(activities, groups, catalog.items,
-        { rejectedIds: excludeIds, rejectedGroupIds: excludeGroupIds })
+      const pool = refaceForAnswers(blendPools(activities, groups, catalog.items,
+        { rejectedIds: excludeIds, rejectedGroupIds: excludeGroupIds }), tags)
         .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId);
       let fresh = constrainBySwapReason(pool, reason, entry)[0];
       // The slot/vibe-matched pool can come up empty (or with nothing satisfying
@@ -284,8 +288,8 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin }: Pro
       // so the swap button always does something for every reason.
       if (!fresh) {
         // 1) Whole catalog, any slot/vibe — still skipping rejects + planned items.
-        const widePool = blendPools(catalog.activities, catalog.groups, catalog.items,
-          { rejectedIds: excludeIds, rejectedGroupIds: excludeGroupIds })
+        const widePool = refaceForAnswers(blendPools(catalog.activities, catalog.groups, catalog.items,
+          { rejectedIds: excludeIds, rejectedGroupIds: excludeGroupIds }), tags)
           .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId);
         fresh = constrainBySwapReason(widePool, reason, entry)[0];
       }
@@ -293,8 +297,8 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin }: Pro
         // 2) Last resort: drop the "not already in the plan" exclusion (keep only
         // the rejection history + the current card) so the click is never a dead
         // end — a repeat beats nothing. "too pricey" still only yields cheaper.
-        const anyPool = blendPools(catalog.activities, catalog.groups, catalog.items,
-          { rejectedIds: nextRejected, rejectedGroupIds: nextRejectedGroups })
+        const anyPool = refaceForAnswers(blendPools(catalog.activities, catalog.groups, catalog.items,
+          { rejectedIds: nextRejected, rejectedGroupIds: nextRejectedGroups }), tags)
           .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId);
         fresh = constrainBySwapReason(anyPool, reason, entry)[0];
       }

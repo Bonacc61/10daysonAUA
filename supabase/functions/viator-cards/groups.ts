@@ -42,7 +42,7 @@ export const GROUPS: GroupConfig[] = [
     tagIds: [21701], // Cruises & Sailing (233)
     matched_by: ['beach-chill', 'couple', 'cruise-day'],
     region: 'palm-beach',
-    allowed_slots: ['afternoon', 'evening'],
+    allowed_slots: ['afternoon'], // day sails are an afternoon thing, never the evening slot
     viator_group_url: `https://www.viator.com/Aruba/d28-ttd?pid=${PID}`,
   },
   {

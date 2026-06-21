@@ -1,0 +1,99 @@
+import type { CardEntry, MatchTag, Section, ViatorItem } from '../types';
+import { classifyTags } from './classify';
+import { sectionsForTags } from './exploreItems';
+
+// === Per-item fit scoring — the granular half of the matching engine ========
+// The matcher used to match whole GROUPS by a single overlapping tag and then
+// show a fixed `is_best_seller` item that was never checked against the answers
+// — so a $2300 luxury yacht could be the face of "Sailing & Cruises" for a
+// budget couple. This module classifies every item (budget / interests /
+// adventure via classify.ts) and scores it against the questionnaire, so each
+// group card can show the best-FITTING item for that person, with a hard
+// over-budget guard. Pure + unit-tested.
+
+// Budget bands cheap → splurge. The index gap drives the over-budget guard.
+const BUDGET_ORDER: MatchTag[] = ['budget', 'mid-range', 'treat-yourself', 'money-no-object'];
+const isBudgetTag = (t: MatchTag) => BUDGET_ORDER.includes(t);
+const budgetIdx = (t: MatchTag | undefined) => (t ? BUDGET_ORDER.indexOf(t) : -1);
+
+// Coarse adventure value per Explore section (0 chill … 100 adrenaline); an
+// item's value is the max across its sections. Only used when an item has no
+// curated `adventure` number — i.e. every live Viator item.
+const SECTION_ADVENTURE: Record<Section, number> = {
+  'adventures-outdoor': 75,
+  'cruises-water':      45,
+  'tours-sightseeing':  30,
+  'culture-history':    20,
+  'food-drink':         15,
+  'beaches':            10,
+};
+const adventureFromSections = (sections: Section[]) =>
+  sections.reduce((m, s) => Math.max(m, SECTION_ADVENTURE[s] ?? 30), 0);
+
+export function itemSections(item: ViatorItem): Section[] {
+  return item.sections ?? sectionsForTags(item.tags);
+}
+
+// The questionnaire MatchTags a live item satisfies (budget + interests + adventure band).
+export function itemTags(item: ViatorItem): MatchTag[] {
+  const sections = itemSections(item);
+  const adventure = item.adventure ?? adventureFromSections(sections);
+  return classifyTags({ priceUsd: item.price_usd, sections, adventure });
+}
+
+const userBudget = (tags: Set<MatchTag>) => BUDGET_ORDER.find((b) => tags.has(b));
+
+export type ItemFit = { score: number; rejected: boolean };
+
+// Score one item against the answers. The budget guard is HARD: an item two or
+// more bands above the user's budget is rejected outright (a money-no-object
+// yacht never reaches a budget/mid-range traveller). Everything else is additive
+// so the best-fitting, most-booked item wins.
+export function fitItem(item: ViatorItem, tags: Set<MatchTag>): ItemFit {
+  const itags = itemTags(item);
+  const ubi = budgetIdx(userBudget(tags));
+  const ibi = budgetIdx(itags.find(isBudgetTag));
+
+  if (ubi >= 0 && ibi - ubi >= 2) return { score: -Infinity, rejected: true };
+
+  let score = 0;
+  // Interest + adventure-band overlap — the strongest fit signal.
+  for (const t of itags) if (!isBudgetTag(t) && tags.has(t)) score += 3;
+  // Budget closeness: exact band best; one over neutral; cheaper fine.
+  if (ubi >= 0) {
+    const d = ibi - ubi;
+    score += d === 0 ? 3 : d === 1 ? 0 : 1;
+  }
+  // Popularity prior — small tiebreak so the most-booked of equally-fitting
+  // items shows (also demotes niche, low-review luxury tours).
+  score += Math.min(item.review_count / 2000, 1.5);
+  return { score, rejected: false };
+}
+
+// Best-fitting item for the answers, or null when every item is over budget.
+export function bestItemForAnswers(items: ViatorItem[], tags: Set<MatchTag>): ViatorItem | null {
+  let best: ViatorItem | null = null;
+  let bestScore = -Infinity;
+  for (const it of items) {
+    const f = fitItem(it, tags);
+    if (f.rejected) continue;
+    if (f.score > bestScore) { bestScore = f.score; best = it; }
+  }
+  return best;
+}
+
+// Re-face every group entry with the best-fitting item for the answers, and
+// drop groups whose entire inventory is over budget. Local-activity entries pass
+// through untouched. This is what makes both generation and swap show items that
+// actually match the questionnaire.
+export function refaceForAnswers(entries: CardEntry[], tags: Set<MatchTag>): CardEntry[] {
+  const out: CardEntry[] = [];
+  for (const e of entries) {
+    if (e.kind !== 'group') { out.push(e); continue; }
+    const pool = [e.bestSeller, ...e.others];
+    const face = bestItemForAnswers(pool, tags);
+    if (!face) continue; // nothing in this group fits the budget → not offered
+    out.push({ ...e, bestSeller: face, others: pool.filter((i) => i.id !== face.id) });
+  }
+  return out;
+}

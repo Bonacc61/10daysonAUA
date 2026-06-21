@@ -17,6 +17,7 @@ import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, blendPools, entryPrice } from './matcher';
+import { fitItem, refaceForAnswers } from './itemFit';
 import { answersToTags } from './answerTags';
 
 const DAY_COLORS = ['#FF6B47', '#3B82F6', '#22C55E', '#EAB308', '#E63946', '#8B5CF6', '#0EA5E9'];
@@ -77,13 +78,19 @@ function toSlotEntry(e: CardEntry): SlotEntry {
 }
 
 function scoreEntry(e: CardEntry, tags: Set<MatchTag>, prefSections: Set<Section>): number {
+  if (e.kind === 'group') {
+    // Per-item fit of the *shown* card (interests + adventure + budget + popularity,
+    // from classify.ts) plus the group's editorial signal (group type, lodging,
+    // theme). The face was already chosen by refaceForAnswers, so it's never an
+    // over-budget reject here.
+    let score = fitItem(e.bestSeller, tags).score;
+    for (const t of e.group.matched_by) if (tags.has(t)) score += 2;
+    return score;
+  }
+  // Local activity: wildcard matched_by, so the section affinity does the work.
   let score = 0;
-  // tag overlap (groups carry real tags; wildcard activities contribute 0 here)
-  const tagged = e.kind === 'group' ? e.group.matched_by : e.activity.matched_by;
-  for (const t of tagged) if (tags.has(t)) score += 2;
-  // interest ↔ section affinity — tailors the wildcard local picks
-  if (e.kind === 'activity' && (e.activity.sections ?? []).some((s) => prefSections.has(s))) score += 3;
-  // budget fit
+  for (const t of e.activity.matched_by) if (tags.has(t)) score += 2;
+  if ((e.activity.sections ?? []).some((s) => prefSections.has(s))) score += 3;
   const price = entryPrice(e);
   if (tags.has('budget')) score += price === 0 ? 2 : price < 50 ? 1 : price > 100 ? -1 : 0;
   if (tags.has('money-no-object') || tags.has('treat-yourself')) score += price > 100 ? 1 : 0;
@@ -98,17 +105,20 @@ type Ctx = {
   lastUsedDay: Map<string, number>;
 };
 
-// Candidates for a slot. useTags=null widens the pool (time-of-day only, tags ignored).
+// Candidates for a slot. useTags=null widens which GROUPS are eligible (time-of-
+// day only), but the card face + over-budget guard always use the real answers
+// (ctx.tags) via refaceForAnswers — widening relevance must never resurface an
+// item the traveller can't afford or wouldn't want.
 function candidatesFor(ctx: Ctx, slot: Slot, useTags: Set<MatchTag> | null): CardEntry[] {
   if (useTags === null) {
     const activities = ctx.catalog.activities.filter((a) => a.timeOfDay === SLOT_TOD[slot]);
     const groups = ctx.catalog.groups.filter(
       (g) => g.allowed_slots.length === 0 || g.allowed_slots.includes(slot),
     );
-    return blendPools(activities, groups, ctx.catalog.items, NO_FILTER);
+    return refaceForAnswers(blendPools(activities, groups, ctx.catalog.items, NO_FILTER), ctx.tags);
   }
   const { activities, groups } = matchPool(ctx.catalog.activities, ctx.catalog.groups, useTags, slot);
-  return blendPools(activities, groups, ctx.catalog.items, NO_FILTER);
+  return refaceForAnswers(blendPools(activities, groups, ctx.catalog.items, NO_FILTER), ctx.tags);
 }
 
 // Score-rank first; shuffle the top equal-score band (variety on regen); then
