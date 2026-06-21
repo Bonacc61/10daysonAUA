@@ -44,7 +44,10 @@ export default function Nav({ page, setPage, onLogin }: Props) {
         >
           <img
             className="nav-logo"
-            src="/logo-horizontal.png"
+            /* ?v= cache-buster: iOS Safari caches images by URL very aggressively,
+               so it kept serving the old logo. Bump this token whenever the file
+               at public/logo-horizontal.png is replaced to force a fresh fetch. */
+            src="/logo-horizontal.png?v=20260621"
             alt="10 days on Aruba"
             style={{ height: 38, width: 'auto', display: 'block' }}
           />
