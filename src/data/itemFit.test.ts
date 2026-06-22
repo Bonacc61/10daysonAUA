@@ -30,11 +30,20 @@ describe('fitItem — over-budget guard', () => {
   it('rejects it for a mid-range traveller too (>= 2 bands over)', () => {
     expect(fitItem(YACHT, tags('mid-range')).rejected).toBe(true);
   });
-  it('allows it for a money-no-object traveller', () => {
+  it('allows it for a money-no-object traveller (no cap)', () => {
     expect(fitItem(YACHT, tags('money-no-object')).rejected).toBe(false);
   });
-  it('allows a one-band-over splurge (treat-yourself → money-no-object item)', () => {
-    expect(fitItem(YACHT, tags('treat-yourself')).rejected).toBe(false);
+  it('rejects the $2300 yacht for a treat-yourself traveller too (cap $400)', () => {
+    expect(fitItem(YACHT, tags('treat-yourself')).rejected).toBe(true);
+  });
+  it('allows a sub-cap splurge for a treat-yourself traveller', () => {
+    expect(fitItem(item({ id: 'tour', price_usd: 250 }), tags('treat-yourself')).rejected).toBe(false);
+  });
+  it('caps each tier: budget $110 / mid-range $200 / treat $400', () => {
+    expect(fitItem(item({ price_usd: 120 }), tags('budget')).rejected).toBe(true);
+    expect(fitItem(item({ price_usd: 100 }), tags('budget')).rejected).toBe(false);
+    expect(fitItem(item({ price_usd: 210 }), tags('mid-range')).rejected).toBe(true);
+    expect(fitItem(item({ price_usd: 190 }), tags('mid-range')).rejected).toBe(false);
   });
 });
 

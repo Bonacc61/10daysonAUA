@@ -16,6 +16,23 @@ const BUDGET_ORDER: MatchTag[] = ['budget', 'mid-range', 'treat-yourself', 'mone
 const isBudgetTag = (t: MatchTag) => BUDGET_ORDER.includes(t);
 const budgetIdx = (t: MatchTag | undefined) => (t ? BUDGET_ORDER.indexOf(t) : -1);
 
+// Per-tier daily spending ceiling (USD) implied by the budget answer. Used two
+// ways: (1) no single activity priced above the cap is ever shown at that tier
+// — the per-item guard below, enforced on every surface; (2) the generator caps
+// the trip's AVERAGE daily activity spend at it (a pool of cap × days), so days
+// can vary but the trip averages out. Mirrors the questionnaire copy (mid-range
+// = "~$100–200/day").
+export const BUDGET_DAY_CAP: Partial<Record<MatchTag, number>> = {
+  'budget': 110,
+  'mid-range': 200,
+  'treat-yourself': 400,
+  // money-no-object: no cap
+};
+export function budgetCap(tags: Set<MatchTag>): number {
+  for (const b of BUDGET_ORDER) if (tags.has(b)) return BUDGET_DAY_CAP[b] ?? Infinity;
+  return Infinity;
+}
+
 // Coarse adventure value per Explore section (0 chill … 100 adrenaline); an
 // item's value is the max across its sections. Only used when an item has no
 // curated `adventure` number — i.e. every live Viator item.
@@ -50,11 +67,14 @@ export type ItemFit = { score: number; rejected: boolean };
 // yacht never reaches a budget/mid-range traveller). Everything else is additive
 // so the best-fitting, most-booked item wins.
 export function fitItem(item: ViatorItem, tags: Set<MatchTag>): ItemFit {
+  // Hard per-item cap: no activity priced above the tier's daily budget is ever
+  // shown (a $2300 yacht never reaches a budget/mid-range traveller, on any
+  // surface). The trip-average cap is enforced separately in the generator.
+  if (item.price_usd > budgetCap(tags)) return { score: -Infinity, rejected: true };
+
   const itags = itemTags(item);
   const ubi = budgetIdx(userBudget(tags));
   const ibi = budgetIdx(itags.find(isBudgetTag));
-
-  if (ubi >= 0 && ibi - ubi >= 2) return { score: -Infinity, rejected: true };
 
   let score = 0;
   // Interest + adventure-band overlap — the strongest fit signal.

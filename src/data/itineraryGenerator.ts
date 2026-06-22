@@ -17,7 +17,7 @@ import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, blendPools, entryPrice } from './matcher';
-import { fitItem, refaceForAnswers } from './itemFit';
+import { fitItem, refaceForAnswers, budgetCap } from './itemFit';
 import { answersToTags } from './answerTags';
 
 const DAY_COLORS = ['#FF6B47', '#3B82F6', '#22C55E', '#EAB308', '#E63946', '#8B5CF6', '#0EA5E9'];
@@ -148,21 +148,9 @@ function ranked(ctx: Ctx, cands: CardEntry[], anchor: Region | undefined): CardE
   return [...top.map((x) => x.e), ...rest.map((x) => x.e)];
 }
 
-function pickForSlot(ctx: Ctx, slot: Slot, day: number, anchor: Region | undefined): CardEntry | null {
-  // Tier 1: matched + unused.
-  const matched = candidatesFor(ctx, slot, ctx.tags);
-  const fresh = ranked(ctx, matched, anchor).find((e) => !ctx.lastUsedDay.has(entryId(e)));
-  if (fresh) return fresh;
-
-  // Tier 2: widen (drop the tag filter) + unused.
-  const widened = candidatesFor(ctx, slot, null);
-  const freshWide = ranked(ctx, widened, anchor).find((e) => !ctx.lastUsedDay.has(entryId(e)));
-  if (freshWide) return freshWide;
-
-  // Tier 3: spaced repeat — reuse, preferring picks not seen in the last 2 days,
-  // else the least-recently-used. Guarantees a fill if any candidate exists.
-  const pool = widened.length ? widened : matched;
-  const order = ranked(ctx, pool, anchor);
+// From a score-ranked list, reuse a pick: prefer one not seen in the last 2 days,
+// else the least-recently-used. Guarantees a fill if the list is non-empty.
+function spacedOrLRU(ctx: Ctx, order: CardEntry[], day: number): CardEntry | null {
   const spaced = order.find((e) => day - (ctx.lastUsedDay.get(entryId(e)) ?? -99) > 2);
   if (spaced) return spaced;
   let best: CardEntry | null = null;
@@ -172,6 +160,35 @@ function pickForSlot(ctx: Ctx, slot: Slot, day: number, anchor: Region | undefin
     if (last < oldest) { oldest = last; best = e; }
   }
   return best;
+}
+
+// `maxPrice` is the remaining trip budget — candidates costing more are skipped
+// so the trip's average daily spend stays within the tier cap. Free/cheap local
+// picks keep slots filled once the budget tightens.
+function pickForSlot(
+  ctx: Ctx, slot: Slot, day: number, anchor: Region | undefined, maxPrice: number,
+): CardEntry | null {
+  const aff = (list: CardEntry[]) => list.filter((e) => entryPrice(e) <= maxPrice);
+
+  // Tier 1: matched + affordable + unused.
+  const matched = candidatesFor(ctx, slot, ctx.tags);
+  let fresh = ranked(ctx, aff(matched), anchor).find((e) => !ctx.lastUsedDay.has(entryId(e)));
+  if (fresh) return fresh;
+
+  // Tier 2: widen (drop the tag filter) + affordable + unused.
+  const widened = candidatesFor(ctx, slot, null);
+  fresh = ranked(ctx, aff(widened), anchor).find((e) => !ctx.lastUsedDay.has(entryId(e)));
+  if (fresh) return fresh;
+
+  // Tier 3: affordable spaced repeat.
+  const affPick = spacedOrLRU(ctx, ranked(ctx, aff(widened.length ? widened : matched), anchor), day);
+  if (affPick) return affPick;
+
+  // Last resort: budget exhausted and nothing affordable is left — fill the slot
+  // with the best on-theme pick anyway (a rare over-budget pick beats an empty
+  // day). Prefer the matched pool so the day stays on-theme.
+  const lastPool = matched.length ? matched : widened;
+  return spacedOrLRU(ctx, ranked(ctx, lastPool, anchor), day);
 }
 
 // FNV-1a hash of the tailoring-relevant answers, so the default seed (and thus
@@ -207,6 +224,12 @@ export function generatePlan(
   const seed = ((opts.seed ?? 0) ^ hashAnswers(answers)) >>> 0;
   const ctx: Ctx = { catalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map() };
 
+  // Trip-wide budget pool: keeps the AVERAGE daily activity spend within the
+  // tier cap (budget-conscious ≈ $110/day on average), letting days vary while
+  // the trip averages out. Infinity for tiers with no cap (money-no-object).
+  const cap = budgetCap(tags);
+  let budgetLeft = cap === Infinity ? Infinity : cap * nDays;
+
   const days: Day[] = [];
   for (let d = 1; d <= nDays; d += 1) {
     const slots: Record<Slot, SlotEntry[]> = { morning: [], afternoon: [], evening: [] };
@@ -221,8 +244,9 @@ export function generatePlan(
 
     for (const slot of SECTIONS) {
       if (slot === 'afternoon' && openAfternoon) continue;
-      const pick = pickForSlot(ctx, slot, d, anchor);
+      const pick = pickForSlot(ctx, slot, d, anchor, Math.max(0, budgetLeft));
       if (!pick) continue;
+      budgetLeft -= entryPrice(pick);
       ctx.lastUsedDay.set(entryId(pick), d);
       if (!anchor) anchor = entryRegion(pick);
       picks.push(pick);

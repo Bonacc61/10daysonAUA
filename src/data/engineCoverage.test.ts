@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { generatePlan } from './itineraryGenerator';
 import { resolveSlotEntry, type Catalog } from './activitySource';
 import { fitItem } from './itemFit';
+import { parseActivityCost } from './matcher';
 import { answersToTags } from './answerTags';
 import { DEFAULT_ANSWERS, type Answers } from '../App';
 import type { Activity } from './activities';
@@ -93,6 +94,20 @@ describe('engine coverage — no suggestion ever violates the answers', () => {
       }
     }
     expect(violations).toEqual([]);
+  });
+
+  it('budget-conscious trips average <= $110/day in activity spend', () => {
+    for (const a of personas()) {
+      if (a.budget !== 'Budget-conscious') continue;
+      const tags = answersToTags(a);
+      let total = 0;
+      for (const se of entries(generatePlan(a, CATALOG))) {
+        const card = resolveSlotEntry(se, CATALOG, tags);
+        if (!card) continue;
+        total += card.kind === 'group' ? card.bestSeller.price_usd : parseActivityCost(card.activity.cost);
+      }
+      expect(total / a.days).toBeLessThanOrEqual(110);
+    }
   });
 
   it('the $2300 yacht is never shown to a budget or mid-range traveller (face or suggestion)', () => {
