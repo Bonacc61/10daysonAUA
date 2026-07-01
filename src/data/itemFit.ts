@@ -1,6 +1,6 @@
-import type { CardEntry, MatchTag, Section, ViatorItem } from '../types';
+import type { CardEntry, MatchTag, Section, Slot, ViatorItem } from '../types';
 import { classifyTags } from './classify';
-import { sectionsForTags } from './exploreItems';
+import { sectionsForTags, primarySection } from './exploreItems';
 
 // === Per-item fit scoring — the granular half of the matching engine ========
 // The matcher used to match whole GROUPS by a single overlapping tag and then
@@ -49,6 +49,44 @@ const adventureFromSections = (sections: Section[]) =>
 
 export function itemSections(item: ViatorItem): Section[] {
   return item.sections ?? sectionsForTags(item.tags);
+}
+
+// --- Slot suitability -------------------------------------------------------
+// Live Viator items carry no time-of-day, only their group's allowed_slots — so
+// an off-road tour mis-grouped into an evening-allowed group can land at night.
+// The evening slot is for evening experiences (dinner, sunset, drinks, shows);
+// everything else is daytime. Daytime slots accept anything.
+const EVENING_RE = /sunset|dinner|night|evening|happy hour|nightlife|cocktail|after dark/i;
+export function isEveningItem(item: ViatorItem): boolean {
+  return itemSections(item).includes('food-drink') || EVENING_RE.test(item.title);
+}
+export function itemSlotOk(item: ViatorItem, slot: Slot): boolean {
+  return slot !== 'evening' || isEveningItem(item);
+}
+
+// --- Activity kind (for same-day variety) -----------------------------------
+// A coarse "what kind of thing is this" key so the generator won't put two near-
+// duplicate activities on one day (e.g. an ATV desert tour and a Jeep safari —
+// the same off-road tour with a different vehicle). Defining Viator tags first
+// (vehicle/water-sport type), else the primary Explore section.
+const KIND_BY_TAG: ReadonlyArray<readonly [readonly number[], string]> = [
+  [[12035, 21421, 13126, 21704, 12038], 'offroad'], // 4WD / ATV / off-road / buggy / safari
+  [[11912], 'snorkel'],
+  [[12021], 'dive'],
+  [[12062], 'jetski'],
+  [[12047], 'kayak'],
+  [[11974], 'sup'],
+  [[13209], 'parasail'],
+  [[13202], 'surf'],
+  [[11888, 11885, 12979, 11963], 'sail'], // sailing / day cruise / catamaran / sunset
+  [[11902], 'hike'],
+  [[11973], 'horseback'],
+  [[13143], 'zipline'],
+];
+export function activityKind(item: ViatorItem): string {
+  const tags = new Set(item.tags ?? []);
+  for (const [ids, kind] of KIND_BY_TAG) if (ids.some((t) => tags.has(t))) return kind;
+  return `sec:${primarySection(itemSections(item))}`;
 }
 
 // The questionnaire MatchTags a live item satisfies (budget + interests + adventure band).
@@ -106,17 +144,19 @@ export function bestItemForAnswers(items: ViatorItem[], tags: Set<MatchTag>): Vi
 // drop groups whose entire inventory is over budget. Local-activity entries pass
 // through untouched. This is what makes both generation and swap show items that
 // actually match the questionnaire.
-export function refaceForAnswers(entries: CardEntry[], tags: Set<MatchTag>): CardEntry[] {
+export function refaceForAnswers(entries: CardEntry[], tags: Set<MatchTag>, slot?: Slot): CardEntry[] {
   const out: CardEntry[] = [];
   for (const e of entries) {
     if (e.kind !== 'group') { out.push(e); continue; }
     // Pick the best-FITTING item as the card face (→ the stored bestSellerId),
     // so the group is scored and chosen by what the traveller would actually be
     // shown, not an arbitrary best-seller. Drop groups with nothing that fits.
+    // When a slot is given, only slot-appropriate items are eligible (no daytime
+    // tour in the evening), so a group with no evening item is dropped there.
     // The rendered "Other suggestions" are filtered at DISPLAY time in
     // resolveSlotEntry — the plan only stores the face id, so that's the one
     // place that controls every item the card shows.
-    const pool = [e.bestSeller, ...e.others];
+    const pool = [e.bestSeller, ...e.others].filter((i) => !slot || itemSlotOk(i, slot));
     const face = bestItemForAnswers(pool, tags);
     if (!face) continue;
     out.push({ ...e, bestSeller: face, others: pool.filter((i) => i.id !== face.id) });

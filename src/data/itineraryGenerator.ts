@@ -17,7 +17,8 @@ import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, blendPools, entryPrice } from './matcher';
-import { fitItem, refaceForAnswers, budgetCap } from './itemFit';
+import { fitItem, refaceForAnswers, budgetCap, activityKind } from './itemFit';
+import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 
 const DAY_COLORS = ['#FF6B47', '#3B82F6', '#22C55E', '#EAB308', '#E63946', '#8B5CF6', '#0EA5E9'];
@@ -115,10 +116,18 @@ function candidatesFor(ctx: Ctx, slot: Slot, useTags: Set<MatchTag> | null): Car
     const groups = ctx.catalog.groups.filter(
       (g) => g.allowed_slots.length === 0 || g.allowed_slots.includes(slot),
     );
-    return refaceForAnswers(blendPools(activities, groups, ctx.catalog.items, NO_FILTER), ctx.tags);
+    return refaceForAnswers(blendPools(activities, groups, ctx.catalog.items, NO_FILTER), ctx.tags, slot);
   }
   const { activities, groups } = matchPool(ctx.catalog.activities, ctx.catalog.groups, useTags, slot);
-  return refaceForAnswers(blendPools(activities, groups, ctx.catalog.items, NO_FILTER), ctx.tags);
+  return refaceForAnswers(blendPools(activities, groups, ctx.catalog.items, NO_FILTER), ctx.tags, slot);
+}
+
+// A coarse "kind" for an entry, used to keep a single day varied (no two near-
+// duplicate activities, e.g. an ATV tour and a Jeep safari).
+function entryKind(e: CardEntry): string {
+  return e.kind === 'group'
+    ? activityKind(e.bestSeller)
+    : `sec:${primarySection(e.activity.sections ?? [])}`;
 }
 
 // Score-rank first; shuffle the top equal-score band (variety on regen); then
@@ -163,32 +172,41 @@ function spacedOrLRU(ctx: Ctx, order: CardEntry[], day: number): CardEntry | nul
 }
 
 // `maxPrice` is the remaining trip budget — candidates costing more are skipped
-// so the trip's average daily spend stays within the tier cap. Free/cheap local
-// picks keep slots filled once the budget tightens.
+// so the trip's average daily spend stays within the tier cap. `usedKinds` are
+// the activity-kinds already placed today; picks that introduce a NEW kind win,
+// so a day stays varied (never an ATV tour and a Jeep safari on the same day).
+// Free/cheap local picks keep slots filled once the budget tightens.
 function pickForSlot(
-  ctx: Ctx, slot: Slot, day: number, anchor: Region | undefined, maxPrice: number,
+  ctx: Ctx, slot: Slot, day: number, anchor: Region | undefined,
+  maxPrice: number, usedKinds: Set<string>,
 ): CardEntry | null {
-  const aff = (list: CardEntry[]) => list.filter((e) => entryPrice(e) <= maxPrice);
+  const affordable = (e: CardEntry) => entryPrice(e) <= maxPrice;
+  const unused = (e: CardEntry) => !ctx.lastUsedDay.has(entryId(e));
+  const newKind = (e: CardEntry) => !usedKinds.has(entryKind(e));
 
-  // Tier 1: matched + affordable + unused.
-  const matched = candidatesFor(ctx, slot, ctx.tags);
-  let fresh = ranked(ctx, aff(matched), anchor).find((e) => !ctx.lastUsedDay.has(entryId(e)));
-  if (fresh) return fresh;
+  const matchedAll = ranked(ctx, candidatesFor(ctx, slot, ctx.tags), anchor);
+  const widenedAll = ranked(ctx, candidatesFor(ctx, slot, null), anchor);
+  const matched = matchedAll.filter(affordable);
+  const widened = widenedAll.filter(affordable);
 
-  // Tier 2: widen (drop the tag filter) + affordable + unused.
-  const widened = candidatesFor(ctx, slot, null);
-  fresh = ranked(ctx, aff(widened), anchor).find((e) => !ctx.lastUsedDay.has(entryId(e)));
-  if (fresh) return fresh;
+  // Fill ladder, best → worst: on-theme unused → widened unused → affordable
+  // spaced/LRU repeat → over-budget last resort (a rare over-budget pick beats
+  // an empty day, and prefers the on-theme pool). `kindOk` gates EVERY tier by
+  // same-day kind, so we run the whole ladder for new kinds first and only rerun
+  // it allowing a repeat kind when that would leave the slot empty. A second
+  // ATV/Jeep on one day is the very last thing we accept — but a repeat still
+  // beats an empty slot.
+  const runLadder = (kindOk: (e: CardEntry) => boolean): CardEntry | null => {
+    const ok = (list: CardEntry[]) => list.filter(kindOk);
+    return (
+         ok(matched).find(unused)
+      ?? ok(widened).find(unused)
+      ?? spacedOrLRU(ctx, ok(widened.length ? widened : matched), day)
+      ?? spacedOrLRU(ctx, ok(matchedAll.length ? matchedAll : widenedAll), day)
+    ) ?? null;
+  };
 
-  // Tier 3: affordable spaced repeat.
-  const affPick = spacedOrLRU(ctx, ranked(ctx, aff(widened.length ? widened : matched), anchor), day);
-  if (affPick) return affPick;
-
-  // Last resort: budget exhausted and nothing affordable is left — fill the slot
-  // with the best on-theme pick anyway (a rare over-budget pick beats an empty
-  // day). Prefer the matched pool so the day stays on-theme.
-  const lastPool = matched.length ? matched : widened;
-  return spacedOrLRU(ctx, ranked(ctx, lastPool, anchor), day);
+  return runLadder(newKind) ?? runLadder(() => true);
 }
 
 // FNV-1a hash of the tailoring-relevant answers, so the default seed (and thus
@@ -234,6 +252,7 @@ export function generatePlan(
   for (let d = 1; d <= nDays; d += 1) {
     const slots: Record<Slot, SlotEntry[]> = { morning: [], afternoon: [], evening: [] };
     const picks: CardEntry[] = [];
+    const usedKinds = new Set<string>(); // activity-kinds placed today (variety)
     let anchor: Region | undefined;
 
     // Arrival (first) and departure (last) days keep an open afternoon — a
@@ -244,10 +263,11 @@ export function generatePlan(
 
     for (const slot of SECTIONS) {
       if (slot === 'afternoon' && openAfternoon) continue;
-      const pick = pickForSlot(ctx, slot, d, anchor, Math.max(0, budgetLeft));
+      const pick = pickForSlot(ctx, slot, d, anchor, Math.max(0, budgetLeft), usedKinds);
       if (!pick) continue;
       budgetLeft -= entryPrice(pick);
       ctx.lastUsedDay.set(entryId(pick), d);
+      usedKinds.add(entryKind(pick));
       if (!anchor) anchor = entryRegion(pick);
       picks.push(pick);
       slots[slot].push(toSlotEntry(pick));

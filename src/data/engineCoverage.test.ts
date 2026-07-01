@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generatePlan } from './itineraryGenerator';
 import { resolveSlotEntry, type Catalog } from './activitySource';
-import { fitItem } from './itemFit';
+import { fitItem, isEveningItem, activityKind } from './itemFit';
 import { parseActivityCost } from './matcher';
 import { answersToTags } from './answerTags';
 import { DEFAULT_ANSWERS, type Answers } from '../App';
@@ -96,6 +96,18 @@ describe('engine coverage — no suggestion ever violates the answers', () => {
     expect(violations).toEqual([]);
   });
 
+  it('no Viator card in the evening slot is a daytime activity', () => {
+    for (const a of personas()) {
+      const tags = answersToTags(a);
+      for (const d of generatePlan(a, CATALOG)) {
+        for (const se of d.evening) {
+          const card = resolveSlotEntry(se, CATALOG, tags);
+          if (card?.kind === 'group') expect(isEveningItem(card.bestSeller)).toBe(true);
+        }
+      }
+    }
+  });
+
   it('budget-conscious trips average <= $110/day in activity spend', () => {
     for (const a of personas()) {
       if (a.budget !== 'Budget-conscious') continue;
@@ -152,6 +164,52 @@ describe('resolveSlotEntry — answer-aware display chokepoint', () => {
     if (card?.kind === 'group') {
       const ids = [card.bestSeller.id, ...card.others.map((o) => o.id)];
       expect(ids).toContain(YACHT_ID);
+    }
+  });
+});
+
+// Two near-duplicate tours (an ATV desert tour and a Jeep safari — same off-road
+// trip, different vehicle) must never land on the same day, even when they live
+// in different groups.
+describe('same-day variety — no two near-duplicate tours', () => {
+  function offroadCatalog(): Catalog {
+    const g = (id: string): ViatorGroup => ({
+      id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '', display_order: 0,
+      matched_by: ['adventure', 'watersports', 'beach-chill'] as MatchTag[],
+      region: 'islandwide', allowed_slots: [],
+    });
+    const it = (id: string, gid: string, price: number, sections: Section[], tags: number[]): ViatorItem => ({
+      id, group_id: gid, title: id, image_url: '', price_usd: price, duration: '', rating: 4.6,
+      review_count: 300, viator_item_url: '', is_best_seller: true, display_order: 0, sections, tags,
+    });
+    const act = (id: string, tod: Activity['timeOfDay'], sections: Section[]): Activity => ({
+      id, title: id, category: 'Beaches', image: '', description: '', localsSay: '', cost: 'Free',
+      duration: '', timeOfDay: tod, fitReason: '', location: '', rating: 4.7, reviewCount: 50,
+      adventure: 10, sections, matched_by: [],
+    });
+    return {
+      groups: [g('jeep-tours'), g('atv-tours'), g('sail-tours'), g('food')],
+      items: [
+        it('jeep-1', 'jeep-tours', 120, ['adventures-outdoor'], [12035]), // 4WD/Jeep
+        it('atv-1', 'atv-tours', 110, ['adventures-outdoor'], [21421]),   // ATV
+        it('sail-1', 'sail-tours', 90, ['cruises-water'], [11888]),       // sail
+        it('dinner-1', 'food', 60, ['food-drink'], []),
+      ],
+      activities: [act('beach-am', 'Morning', ['beaches']), act('beach-pm', 'Afternoon', ['beaches']), act('sunset-act', 'Evening', ['beaches'])],
+    };
+  }
+
+  it('never schedules two off-road tours on the same day', () => {
+    const cat = offroadCatalog();
+    const a: Answers = { ...DEFAULT_ANSWERS, days: 6, interests: ['Adventure & adrenaline', 'Watersports'],
+      budget: 'Money no object', groupType: 'Friends', adventureLevel: 90, lodging: 'Palm Beach' };
+    const tags = answersToTags(a);
+    for (const d of generatePlan(a, cat)) {
+      const offroad = [...d.morning, ...d.afternoon, ...d.evening]
+        .map((se) => resolveSlotEntry(se, cat, tags))
+        .filter((c): c is NonNullable<typeof c> => !!c)
+        .filter((c) => c.kind === 'group' && activityKind(c.bestSeller) === 'offroad');
+      expect(offroad.length).toBeLessThanOrEqual(1);
     }
   });
 });

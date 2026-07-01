@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fitItem, bestItemForAnswers, itemTags, refaceForAnswers } from './itemFit';
+import { fitItem, bestItemForAnswers, itemTags, refaceForAnswers, isEveningItem, itemSlotOk, activityKind } from './itemFit';
 import type { CardEntry, MatchTag, Section, ViatorItem } from '../types';
 
 function item(over: Partial<ViatorItem>): ViatorItem {
@@ -59,6 +59,31 @@ describe('bestItemForAnswers', () => {
     const pick = bestItemForAnswers([YACHT, item({ id: 'land', price_usd: 2300, sections: ['adventures-outdoor'] })],
       tags('money-no-object', 'watersports'));
     expect(pick?.id).toBe('yacht'); // interest (cruises-water) beats the off-theme land tour
+  });
+});
+
+describe('slot suitability', () => {
+  it('a daytime off-road tour is never evening-appropriate', () => {
+    const atv = item({ title: 'Aruba North Coast ATV Desert Adventure', sections: ['adventures-outdoor'], tags: [21421] });
+    expect(isEveningItem(atv)).toBe(false);
+    expect(itemSlotOk(atv, 'evening')).toBe(false);
+    expect(itemSlotOk(atv, 'afternoon')).toBe(true);
+  });
+  it('dinner / sunset / food items are evening-appropriate', () => {
+    expect(isEveningItem(item({ title: 'Sunset Catamaran Sail' }))).toBe(true);
+    expect(isEveningItem(item({ title: 'Beachside Dinner Experience' }))).toBe(true);
+    expect(isEveningItem(item({ title: 'A Tour', sections: ['food-drink'] }))).toBe(true);
+  });
+});
+
+describe('activityKind — same-day variety', () => {
+  it('an ATV tour and a Jeep safari are the same kind (off-road)', () => {
+    expect(activityKind(item({ tags: [21421] }))).toBe('offroad'); // ATV
+    expect(activityKind(item({ tags: [12035] }))).toBe('offroad'); // 4WD/Jeep
+  });
+  it('a snorkel sail and a sunset sail are different kinds', () => {
+    expect(activityKind(item({ tags: [11912] }))).toBe('snorkel');
+    expect(activityKind(item({ tags: [11963] }))).toBe('sail');
   });
 });
 
