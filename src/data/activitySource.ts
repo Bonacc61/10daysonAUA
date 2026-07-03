@@ -56,13 +56,14 @@ export function loadCatalog(): Promise<Catalog> {
       // the affiliate link, keeping the editorial title/blurb. Editorial picks
       // (no match) pass through unchanged.
       const matches: Record<string, {
-        rating?: number; review_count?: number; image_url?: string; viator_item_url?: string;
+        title?: string; rating?: number; review_count?: number; image_url?: string; viator_item_url?: string;
       }> = data?.localMatches ?? {};
       const activities = ACTIVITIES.map((a) => {
         const m = matches[a.id];
         if (!m) return a;
         return {
           ...a,
+          title: m.title || a.title,
           image: m.image_url || a.image,
           rating: typeof m.rating === 'number' && m.rating > 0 ? m.rating : a.rating,
           reviewCount: typeof m.review_count === 'number' ? m.review_count : a.reviewCount,

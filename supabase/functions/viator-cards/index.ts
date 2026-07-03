@@ -169,6 +169,7 @@ serve(async (req) => {
       try {
         const n = normalizeProduct(await getProduct(code));
         localMatches[localId] = {
+          title: n.title,
           rating: n.rating,
           review_count: n.review_count,
           image_url: n.image_url,
