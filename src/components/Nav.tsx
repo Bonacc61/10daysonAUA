@@ -60,10 +60,10 @@ export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) 
           {link('surprise', 'Surprise me', true)}
           <button
             className="nav-login"
-            onClick={() => (user ? setPage('itinerary') : onLogin())}
+            onClick={() => (user ? setPage('dashboard') : onLogin())}
             title={user ? `Signed in as ${user.email}` : undefined}
           >
-            {user ? 'My trip' : 'Log in'}
+            {user ? 'My Aruba' : 'Log in'}
           </button>
         </div>
       </div>

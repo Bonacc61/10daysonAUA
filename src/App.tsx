@@ -6,11 +6,12 @@ import Questionnaire from './pages/Questionnaire';
 import Itinerary from './pages/Itinerary';
 import Privacy from './pages/Privacy';
 import SurpriseMe from './pages/SurpriseMe';
+import Dashboard from './pages/Dashboard';
 import SignedInToast from './components/SignedInToast';
 import LoginModal from './components/LoginModal';
 import { AuthProvider, useAuth } from './lib/auth';
 
-export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary' | 'privacy' | 'surprise';
+export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary' | 'privacy' | 'surprise' | 'dashboard';
 
 export type Answers = {
   days: number;
@@ -42,6 +43,7 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/questionnaire': 'questionnaire',
   '/privacy': 'privacy',
   '/surprise': 'surprise',
+  '/dashboard': 'dashboard',
 };
 const PAGE_TO_PATH: Record<PageId, string> = {
   landing: '/',
@@ -50,6 +52,7 @@ const PAGE_TO_PATH: Record<PageId, string> = {
   itinerary: '/itinerary',
   privacy: '/privacy',
   surprise: '/surprise',
+  dashboard: '/dashboard',
 };
 
 function pageFromUrl(): PageId {
@@ -131,6 +134,7 @@ function AppShell() {
       {page === 'itinerary'     && (canSeeItinerary || shareId) && <Itinerary setPage={setPage} answers={answers} setAnswers={setAnswers} onLogin={() => setLoginOpen(true)} shareId={shareId} />}
       {page === 'privacy'       && <Privacy       setPage={setPage} />}
       {page === 'surprise'      && <SurpriseMe    setPage={setPage} />}
+      {page === 'dashboard'     && <Dashboard     setPage={setPage} onLogin={() => setLoginOpen(true)} />}
     </>
   );
 }
