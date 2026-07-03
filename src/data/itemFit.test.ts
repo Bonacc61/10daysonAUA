@@ -69,10 +69,17 @@ describe('slot suitability', () => {
     expect(itemSlotOk(atv, 'evening')).toBe(false);
     expect(itemSlotOk(atv, 'afternoon')).toBe(true);
   });
-  it('dinner / sunset / food items are evening-appropriate', () => {
+  it('evening keywords in the title make an item evening-appropriate', () => {
     expect(isEveningItem(item({ title: 'Sunset Catamaran Sail' }))).toBe(true);
     expect(isEveningItem(item({ title: 'Beachside Dinner Experience' }))).toBe(true);
-    expect(isEveningItem(item({ title: 'A Tour', sections: ['food-drink'] }))).toBe(true);
+    expect(isEveningItem(item({ title: 'Aruba Nightlife Party Bus' }))).toBe(true);
+  });
+  it('the food-drink section alone does NOT make a daytime item evening', () => {
+    // The live food-drink cluster holds day trips, morning sails and breakfast
+    // cruises. Section is not a time-of-day signal — only the title's keywords are.
+    expect(isEveningItem(item({ title: 'All-Inclusive Day Trip', sections: ['food-drink'] }))).toBe(false);
+    expect(isEveningItem(item({ title: 'Morning Champagne Sail', sections: ['food-drink'] }))).toBe(false);
+    expect(isEveningItem(item({ title: 'A Tour', sections: ['food-drink'] }))).toBe(false);
   });
 });
 

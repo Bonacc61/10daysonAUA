@@ -1,8 +1,8 @@
 import { ACTIVITIES, type Activity } from './activities';
 import { VIATOR_GROUPS, VIATOR_ITEMS } from './viator-stub';
 import { LUNCHSPOTS } from './lunchspots';
-import { fitItem, bestItemForAnswers } from './itemFit';
-import type { ViatorGroup, ViatorItem, SlotEntry, CardEntry, MatchTag } from '../types';
+import { fitItem, bestItemForAnswers, itemSlotOk } from './itemFit';
+import type { ViatorGroup, ViatorItem, SlotEntry, CardEntry, MatchTag, Slot } from '../types';
 
 export type Catalog = {
   activities: Activity[];
@@ -105,7 +105,7 @@ export function otherItemsInGroup(groupId: string, bestSellerId: string, catalog
 // now-over-budget stored face self-heals to the best-fitting item — so no card
 // can surface something the answers rule out, however the plan was produced.
 export function resolveSlotEntry(
-  slotEntry: SlotEntry, catalog: Catalog, tags?: Set<MatchTag>,
+  slotEntry: SlotEntry, catalog: Catalog, tags?: Set<MatchTag>, slot?: Slot,
 ): CardEntry | null {
   if (slotEntry.kind === 'activity') {
     const a = catalog.activities.find((x) => x.id === slotEntry.id)
@@ -117,9 +117,18 @@ export function resolveSlotEntry(
 
   const all = itemsInGroup(g.id, catalog);
   if (all.length === 0) return null;
-  // Answer-aware filter; never blank the card, so keep the raw list if nothing fits.
-  const fitting = tags ? all.filter((i) => !fitItem(i, tags).rejected) : all;
-  const pool = fitting.length ? fitting : all;
+  // Answer-aware + slot-aware filter, degrading gracefully so the card never
+  // blanks: fit+slot → fit → slot → raw. The slot filter matters because the
+  // plan stores only ids — without it this display chokepoint would happily
+  // re-face an evening card to the best-FITTING item in the group even when
+  // that item is a daytime tour, silently undoing the generator's evening
+  // filter (a snorkel day-sail showing up in the evening slot).
+  const fits = (i: ViatorItem) => !tags || !fitItem(i, tags).rejected;
+  const slotOk = (i: ViatorItem) => slot === undefined || itemSlotOk(i, slot);
+  const fitSlot = all.filter((i) => fits(i) && slotOk(i));
+  const fitOnly = all.filter(fits);
+  const slotOnly = all.filter(slotOk);
+  const pool = fitSlot.length ? fitSlot : fitOnly.length ? fitOnly : slotOnly.length ? slotOnly : all;
 
   // Face: the stored pick if it's still in-budget, else the best-fitting item,
   // else the group best-seller / first.

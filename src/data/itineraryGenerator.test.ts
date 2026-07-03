@@ -106,11 +106,10 @@ describe('generatePlan — tailoring (fixes "same plan for everyone")', () => {
 });
 
 describe('generatePlan — pacing + no unintended empty slots', () => {
-  it('fills morning + evening every day (no pool-exhaustion gaps), with open afternoons on arrival/departure', () => {
+  it('fills morning every day (large daytime pool), with open afternoons on arrival/departure', () => {
     const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, catalog);
     plan.forEach((d, i) => {
       expect(d.morning.length).toBeGreaterThanOrEqual(1);
-      expect(d.evening.length).toBeGreaterThanOrEqual(1);
       const isArrivalOrDeparture = i === 0 || i === plan.length - 1;
       if (isArrivalOrDeparture) {
         // Intentionally open — restores the "Drop an activity here" zone.
@@ -119,6 +118,34 @@ describe('generatePlan — pacing + no unintended empty slots', () => {
         expect(d.afternoon.length).toBeGreaterThanOrEqual(1);
       }
     });
+  });
+
+  // The no-repeat guarantee (an activity never appears twice across the trip) is
+  // deliberately preferred over a full evening: once the distinct evening pool is
+  // exhausted the slot stays open ("Drop an activity here") rather than repeating.
+  it('never repeats an activity across the whole trip, even on a long trip', () => {
+    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, catalog));
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('fills evening every day when the evening pool is deep enough (no forced gaps)', () => {
+    // A catalog with plenty of distinct evening items → every evening fills
+    // without ever repeating one.
+    const groups: ViatorGroup[] = [{
+      id: 'nightlife', name: 'nightlife', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 0, matched_by: ['food-drink'] as MatchTag[], region: 'islandwide', allowed_slots: ['evening'],
+    }, {
+      id: 'day', name: 'day', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 1, matched_by: ['beach-chill'] as MatchTag[], region: 'islandwide', allowed_slots: [],
+    }];
+    const items: ViatorItem[] = [];
+    for (let n = 0; n < 20; n += 1) items.push({ id: `eve-${n}`, group_id: 'nightlife', title: `Sunset Dinner Cruise ${n}`,
+      image_url: '', price_usd: 60, duration: '', rating: 4.6, review_count: 100, viator_item_url: '', is_best_seller: n === 0, display_order: n, sections: ['food-drink'] });
+    for (let n = 0; n < 40; n += 1) items.push({ id: `day-${n}`, group_id: 'day', title: `Beach Day ${n}`,
+      image_url: '', price_usd: 40, duration: '', rating: 4.6, review_count: 100, viator_item_url: '', is_best_seller: n === 0, display_order: n, sections: ['beaches'] });
+    const rich: Catalog = { activities: [], groups, items };
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 10 }, rich);
+    plan.forEach((d) => expect(d.evening.length).toBeGreaterThanOrEqual(1));
   });
 
   it('keeps a single-day trip full (no arrival/departure split)', () => {

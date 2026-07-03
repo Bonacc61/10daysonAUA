@@ -166,6 +166,33 @@ describe('resolveSlotEntry — answer-aware display chokepoint', () => {
       expect(ids).toContain(YACHT_ID);
     }
   });
+
+  // A group holding both a daytime and an evening item, stored for an evening
+  // slot. Resolving must NOT re-face to the higher-fit daytime item — the slot
+  // filter keeps the evening slot evening (a daytime snorkel-sail must never
+  // render in the evening just because it fits the answers best).
+  it('respects the slot: an evening card never re-faces to a daytime item', () => {
+    const mixed: Catalog = {
+      activities: [],
+      groups: [{ id: 'mixed', name: 'mixed', tagline: '', viator_taxonomy: '', viator_group_url: '',
+        display_order: 0, matched_by: ['beach-chill'] as MatchTag[], region: 'islandwide', allowed_slots: ['afternoon', 'evening'] }],
+      items: [
+        { id: 'daytrip', group_id: 'mixed', title: 'All-Inclusive Day Trip', image_url: '', price_usd: 90,
+          duration: '', rating: 4.8, review_count: 5000, viator_item_url: '', is_best_seller: true, display_order: 0, sections: ['cruises-water'] },
+        { id: 'sunset', group_id: 'mixed', title: 'Sunset Dinner Cruise', image_url: '', price_usd: 90,
+          duration: '', rating: 4.5, review_count: 100, viator_item_url: '', is_best_seller: false, display_order: 1, sections: ['cruises-water'] },
+      ],
+    };
+    const tags = answersToTags({ ...DEFAULT_ANSWERS, budget: 'Money no object', interests: ['Beach & chill'] });
+    const stored: SlotEntry = { kind: 'group', groupId: 'mixed', bestSellerId: 'daytrip' };
+    const card = resolveSlotEntry(stored, mixed, tags, 'evening');
+    expect(card?.kind).toBe('group');
+    if (card?.kind === 'group') {
+      expect(isEveningItem(card.bestSeller)).toBe(true);   // face is the sunset cruise, not the day trip
+      expect(card.bestSeller.id).toBe('sunset');
+      expect(card.others.some((o) => !isEveningItem(o))).toBe(false); // no daytime item leaks into suggestions
+    }
+  });
 });
 
 // Two near-duplicate tours (an ATV desert tour and a Jeep safari — same off-road

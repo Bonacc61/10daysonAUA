@@ -56,9 +56,17 @@ export function itemSections(item: ViatorItem): Section[] {
 // an off-road tour mis-grouped into an evening-allowed group can land at night.
 // The evening slot is for evening experiences (dinner, sunset, drinks, shows);
 // everything else is daytime. Daytime slots accept anything.
+//
+// Evening suitability is judged from the TITLE alone. We deliberately do NOT
+// treat the food-drink section as an evening signal: on the live catalog the
+// food-drink cluster is a grab-bag that also holds all-inclusive *day trips*,
+// *morning* champagne sails, *breakfast* cruises and daytime walking/tasting
+// tours — none of which belong at night. Those all lack an evening keyword, so
+// a title-only test keeps them in daytime slots while still catching genuine
+// evening experiences (sunset sails, dinner cruises, nightlife, cocktails).
 const EVENING_RE = /sunset|dinner|night|evening|happy hour|nightlife|cocktail|after dark/i;
 export function isEveningItem(item: ViatorItem): boolean {
-  return itemSections(item).includes('food-drink') || EVENING_RE.test(item.title);
+  return EVENING_RE.test(item.title);
 }
 export function itemSlotOk(item: ViatorItem, slot: Slot): boolean {
   return slot !== 'evening' || isEveningItem(item);
@@ -144,10 +152,22 @@ export function bestItemForAnswers(items: ViatorItem[], tags: Set<MatchTag>): Vi
 // drop groups whose entire inventory is over budget. Local-activity entries pass
 // through untouched. This is what makes both generation and swap show items that
 // actually match the questionnaire.
-export function refaceForAnswers(entries: CardEntry[], tags: Set<MatchTag>, slot?: Slot): CardEntry[] {
+//
+// `excludeIds` (optional) removes specific item ids from consideration — both
+// group faces and local picks. The generator passes the trip's already-used ids
+// so each group re-faces to its best *unused* item, letting one group surface a
+// different item on each day (a group with 20 dinner cruises fills 20 evenings
+// without ever repeating). Without it (swap, tests) behaviour is unchanged.
+export function refaceForAnswers(
+  entries: CardEntry[], tags: Set<MatchTag>, slot?: Slot, excludeIds?: Set<string>,
+): CardEntry[] {
   const out: CardEntry[] = [];
   for (const e of entries) {
-    if (e.kind !== 'group') { out.push(e); continue; }
+    if (e.kind !== 'group') {
+      if (excludeIds?.has(e.activity.id)) continue; // a used local pick is exhausted
+      out.push(e);
+      continue;
+    }
     // Pick the best-FITTING item as the card face (→ the stored bestSellerId),
     // so the group is scored and chosen by what the traveller would actually be
     // shown, not an arbitrary best-seller. Drop groups with nothing that fits.
@@ -156,7 +176,9 @@ export function refaceForAnswers(entries: CardEntry[], tags: Set<MatchTag>, slot
     // The rendered "Other suggestions" are filtered at DISPLAY time in
     // resolveSlotEntry — the plan only stores the face id, so that's the one
     // place that controls every item the card shows.
-    const pool = [e.bestSeller, ...e.others].filter((i) => !slot || itemSlotOk(i, slot));
+    const pool = [e.bestSeller, ...e.others].filter(
+      (i) => (!slot || itemSlotOk(i, slot)) && !excludeIds?.has(i.id),
+    );
     const face = bestItemForAnswers(pool, tags);
     if (!face) continue;
     out.push({ ...e, bestSeller: face, others: pool.filter((i) => i.id !== face.id) });

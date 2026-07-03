@@ -110,16 +110,22 @@ type Ctx = {
 // day only), but the card face + over-budget guard always use the real answers
 // (ctx.tags) via refaceForAnswers — widening relevance must never resurface an
 // item the traveller can't afford or wouldn't want.
+//
+// Already-used ids are excluded at face-selection time, so each group re-faces to
+// its best *unused* item: a single group with many items surfaces a different one
+// each day instead of collapsing to one fixed face (the reason evenings used to
+// repeat — the whole slot was often served by one group's single best-seller).
 function candidatesFor(ctx: Ctx, slot: Slot, useTags: Set<MatchTag> | null): CardEntry[] {
+  const usedIds = new Set(ctx.lastUsedDay.keys());
   if (useTags === null) {
     const activities = ctx.catalog.activities.filter((a) => a.timeOfDay === SLOT_TOD[slot]);
     const groups = ctx.catalog.groups.filter(
       (g) => g.allowed_slots.length === 0 || g.allowed_slots.includes(slot),
     );
-    return refaceForAnswers(blendPools(activities, groups, ctx.catalog.items, NO_FILTER), ctx.tags, slot);
+    return refaceForAnswers(blendPools(activities, groups, ctx.catalog.items, NO_FILTER), ctx.tags, slot, usedIds);
   }
   const { activities, groups } = matchPool(ctx.catalog.activities, ctx.catalog.groups, useTags, slot);
-  return refaceForAnswers(blendPools(activities, groups, ctx.catalog.items, NO_FILTER), ctx.tags, slot);
+  return refaceForAnswers(blendPools(activities, groups, ctx.catalog.items, NO_FILTER), ctx.tags, slot, usedIds);
 }
 
 // A coarse "kind" for an entry, used to keep a single day varied (no two near-
@@ -157,30 +163,21 @@ function ranked(ctx: Ctx, cands: CardEntry[], anchor: Region | undefined): CardE
   return [...top.map((x) => x.e), ...rest.map((x) => x.e)];
 }
 
-// From a score-ranked list, reuse a pick: prefer one not seen in the last 2 days,
-// else the least-recently-used. Guarantees a fill if the list is non-empty.
-function spacedOrLRU(ctx: Ctx, order: CardEntry[], day: number): CardEntry | null {
-  const spaced = order.find((e) => day - (ctx.lastUsedDay.get(entryId(e)) ?? -99) > 2);
-  if (spaced) return spaced;
-  let best: CardEntry | null = null;
-  let oldest = Infinity;
-  for (const e of order) {
-    const last = ctx.lastUsedDay.get(entryId(e)) ?? -99;
-    if (last < oldest) { oldest = last; best = e; }
-  }
-  return best;
-}
-
 // `maxPrice` is the remaining trip budget — candidates costing more are skipped
 // so the trip's average daily spend stays within the tier cap. `usedKinds` are
 // the activity-kinds already placed today; picks that introduce a NEW kind win,
 // so a day stays varied (never an ATV tour and a Jeep safari on the same day).
 // Free/cheap local picks keep slots filled once the budget tightens.
 function pickForSlot(
-  ctx: Ctx, slot: Slot, day: number, anchor: Region | undefined,
+  ctx: Ctx, slot: Slot, anchor: Region | undefined,
   maxPrice: number, usedKinds: Set<string>,
 ): CardEntry | null {
   const affordable = (e: CardEntry) => entryPrice(e) <= maxPrice;
+  // `unused` is trip-wide: lastUsedDay holds every id placed on any prior day,
+  // so an unused pick has never appeared in the plan. We NEVER return a used id
+  // — the same activity showing up twice (and, with the small evening pool,
+  // twice in the evening) is exactly the bug this fixes. An exhausted pool
+  // leaves the slot open ("Drop an activity here") rather than repeating.
   const unused = (e: CardEntry) => !ctx.lastUsedDay.has(entryId(e));
   const newKind = (e: CardEntry) => !usedKinds.has(entryKind(e));
 
@@ -189,20 +186,20 @@ function pickForSlot(
   const matched = matchedAll.filter(affordable);
   const widened = widenedAll.filter(affordable);
 
-  // Fill ladder, best → worst: on-theme unused → widened unused → affordable
-  // spaced/LRU repeat → over-budget last resort (a rare over-budget pick beats
-  // an empty day, and prefers the on-theme pool). `kindOk` gates EVERY tier by
-  // same-day kind, so we run the whole ladder for new kinds first and only rerun
-  // it allowing a repeat kind when that would leave the slot empty. A second
-  // ATV/Jeep on one day is the very last thing we accept — but a repeat still
-  // beats an empty slot.
+  // Fill ladder, best → worst, every tier restricted to UNUSED picks so no
+  // activity is ever repeated: affordable on-theme → affordable widened →
+  // over-budget on-theme → over-budget widened (a rare over-budget-but-distinct
+  // pick beats a duplicate). `kindOk` gates every tier by same-day kind, so we
+  // run the whole ladder for new kinds first and only rerun it allowing a repeat
+  // kind when that would otherwise leave the slot empty. When nothing unused
+  // remains, we return null and the slot stays open.
   const runLadder = (kindOk: (e: CardEntry) => boolean): CardEntry | null => {
     const ok = (list: CardEntry[]) => list.filter(kindOk);
     return (
          ok(matched).find(unused)
       ?? ok(widened).find(unused)
-      ?? spacedOrLRU(ctx, ok(widened.length ? widened : matched), day)
-      ?? spacedOrLRU(ctx, ok(matchedAll.length ? matchedAll : widenedAll), day)
+      ?? ok(matchedAll).find(unused)
+      ?? ok(widenedAll).find(unused)
     ) ?? null;
   };
 
@@ -263,7 +260,7 @@ export function generatePlan(
 
     for (const slot of SECTIONS) {
       if (slot === 'afternoon' && openAfternoon) continue;
-      const pick = pickForSlot(ctx, slot, d, anchor, Math.max(0, budgetLeft), usedKinds);
+      const pick = pickForSlot(ctx, slot, anchor, Math.max(0, budgetLeft), usedKinds);
       if (!pick) continue;
       budgetLeft -= entryPrice(pick);
       ctx.lastUsedDay.set(entryId(pick), d);
