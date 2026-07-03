@@ -20,15 +20,15 @@ function spot(
 }
 
 export const LUNCHSPOTS: Activity[] = [
-  spot('lunch-pikas-corner', "Pika's Corner", 'Palm Beach', 'palm-beach', 'Casual local snack bar near the high-rise strip — pastechi, pan bati and cold drinks.', '$8–15 pp', 'https://images.pexels.com/photos/566345/pexels-photo-566345.jpeg?auto=compress&cs=tinysrgb&w=800'),
+  spot('lunch-pikas-corner', "Pika's Corner", 'Palm Beach', 'palm-beach', 'Casual local snack bar near the high-rise strip — pastechi, pan bati and cold drinks.', '$8–15 pp', "/Pika's Corner.jpg"),
   spot('lunch-pastechi-house', 'Pastechi House', 'Oranjestad', 'oranjestad', "Aruba's beloved pastechi stop — flaky fried turnovers with savory fillings.", '$6–12 pp', 'https://images.pexels.com/photos/1267320/pexels-photo-1267320.jpeg?auto=compress&cs=tinysrgb&w=800'),
-  spot('lunch-zeerover', 'Zeerover', 'San Nicolaas', 'san-nicolas', "No-frills fishermen's spot — fresh catch fried by the pound, cash only.", '$10–18 pp', 'https://images.pexels.com/photos/1108099/pexels-photo-1108099.jpeg?auto=compress&cs=tinysrgb&w=800'),
-  spot('lunch-hadicurari', 'Hadicurari', 'Noord', 'noord', 'Beachfront eatery by the fishing pier — fresh seafood with your toes in the sand.', '$15–30 pp', 'https://images.pexels.com/photos/1118448/pexels-photo-1118448.jpeg?auto=compress&cs=tinysrgb&w=800'),
-  spot('lunch-don-jacinto', 'Don Jacinto', 'Oranjestad', 'oranjestad', 'Authentic Aruban home cooking in a cozy downtown setting.', '$12–22 pp', 'https://images.pexels.com/photos/566345/pexels-photo-566345.jpeg?auto=compress&cs=tinysrgb&w=800'),
-  spot('lunch-las-cafeteros', 'Las Cafeteros', 'Tanki Leendert', 'oranjestad', 'Colombian-Aruban arepas, empanadas and strong coffee.', '$8–16 pp', 'https://images.pexels.com/photos/1267320/pexels-photo-1267320.jpeg?auto=compress&cs=tinysrgb&w=800'),
-  spot('lunch-oniels', "O'Niels Caribbean Kitchen", 'San Nicolaas', 'san-nicolas', 'Hearty Caribbean plates in the colorful art town of San Nicolas.', '$10–20 pp', 'https://images.pexels.com/photos/1108099/pexels-photo-1108099.jpeg?auto=compress&cs=tinysrgb&w=800'),
-  spot('lunch-willems-pancakes', 'Willems Pancakes', 'Noord', 'noord', 'Dutch pancakes, sweet and savory — a relaxed family favorite.', '$10–18 pp', 'https://images.pexels.com/photos/1118448/pexels-photo-1118448.jpeg?auto=compress&cs=tinysrgb&w=800'),
-  spot('lunch-lindas-pancakes', "Linda's Dutch Pancakes", 'Noord', 'noord', 'Classic Dutch pannenkoeken with dozens of toppings.', '$10–18 pp', 'https://images.pexels.com/photos/566345/pexels-photo-566345.jpeg?auto=compress&cs=tinysrgb&w=800'),
+  spot('lunch-zeerover', 'Zeerover', 'San Nicolaas', 'san-nicolas', "No-frills fishermen's spot — fresh catch fried by the pound, cash only.", '$10–18 pp', '/Zeerover.png'),
+  spot('lunch-hadicurari', 'Hadicurari', 'Noord', 'noord', 'Beachfront eatery by the fishing pier — fresh seafood with your toes in the sand.', '$15–30 pp', '/Hadicurari.jpg'),
+  spot('lunch-don-jacinto', 'Don Jacinto', 'Oranjestad', 'oranjestad', 'Authentic Aruban home cooking in a cozy downtown setting.', '$12–22 pp', '/Don Jacinto Aruba.jpg'),
+  spot('lunch-las-cafeteros', 'Las Cafeteros', 'Tanki Leendert', 'oranjestad', 'Colombian-Aruban arepas, empanadas and strong coffee.', '$8–16 pp', '/Los Cafeteros Aruba.jpg'),
+  spot('lunch-oniels', "O'Niels Caribbean Kitchen", 'San Nicolaas', 'san-nicolas', 'Hearty Caribbean plates in the colorful art town of San Nicolas.', '$10–20 pp', "/O'Niel Caribbean Kitchen.jpeg"),
+  spot('lunch-willems-pancakes', 'Willems Pancakes', 'Noord', 'noord', 'Dutch pancakes, sweet and savory — a relaxed family favorite.', '$10–18 pp', '/Willems Pancakes.jpg'),
+  spot('lunch-lindas-pancakes', "Linda's Dutch Pancakes", 'Noord', 'noord', 'Classic Dutch pannenkoeken with dozens of toppings.', '$10–18 pp', "/Linda's Dutch Pancakes.png"),
   spot('lunch-bingo', 'Bingo!', 'Noord', 'noord', 'Laid-back spot for burgers, bowls and fresh smoothies.', '$8–16 pp', 'https://images.pexels.com/photos/1267320/pexels-photo-1267320.jpeg?auto=compress&cs=tinysrgb&w=800'),
 ];
 
