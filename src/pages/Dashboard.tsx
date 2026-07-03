@@ -12,7 +12,7 @@ import { useStarred } from '../lib/starred';
 import { useBooked } from '../lib/booked';
 import { useAuth } from '../lib/auth';
 import { loadTrip } from '../lib/trips';
-import { parseActivityCost } from '../data/matcher';
+import { matchPool, parseActivityCost } from '../data/matcher';
 import { viatorLink, productUrlFor, sectionLabel, primarySection } from '../data/exploreItems';
 import type { PageId } from '../App';
 import type { Activity } from '../data/activities';
@@ -21,7 +21,7 @@ import type { Catalog } from '../data/activitySource';
 import type { TripState } from '../lib/trips';
 import type { ExploreEntry } from '../data/exploreItems';
 import type { PlannedDay, PlannedCard } from '../data/itineraryPlan';
-import type { Slot, SlotEntry, CardEntry } from '../types';
+import type { Slot, SlotEntry, CardEntry, MatchTag } from '../types';
 
 // ─────────────────────────────────────────────────────────── types ──────── //
 
@@ -90,17 +90,31 @@ function currentSlot(): 'morning' | 'afternoon' | 'evening' {
 
 const SLOT_GREETING = { morning: 'Rise and roll', afternoon: 'Midday roulette', evening: 'Night owl energy' };
 
-function resolvePool(starred: Set<string>, catalog: Catalog): Suggestion[] {
+function resolvePool(starred: Set<string>, catalog: Catalog, tags: Set<MatchTag>): Suggestion[] {
+  // Build sets of activity/group ids that pass the answer filter.
+  // When no answers are available (tags empty), everything passes.
+  let matchActIds: Set<string> | null = null;
+  let matchGroupIds: Set<string> | null = null;
+  if (tags.size > 0) {
+    const { activities: ma, groups: mg } = matchPool(catalog.activities, catalog.groups, tags, undefined);
+    matchActIds   = new Set(ma.map((a) => a.id));
+    matchGroupIds = new Set(mg.map((g) => g.id));
+  }
+
   const pool: Suggestion[] = [];
   for (const sid of starred) {
     if (sid.startsWith('item:')) {
       const itemId = sid.slice(5);
-      const item  = catalog.items.find((i) => i.id === itemId);
-      const group = item && catalog.groups.find((g) => g.id === item.group_id);
-      if (item && group) pool.push({ kind: 'item', id: sid, item, group, bookUrl: item.viator_item_url && item.price_usd > 0 ? productUrlFor(item) : null });
+      const item   = catalog.items.find((i) => i.id === itemId);
+      const group  = item && catalog.groups.find((g) => g.id === item.group_id);
+      if (item && group && (!matchGroupIds || matchGroupIds.has(group.id))) {
+        pool.push({ kind: 'item', id: sid, item, group, bookUrl: item.viator_item_url && item.price_usd > 0 ? productUrlFor(item) : null });
+      }
     } else {
       const activity = catalog.activities.find((a) => a.id === sid);
-      if (activity) pool.push({ kind: 'activity', id: sid, activity, bookUrl: activity.viator_item_url && parseActivityCost(activity.cost) > 0 ? viatorLink(activity.viator_item_url) : null });
+      if (activity && (!matchActIds || matchActIds.has(activity.id))) {
+        pool.push({ kind: 'activity', id: sid, activity, bookUrl: activity.viator_item_url && parseActivityCost(activity.cost) > 0 ? viatorLink(activity.viator_item_url) : null });
+      }
     }
   }
   return pool;
@@ -119,7 +133,7 @@ function drawFrom(pool: Suggestion[], skipId: string | null, slotTod: string): S
 
 // ─────────────────────────────────────────────── Surprise panel ──────────── //
 
-function SurprisePanel({ setPage }: { setPage: (p: PageId) => void }) {
+function SurprisePanel({ setPage, trip }: { setPage: (p: PageId) => void; trip: TripLoadState }) {
   const { catalog, loading } = useCatalog();
   const { starred, toggle: toggleStar } = useStarred();
   const [pick, setPick]     = useState<Suggestion | null>(null);
@@ -129,10 +143,15 @@ function SurprisePanel({ setPage }: { setPage: (p: PageId) => void }) {
   const slot    = currentSlot();
   const slotTod = slot === 'morning' ? 'Morning' : slot === 'afternoon' ? 'Afternoon' : 'Evening';
 
+  const tags = useMemo(
+    () => (trip && trip !== 'loading') ? answersToTags(trip.answers) : new Set<MatchTag>(),
+    [trip],
+  );
+
   const pool = useMemo(
-    () => resolvePool(starred, catalog),
+    () => resolvePool(starred, catalog, tags),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [starred.size, catalog.activities.length, catalog.items.length],
+    [starred.size, catalog.activities.length, catalog.items.length, tags],
   );
 
   const spin = useCallback(() => {
@@ -934,7 +953,7 @@ export default function Dashboard({ setPage, initialSection = 'starred', onLogin
           </nav>
 
           <div className="dashboard-content">
-            {section === 'surprise'  && <SurprisePanel   setPage={setPage} />}
+            {section === 'surprise'  && <SurprisePanel   setPage={setPage} trip={trip} />}
             {section === 'starred'   && <StarredPanel     setPage={setPage} />}
             {section === 'itinerary' && <ItineraryPanel   setPage={setPage} trip={trip} onLogin={onLogin} />}
             {section === 'bookings'  && <BookingsPanel    trip={trip} onLogin={onLogin} />}
