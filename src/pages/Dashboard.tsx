@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import Footer from '../components/Footer';
-import { iconFor, Calendar, Check, Clock, Dice, Doc, Dollar, Heart, MapPin, Star } from '../components/Icons';
+import { iconFor, Calendar, Check, Chev, Clock, Dice, Dollar, Heart, Info, MapPin, Star } from '../components/Icons';
 import { useCatalog } from '../data/useCatalog';
 import { filterExploreEntries, bookingUrl } from '../data/exploreItems';
 import { INFO_TOPICS, GTK_CARDS } from '../data/activities';
@@ -32,7 +32,7 @@ const SECTIONS: { id: DashSection; label: string; NavIcon: IconFC }[] = [
   { id: 'itinerary',  label: 'Itineraries',           NavIcon: Calendar },
   { id: 'bookings',   label: 'Bookings',              NavIcon: Check    },
   { id: 'surprise',   label: 'Surprise me',           NavIcon: Dice     },
-  { id: 'practical',  label: 'Practical Info',        NavIcon: Doc      },
+  { id: 'practical',  label: 'Practical Info',        NavIcon: Info     },
 ];
 
 type TripLoadState = TripState | null | 'loading';
@@ -456,6 +456,12 @@ function BookedRow({
 
 // ────────────────────────────────────────────── Itinerary panel ──────────── //
 
+const ITINERARY_VARIANTS: { id: string; label: string; description: string; available: boolean }[] = [
+  { id: 'saved',     label: 'Your trip',         description: 'Your personalised itinerary',      available: true  },
+  { id: 'adventure', label: 'Adventure-leaning',  description: 'Adrenaline-first, beaches second', available: false },
+  { id: 'chill',     label: 'Chill-leaning',      description: 'Slow mornings, easy afternoons',   available: false },
+];
+
 function ItineraryPanel({
   setPage, trip, onLogin,
 }: {
@@ -466,6 +472,8 @@ function ItineraryPanel({
   const { user, loading: authLoading } = useAuth();
   const { catalog } = useCatalog();
   const { booked, toggle: toggleBooked } = useBooked();
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const tags = useMemo(
     () => trip && trip !== 'loading' ? answersToTags(trip.answers) : new Set<never>(),
@@ -478,10 +486,16 @@ function ItineraryPanel({
     [catalog, tags],
   );
 
-  const handleExport = () => {
+  const handleIcsExport = () => {
     if (!trip || trip === 'loading') return;
     const ics = buildIcs(trip.plan, trip.answers, resolveEntry, booked);
     downloadIcs(ics);
+    setExportOpen(false);
+  };
+
+  const handlePdfExport = () => {
+    window.print();
+    setExportOpen(false);
   };
 
   if (authLoading) return <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading…</p>;
@@ -511,87 +525,137 @@ function ItineraryPanel({
     );
   }
 
-  if (!trip) {
-    return (
-      <div>
-        <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Itineraries</h2>
-        <div className="chunky" style={{ padding: '32px 28px', maxWidth: 440 }}>
-          <p className="font-display" style={{ fontSize: 20, margin: '0 0 8px', color: 'var(--ink)' }}>No trip saved yet.</p>
-          <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: '0 0 20px' }}>
-            Complete the questionnaire to generate your personalised itinerary.
-          </p>
-          <button className="btn-red" onClick={() => setPage('questionnaire')} style={{ padding: '11px 22px', fontSize: 14 }}>
-            Build my itinerary →
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const totalActivities = trip.plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening]).length;
-  const bookedCount = trip.plan
-    .flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening])
-    .filter((c) => booked.has(c.uid)).length;
+  const totalActivities = trip
+    ? trip.plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening]).length
+    : 0;
+  const bookedCount = trip
+    ? trip.plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening]).filter((c) => booked.has(c.uid)).length
+    : 0;
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
-        <div>
-          <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 4px', color: 'var(--ink)' }}>
-            {trip.answers.days}-day Aruba trip
-          </h2>
-          <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: 0 }}>
-            {totalActivities} activit{totalActivities === 1 ? 'y' : 'ies'}
-            {bookedCount > 0 && ` · ${bookedCount} confirmed`}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button
-            onClick={handleExport}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 14px', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--cream)', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)', cursor: 'pointer' }}
-          >
-            <Calendar size={13} /> Export .ics
-          </button>
-          <button className="btn-red" onClick={() => setPage('itinerary')} style={{ padding: '9px 14px', fontSize: 13 }}>
-            Edit itinerary →
-          </button>
-        </div>
-      </div>
+      <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Itineraries</h2>
 
-      {trip.plan.map((day) => {
-        const slots: { slot: Slot; cards: PlannedCard[] }[] = (
-          [
-            { slot: 'morning'   as Slot, cards: day.morning },
-            { slot: 'afternoon' as Slot, cards: day.afternoon },
-            { slot: 'evening'   as Slot, cards: day.evening },
-          ] as { slot: Slot; cards: PlannedCard[] }[]
-        ).filter((s) => s.cards.length > 0);
-        if (slots.length === 0) return null;
-        return (
-          <div key={day.day} className="chunky" style={{ padding: '16px 20px', marginBottom: 12 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: 'var(--ink)' }}>
-              Day {day.day}{day.title ? ` — ${day.title}` : ''}
-            </div>
-            {slots.map(({ slot, cards }) => (
-              <div key={slot} style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-500)', marginBottom: 4 }}>
-                  {SLOT_LABEL[slot]}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 640 }}>
+        {ITINERARY_VARIANTS.map((variant) => {
+          const isExpanded = expanded === variant.id;
+          const hasTrip    = variant.id === 'saved' && !!trip;
+          const isLocked   = !variant.available;
+
+          return (
+            <div key={variant.id} className="chunky" style={{ padding: 0, overflow: 'hidden', opacity: isLocked ? 0.55 : 1 }}>
+              {/* Collapsed header row */}
+              <button
+                onClick={() => {
+                  if (isLocked) return;
+                  if (!hasTrip) { setPage('questionnaire'); return; }
+                  setExpanded(isExpanded ? null : variant.id);
+                  setExportOpen(false);
+                }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', background: 'transparent', border: 'none', cursor: isLocked ? 'default' : 'pointer', font: 'inherit', textAlign: 'left' }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {variant.label}
+                    {variant.id === 'saved' && trip && (
+                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'var(--yellow)', border: '1.5px solid var(--ink)', borderRadius: 6, padding: '2px 7px', boxShadow: '1px 1px 0 var(--ink)' }}>Active</span>
+                    )}
+                    {isLocked && (
+                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-400)', border: '1.5px solid var(--sand-200)', borderRadius: 6, padding: '2px 7px' }}>Coming soon</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--sand-500)', marginTop: 2 }}>
+                    {variant.id === 'saved' && trip
+                      ? `${trip.answers.days} days · ${totalActivities} activities${bookedCount > 0 ? ` · ${bookedCount} confirmed` : ''}`
+                      : variant.description}
+                  </div>
                 </div>
-                {cards.map((card) => (
-                  <BookedRow
-                    key={card.uid}
-                    card={card}
-                    slot={slot}
-                    resolveEntry={resolveEntry}
-                    booked={booked}
-                    onToggle={toggleBooked}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
-        );
-      })}
+                {!isLocked && (
+                  <span style={{ color: 'var(--sand-400)', flexShrink: 0, transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+                    <Chev size={18} />
+                  </span>
+                )}
+              </button>
+
+              {/* Expanded content — only for the saved trip */}
+              {isExpanded && hasTrip && trip && (
+                <div style={{ borderTop: '2px solid var(--sand-100)', padding: '16px 20px 20px' }}>
+                  {trip.plan.map((day) => {
+                    const slots: { slot: Slot; cards: PlannedCard[] }[] = (
+                      [
+                        { slot: 'morning'   as Slot, cards: day.morning },
+                        { slot: 'afternoon' as Slot, cards: day.afternoon },
+                        { slot: 'evening'   as Slot, cards: day.evening },
+                      ] as { slot: Slot; cards: PlannedCard[] }[]
+                    ).filter((s) => s.cards.length > 0);
+                    if (!slots.length) return null;
+                    return (
+                      <div key={day.day} style={{ marginBottom: 16 }}>
+                        <div style={{ fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--sand-500)', marginBottom: 6 }}>
+                          Day {day.day}{day.title ? ` — ${day.title}` : ''}
+                        </div>
+                        {slots.map(({ slot, cards }) => (
+                          <div key={slot} style={{ marginBottom: 6 }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-400)', marginBottom: 3 }}>
+                              {SLOT_LABEL[slot]}
+                            </div>
+                            {cards.map((card) => (
+                              <BookedRow key={card.uid} card={card} slot={slot} resolveEntry={resolveEntry} booked={booked} onToggle={toggleBooked} />
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+
+                  {/* Action row */}
+                  <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {/* Export dropdown */}
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        onClick={() => setExportOpen((o) => !o)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 14px', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--cream)', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)', cursor: 'pointer' }}
+                      >
+                        <Calendar size={13} /> Export
+                        <span style={{ marginLeft: 2, transform: exportOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s', display: 'inline-flex' }}>
+                          <Chev size={12} />
+                        </span>
+                      </button>
+                      {exportOpen && (
+                        <div className="chunky" style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: 0, padding: '6px 0', minWidth: 190, zIndex: 10, background: 'var(--cream)' }}>
+                          <button onClick={handleIcsExport}
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
+                            <Calendar size={14} />
+                            <span>.ics — Calendar</span>
+                          </button>
+                          <button onClick={handlePdfExport}
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
+                            <Star size={14} />
+                            <span>.pdf — Email / Print</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <button className="btn-red" onClick={() => setPage('itinerary')} style={{ padding: '9px 14px', fontSize: 13 }}>
+                      Edit itinerary →
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* No trip yet — prompt */}
+              {isExpanded && variant.id === 'saved' && !trip && (
+                <div style={{ borderTop: '2px solid var(--sand-100)', padding: '20px' }}>
+                  <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: '0 0 14px' }}>Complete the questionnaire to generate your personalised itinerary.</p>
+                  <button className="btn-red" onClick={() => setPage('questionnaire')} style={{ padding: '9px 14px', fontSize: 13 }}>
+                    Build my itinerary →
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
