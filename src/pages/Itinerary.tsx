@@ -7,7 +7,8 @@ import {
   SortableContext, useSortable, sortableKeyboardCoordinates, verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Bookmark, Chev, Share, X } from '../components/Icons';
+import { Bookmark, Calendar, Chev, Share, X } from '../components/Icons';
+import { buildIcs, downloadIcs } from '../lib/icsExport';
 import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
 import { INFO_TOPICS } from '../data/activities';
@@ -60,6 +61,16 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   const [rejected,       setRejected]       = useState<Set<string>>(new Set());
   const [rejectedGroups, setRejectedGroups] = useState<Set<string>>(new Set());
   const [practicalOpen, setPracticalOpen] = useState(false);
+
+  // Which cards the user has manually marked as booked (uid-keyed, session only).
+  const [bookedIds, setBookedIds] = useState<Set<string>>(new Set());
+  const toggleBooked = (uid: string) =>
+    setBookedIds((s) => { const n = new Set(s); n.has(uid) ? n.delete(uid) : n.add(uid); return n; });
+
+  const handleExportCalendar = () => {
+    const ics = buildIcs(plan, answers, resolveEntry, bookedIds);
+    downloadIcs(ics);
+  };
 
   // --- Per-user persistence (Supabase trips row) ---------------------------
   const { user } = useAuth();
@@ -501,6 +512,8 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
                     onAddItem={onAddItem}
                     onRemove={onRemove}
                     onSuggestLunch={onSuggestLunch}
+                    bookedIds={bookedIds}
+                    onToggleBooked={toggleBooked}
                   />
                 ))}
               </DndContext>
@@ -523,6 +536,9 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
                       </button>
                       <button onClick={scrollToSignIn} className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'var(--cream)', fontSize: 14, padding: '9px 14px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                         <Bookmark size={14} /> Save
+                      </button>
+                      <button onClick={handleExportCalendar} className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'var(--cream)', fontSize: 14, padding: '9px 14px', display: 'inline-flex', alignItems: 'center', gap: 6 }} title="Download .ics for Google Calendar, Apple Calendar or Outlook">
+                        <Calendar size={14} /> Export calendar
                       </button>
                     </div>
                     {shareErr && (
@@ -555,6 +571,8 @@ type DayHandlers = {
   onAddItem: (dayNum: number, section: Slot, item: ViatorItem) => void;
   onRemove: (uid: string) => void;
   onSuggestLunch: (dayNum: number) => void;
+  bookedIds: Set<string>;
+  onToggleBooked: (uid: string) => void;
 };
 
 function ItineraryDay({
@@ -684,6 +702,7 @@ function SortableCard({
   card, entry, section, dayNum, readOnly,
   flipped, swapping, reasonOpen, appearing, removing,
   onFlip, onOpenSwap, onSwap, onAddItem, onRemove,
+  bookedIds, onToggleBooked,
 }: { card: PlannedCard; entry: CardEntry; section: Slot; dayNum: number } & DayHandlers) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.uid });
   const style = {
@@ -737,6 +756,15 @@ function SortableCard({
         onPickReason={readOnly ? undefined : (reason) => onSwap(card.uid, section, entry, reason)}
         onAddItem={readOnly ? undefined : (item) => onAddItem(dayNum, section, item)}
       />
+      {!readOnly && (
+        <button
+          type="button"
+          className={`itin-booked-btn${bookedIds.has(card.uid) ? ' booked' : ''}`}
+          onClick={() => onToggleBooked(card.uid)}
+        >
+          {bookedIds.has(card.uid) ? '✓ Booked' : '○ Mark as booked'}
+        </button>
+      )}
     </div>
   );
 }

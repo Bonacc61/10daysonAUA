@@ -145,6 +145,19 @@ a.card-header-band:focus-visible { outline: 2px solid var(--yellow); outline-off
 .itin-card-grip:active { cursor: grabbing; }
 .itin-card-remove:hover { background: #FEE2E2; }
 
+/* Booked toggle button — sits below each itinerary card. */
+.itin-booked-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 6px; padding: 4px 12px;
+  font-size: 11px; font-weight: 600; font-family: inherit;
+  color: var(--sand-500); background: transparent;
+  border: 1.5px solid var(--sand-200); border-radius: 999px;
+  cursor: pointer; transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.itin-booked-btn:hover { color: var(--sand-700); border-color: var(--sand-400); }
+.itin-booked-btn.booked { background: #22C55E; color: #fff; border-color: #16A34A; }
+.itin-booked-btn.booked:hover { background: #16A34A; }
+
 /* Add / remove card animations. */
 @keyframes card-appear { from { opacity: 0; transform: translateY(-10px) scale(0.97); } to { opacity: 1; transform: none; } }
 @keyframes card-remove { to { opacity: 0; transform: scale(0.95); } }
