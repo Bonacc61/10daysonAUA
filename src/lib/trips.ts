@@ -1,42 +1,17 @@
 import { supabase } from './supabase';
-import type { Answers } from '../App';
-import type { PlannedDay } from '../data/itineraryPlan';
+import { stateToColumns, columnsToState, type TripState, type StateColumns } from './tripState';
 
-// The durable, per-user trip: the questionnaire answers, the itinerary (PlannedDay[]
-// — which carries the activities/groups that comprise it), and the swap-matcher
-// memory. Mirrors the `trips` table; rejected sets become text[] columns.
-export type TripState = {
-  answers: Answers;
-  plan: PlannedDay[];
-  rejected: Set<string>;
-  rejectedGroups: Set<string>;
-};
+// Re-exported so existing importers (`import { ..., type TripState } from './trips'`) keep working.
+export type { TripState };
 
-export type TripRow = {
-  user_id: string;
-  answers: Answers;
-  plan: PlannedDay[];
-  rejected: string[];
-  rejected_groups: string[];
-};
+export type TripRow = { user_id: string } & StateColumns;
 
 export function toRow(userId: string, s: TripState): TripRow {
-  return {
-    user_id: userId,
-    answers: s.answers,
-    plan: s.plan,
-    rejected: [...s.rejected],
-    rejected_groups: [...s.rejectedGroups],
-  };
+  return { user_id: userId, ...stateToColumns(s) };
 }
 
 export function fromRow(row: TripRow): TripState {
-  return {
-    answers: row.answers,
-    plan: row.plan,
-    rejected: new Set(row.rejected ?? []),
-    rejectedGroups: new Set(row.rejected_groups ?? []),
-  };
+  return columnsToState(row);
 }
 
 // Load the signed-in user's saved trip (RLS returns only their own row).
