@@ -171,9 +171,6 @@ function SurprisePanel({ setPage }: { setPage: (p: PageId) => void }) {
   return (
     <div>
       <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.5)', marginBottom: 4 }}>
-          {SLOT_GREETING[slot]} {slotEmoji[slot]}
-        </div>
         <h2 className="font-display" style={{ fontSize: 36, margin: '0 0 4px', color: 'var(--ink)' }}>Feeling spontaneous?</h2>
         <p style={{ fontStyle: 'italic', fontSize: 14, color: 'var(--sand-700)', margin: 0 }}>
           {pool.length > 0
