@@ -146,6 +146,20 @@ a.card-header-band:focus-visible { outline: 2px solid var(--yellow); outline-off
 .itin-card-remove:hover { background: #FEE2E2; }
 
 /* Booked toggle button — sits below each itinerary card. */
+/* Heart / star button — overlaid top-left on explore card images. */
+.a-star-btn {
+  position: absolute; top: 8px; left: 8px;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(255,251,240,0.88); border: none;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--sand-400);
+  transition: color 0.15s, transform 0.15s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+.a-star-btn:hover { transform: scale(1.1); color: var(--red); }
+.a-star-btn.active { color: var(--red); }
+
+/* Booked toggle button — sits below each itinerary card. */
 .itin-booked-btn {
   display: inline-flex; align-items: center; gap: 5px;
   margin-top: 6px; padding: 4px 12px;

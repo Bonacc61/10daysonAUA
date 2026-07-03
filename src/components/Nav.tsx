@@ -57,6 +57,7 @@ export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) 
           {link('landing', 'How it works')}
           {link('explore', 'Explore', true)}
           {link('itinerary', 'Itinerary')}
+          {link('surprise', 'Surprise me', true)}
           <button
             className="nav-login"
             onClick={() => (user ? setPage('itinerary') : onLogin())}

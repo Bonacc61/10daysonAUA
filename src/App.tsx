@@ -5,11 +5,12 @@ import Explore from './pages/Explore';
 import Questionnaire from './pages/Questionnaire';
 import Itinerary from './pages/Itinerary';
 import Privacy from './pages/Privacy';
+import SurpriseMe from './pages/SurpriseMe';
 import SignedInToast from './components/SignedInToast';
 import LoginModal from './components/LoginModal';
 import { AuthProvider, useAuth } from './lib/auth';
 
-export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary' | 'privacy';
+export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary' | 'privacy' | 'surprise';
 
 export type Answers = {
   days: number;
@@ -40,6 +41,7 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/itinerary': 'itinerary',
   '/questionnaire': 'questionnaire',
   '/privacy': 'privacy',
+  '/surprise': 'surprise',
 };
 const PAGE_TO_PATH: Record<PageId, string> = {
   landing: '/',
@@ -47,6 +49,7 @@ const PAGE_TO_PATH: Record<PageId, string> = {
   explore: '/explore',
   itinerary: '/itinerary',
   privacy: '/privacy',
+  surprise: '/surprise',
 };
 
 function pageFromUrl(): PageId {
@@ -127,6 +130,7 @@ function AppShell() {
       {page === 'explore'       && <Explore       setPage={setPage} answers={answers} />}
       {page === 'itinerary'     && (canSeeItinerary || shareId) && <Itinerary setPage={setPage} answers={answers} setAnswers={setAnswers} onLogin={() => setLoginOpen(true)} shareId={shareId} />}
       {page === 'privacy'       && <Privacy       setPage={setPage} />}
+      {page === 'surprise'      && <SurpriseMe    setPage={setPage} />}
     </>
   );
 }
