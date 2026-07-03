@@ -29,7 +29,7 @@ type DashSection = 'surprise' | 'starred' | 'itinerary' | 'bookings' | 'practica
 
 type IconFC = (p: { size?: number }) => JSX.Element;
 const SECTIONS: { id: DashSection; label: string; NavIcon: IconFC }[] = [
-  { id: 'starred',    label: 'Favourite Activities',  NavIcon: Heart    },
+  { id: 'starred',    label: 'Activities',             NavIcon: Heart    },
   { id: 'itinerary',  label: 'Itineraries',           NavIcon: Calendar },
   { id: 'bookings',   label: 'Bookings',              NavIcon: Check    },
   { id: 'surprise',   label: 'Surprise me',           NavIcon: Dice     },
@@ -419,6 +419,79 @@ function StarredPanel({ setPage }: { setPage: (p: PageId) => void }) {
         <>
           <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: '0 0 16px' }}>
             <strong style={{ color: 'var(--ink)' }}>{entries.length}</strong> starred activit{entries.length === 1 ? 'y' : 'ies'}
+          </p>
+          <div className="explore-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20 }}>
+            {entries.map((e) =>
+              e.kind === 'item'
+                ? <StarredItemCard     key={`item:${e.item.id}`} entry={e} onStar={() => toggleStar(`item:${e.item.id}`)} />
+                : <StarredActivityCard key={e.activity.id}       entry={e} onStar={() => toggleStar(e.activity.id)} />
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────── Personalized activities panel ────────── //
+
+function PersonalizedPanel({ setPage, trip }: { setPage: (p: PageId) => void; trip: TripLoadState }) {
+  const { catalog, loading } = useCatalog();
+  const { starred, toggle: toggleStar } = useStarred();
+
+  const tags = useMemo(
+    () => (trip && trip !== 'loading') ? answersToTags(trip.answers) : new Set<MatchTag>(),
+    [trip],
+  );
+
+  // Build matched id sets across all slots, then post-filter all ExploreEntries.
+  const entries = useMemo((): ExploreEntry[] => {
+    if (loading || !tags.size) return [];
+    const matchedActIds   = new Set<string>();
+    const matchedGroupIds = new Set<string>();
+    for (const slot of ['morning', 'afternoon', 'evening'] as const) {
+      const { activities: ma, groups: mg } = matchPool(catalog.activities, catalog.groups, tags, slot);
+      ma.forEach((a) => matchedActIds.add(a.id));
+      mg.forEach((g) => matchedGroupIds.add(g.id));
+    }
+    return filterExploreEntries(catalog, { section: 'All', search: '', vibe: 50, price: 50 })
+      .filter((e) => e.kind === 'item'
+        ? matchedGroupIds.has(e.item.group_id)
+        : matchedActIds.has(e.activity.id));
+  }, [catalog, tags, loading]);
+
+  if (!trip || trip === 'loading') {
+    return (
+      <div>
+        <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Personalized for you</h2>
+        <div className="chunky" style={{ padding: '32px 28px', textAlign: 'center', maxWidth: 440 }}>
+          <div style={{ fontSize: 36, marginBottom: 14 }}>🎯</div>
+          <p className="font-display" style={{ fontSize: 20, margin: '0 0 8px', color: 'var(--ink)' }}>Complete the questionnaire first.</p>
+          <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: '0 0 20px' }}>
+            We'll match activities to your vibe, budget, and group — no scrolling required.
+          </p>
+          <button className="btn-red" onClick={() => setPage('questionnaire')} style={{ padding: '11px 22px', fontSize: 14 }}>
+            Take the questionnaire →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 6px', color: 'var(--ink)' }}>Personalized for you</h2>
+      <p style={{ fontSize: 13, color: 'var(--sand-700)', fontStyle: 'italic', margin: '0 0 24px' }}>
+        Based on your questionnaire — {trip.answers.days} days, {trip.answers.groupType || 'your group'}, {trip.answers.budget || 'any budget'}.
+      </p>
+      {loading ? (
+        <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading…</p>
+      ) : entries.length === 0 ? (
+        <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>No matches found — try updating your questionnaire answers.</p>
+      ) : (
+        <>
+          <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: '0 0 16px' }}>
+            <strong style={{ color: 'var(--ink)' }}>{entries.length}</strong> activit{entries.length === 1 ? 'y' : 'ies'} matched to your profile
           </p>
           <div className="explore-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20 }}>
             {entries.map((e) =>
@@ -923,6 +996,8 @@ function PracticalPanel() {
 
 export default function Dashboard({ setPage, initialSection = 'starred', onLogin }: Props) {
   const [section, setSection] = useState<DashSection>(initialSection);
+  const [activitiesTab, setActivitiesTab] = useState<'favourite' | 'personalized'>('favourite');
+  const [activitiesOpen, setActivitiesOpen] = useState(initialSection === 'starred');
   const { user, loading: authLoading } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => typeof window !== 'undefined' && window.innerWidth < 720,
@@ -964,21 +1039,50 @@ export default function Dashboard({ setPage, initialSection = 'starred', onLogin
             </button>
 
             {SECTIONS.map((s) => (
-              <button
-                key={s.id}
-                className={`dashboard-nav-btn${section === s.id ? ' active' : ''}`}
-                title={sidebarCollapsed ? s.label : undefined}
-                onClick={() => setSection(s.id)}
-              >
-                <span className="dashboard-nav-emoji"><s.NavIcon size={16} /></span>
-                <span className="dashboard-nav-label">{s.label}</span>
-              </button>
+              <div key={s.id}>
+                <button
+                  className={`dashboard-nav-btn${section === s.id ? ' active' : ''}`}
+                  title={sidebarCollapsed ? s.label : undefined}
+                  onClick={() => {
+                    if (s.id === 'starred') {
+                      setSection('starred');
+                      setActivitiesOpen((o) => section === 'starred' ? !o : true);
+                    } else {
+                      setSection(s.id);
+                    }
+                  }}
+                >
+                  <span className="dashboard-nav-emoji"><s.NavIcon size={16} /></span>
+                  <span className="dashboard-nav-label">{s.label}</span>
+                  {s.id === 'starred' && !sidebarCollapsed && (
+                    <span style={{ marginLeft: 'auto', color: 'var(--sand-400)', display: 'inline-flex', transform: activitiesOpen && section === 'starred' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+                      <Chev size={13} sw={2.5} />
+                    </span>
+                  )}
+                </button>
+
+                {/* Activities sub-nav */}
+                {s.id === 'starred' && activitiesOpen && section === 'starred' && !sidebarCollapsed && (
+                  <div className="dashboard-nav-sub">
+                    {(['favourite', 'personalized'] as const).map((tab) => (
+                      <button
+                        key={tab}
+                        className={`dashboard-nav-sub-btn${activitiesTab === tab ? ' active' : ''}`}
+                        onClick={() => setActivitiesTab(tab)}
+                      >
+                        {tab === 'favourite' ? 'Favourite' : 'Personalized'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
           </nav>
 
           <div className="dashboard-content">
-            {section === 'surprise'  && <SurprisePanel   setPage={setPage} trip={trip} />}
-            {section === 'starred'   && <StarredPanel     setPage={setPage} />}
+            {section === 'surprise'  && <SurprisePanel      setPage={setPage} trip={trip} />}
+            {section === 'starred'   && activitiesTab === 'favourite'    && <StarredPanel       setPage={setPage} />}
+            {section === 'starred'   && activitiesTab === 'personalized' && <PersonalizedPanel  setPage={setPage} trip={trip} />}
             {section === 'itinerary' && <ItineraryPanel   setPage={setPage} trip={trip} onLogin={onLogin} />}
             {section === 'bookings'  && <BookingsPanel    trip={trip} onLogin={onLogin} />}
             {section === 'practical' && <PracticalPanel />}

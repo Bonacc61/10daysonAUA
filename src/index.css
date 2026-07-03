@@ -837,6 +837,29 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   opacity: 0;
 }
 .dashboard-nav-emoji { font-size: 16px; flex-shrink: 0; }
+.dashboard-nav-sub { padding: 2px 0 6px; }
+.dashboard-nav-sub-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  padding: 8px 20px 8px 46px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sand-700);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.dashboard-nav-sub-btn:hover { background: rgba(0,0,0,0.04); color: var(--ink); }
+.dashboard-nav-sub-btn.active {
+  border-left-color: var(--red);
+  font-weight: 700;
+  color: var(--ink);
+  background: rgba(0,0,0,0.04);
+}
 .dashboard-content {
   flex: 1;
   padding: 32px 44px 60px;
