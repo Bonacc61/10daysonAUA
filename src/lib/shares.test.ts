@@ -67,6 +67,17 @@ describe('createShare', () => {
     expect(error).toBe('denied');
     expect(insert).toHaveBeenCalledTimes(1);
   });
+
+  it('strips answers.specialNotes before publishing a public snapshot', async () => {
+    insert.mockResolvedValue({ error: null });
+    const state = sample();
+    state.answers = { ...state.answers, specialNotes: 'private note' };
+    await createShare(state);
+    const payload = insert.mock.calls[0][0] as Record<string, unknown>;
+    const answers = payload.answers as Record<string, unknown>;
+    expect(answers.specialNotes).toBe('');
+    expect(answers.days).toBe(7);
+  });
 });
 
 describe('loadShare', () => {

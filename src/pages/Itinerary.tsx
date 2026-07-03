@@ -117,10 +117,19 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
       url = `${window.location.origin}/i/${id}`;
       setShareUrl(url);
     }
-    // Native OS share sheet on mobile; the desktop popover otherwise.
+    // Native OS share sheet on mobile; the desktop popover otherwise. If
+    // navigator.share throws for a reason other than a user cancel — e.g. iOS
+    // Safari dropping transient activation across the createShare await,
+    // which surfaces as NotAllowedError — fall back to the popover so the
+    // share is still reachable instead of silently no-op'ing.
     if (navigator.share) {
-      try { await navigator.share({ title: 'My 10 days on Aruba', url }); } catch { /* cancelled */ }
-      return;
+      try {
+        await navigator.share({ title: 'My 10 days on Aruba', url });
+        return;
+      } catch (e) {
+        if (e instanceof DOMException && e.name === 'AbortError') return;
+        /* else fall through to the popover */
+      }
     }
     setSharePopoverOpen(true);
   };
@@ -691,7 +700,7 @@ function SortableCard({
 
   return (
     <div ref={setNodeRef} style={style} className={cls.join(' ')}>
-      {!readOnly && (
+      {(!readOnly || flipped.has(card.uid)) && (
         <div className="itin-card-controls">
           {flipped.has(card.uid) && (
             <button
@@ -701,17 +710,21 @@ function SortableCard({
               onClick={() => onFlip(card.uid)}
             >← Back</button>
           )}
-          <button
-            className="itin-card-grip"
-            aria-label="Drag to move between days and between morning, afternoon and evening"
-            {...attributes}
-            {...listeners}
-          >⠿</button>
-          <button
-            className="itin-card-remove"
-            aria-label="Remove from itinerary"
-            onClick={() => onRemove(card.uid)}
-          ><X size={13} aria-hidden /></button>
+          {!readOnly && (
+            <>
+              <button
+                className="itin-card-grip"
+                aria-label="Drag to move between days and between morning, afternoon and evening"
+                {...attributes}
+                {...listeners}
+              >⠿</button>
+              <button
+                className="itin-card-remove"
+                aria-label="Remove from itinerary"
+                onClick={() => onRemove(card.uid)}
+              ><X size={13} aria-hidden /></button>
+            </>
+          )}
         </div>
       )}
       <ItineraryCard

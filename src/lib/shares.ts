@@ -20,9 +20,14 @@ export function randomSlug(len = 8): string {
 export async function createShare(state: TripState): Promise<{ id: string | null; error: string | null }> {
   if (!supabase) return { id: null, error: 'not configured' };
   const cols: StateColumns = stateToColumns(state);
+  // Shared snapshots are publicly readable (select using (true) + anon key),
+  // so strip free-text specialNotes — it's never used to render or match a
+  // shared itinerary and may hold personal info. Trips keep it; this is
+  // shares-only, so stateToColumns itself is untouched.
+  const publicCols: StateColumns = { ...cols, answers: { ...cols.answers, specialNotes: '' } };
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const id = randomSlug();
-    const { error } = await supabase.from('shared_itineraries').insert({ id, ...cols });
+    const { error } = await supabase.from('shared_itineraries').insert({ id, ...publicCols });
     if (!error) return { id, error: null };
     if (error.code !== '23505') return { id: null, error: error.message };
   }
