@@ -10,11 +10,11 @@ type Props = {
 export default function Nav({ page, setPage, onLogin }: Props) {
   const { user } = useAuth();
 
-  const link = (id: PageId, label: string) => (
+  const link = (id: PageId, label: string, keepOnMobile = false) => (
     <button
       key={id}
       onClick={() => setPage(id)}
-      className="nav-link-text"
+      className={keepOnMobile ? 'nav-link-explore' : 'nav-link-text'}
       style={{
         background: 'transparent',
         border: 'none',
@@ -54,29 +54,8 @@ export default function Nav({ page, setPage, onLogin }: Props) {
         </button>
         <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
           {link('landing', 'How it works')}
+          {link('explore', 'Explore', true)}
           {link('itinerary', 'Itinerary')}
-          <button
-            className="nav-explore"
-            onClick={() => setPage('explore')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 7,
-              padding: '7px 14px',
-              background: page === 'explore' ? 'var(--red)' : 'var(--cream)',
-              border: '2px solid var(--ink)',
-              borderRadius: 999,
-              boxShadow: '3px 3px 0 var(--ink)',
-              cursor: 'pointer',
-              font: 'inherit',
-              color: page === 'explore' ? 'white' : 'var(--ink)',
-              fontWeight: 600,
-              fontSize: 13,
-            }}
-          >
-            <span aria-hidden="true" style={{ fontSize: 15, lineHeight: 1 }}>🧭</span>
-            <span className="nav-explore-text">Explore</span>
-          </button>
           <button
             className="nav-login"
             onClick={() => (user ? setPage('itinerary') : onLogin())}
