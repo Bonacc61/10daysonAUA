@@ -466,11 +466,11 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 @media (max-width: 640px) {
   .container-1280 { padding: 0 14px; }
 
-  /* ---------- Nav: hide text links, keep logo + Reddit pill ---------- */
+  /* ---------- Nav: hide text links, keep logo + Explore pill ---------- */
   .nav-link-text { display: none !important; }
   .nav-logo { height: 30px !important; }
   .nav-row { padding: 12px 14px !important; gap: 10px !important; }
-  .nav-reddit { padding: 6px 10px !important; font-size: 12px !important; }
+  .nav-explore { padding: 6px 10px !important; font-size: 12px !important; }
 
   /* ---------- Hero: stack text + parrot ---------- */
   .hero-bleed { padding: 36px 0 48px !important; }

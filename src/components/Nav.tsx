@@ -54,34 +54,29 @@ export default function Nav({ page, setPage, onLogin }: Props) {
         </button>
         <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
           {link('landing', 'How it works')}
-          {link('explore', 'Explore')}
           {link('itinerary', 'Itinerary')}
-          <a
-            className="nav-reddit"
-            href="#faq"
-            onClick={(e) => {
-              e.preventDefault();
-              setPage('landing');
-              setTimeout(() => document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' }), 50);
-            }}
+          <button
+            className="nav-explore"
+            onClick={() => setPage('explore')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 7,
               padding: '7px 14px',
-              background: 'var(--cream)',
+              background: page === 'explore' ? 'var(--red)' : 'var(--cream)',
               border: '2px solid var(--ink)',
               borderRadius: 999,
               boxShadow: '3px 3px 0 var(--ink)',
-              textDecoration: 'none',
-              color: 'var(--ink)',
+              cursor: 'pointer',
+              font: 'inherit',
+              color: page === 'explore' ? 'white' : 'var(--ink)',
               fontWeight: 600,
               fontSize: 13,
             }}
           >
-            <span aria-hidden="true" style={{ width: 18, height: 18, borderRadius: '50%', background: '#FF4500', color: 'white', fontWeight: 700, fontSize: 11, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>r</span>
-            <span className="nav-reddit-text">Reddit FAQ</span>
-          </a>
+            <span aria-hidden="true" style={{ fontSize: 15, lineHeight: 1 }}>🧭</span>
+            <span className="nav-explore-text">Explore</span>
+          </button>
           <button
             className="nav-login"
             onClick={() => (user ? setPage('itinerary') : onLogin())}
