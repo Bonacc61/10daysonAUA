@@ -56,7 +56,7 @@ export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) 
         <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
           {link('landing', 'How it works')}
           {link('explore', 'Explore', true)}
-          {canSeeItinerary && link('itinerary', 'Itinerary')}
+          {link('itinerary', 'Itinerary')}
           <button
             className="nav-login"
             onClick={() => (user ? setPage('itinerary') : onLogin())}
