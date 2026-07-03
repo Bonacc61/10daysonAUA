@@ -71,8 +71,12 @@ export default function Privacy({ setPage }: Props) {
         </Section>
 
         <Section title="Cookies">
+          <p style={{ fontSize: 14, lineHeight: 1.7, margin: '0 0 12px' }}>
+            On this site we use a single session cookie to keep you logged in. No tracking or marketing cookies of our own.
+          </p>
           <p style={{ fontSize: 14, lineHeight: 1.7, margin: 0 }}>
-            One session cookie to keep you logged in. No tracking or marketing cookies.
+            Our activity recommendations link to <strong>Viator</strong>, an affiliate partner. If you click through to Viator, they set their own cookies &mdash; including an affiliate cookie (a ~30-day window) used to attribute bookings &mdash; governed by{' '}
+            <a href="https://www.viator.com/legal/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--red)' }}>Viator&rsquo;s Privacy &amp; Cookies Statement</a>.
           </p>
         </Section>
       </div>
