@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import Footer from '../components/Footer';
-import { iconFor, Calendar, Check, Clock, Dice, Dollar, Heart, MapPin, Star } from '../components/Icons';
+import { iconFor, Calendar, Check, Clock, Dice, Doc, Dollar, Heart, MapPin, Star } from '../components/Icons';
 import { useCatalog } from '../data/useCatalog';
 import { filterExploreEntries, bookingUrl } from '../data/exploreItems';
 import { INFO_TOPICS, GTK_CARDS } from '../data/activities';
@@ -26,12 +26,13 @@ import type { Slot, SlotEntry, CardEntry } from '../types';
 
 type DashSection = 'surprise' | 'starred' | 'itinerary' | 'bookings' | 'practical';
 
-const SECTIONS: { id: DashSection; label: string; emoji: string }[] = [
-  { id: 'surprise',   label: 'Surprise me',          emoji: '🎲' },
-  { id: 'starred',    label: 'Favourite Activities',  emoji: '♡' },
-  { id: 'itinerary',  label: 'Itineraries',           emoji: '🗓' },
-  { id: 'bookings',   label: 'Bookings',              emoji: '✓' },
-  { id: 'practical',  label: 'Practical Info',        emoji: 'ℹ' },
+type IconFC = (p: { size?: number }) => JSX.Element;
+const SECTIONS: { id: DashSection; label: string; NavIcon: IconFC }[] = [
+  { id: 'starred',    label: 'Favourite Activities',  NavIcon: Heart    },
+  { id: 'itinerary',  label: 'Itineraries',           NavIcon: Calendar },
+  { id: 'bookings',   label: 'Bookings',              NavIcon: Check    },
+  { id: 'surprise',   label: 'Surprise me',           NavIcon: Dice     },
+  { id: 'practical',  label: 'Practical Info',        NavIcon: Doc      },
 ];
 
 type TripLoadState = TripState | null | 'loading';
@@ -86,7 +87,7 @@ function currentSlot(): 'morning' | 'afternoon' | 'evening' {
   return 'evening';
 }
 
-const SLOT_GREETING = { morning: 'Good morning', afternoon: 'Good afternoon', evening: 'Good evening' };
+const SLOT_GREETING = { morning: 'Rise and roll', afternoon: 'Midday roulette', evening: 'Night owl energy' };
 
 function resolvePool(starred: Set<string>, catalog: Catalog): Suggestion[] {
   const pool: Suggestion[] = [];
@@ -165,17 +166,19 @@ function SurprisePanel({ setPage }: { setPage: (p: PageId) => void }) {
     return () => window.removeEventListener('devicemotion', onMotion);
   }, [spin]);
 
+  const slotEmoji = { morning: '🌅', afternoon: '☀️', evening: '🌙' };
+
   return (
     <div>
       <div style={{ marginBottom: 28 }}>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.5)', marginBottom: 4 }}>
-          {SLOT_GREETING[slot]}
+          {SLOT_GREETING[slot]} {slotEmoji[slot]}
         </div>
-        <h2 className="font-display" style={{ fontSize: 36, margin: '0 0 4px', color: 'var(--ink)' }}>What should I do?</h2>
+        <h2 className="font-display" style={{ fontSize: 36, margin: '0 0 4px', color: 'var(--ink)' }}>Feeling spontaneous?</h2>
         <p style={{ fontStyle: 'italic', fontSize: 14, color: 'var(--sand-700)', margin: 0 }}>
           {pool.length > 0
-            ? `Drawing from ${pool.length} starred activit${pool.length === 1 ? 'y' : 'ies'}.`
-            : 'Heart activities in Explore to get personalised suggestions.'}
+            ? 'Here\'s an activity for right now — tap to roll a different one.'
+            : 'Heart things in Explore first — then let us do the deciding.'}
         </p>
       </div>
 
@@ -183,10 +186,10 @@ function SurprisePanel({ setPage }: { setPage: (p: PageId) => void }) {
 
       {!loading && pool.length === 0 && (
         <div className="chunky" style={{ padding: '32px 28px', textAlign: 'center', maxWidth: 440 }}>
-          <div style={{ fontSize: 36, marginBottom: 14 }}>♡</div>
-          <p className="font-display" style={{ fontSize: 20, margin: '0 0 8px', color: 'var(--ink)' }}>Nothing starred yet.</p>
+          <div style={{ fontSize: 36, marginBottom: 14 }}>🎲</div>
+          <p className="font-display" style={{ fontSize: 20, margin: '0 0 8px', color: 'var(--ink)' }}>Nothing to roll yet.</p>
           <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: '0 0 20px' }}>
-            Tap the heart on any activity in Explore to save it here.
+            Heart a few activities in Explore. Come back here when you can't decide. We'll pick for you — no agonising required.
           </p>
           <button className="btn-red" onClick={() => setPage('explore')} style={{ padding: '11px 22px', fontSize: 14 }}>
             Browse Explore →
@@ -197,9 +200,10 @@ function SurprisePanel({ setPage }: { setPage: (p: PageId) => void }) {
       {!loading && pick && (
         <div key={animKey} className="surprise-card fade-in" style={{ width: '100%', maxWidth: 500 }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--sand-500)', marginBottom: 8, textAlign: 'center' }}>
+            {slotEmoji[slot]}{' '}
             {pick.kind === 'activity'
-              ? `Good for ${(pick.activity.timeOfDay ?? slot).toLowerCase()}`
-              : `A suggestion for this ${slot}`}
+              ? `🎲 Fate says: ${(pick.activity.timeOfDay ?? slot).toLowerCase()} pick`
+              : `🎲 Fate says: go do this`}
           </div>
           <div className="chunky" style={{ overflow: 'hidden', padding: 0, border: '2px solid var(--ink)' }}>
             <div style={{ position: 'relative', height: 220, overflow: 'hidden', background: 'var(--sand-100)' }}>
@@ -248,13 +252,13 @@ function SurprisePanel({ setPage }: { setPage: (p: PageId) => void }) {
                 )}
                 <button onClick={spin} disabled={pool.length <= 1}
                   style={{ flex: 1, padding: '10px 14px', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, border: '2px solid var(--ink)', background: 'var(--yellow-bg)', color: 'var(--ink)', boxShadow: '3px 3px 0 var(--ink)', cursor: pool.length > 1 ? 'pointer' : 'not-allowed', opacity: pool.length > 1 ? 1 : 0.4 }}>
-                  <Dice size={14} /> Try another
+                  <Dice size={14} /> Nope, roll again
                 </button>
               </div>
             </div>
           </div>
           <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--sand-400)', marginTop: 12 }}>
-            Shake your phone for a new suggestion.
+            🤙 Shake your phone to roll the dice.
           </p>
         </div>
       )}
@@ -777,7 +781,7 @@ function PracticalPanel() {
 
 // ─────────────���────────────────────────────────────── Dashboard ──────────── //
 
-export default function Dashboard({ setPage, initialSection = 'surprise', onLogin }: Props) {
+export default function Dashboard({ setPage, initialSection = 'starred', onLogin }: Props) {
   const [section, setSection] = useState<DashSection>(initialSection);
   const { user, loading: authLoading } = useAuth();
 
@@ -810,7 +814,7 @@ export default function Dashboard({ setPage, initialSection = 'surprise', onLogi
                 className={`dashboard-nav-btn${section === s.id ? ' active' : ''}`}
                 onClick={() => setSection(s.id)}
               >
-                <span className="dashboard-nav-emoji">{s.emoji}</span>
+                <span className="dashboard-nav-emoji"><s.NavIcon size={16} /></span>
                 {s.label}
               </button>
             ))}
