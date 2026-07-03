@@ -56,6 +56,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin }: Pro
   // Rejection memory feeds the swap matcher so it won't re-offer dismissed picks.
   const [rejected,       setRejected]       = useState<Set<string>>(new Set());
   const [rejectedGroups, setRejectedGroups] = useState<Set<string>>(new Set());
+  const [practicalOpen, setPracticalOpen] = useState(false);
 
   // --- Per-user persistence (Supabase trips row) ---------------------------
   const { user } = useAuth();
@@ -361,10 +362,16 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin }: Pro
         <div className="container-1280">
           <div className="itinerary-layout">
             <aside className="itinerary-rail">
-              <div className="font-display" style={{ fontSize: 16, letterSpacing: '-0.2px', color: 'var(--ink)', margin: '4px 0 14px' }}>
-                Practical info
-              </div>
-              {INFO_TOPICS.map((topic) => (
+              <button
+                type="button"
+                onClick={() => setPracticalOpen((o) => !o)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, margin: '4px 0 14px' }}
+                aria-expanded={practicalOpen}
+              >
+                <span className="font-display" style={{ fontSize: 16, letterSpacing: '-0.2px', color: 'var(--ink)' }}>Practical info</span>
+                <span style={{ fontFamily: 'Caprasimo, Georgia, serif', fontSize: 26, lineHeight: 1, color: 'var(--ink)', userSelect: 'none' }}>{practicalOpen ? '−' : '+'}</span>
+              </button>
+              {practicalOpen && INFO_TOPICS.map((topic) => (
                 <details key={topic.title} className="info-topic">
                   <summary>
                     <span className="info-topic-title">{topic.title}</span>
