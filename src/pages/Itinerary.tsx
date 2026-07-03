@@ -20,8 +20,10 @@ import { generatePlan } from '../data/itineraryGenerator';
 import { logEvent } from '../data/feedback';
 import { useAuth } from '../lib/auth';
 import { loadTrip, upsertTrip } from '../lib/trips';
-import { loadShare } from '../lib/shares';
+import { createShare, loadShare } from '../lib/shares';
+import { supabase } from '../lib/supabase';
 import SignIn from '../components/SignIn';
+import SharePopover from '../components/SharePopover';
 import {
   seedPlan, addCard, removeCard, replaceCardEntry, moveCard, findCard,
   newUid, SECTIONS, type PlannedDay, type PlannedCard,
@@ -69,6 +71,12 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   const [shareLoading, setShareLoading] = useState<boolean>(!!shareId);
   const [shareMissing, setShareMissing] = useState(false);
 
+  // --- Creator share flow (Share button + popover) -------------------------
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [sharePopoverOpen, setSharePopoverOpen] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareErr, setShareErr] = useState<string | null>(null);
+
   // A shared link always shows its snapshot — even for signed-in visitors — so
   // this seeds the plan/answers directly and never regenerates or hydrates.
   useEffect(() => {
@@ -91,6 +99,31 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
     });
     return () => { alive = false; };
   }, [shareId, setAnswers]);
+
+  // Invalidate a cached link whenever the plan/answers/swap-memory change, so a
+  // re-share after edits snapshots the new state and repeat clicks on an
+  // unchanged plan don't create duplicate rows.
+  useEffect(() => { setShareUrl(null); setSharePopoverOpen(false); }, [plan, answers, rejected, rejectedGroups]);
+
+  const handleShare = async () => {
+    if (shareBusy) return;
+    let url = shareUrl;
+    if (!url) {
+      setShareBusy(true);
+      setShareErr(null);
+      const { id, error } = await createShare({ answers, plan, rejected, rejectedGroups });
+      setShareBusy(false);
+      if (!id) { setShareErr(error ?? 'Couldn’t create link — try again'); return; }
+      url = `${window.location.origin}/i/${id}`;
+      setShareUrl(url);
+    }
+    // Native OS share sheet on mobile; the desktop popover otherwise.
+    if (navigator.share) {
+      try { await navigator.share({ title: 'My 10 days on Aruba', url }); } catch { /* cancelled */ }
+      return;
+    }
+    setSharePopoverOpen(true);
+  };
 
   // On sign-in, load the saved trip and hydrate it (the saved trip wins).
   useEffect(() => {
@@ -463,14 +496,34 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
                 ))}
               </DndContext>
 
-              <div style={{ position: 'sticky', bottom: 16, marginTop: 32, display: 'flex', justifyContent: 'center', zIndex: 5 }}>
-                <div className="chunky itin-action-bar" style={{ padding: '14px 22px', display: 'inline-flex', alignItems: 'center', gap: 16, background: 'var(--ink)', color: 'var(--cream)' }}>
-                  <button className="btn-red" style={{ padding: '10px 18px', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Share size={14} /> Share itinerary</button>
-                  <button onClick={scrollToSignIn} className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'var(--cream)', fontSize: 14, padding: '9px 14px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <Bookmark size={14} /> Save
-                  </button>
+              {!readOnly && (
+                <div style={{ position: 'sticky', bottom: 16, marginTop: 32, display: 'flex', justifyContent: 'center', zIndex: 5 }}>
+                  <div style={{ position: 'relative' }}>
+                    {sharePopoverOpen && shareUrl && (
+                      <SharePopover url={shareUrl} onClose={() => setSharePopoverOpen(false)} />
+                    )}
+                    <div className="chunky itin-action-bar" style={{ padding: '14px 22px', display: 'inline-flex', alignItems: 'center', gap: 16, background: 'var(--ink)', color: 'var(--cream)' }}>
+                      <button
+                        className="btn-red"
+                        onClick={handleShare}
+                        disabled={!supabase || shareBusy}
+                        title={!supabase ? 'Sharing is not configured yet' : undefined}
+                        style={{ padding: '10px 18px', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6, opacity: (!supabase || shareBusy) ? 0.6 : 1 }}
+                      >
+                        <Share size={14} /> {shareBusy ? 'Creating link…' : 'Share itinerary'}
+                      </button>
+                      <button onClick={scrollToSignIn} className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'var(--cream)', fontSize: 14, padding: '9px 14px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <Bookmark size={14} /> Save
+                      </button>
+                    </div>
+                    {shareErr && (
+                      <div role="alert" style={{ position: 'absolute', top: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)', whiteSpace: 'nowrap', background: 'var(--red)', color: '#fff', padding: '6px 12px', borderRadius: 6, fontSize: 13 }}>
+                        {shareErr}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
