@@ -121,7 +121,7 @@ export default function Landing({ setPage, answers, setAnswers }: Props) {
       <GoodToKnowSection />
       <FAQSection />
       <ContactSection />
-      <Footer />
+      <Footer setPage={setPage} />
     </>
   );
 }
@@ -423,10 +423,16 @@ function ContactSection() {
               <textarea style={{ ...inputStyle, resize: 'vertical', minHeight: 120 }} placeholder="Tell us what's on your mind…" value={form.comment} onChange={set('comment')} />
             </div>
             {error && <p style={{ fontSize: 13, color: 'var(--coral)', margin: 0 }}>{error}</p>}
-            <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
               <button type="submit" className="btn-red" disabled={submitting} style={{ padding: '13px 28px', fontSize: 15, opacity: submitting ? 0.6 : 1 }}>
                 {submitting ? 'Sending…' : 'Send message →'}
               </button>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
+                By sending, you agree to our{' '}
+                <button type="button" onClick={() => setPage('privacy')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'inherit', padding: 0, textDecoration: 'underline' }}>
+                  Privacy Policy
+                </button>
+              </span>
             </div>
           </form>
         )}

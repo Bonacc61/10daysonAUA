@@ -1,4 +1,8 @@
-export default function Footer() {
+import type { PageId } from '../App';
+
+type Props = { setPage: (p: PageId) => void };
+
+export default function Footer({ setPage }: Props) {
   // Short build id, injected at build time (see vite.config.ts). Lets us confirm
   // at a glance which deploy a browser is actually running — no more guessing
   // whether a fix has loaded or is stale in cache.
@@ -24,7 +28,15 @@ export default function Footer() {
           earn a small commission at no extra cost to you. We only recommend things we'd
           send a friend to.
         </p>
-        <div style={{ fontSize: 10, color: '#555', marginTop: 14, letterSpacing: '0.04em' }}>
+        <div style={{ marginTop: 16 }}>
+          <button
+            onClick={() => setPage('privacy')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#666', fontFamily: 'inherit', padding: 0, textDecoration: 'underline' }}
+          >
+            Privacy Policy
+          </button>
+        </div>
+        <div style={{ fontSize: 10, color: '#555', marginTop: 10, letterSpacing: '0.04em' }}>
           build {build}
         </div>
       </div>

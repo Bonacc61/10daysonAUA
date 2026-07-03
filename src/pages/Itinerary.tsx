@@ -539,7 +539,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
       </div>
 
       <div id="sso-login"><SignIn /></div>
-      <Footer />
+      <Footer setPage={setPage} />
     </>
   );
 }

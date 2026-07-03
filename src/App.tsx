@@ -4,11 +4,12 @@ import Landing from './pages/Landing';
 import Explore from './pages/Explore';
 import Questionnaire from './pages/Questionnaire';
 import Itinerary from './pages/Itinerary';
+import Privacy from './pages/Privacy';
 import SignedInToast from './components/SignedInToast';
 import LoginModal from './components/LoginModal';
 import { AuthProvider } from './lib/auth';
 
-export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary';
+export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary' | 'privacy';
 
 export type Answers = {
   days: number;
@@ -36,12 +37,14 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/explore': 'explore',
   '/itinerary': 'itinerary',
   '/questionnaire': 'questionnaire',
+  '/privacy': 'privacy',
 };
 const PAGE_TO_PATH: Record<PageId, string> = {
   landing: '/',
   questionnaire: '/questionnaire',
   explore: '/explore',
   itinerary: '/itinerary',
+  privacy: '/privacy',
 };
 
 function pageFromUrl(): PageId {
@@ -91,6 +94,7 @@ export default function App() {
       {page === 'questionnaire' && <Questionnaire setPage={setPage} answers={answers} setAnswers={setAnswers} />}
       {page === 'explore'       && <Explore       setPage={setPage} answers={answers} />}
       {page === 'itinerary'     && <Itinerary     setPage={setPage} answers={answers} setAnswers={setAnswers} onLogin={() => setLoginOpen(true)} shareId={shareId} />}
+      {page === 'privacy'       && <Privacy       setPage={setPage} />}
     </AuthProvider>
   );
 }

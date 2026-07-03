@@ -195,7 +195,7 @@ export default function Explore({ setPage, answers }: Props) {
         </div>
       </div>
 
-      <Footer />
+      <Footer setPage={setPage} />
     </>
   );
 }
