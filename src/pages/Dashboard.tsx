@@ -96,9 +96,17 @@ function resolvePool(starred: Set<string>, catalog: Catalog, tags: Set<MatchTag>
   let matchActIds: Set<string> | null = null;
   let matchGroupIds: Set<string> | null = null;
   if (tags.size > 0) {
-    const { activities: ma, groups: mg } = matchPool(catalog.activities, catalog.groups, tags, undefined);
-    matchActIds   = new Set(ma.map((a) => a.id));
-    matchGroupIds = new Set(mg.map((g) => g.id));
+    // matchPool requires a Slot; union all three so every time-of-day is included.
+    // drawFrom() handles the per-slot narrowing at roll time.
+    const allActIds   = new Set<string>();
+    const allGroupIds = new Set<string>();
+    for (const slot of ['morning', 'afternoon', 'evening'] as const) {
+      const { activities: ma, groups: mg } = matchPool(catalog.activities, catalog.groups, tags, slot);
+      ma.forEach((a) => allActIds.add(a.id));
+      mg.forEach((g) => allGroupIds.add(g.id));
+    }
+    matchActIds   = allActIds;
+    matchGroupIds = allGroupIds;
   }
 
   const pool: Suggestion[] = [];
