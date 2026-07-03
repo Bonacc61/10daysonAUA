@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import Footer from '../components/Footer';
+import ItineraryCard from '../components/ItineraryCard';
 import { iconFor, Calendar, Check, Chev, Clock, Dice, Dollar, Heart, Info, MapPin, Star } from '../components/Icons';
 import { useCatalog } from '../data/useCatalog';
 import { filterExploreEntries, bookingUrl } from '../data/exploreItems';
@@ -470,6 +471,7 @@ function ItineraryPanel({
   const { catalog } = useCatalog();
   const { booked, toggle: toggleBooked } = useBooked();
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [collapsedDays, setCollapsedDays] = useState<Set<number>>(new Set());
   const [exportOpen, setExportOpen] = useState(false);
 
   const tags = useMemo(
@@ -482,6 +484,12 @@ function ItineraryPanel({
       resolveSlotEntry(slotEntry, catalog, tags as never, slot),
     [catalog, tags],
   );
+
+  const toggleDay = (day: number) => setCollapsedDays((prev) => {
+    const next = new Set(prev);
+    next.has(day) ? next.delete(day) : next.add(day);
+    return next;
+  });
 
   const handleIcsExport = () => {
     if (!trip || trip === 'loading') return;
@@ -533,7 +541,7 @@ function ItineraryPanel({
     <div>
       <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Itineraries</h2>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 640 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {ITINERARY_VARIANTS.map((variant) => {
           const isExpanded = expanded === variant.id;
           const hasTrip    = variant.id === 'saved' && !!trip;
@@ -574,40 +582,86 @@ function ItineraryPanel({
                 )}
               </button>
 
-              {/* Expanded content — only for the saved trip */}
+              {/* Expanded content — full Itinerary-page style, days collapsible */}
               {isExpanded && hasTrip && trip && (
-                <div style={{ borderTop: '2px solid var(--sand-100)', padding: '16px 20px 20px' }}>
-                  {trip.plan.map((day) => {
-                    const slots: { slot: Slot; cards: PlannedCard[] }[] = (
-                      [
-                        { slot: 'morning'   as Slot, cards: day.morning },
-                        { slot: 'afternoon' as Slot, cards: day.afternoon },
-                        { slot: 'evening'   as Slot, cards: day.evening },
-                      ] as { slot: Slot; cards: PlannedCard[] }[]
-                    ).filter((s) => s.cards.length > 0);
-                    if (!slots.length) return null;
-                    return (
-                      <div key={day.day} style={{ marginBottom: 16 }}>
-                        <div style={{ fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--sand-500)', marginBottom: 6 }}>
-                          Day {day.day}{day.title ? ` — ${day.title}` : ''}
-                        </div>
-                        {slots.map(({ slot, cards }) => (
-                          <div key={slot} style={{ marginBottom: 6 }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-400)', marginBottom: 3 }}>
-                              {SLOT_LABEL[slot]}
-                            </div>
-                            {cards.map((card) => (
-                              <BookedRow key={card.uid} card={card} slot={slot} resolveEntry={resolveEntry} booked={booked} onToggle={toggleBooked} />
-                            ))}
+                <div style={{ borderTop: '2px solid var(--sand-100)' }}>
+                  {/* Day list */}
+                  <div style={{ padding: '24px 28px 8px' }}>
+                    {trip.plan.map((day, i) => {
+                      const isLast      = i === trip.plan.length - 1;
+                      const isDayCollapsed = collapsedDays.has(day.day);
+                      const count       = day.morning.length + day.afternoon.length + day.evening.length;
+                      const slots: { slot: Slot; cards: PlannedCard[] }[] = (
+                        [
+                          { slot: 'morning'   as Slot, cards: day.morning },
+                          { slot: 'afternoon' as Slot, cards: day.afternoon },
+                          { slot: 'evening'   as Slot, cards: day.evening },
+                        ] as { slot: Slot; cards: PlannedCard[] }[]
+                      ).filter((s) => s.cards.length > 0);
+
+                      return (
+                        <div key={day.day} className="itin-day-wrapper" style={{ position: 'relative', paddingLeft: 64, paddingBottom: isLast ? 16 : 40 }}>
+                          {!isLast && <div className="timeline-rail" />}
+                          <div className="day-badge" style={{ position: 'absolute', left: 0, top: 4, background: day.color, width: 44, height: 44, fontSize: 18 }}>{day.day}</div>
+
+                          {/* Day header with collapse toggle */}
+                          <div className="itin-day-head">
+                            <h2 className="font-display" style={{ fontSize: 26, lineHeight: 1, margin: 0, color: 'var(--ink)' }}>
+                              Day {day.day}
+                              {day.title && <><span style={{ color: 'var(--sand-500)', fontSize: 20, margin: '0 6px' }}>—</span><span className="itin-day-title">{day.title}</span></>}
+                            </h2>
+                            <button
+                              type="button"
+                              className="itin-day-collapse"
+                              onClick={() => toggleDay(day.day)}
+                              aria-expanded={!isDayCollapsed}
+                              aria-label={isDayCollapsed ? `Expand day ${day.day}` : `Collapse day ${day.day}`}
+                            >
+                              <span className={`itin-day-chev${isDayCollapsed ? ' collapsed' : ''}`}><Chev size={20} sw={2.5} /></span>
+                            </button>
                           </div>
-                        ))}
-                      </div>
-                    );
-                  })}
+
+                          {/* Collapsed summary */}
+                          {isDayCollapsed ? (
+                            <button type="button" className="itin-day-collapsed-note" onClick={() => toggleDay(day.day)}>
+                              {count} {count === 1 ? 'activity' : 'activities'} · tap to expand
+                            </button>
+                          ) : (
+                            /* Full card view per slot */
+                            slots.map(({ slot, cards }) => (
+                              <div key={slot} style={{ marginBottom: 16 }}>
+                                <div className="itin-section-label">{SLOT_LABEL[slot]}</div>
+                                {cards.map((card) => {
+                                  const entry = resolveEntry(card.entry, slot);
+                                  if (!entry) return null;
+                                  return (
+                                    <div key={card.uid} style={{ marginBottom: 16 }}>
+                                      <ItineraryCard
+                                        entry={entry}
+                                        flipped={false}
+                                        swapping={false}
+                                        onFlip={() => {}}
+                                      />
+                                      <button
+                                        type="button"
+                                        className={`itin-booked-btn${booked.has(card.uid) ? ' booked' : ''}`}
+                                        onClick={() => toggleBooked(card.uid)}
+                                      >
+                                        {booked.has(card.uid) ? '✓ Booked' : '○ Mark as booked'}
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
 
                   {/* Action row */}
-                  <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                    {/* Export dropdown */}
+                  <div style={{ display: 'flex', gap: 10, padding: '16px 28px 20px', flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid var(--sand-100)' }}>
                     <div style={{ position: 'relative' }}>
                       <button
                         onClick={() => setExportOpen((o) => !o)}
@@ -622,13 +676,11 @@ function ItineraryPanel({
                         <div className="chunky" style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: 0, padding: '6px 0', minWidth: 190, zIndex: 10, background: 'var(--cream)' }}>
                           <button onClick={handleIcsExport}
                             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
-                            <Calendar size={14} />
-                            <span>.ics — Calendar</span>
+                            <Calendar size={14} /><span>.ics — Calendar</span>
                           </button>
                           <button onClick={handlePdfExport}
                             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
-                            <Star size={14} />
-                            <span>.pdf — Email / Print</span>
+                            <Star size={14} /><span>.pdf — Email / Print</span>
                           </button>
                         </div>
                       )}
