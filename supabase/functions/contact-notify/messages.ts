@@ -89,7 +89,9 @@ function autoReplyHtml(safeFirst: string): string {
       </td></tr>
       <tr><td style="text-align:center;padding:20px 14px 0;font-size:12px;line-height:1.6;color:#8a8474;">
         10&nbsp;Days on Aruba &middot; your Aruba trip, hand-planned<br />
-        <a href="${SITE}" style="color:#8a8474;text-decoration:underline;">10daysonaruba.com</a>
+        <a href="${SITE}" style="color:#8a8474;text-decoration:underline;">10daysonaruba.com</a><br /><br />
+        You received this because you contacted us. To request removal of your data, reply to this email.<br />
+        <a href="${SITE}/privacy" style="color:#8a8474;text-decoration:underline;">Privacy Policy</a>
       </td></tr>
     </table>
   </td></tr>
