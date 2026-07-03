@@ -1,6 +1,7 @@
 import { useState, type CSSProperties, type MouseEvent } from 'react';
 import { Search, Star, Heart, MapPin, Clock, Dollar, Plus, Check, X } from '../components/Icons';
 import { useStarred } from '../lib/starred';
+import { useAuth } from '../lib/auth';
 import Footer from '../components/Footer';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
@@ -10,7 +11,7 @@ import type { ViatorItem } from '../types';
 import type { Answers } from '../App';
 import type { PageId } from '../App';
 
-type Props = { setPage: (p: PageId) => void; answers: Answers };
+type Props = { setPage: (p: PageId) => void; answers: Answers; onLogin: () => void };
 
 // Vibe pill copy/colour from an adventure value (mirrors vibePass thresholds).
 function vibePill(adventure: number): { label: string; bg: string } {
@@ -88,8 +89,9 @@ function SkeletonCard() {
   );
 }
 
-export default function Explore({ setPage, answers }: Props) {
+export default function Explore({ setPage, answers, onLogin }: Props) {
   const { catalog, loading } = useCatalog();
+  const { user } = useAuth();
 
   const [section, setSection] = useState<string>('All');
   const [search, setSearch] = useState('');
@@ -97,6 +99,11 @@ export default function Explore({ setPage, answers }: Props) {
   const [price, setPrice] = useState<number>(50);
   const [added, setAdded] = useState<Set<string>>(new Set());
   const { starred, toggle: toggleStar } = useStarred();
+
+  const guardedStar = (id: string) => {
+    if (!user) { onLogin(); return; }
+    toggleStar(id);
+  };
 
   // Region per Viator item: its own override, else its group's region (coarse for
   // now; precise per-item locations are the planned backend follow-up).
@@ -182,8 +189,8 @@ export default function Explore({ setPage, answers }: Props) {
                   ? Array.from({ length: 12 }, (_, i) => <SkeletonCard key={i} />)
                   : entries.map((e) => (
                     e.kind === 'item'
-                      ? <ItemTile key={`item:${e.item.id}`} item={e.item} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} region={regionOf(e.item)} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} starred={starred.has(`item:${e.item.id}`)} onStar={() => toggleStar(`item:${e.item.id}`)} />
-                      : <ActivityTile key={e.activity.id} a={e.activity} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} starred={starred.has(e.activity.id)} onStar={() => toggleStar(e.activity.id)} />
+                      ? <ItemTile key={`item:${e.item.id}`} item={e.item} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} region={regionOf(e.item)} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} starred={starred.has(`item:${e.item.id}`)} onStar={() => guardedStar(`item:${e.item.id}`)} />
+                      : <ActivityTile key={e.activity.id} a={e.activity} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} starred={starred.has(e.activity.id)} onStar={() => guardedStar(e.activity.id)} />
                   ))}
               </div>
               {!loading && totalCount === 0 && (

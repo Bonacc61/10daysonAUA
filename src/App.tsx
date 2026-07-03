@@ -130,7 +130,7 @@ function AppShell() {
       <Nav page={page} setPage={setPage} onLogin={() => setLoginOpen(true)} canSeeItinerary={canSeeItinerary} />
       {page === 'landing'       && <Landing       setPage={setPage} answers={answers} setAnswers={setAnswers} />}
       {page === 'questionnaire' && <Questionnaire setPage={setPage} answers={answers} setAnswers={setAnswers} onComplete={markQuestionnaireDone} />}
-      {page === 'explore'       && <Explore       setPage={setPage} answers={answers} />}
+      {page === 'explore'       && <Explore       setPage={setPage} answers={answers} onLogin={() => setLoginOpen(true)} />}
       {page === 'itinerary'     && (canSeeItinerary || shareId) && <Itinerary setPage={setPage} answers={answers} setAnswers={setAnswers} onLogin={() => setLoginOpen(true)} shareId={shareId} />}
       {page === 'privacy'       && <Privacy       setPage={setPage} />}
       {page === 'surprise'      && <SurpriseMe    setPage={setPage} />}
