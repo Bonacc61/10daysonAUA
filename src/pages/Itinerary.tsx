@@ -29,7 +29,7 @@ import { suggestLunchspot, cardRegion, isLunchspot, LUNCHSPOTS } from '../data/l
 import type { CardEntry, SlotEntry, Slot, SwapReason, ViatorItem } from '../types';
 import type { PageId, Answers } from '../App';
 
-type Props = { setPage: (p: PageId) => void; answers: Answers; setAnswers: (a: Answers) => void; onLogin: () => void };
+type Props = { setPage: (p: PageId) => void; answers: Answers; setAnswers: (a: Answers) => void; onLogin: () => void; shareId: string | null };
 
 const SECTION_META: { id: Slot; label: string }[] = [
   { id: 'morning',   label: 'Morning' },
@@ -37,7 +37,7 @@ const SECTION_META: { id: Slot; label: string }[] = [
   { id: 'evening',   label: 'Evening' },
 ];
 
-export default function Itinerary({ setPage, answers, setAnswers, onLogin }: Props) {
+export default function Itinerary({ setPage, answers, setAnswers, onLogin, shareId }: Props) {
   const { catalog } = useCatalog();
   const tags    = useMemo(() => answersToTags(answers), [answers]);
 
