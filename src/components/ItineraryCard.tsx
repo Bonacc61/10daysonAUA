@@ -14,7 +14,7 @@ type Props = {
   flipped: boolean;
   swapping: boolean;
   onFlip: () => void;
-  onSwap: () => void;
+  onSwap?: () => void;
   // True after "Swap this" is pressed — reveals the "Why swap?" chip strip
   // below the (still-visible) action row.
   showReasons?: boolean;
@@ -91,7 +91,7 @@ function ActivityCardFront({
   a: Activity;
   bookUrl: string | null;
   onFlip: () => void;
-  onSwap: () => void;
+  onSwap?: () => void;
   showReasons?: boolean;
   onPickReason?: (reason: SwapReason) => void;
 }) {
@@ -169,11 +169,13 @@ function ActivityCardFront({
           </div>
           <div style={{ marginTop: 'auto' }}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button onClick={onSwap} className="btn-ghost"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
-                         padding: '8px 13px', fontSize: 13 }}>
-                <Swap size={13} aria-hidden /> Swap this
-              </button>
+              {onSwap && (
+                <button onClick={onSwap} className="btn-ghost"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
+                           padding: '8px 13px', fontSize: 13 }}>
+                  <Swap size={13} aria-hidden /> Swap this
+                </button>
+              )}
               {bookUrl && (
                 <a href={bookUrl} target="_blank" rel="noopener noreferrer" className="itin-book-btn">
                   Book now ↗

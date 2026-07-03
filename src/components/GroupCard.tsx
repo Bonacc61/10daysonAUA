@@ -24,7 +24,7 @@ type Props = {
   bookUrl?: string | null;
   approved?: boolean;     // Explore-only ("Add"/"Added" state); itinerary no longer approves
   onApprove?: () => void; // Explore-only ("Add to plan")
-  onSwap: () => void;
+  onSwap?: () => void;
   onFlip: () => void;
   variant?: 'itinerary' | 'explore';
   // Itinerary-only: true after "Swap this" is pressed — reveals the
@@ -220,7 +220,7 @@ function ItineraryBody({
   tourUrl: string | null;
   bookUrl: string | null;
   location: string;
-  onSwap: () => void;
+  onSwap?: () => void;
   onFlip: () => void;
   showReasons?: boolean;
   onPickReason?: (reason: SwapReason) => void;
@@ -305,13 +305,15 @@ function ItineraryBody({
 
         <div style={{ marginTop: 'auto' }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button onClick={onSwap} className="btn-ghost"
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                padding: '8px 13px', fontSize: 13,
-              }}>
-              <Swap size={13} aria-hidden /> Swap this
-            </button>
+            {onSwap && (
+              <button onClick={onSwap} className="btn-ghost"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '8px 13px', fontSize: 13,
+                }}>
+                <Swap size={13} aria-hidden /> Swap this
+              </button>
+            )}
             {bookUrl && (
               <a href={bookUrl} target="_blank" rel="noopener noreferrer" className="itin-book-btn">Book now ↗</a>
             )}

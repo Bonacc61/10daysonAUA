@@ -396,16 +396,23 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
                 Swap what you don't love, and drag cards between days and between morning, afternoon and evening.
               </p>
             </div>
-            <div className="chunky itin-header-counter" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button className="btn-ghost" onClick={() => setPage('explore')} style={{ padding: '10px 14px', fontSize: 13 }}>+ Add more →</button>
-              <button className="btn-red" onClick={scrollToSignIn} style={{ padding: '10px 16px', fontSize: 14, borderWidth: 2 }}>Save trip</button>
-            </div>
+            {!readOnly && (
+              <div className="chunky itin-header-counter" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button className="btn-ghost" onClick={() => setPage('explore')} style={{ padding: '10px 14px', fontSize: 13 }}>+ Add more →</button>
+                <button className="btn-red" onClick={scrollToSignIn} style={{ padding: '10px 16px', fontSize: 14, borderWidth: 2 }}>Save trip</button>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       <div className="bleed" style={{ background: 'var(--cream)', padding: '48px 0 80px' }}>
         <div className="container-1280">
+          {readOnly && (
+            <div className="chunky" style={{ background: 'var(--yellow-bg)', border: '2px solid var(--ink)', padding: '12px 18px', marginBottom: 24, fontWeight: 700, color: 'var(--ink)' }}>
+              You’re viewing a shared Aruba itinerary — sign in to save your own editable copy.
+            </div>
+          )}
           <div className="itinerary-layout">
             <aside className="itinerary-rail">
               <button
@@ -439,6 +446,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
                     dayIdx={i}
                     isLast={i === plan.length - 1}
                     onRenameDay={onRenameDay}
+                    readOnly={readOnly}
                     flipped={flipped}
                     swapping={swapping}
                     reasonOpen={reasonOpen}
@@ -475,6 +483,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
 }
 
 type DayHandlers = {
+  readOnly: boolean;
   flipped: Set<string>; swapping: Set<string>;
   reasonOpen: Set<string>; appearing: Set<string>; removing: Set<string>;
   resolveEntry: (e: SlotEntry, slot?: Slot) => CardEntry | null;
@@ -490,6 +499,7 @@ function ItineraryDay({
   d, dayIdx, isLast, onRenameDay, ...h
 }: { d: PlannedDay; dayIdx: number; isLast: boolean;
      onRenameDay: (dayIdx: number, title: string) => void } & DayHandlers) {
+  const readOnly = h.readOnly;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(d.title);
   const [collapsed, setCollapsed] = useState(false);
@@ -535,11 +545,13 @@ function ItineraryDay({
           ) : (
             <span
               className="itin-day-title"
-              onDoubleClick={startEdit}
-              title="Double-click to rename this day"
+              onDoubleClick={readOnly ? undefined : startEdit}
+              title={readOnly ? undefined : 'Double-click to rename this day'}
             >
               {d.title}
-              <button type="button" className="itin-day-edit" onClick={startEdit} aria-label={`Rename day ${d.day}`}>✎</button>
+              {!readOnly && (
+                <button type="button" className="itin-day-edit" onClick={startEdit} aria-label={`Rename day ${d.day}`}>✎</button>
+              )}
             </span>
           )}
         </h2>
@@ -581,14 +593,18 @@ function Section({
   return (
     <div style={{ marginBottom: 16 }}>
       <div className="itin-section-label">{label}</div>
-      {section === 'afternoon' && (
+      {section === 'afternoon' && !h.readOnly && (
         <button type="button" className="itin-lunch-btn" onClick={() => h.onSuggestLunch(dayNum)}>
           <span className="itin-lunch-spark" aria-hidden>✦</span>Suggest lunch spot
         </button>
       )}
       <SortableContext items={cards.map((c) => c.uid)} strategy={verticalListSortingStrategy}>
         <div ref={setNodeRef} className={`itin-section-zone${isOver ? ' over' : ''}${cards.length === 0 ? ' empty' : ''}`}>
-          {cards.length === 0 && <div className="itin-section-empty">Drop an activity here, or add one from a card's “Other suggestions”.</div>}
+          {cards.length === 0 && (
+            <div className="itin-section-empty">
+              {h.readOnly ? 'Nothing planned.' : 'Drop an activity here, or add one from a card’s “Other suggestions”.'}
+            </div>
+          )}
           {cards.map((card) => {
             const entry = h.resolveEntry(card.entry, section);
             if (!entry) return null;
@@ -603,7 +619,7 @@ function Section({
 }
 
 function SortableCard({
-  card, entry, section, dayNum,
+  card, entry, section, dayNum, readOnly,
   flipped, swapping, reasonOpen, appearing, removing,
   onFlip, onOpenSwap, onSwap, onAddItem, onRemove,
 }: { card: PlannedCard; entry: CardEntry; section: Slot; dayNum: number } & DayHandlers) {
@@ -622,36 +638,38 @@ function SortableCard({
 
   return (
     <div ref={setNodeRef} style={style} className={cls.join(' ')}>
-      <div className="itin-card-controls">
-        {flipped.has(card.uid) && (
+      {!readOnly && (
+        <div className="itin-card-controls">
+          {flipped.has(card.uid) && (
+            <button
+              type="button"
+              className="itin-card-back-btn"
+              aria-label="Back to card"
+              onClick={() => onFlip(card.uid)}
+            >← Back</button>
+          )}
           <button
-            type="button"
-            className="itin-card-back-btn"
-            aria-label="Back to card"
-            onClick={() => onFlip(card.uid)}
-          >← Back</button>
-        )}
-        <button
-          className="itin-card-grip"
-          aria-label="Drag to move between days and between morning, afternoon and evening"
-          {...attributes}
-          {...listeners}
-        >⠿</button>
-        <button
-          className="itin-card-remove"
-          aria-label="Remove from itinerary"
-          onClick={() => onRemove(card.uid)}
-        ><X size={13} aria-hidden /></button>
-      </div>
+            className="itin-card-grip"
+            aria-label="Drag to move between days and between morning, afternoon and evening"
+            {...attributes}
+            {...listeners}
+          >⠿</button>
+          <button
+            className="itin-card-remove"
+            aria-label="Remove from itinerary"
+            onClick={() => onRemove(card.uid)}
+          ><X size={13} aria-hidden /></button>
+        </div>
+      )}
       <ItineraryCard
         entry={entry}
         flipped={flipped.has(card.uid)}
         swapping={swapping.has(card.uid)}
         onFlip={() => onFlip(card.uid)}
-        onSwap={() => onOpenSwap(card.uid)}
-        showReasons={reasonOpen.has(card.uid)}
-        onPickReason={(reason) => onSwap(card.uid, section, entry, reason)}
-        onAddItem={(item) => onAddItem(dayNum, section, item)}
+        onSwap={readOnly ? undefined : () => onOpenSwap(card.uid)}
+        showReasons={!readOnly && reasonOpen.has(card.uid)}
+        onPickReason={readOnly ? undefined : (reason) => onSwap(card.uid, section, entry, reason)}
+        onAddItem={readOnly ? undefined : (item) => onAddItem(dayNum, section, item)}
       />
     </div>
   );
