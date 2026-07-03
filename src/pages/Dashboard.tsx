@@ -438,6 +438,8 @@ function StarredPanel({ setPage }: { setPage: (p: PageId) => void }) {
 function PersonalizedPanel({ setPage, trip }: { setPage: (p: PageId) => void; trip: TripLoadState }) {
   const { catalog, loading } = useCatalog();
   const { starred, toggle: toggleStar } = useStarred();
+  const [vibe,  setVibe]  = useState(50);
+  const [price, setPrice] = useState(50);
 
   const tags = useMemo(
     () => (trip && trip !== 'loading') ? answersToTags(trip.answers) : new Set<MatchTag>(),
@@ -454,11 +456,11 @@ function PersonalizedPanel({ setPage, trip }: { setPage: (p: PageId) => void; tr
       ma.forEach((a) => matchedActIds.add(a.id));
       mg.forEach((g) => matchedGroupIds.add(g.id));
     }
-    return filterExploreEntries(catalog, { section: 'All', search: '', vibe: 50, price: 50 })
+    return filterExploreEntries(catalog, { section: 'All', search: '', vibe, price })
       .filter((e) => e.kind === 'item'
         ? matchedGroupIds.has(e.item.group_id)
         : matchedActIds.has(e.activity.id));
-  }, [catalog, tags, loading]);
+  }, [catalog, tags, loading, vibe, price]);
 
   if (!trip || trip === 'loading') {
     return (
@@ -484,10 +486,14 @@ function PersonalizedPanel({ setPage, trip }: { setPage: (p: PageId) => void; tr
       <p style={{ fontSize: 13, color: 'var(--sand-700)', fontStyle: 'italic', margin: '0 0 24px' }}>
         Based on your questionnaire — {trip.answers.days} days, {trip.answers.groupType || 'your group'}, {trip.answers.budget || 'any budget'}.
       </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '0 0 24px', maxWidth: 500 }}>
+        <Slider label="Vibe"  value={vibe}  onChange={setVibe}  lo="🌴 Chill" hi="Adrenaline 🪂" hint={vibeHint(vibe)} />
+        <Slider label="Price" value={price} onChange={setPrice} lo="✨ Free"   hi="Splurge 💸"    hint={priceHint(price)} />
+      </div>
       {loading ? (
         <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading…</p>
       ) : entries.length === 0 ? (
-        <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>No matches found — try updating your questionnaire answers.</p>
+        <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>No matches found — try adjusting the sliders or updating your questionnaire answers.</p>
       ) : (
         <>
           <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: '0 0 16px' }}>
