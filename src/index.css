@@ -770,7 +770,33 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   position: sticky;
   top: 0;
   align-self: flex-start;
+  /* relative so the collapse toggle can be absolutely positioned on the right edge */
+  position: relative;
+  transition: width 0.2s ease;
 }
+.dashboard-sidebar--collapsed {
+  width: 52px;
+}
+/* Collapse / expand toggle — sits on the right border of the sidebar */
+.dashboard-collapse-btn {
+  position: absolute;
+  right: -14px;
+  top: 24px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  background: var(--cream);
+  box-shadow: 2px 2px 0 var(--ink);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: transform 0.2s;
+  padding: 0;
+}
+.dashboard-collapse-btn:hover { background: var(--yellow); }
 .dashboard-nav-btn {
   display: flex;
   align-items: center;
@@ -787,12 +813,28 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   color: var(--ink);
   cursor: pointer;
   transition: background 0.1s;
+  overflow: hidden;
+}
+.dashboard-sidebar--collapsed .dashboard-nav-btn {
+  justify-content: center;
+  padding: 12px 0;
 }
 .dashboard-nav-btn:hover:not(.active) { background: rgba(0,0,0,0.04); }
 .dashboard-nav-btn.active {
   border-left-color: var(--red);
   font-weight: 700;
   background: rgba(0,0,0,0.05);
+}
+.dashboard-nav-label {
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 160px;
+  opacity: 1;
+  transition: max-width 0.2s ease, opacity 0.15s ease;
+}
+.dashboard-sidebar--collapsed .dashboard-nav-label {
+  max-width: 0;
+  opacity: 0;
 }
 .dashboard-nav-emoji { font-size: 16px; flex-shrink: 0; }
 .dashboard-content {
@@ -802,31 +844,14 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 }
 @media (max-width: 720px) {
   .dashboard-layout {
-    flex-direction: column;
-    padding: 0;
+    padding: 0 12px;
   }
   .dashboard-sidebar {
-    width: 100%;
-    border-right: none;
-    border-bottom: 2px solid var(--ink);
-    padding: 0;
-    position: static;
-    display: flex;
-    flex-direction: row;
-    overflow-x: auto;
-    gap: 0;
+    width: 200px;
+    padding: 20px 0;
   }
-  .dashboard-nav-btn {
-    flex-shrink: 0;
-    border-left: none;
-    border-bottom: 3px solid transparent;
-    padding: 12px 14px;
-    font-size: 13px;
-    white-space: nowrap;
+  .dashboard-sidebar--collapsed {
+    width: 48px;
   }
-  .dashboard-nav-btn.active {
-    border-left-color: transparent;
-    border-bottom-color: var(--red);
-  }
-  .dashboard-content { padding: 24px 20px 48px; }
+  .dashboard-content { padding: 24px 12px 48px; }
 }

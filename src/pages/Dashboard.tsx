@@ -916,6 +916,9 @@ function PracticalPanel() {
 export default function Dashboard({ setPage, initialSection = 'starred', onLogin }: Props) {
   const [section, setSection] = useState<DashSection>(initialSection);
   const { user, loading: authLoading } = useAuth();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 720,
+  );
 
   // Trip state loaded once at the Dashboard level — shared by Itinerary + Bookings panels.
   const [trip, setTrip] = useState<TripLoadState>('loading');
@@ -939,15 +942,28 @@ export default function Dashboard({ setPage, initialSection = 'starred', onLogin
       <div className="bleed" style={{ background: 'var(--cream)' }}>
         <div className="container-1280 dashboard-layout">
 
-          <nav className="dashboard-sidebar" aria-label="Dashboard sections">
+          <nav
+            className={`dashboard-sidebar${sidebarCollapsed ? ' dashboard-sidebar--collapsed' : ''}`}
+            aria-label="Dashboard sections"
+          >
+            {/* Collapse / expand toggle on the right border */}
+            <button
+              className="dashboard-collapse-btn"
+              onClick={() => setSidebarCollapsed((c) => !c)}
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              <Chev size={14} sw={2.5} style={{ transform: sidebarCollapsed ? 'rotate(-90deg)' : 'rotate(90deg)', display: 'block' }} />
+            </button>
+
             {SECTIONS.map((s) => (
               <button
                 key={s.id}
                 className={`dashboard-nav-btn${section === s.id ? ' active' : ''}`}
+                title={sidebarCollapsed ? s.label : undefined}
                 onClick={() => setSection(s.id)}
               >
                 <span className="dashboard-nav-emoji"><s.NavIcon size={16} /></span>
-                {s.label}
+                <span className="dashboard-nav-label">{s.label}</span>
               </button>
             ))}
           </nav>
