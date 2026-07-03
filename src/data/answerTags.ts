@@ -53,5 +53,15 @@ export function answersToTags(a: Answers): Set<MatchTag> {
   else if (a.adventureLevel <= 66)  tags.add('med-adventure');
   else                              tags.add('high-adventure');
 
+  // Structured flags from Q8 toggles
+  const flags = new Set(a.flags ?? []);
+  if (flags.has('honeymoon')) tags.add('couple');
+  if (flags.has('mobility')) {
+    // Override adventure level — mobility-limited travellers only get easy picks
+    tags.delete('med-adventure');
+    tags.delete('high-adventure');
+    tags.add('low-adventure');
+  }
+
   return tags;
 }

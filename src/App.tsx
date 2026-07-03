@@ -19,6 +19,7 @@ export type Answers = {
   adventureLevel: number;
   startOffset: number;
   lodging: string;
+  flags: string[];
   specialNotes: string;
 };
 
@@ -30,6 +31,7 @@ export const DEFAULT_ANSWERS: Answers = {
   adventureLevel: 50,
   startOffset: 7,
   lodging: '',
+  flags: [],
   specialNotes: '',
 };
 

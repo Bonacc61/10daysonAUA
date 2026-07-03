@@ -120,7 +120,7 @@ export default function Landing({ setPage, answers, setAnswers }: Props) {
       <SampleSection days={label} goPlan={goPlan} />
       <GoodToKnowSection />
       <FAQSection />
-      <ContactSection />
+      <ContactSection setPage={setPage} />
       <Footer setPage={setPage} />
     </>
   );
@@ -344,7 +344,7 @@ function FAQSection() {
 
 /* ---------- Contact ---------- */
 
-function ContactSection() {
+function ContactSection({ setPage }: { setPage: (p: PageId) => void }) {
   const [form, setForm] = useState({ name: '', email: '', phone: '', comment: '' });
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);

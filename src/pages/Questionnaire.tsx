@@ -39,7 +39,7 @@ const QUESTIONS: Question[] = [
   { id: 'q5', title: 'Adventure level?',                 subtitle: 'Slide between full chill and full send.' },
   { id: 'q6', title: 'When are you visiting?',           subtitle: "We'll align around weather, tides, and crowds." },
   { id: 'q7', title: 'Where are you staying?',           subtitle: 'Optional — but tells us where your day should start.' },
-  { id: 'q8', title: 'Anything we should know?',         subtitle: "Optional. We'll work around it." },
+  { id: 'q8', title: 'Anything we should know?',         subtitle: 'Optional. Select what applies — we\'ll plan around it.' },
 ];
 
 export default function Questionnaire({ setPage, answers, setAnswers }: Props) {
@@ -108,7 +108,7 @@ export default function Questionnaire({ setPage, answers, setAnswers }: Props) {
             {q.id === 'q5' && <Adventure value={answers.adventureLevel} onChange={(v) => update('adventureLevel', v)} />}
             {q.id === 'q6' && <When    value={answers.startOffset}    onChange={(v) => update('startOffset', v)} />}
             {q.id === 'q7' && <Pills   options={LODGING_OPTS}         value={answers.lodging}       onChange={(v) => update('lodging', v)} />}
-            {q.id === 'q8' && <AnythingElse value={answers.specialNotes} onChange={(v) => update('specialNotes', v)} />}
+            {q.id === 'q8' && <FlagsQ8 flags={answers.flags} notes={answers.specialNotes} onFlags={(v) => update('flags', v)} onNotes={(v) => update('specialNotes', v)} />}
           </div>
         </div>
       </div>
@@ -290,17 +290,81 @@ function When({ value, onChange }: { value: number; onChange: (v: number) => voi
   );
 }
 
-function AnythingElse({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+const OCCASION_FLAGS = [
+  { flag: 'honeymoon', label: 'Honeymoon / anniversary' },
+  { flag: 'birthday',  label: 'Birthday' },
+  { flag: 'work-trip', label: 'Work trip' },
+];
+const SKIP_FLAGS = [
+  { flag: 'no-boats',         label: 'Boats & water tours' },
+  { flag: 'intense-hikes',    label: 'Intense hikes' },
+  { flag: 'no-early-mornings',label: 'Early mornings' },
+  { flag: 'avoid-crowds',     label: 'Crowded spots' },
+];
+const CONSTRAINT_FLAGS = [
+  { flag: 'mobility',  label: 'Mobility considerations' },
+  { flag: 'no-car',    label: 'No rental car' },
+  { flag: 'with-baby', label: 'Travelling with a baby' },
+];
+const OCCASION_SET = new Set(OCCASION_FLAGS.map(f => f.flag));
+
+function FlagsQ8({ flags, notes, onFlags, onNotes }: {
+  flags: string[]; notes: string;
+  onFlags: (v: string[]) => void; onNotes: (v: string) => void;
+}) {
+  const toggle = (flag: string, exclusive: boolean) => {
+    const active = flags.includes(flag);
+    if (active) {
+      onFlags(flags.filter(f => f !== flag));
+    } else if (exclusive) {
+      onFlags([...flags.filter(f => !OCCASION_SET.has(f)), flag]);
+    } else {
+      onFlags([...flags, flag]);
+    }
+  };
+
   return (
-    <div className="chunky" style={{ padding: '20px 22px', width: '100%', maxWidth: 560 }}>
-      <textarea
-        maxLength={280}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="e.g. shellfish allergy, hate sand, no early mornings, mobility limits, hate crowds…"
-        style={{ width: '100%', minHeight: 110, padding: 14, border: '2px solid var(--ink)', borderRadius: 12, fontFamily: 'inherit', fontSize: 14, resize: 'vertical', background: 'var(--cream)', outline: 'none' }}
-      />
-      <div style={{ textAlign: 'right', fontSize: 11, color: 'var(--sand-500)', marginTop: 6 }}>{value.length}/280</div>
+    <div style={{ width: '100%', maxWidth: 600, display: 'flex', flexDirection: 'column', gap: 28 }}>
+      <FlagGroup label="Celebrating something?" items={OCCASION_FLAGS} flags={flags} exclusive onToggle={toggle} />
+      <FlagGroup label="Prefer to skip" items={SKIP_FLAGS} flags={flags} onToggle={toggle} />
+      <FlagGroup label="Good to know" items={CONSTRAINT_FLAGS} flags={flags} onToggle={toggle} />
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--sand-600)', marginBottom: 10 }}>Anything else?</div>
+        <textarea
+          maxLength={100}
+          value={notes}
+          onChange={(e) => onNotes(e.target.value)}
+          placeholder="Shellfish allergy, prefer quieter restaurants…"
+          style={{ width: '100%', minHeight: 72, padding: 14, border: '2px solid var(--ink)', borderRadius: 12, fontFamily: 'inherit', fontSize: 14, resize: 'vertical', background: 'var(--cream)', outline: 'none', boxSizing: 'border-box' }}
+        />
+        <div style={{ textAlign: 'right', fontSize: 11, color: 'var(--sand-500)', marginTop: 4 }}>{notes.length}/100</div>
+      </div>
+    </div>
+  );
+}
+
+function FlagGroup({ label, items, flags, exclusive = false, onToggle }: {
+  label: string;
+  items: { flag: string; label: string }[];
+  flags: string[];
+  exclusive?: boolean;
+  onToggle: (flag: string, exclusive: boolean) => void;
+}) {
+  return (
+    <div>
+      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--sand-600)', marginBottom: 10 }}>{label}</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {items.map(({ flag, label: lbl }) => (
+          <button
+            key={flag}
+            type="button"
+            className={`pill-btn${flags.includes(flag) ? ' active' : ''}`}
+            onClick={() => onToggle(flag, exclusive)}
+          >
+            {lbl}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

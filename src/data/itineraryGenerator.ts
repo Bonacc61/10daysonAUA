@@ -208,9 +208,35 @@ function pickForSlot(
 
 // FNV-1a hash of the tailoring-relevant answers, so the default seed (and thus
 // the default plan) differs between personas while staying stable per persona.
+function applyCatalogFlags(catalog: Catalog, flags: Set<string>): Catalog {
+  if (flags.size === 0) return catalog;
+  let { activities, groups, items } = catalog;
+
+  if (flags.has('no-boats')) {
+    activities = activities.filter(a => !(a.sections ?? []).includes('cruises-water'));
+    groups = groups.filter(g => !g.matched_by.includes('watersports' as MatchTag));
+  }
+
+  // mobility: cap at adventure ~30 (excludes arikok, natural pool, kitesurfing)
+  // intense-hikes: cap at adventure ~52 (excludes arikok ~55, natural pool ~70, kitesurfing ~85)
+  const adventureCap = flags.has('mobility') ? 30 : flags.has('intense-hikes') ? 52 : null;
+  if (adventureCap !== null) {
+    activities = activities.filter(a => (a.adventure ?? 20) <= adventureCap);
+    const excludeTags: MatchTag[] = adventureCap <= 30
+      ? ['adventure', 'nature-hiking', 'watersports']
+      : ['adventure'];
+    groups = groups.filter(g => !g.matched_by.some(t => excludeTags.includes(t)));
+  }
+
+  const groupIds = new Set(groups.map(g => g.id));
+  items = items.filter(i => groupIds.has(i.group_id));
+  return { activities, groups, items };
+}
+
 function hashAnswers(a: Answers): number {
   const s = JSON.stringify([
     a.days, a.groupType, a.budget, [...a.interests].sort(), a.adventureLevel, a.lodging,
+    [...(a.flags ?? [])].sort(),
   ]);
   let h = 2166136261;
   for (let i = 0; i < s.length; i += 1) {
@@ -237,7 +263,9 @@ export function generatePlan(
 
   const nDays = Math.max(1, Math.min(answers.days || 1, 14));
   const seed = ((opts.seed ?? 0) ^ hashAnswers(answers)) >>> 0;
-  const ctx: Ctx = { catalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map() };
+  const flags = new Set(answers.flags ?? []);
+  const filteredCatalog = applyCatalogFlags(catalog, flags);
+  const ctx: Ctx = { catalog: filteredCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map() };
 
   // Trip-wide budget pool: keeps the AVERAGE daily activity spend within the
   // tier cap (budget-conscious ≈ $110/day on average), letting days vary while
@@ -260,6 +288,7 @@ export function generatePlan(
 
     for (const slot of SECTIONS) {
       if (slot === 'afternoon' && openAfternoon) continue;
+      if (slot === 'morning' && flags.has('no-early-mornings')) continue;
       const pick = pickForSlot(ctx, slot, anchor, Math.max(0, budgetLeft), usedKinds);
       if (!pick) continue;
       budgetLeft -= entryPrice(pick);
