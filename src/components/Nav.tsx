@@ -5,9 +5,10 @@ type Props = {
   page: PageId;
   setPage: (p: PageId) => void;
   onLogin: () => void;
+  canSeeItinerary: boolean;
 };
 
-export default function Nav({ page, setPage, onLogin }: Props) {
+export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) {
   const { user } = useAuth();
 
   const link = (id: PageId, label: string, keepOnMobile = false) => (
@@ -55,7 +56,7 @@ export default function Nav({ page, setPage, onLogin }: Props) {
         <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
           {link('landing', 'How it works')}
           {link('explore', 'Explore', true)}
-          {link('itinerary', 'Itinerary')}
+          {canSeeItinerary && link('itinerary', 'Itinerary')}
           <button
             className="nav-login"
             onClick={() => (user ? setPage('itinerary') : onLogin())}

@@ -6,6 +6,7 @@ type Props = {
   setPage: (p: PageId) => void;
   answers: Answers;
   setAnswers: (next: Answers) => void;
+  onComplete: () => void;
 };
 
 const GROUP_TYPES   = ['Solo', 'Couple', 'Friends', 'Family with young kids', 'Family with teens', 'Multi-gen'];
@@ -42,7 +43,7 @@ const QUESTIONS: Question[] = [
   { id: 'q8', title: 'Anything we should know?',         subtitle: 'Optional. Select what applies — we\'ll plan around it.' },
 ];
 
-export default function Questionnaire({ setPage, answers, setAnswers }: Props) {
+export default function Questionnaire({ setPage, answers, setAnswers, onComplete }: Props) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const total = QUESTIONS.length;
@@ -63,6 +64,7 @@ export default function Questionnaire({ setPage, answers, setAnswers }: Props) {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
+      onComplete();
       setPage('itinerary');
     }, 3500);
   };

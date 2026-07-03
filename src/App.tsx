@@ -7,7 +7,7 @@ import Itinerary from './pages/Itinerary';
 import Privacy from './pages/Privacy';
 import SignedInToast from './components/SignedInToast';
 import LoginModal from './components/LoginModal';
-import { AuthProvider } from './lib/auth';
+import { AuthProvider, useAuth } from './lib/auth';
 
 export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary' | 'privacy';
 
@@ -65,10 +65,32 @@ export function shareIdFromUrl(): string | null {
 }
 
 export default function App() {
+  return (
+    <AuthProvider>
+      <AppShell />
+    </AuthProvider>
+  );
+}
+
+function AppShell() {
+  const { user, loading: authLoading } = useAuth();
   const [page, setPageState] = useState<PageId>(pageFromUrl);
   const [answers, setAnswers] = useState<Answers>(DEFAULT_ANSWERS);
   const [loginOpen, setLoginOpen] = useState(false);
   const [shareId, setShareId] = useState<string | null>(shareIdFromUrl);
+  // Set once the questionnaire is completed; persisted so a refresh doesn't re-lock.
+  const [qDone, setQDone] = useState<boolean>(() => {
+    try { return localStorage.getItem('qDone') === '1'; } catch { return false; }
+  });
+
+  // The itinerary unlocks once the questionnaire is done, for a signed-in user
+  // (they've already engaged), or when viewing a shared /i/<id> link.
+  const canSeeItinerary = qDone || !!user;
+
+  const markQuestionnaireDone = () => {
+    try { localStorage.setItem('qDone', '1'); } catch { /* ignore */ }
+    setQDone(true);
+  };
 
   function setPage(p: PageId) {
     const path = PAGE_TO_PATH[p];
@@ -87,16 +109,24 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, [page]);
 
+  // Gate the itinerary: a visitor who hasn't completed the questionnaire is sent
+  // there first. Shared links are exempt; wait for auth so a signed-in user on a
+  // fresh device isn't bounced before their session loads.
+  useEffect(() => {
+    if (authLoading) return;
+    if (page === 'itinerary' && !shareId && !canSeeItinerary) setPage('questionnaire');
+  }, [page, shareId, canSeeItinerary, authLoading]);
+
   return (
-    <AuthProvider>
+    <>
       <SignedInToast />
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
-      <Nav page={page} setPage={setPage} onLogin={() => setLoginOpen(true)} />
+      <Nav page={page} setPage={setPage} onLogin={() => setLoginOpen(true)} canSeeItinerary={canSeeItinerary} />
       {page === 'landing'       && <Landing       setPage={setPage} answers={answers} setAnswers={setAnswers} />}
-      {page === 'questionnaire' && <Questionnaire setPage={setPage} answers={answers} setAnswers={setAnswers} />}
+      {page === 'questionnaire' && <Questionnaire setPage={setPage} answers={answers} setAnswers={setAnswers} onComplete={markQuestionnaireDone} />}
       {page === 'explore'       && <Explore       setPage={setPage} answers={answers} />}
-      {page === 'itinerary'     && <Itinerary     setPage={setPage} answers={answers} setAnswers={setAnswers} onLogin={() => setLoginOpen(true)} shareId={shareId} />}
+      {page === 'itinerary'     && (canSeeItinerary || shareId) && <Itinerary setPage={setPage} answers={answers} setAnswers={setAnswers} onLogin={() => setLoginOpen(true)} shareId={shareId} />}
       {page === 'privacy'       && <Privacy       setPage={setPage} />}
-    </AuthProvider>
+    </>
   );
 }
