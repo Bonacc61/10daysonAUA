@@ -20,6 +20,7 @@ import { answersToTags } from '../data/answerTags';
 import { generatePlan } from '../data/itineraryGenerator';
 import { logEvent } from '../data/feedback';
 import { useAuth } from '../lib/auth';
+import { useBooked } from '../lib/booked';
 import { loadTrip, upsertTrip } from '../lib/trips';
 import { createShare, loadShare } from '../lib/shares';
 import { supabase } from '../lib/supabase';
@@ -62,10 +63,8 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   const [rejectedGroups, setRejectedGroups] = useState<Set<string>>(new Set());
   const [practicalOpen, setPracticalOpen] = useState(false);
 
-  // Which cards the user has manually marked as booked (uid-keyed, session only).
-  const [bookedIds, setBookedIds] = useState<Set<string>>(new Set());
-  const toggleBooked = (uid: string) =>
-    setBookedIds((s) => { const n = new Set(s); n.has(uid) ? n.delete(uid) : n.add(uid); return n; });
+  // Which cards the user has manually marked as booked (uid-keyed, persisted to localStorage).
+  const { booked: bookedIds, toggle: toggleBooked } = useBooked();
 
   const handleExportCalendar = () => {
     const ics = buildIcs(plan, answers, resolveEntry, bookedIds);

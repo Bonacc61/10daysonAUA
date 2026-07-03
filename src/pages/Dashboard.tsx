@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import Footer from '../components/Footer';
-import { iconFor, Clock, Dice, Dollar, Heart, MapPin, Star } from '../components/Icons';
+import { iconFor, Calendar, Check, Clock, Dice, Dollar, Heart, MapPin, Star } from '../components/Icons';
 import { useCatalog } from '../data/useCatalog';
 import { filterExploreEntries, bookingUrl } from '../data/exploreItems';
 import { INFO_TOPICS, GTK_CARDS } from '../data/activities';
+import { answersToTags } from '../data/answerTags';
+import { resolveSlotEntry } from '../data/activitySource';
+import { buildIcs, downloadIcs } from '../lib/icsExport';
 import { useStarred } from '../lib/starred';
+import { useBooked } from '../lib/booked';
 import { useAuth } from '../lib/auth';
 import { loadTrip } from '../lib/trips';
 import { parseActivityCost } from '../data/matcher';
@@ -15,22 +19,27 @@ import type { ViatorGroup, ViatorItem } from '../types';
 import type { Catalog } from '../data/activitySource';
 import type { TripState } from '../lib/trips';
 import type { ExploreEntry } from '../data/exploreItems';
+import type { PlannedDay, PlannedCard } from '../data/itineraryPlan';
+import type { Slot, SlotEntry, CardEntry } from '../types';
 
 // ─────────────────────────────────────────────────────────── types ──────── //
 
-type DashSection = 'surprise' | 'starred' | 'itinerary' | 'practical';
+type DashSection = 'surprise' | 'starred' | 'itinerary' | 'bookings' | 'practical';
 
 const SECTIONS: { id: DashSection; label: string; emoji: string }[] = [
   { id: 'surprise',   label: 'Surprise me',          emoji: '🎲' },
   { id: 'starred',    label: 'Favourite Activities',  emoji: '♡' },
   { id: 'itinerary',  label: 'Itineraries',           emoji: '🗓' },
+  { id: 'bookings',   label: 'Bookings',              emoji: '✓' },
   { id: 'practical',  label: 'Practical Info',        emoji: 'ℹ' },
 ];
 
+type TripLoadState = TripState | null | 'loading';
+
 type Props = {
-  setPage:        (p: PageId) => void;
+  setPage:         (p: PageId) => void;
   initialSection?: DashSection;
-  onLogin:        () => void;
+  onLogin:         () => void;
 };
 
 // ─────────────────────────────────── shared Slider (mirrors Explore.tsx) ─── //
@@ -253,11 +262,11 @@ function SurprisePanel({ setPage }: { setPage: (p: PageId) => void }) {
   );
 }
 
-// ─────────────────────────────────────────────── Starred card ────────────── //
+// ─────────────────────────────────────────────── Starred cards ───────────── //
 
 function StarredActivityCard({ entry, onStar }: { entry: ExploreEntry & { kind: 'activity' }; onStar: () => void }) {
   const a = entry.activity;
-  const bookUrl = bookingUrl(entry);
+  const bUrl = bookingUrl(entry);
   return (
     <div className="a-card fade-in">
       <div className="a-img">
@@ -276,12 +285,12 @@ function StarredActivityCard({ entry, onStar }: { entry: ExploreEntry & { kind: 
         <p style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--sand-700)', margin: '0 0 12px', flex: 1 }}>
           {a.description.length > 110 ? a.description.slice(0, 107) + '…' : a.description}
         </p>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: bUrl ? 12 : 0 }}>
           <span className="chip-outline" style={{ fontSize: 10, padding: '2px 8px' }}><Clock size={10} /> {a.duration}</span>
           <span className="chip-outline" style={{ fontSize: 10, padding: '2px 8px' }}><Dollar size={10} /> {a.cost}</span>
         </div>
-        {bookUrl && (
-          <a href={bookUrl} target="_blank" rel="noopener noreferrer"
+        {bUrl && (
+          <a href={bUrl} target="_blank" rel="noopener noreferrer"
              style={{ display: 'block', padding: '8px 12px', fontSize: 12, fontWeight: 700, textDecoration: 'none', textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '2px 2px 0 var(--ink)' }}>
             Book now
           </a>
@@ -293,8 +302,8 @@ function StarredActivityCard({ entry, onStar }: { entry: ExploreEntry & { kind: 
 
 function StarredItemCard({ entry, onStar }: { entry: ExploreEntry & { kind: 'item' }; onStar: () => void }) {
   const { item } = entry;
-  const bookUrl  = bookingUrl(entry);
-  const sec      = sectionLabel(primarySection(entry.sections));
+  const bUrl = bookingUrl(entry);
+  const sec  = sectionLabel(primarySection(entry.sections));
   return (
     <div className="a-card fade-in">
       <div className="a-img">
@@ -310,12 +319,12 @@ function StarredItemCard({ entry, onStar }: { entry: ExploreEntry & { kind: 'ite
         <p style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--sand-700)', margin: '0 0 12px', flex: 1 }}>
           {(item.description ?? '').length > 110 ? (item.description ?? '').slice(0, 107) + '…' : (item.description ?? '')}
         </p>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: bUrl ? 12 : 0 }}>
           <span className="chip-outline" style={{ fontSize: 10, padding: '2px 8px' }}><Clock size={10} /> {item.duration}</span>
           <span className="chip-outline" style={{ fontSize: 10, padding: '2px 8px' }}><Dollar size={10} /> ${item.price_usd}</span>
         </div>
-        {bookUrl && (
-          <a href={bookUrl} target="_blank" rel="noopener noreferrer"
+        {bUrl && (
+          <a href={bUrl} target="_blank" rel="noopener noreferrer"
              style={{ display: 'block', padding: '8px 12px', fontSize: 12, fontWeight: 700, textDecoration: 'none', textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '2px 2px 0 var(--ink)' }}>
             Book now
           </a>
@@ -325,7 +334,7 @@ function StarredItemCard({ entry, onStar }: { entry: ExploreEntry & { kind: 'ite
   );
 }
 
-// ─────────────────────────────────────────────── Starred panel ───────────── //
+// ──���──────────────────────────────────────────── Starred panel ───────��───── //
 
 function StarredPanel({ setPage }: { setPage: (p: PageId) => void }) {
   const { catalog, loading } = useCatalog();
@@ -366,12 +375,10 @@ function StarredPanel({ setPage }: { setPage: (p: PageId) => void }) {
   return (
     <div>
       <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Favourite Activities</h2>
-
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14, marginBottom: 28 }}>
         <Slider label="Vibe" value={vibe} onChange={setVibe} lo="🌴 Chill" hi="Adrenaline 🪂" hint={vibeHint(vibe)} />
         <Slider label="Price" value={price} onChange={setPrice} lo="✨ Free" hi="Splurge 💸" hint={priceHint(price)} />
       </div>
-
       {loading ? (
         <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading…</p>
       ) : entries.length === 0 ? (
@@ -397,99 +404,320 @@ function StarredPanel({ setPage }: { setPage: (p: PageId) => void }) {
   );
 }
 
+// ─────��───────────────────────────────── Itinerary panel helpers ─────────── //
+
+const SLOT_LABEL: Record<Slot, string> = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening' };
+
+function entryTitle(e: CardEntry): string {
+  return e.kind === 'activity' ? e.activity.title : e.bestSeller.title;
+}
+function entryDuration(e: CardEntry): string {
+  return e.kind === 'activity' ? e.activity.duration : e.bestSeller.duration;
+}
+function entryCost(e: CardEntry): string {
+  return e.kind === 'activity' ? e.activity.cost : `$${e.bestSeller.price_usd}`;
+}
+
+function BookedRow({
+  card, slot, resolveEntry, booked, onToggle,
+}: {
+  card: PlannedCard;
+  slot: Slot;
+  resolveEntry: (e: SlotEntry, slot?: Slot) => CardEntry | null;
+  booked: Set<string>;
+  onToggle: (uid: string) => void;
+}) {
+  const entry = useMemo(() => resolveEntry(card.entry, slot), [card.entry, slot, resolveEntry]);
+  if (!entry) return null;
+  const isBooked = booked.has(card.uid);
+  return (
+    <div
+      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--sand-100)' }}
+    >
+      <button
+        onClick={() => onToggle(card.uid)}
+        aria-label={isBooked ? 'Mark as unbooked' : 'Mark as booked'}
+        style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 6, border: '2px solid var(--ink)', background: isBooked ? 'var(--green)' : 'transparent', color: 'var(--cream)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+      >
+        {isBooked && <Check size={12} sw={3} />}
+      </button>
+      <span style={{ flex: 1, fontSize: 14, fontWeight: isBooked ? 700 : 400, color: isBooked ? 'var(--ink)' : 'var(--sand-700)', textDecoration: isBooked ? 'none' : 'none' }}>
+        {entryTitle(entry)}
+      </span>
+      <span style={{ fontSize: 11, color: 'var(--sand-500)', flexShrink: 0 }}>{entryDuration(entry)}</span>
+      <span style={{ fontSize: 11, color: 'var(--sand-500)', flexShrink: 0 }}>{entryCost(entry)}</span>
+    </div>
+  );
+}
+
 // ────────────────────────────────────────────── Itinerary panel ──────────── //
 
-function ItineraryPanel({ setPage, onLogin }: { setPage: (p: PageId) => void; onLogin: () => void }) {
+function ItineraryPanel({
+  setPage, trip, onLogin,
+}: {
+  setPage: (p: PageId) => void;
+  trip: TripLoadState;
+  onLogin: () => void;
+}) {
   const { user, loading: authLoading } = useAuth();
-  const [trip,  setTrip]  = useState<TripState | null | 'loading'>('loading');
+  const { catalog } = useCatalog();
+  const { booked, toggle: toggleBooked } = useBooked();
 
-  useEffect(() => {
-    if (!user) { setTrip(null); return; }
-    setTrip('loading');
-    loadTrip(user.id).then((t) => setTrip(t));
-  }, [user]);
+  const tags = useMemo(
+    () => trip && trip !== 'loading' ? answersToTags(trip.answers) : new Set<never>(),
+    [trip],
+  );
 
-  const activityCount = useMemo(() => {
-    if (!trip || trip === 'loading') return 0;
-    return trip.plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening]).length;
-  }, [trip]);
+  const resolveEntry = useCallback(
+    (slotEntry: SlotEntry, slot?: Slot): CardEntry | null =>
+      resolveSlotEntry(slotEntry, catalog, tags as never, slot),
+    [catalog, tags],
+  );
 
-  return (
-    <div>
-      <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Itineraries</h2>
+  const handleExport = () => {
+    if (!trip || trip === 'loading') return;
+    const ics = buildIcs(trip.plan, trip.answers, resolveEntry, booked);
+    downloadIcs(ics);
+  };
 
-      {authLoading && (
-        <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading…</p>
-      )}
+  if (authLoading) return <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading…</p>;
 
-      {!authLoading && !user && (
+  if (!user) {
+    return (
+      <div>
+        <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Itineraries</h2>
         <div className="chunky" style={{ padding: '32px 28px', textAlign: 'center', maxWidth: 440 }}>
           <div style={{ fontSize: 36, marginBottom: 14 }}>🗓</div>
           <p className="font-display" style={{ fontSize: 20, margin: '0 0 8px', color: 'var(--ink)' }}>Sign in to save your trips.</p>
           <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: '0 0 20px' }}>
             Log in to save, revisit, and export your personalised Aruba itinerary.
           </p>
-          <button className="btn-red" onClick={onLogin} style={{ padding: '11px 22px', fontSize: 14 }}>
-            Log in
-          </button>
+          <button className="btn-red" onClick={onLogin} style={{ padding: '11px 22px', fontSize: 14 }}>Log in</button>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {!authLoading && user && trip === 'loading' && (
-        <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading your trips…</p>
-      )}
+  if (trip === 'loading') {
+    return (
+      <div>
+        <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Itineraries</h2>
+        <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading your trip…</p>
+      </div>
+    );
+  }
 
-      {!authLoading && user && trip === null && (
+  if (!trip) {
+    return (
+      <div>
+        <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Itineraries</h2>
         <div className="chunky" style={{ padding: '32px 28px', maxWidth: 440 }}>
           <p className="font-display" style={{ fontSize: 20, margin: '0 0 8px', color: 'var(--ink)' }}>No trip saved yet.</p>
           <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: '0 0 20px' }}>
-            Complete the questionnaire to generate your personalised itinerary — it'll be saved automatically.
+            Complete the questionnaire to generate your personalised itinerary.
           </p>
           <button className="btn-red" onClick={() => setPage('questionnaire')} style={{ padding: '11px 22px', fontSize: 14 }}>
             Build my itinerary →
           </button>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {!authLoading && user && trip && trip !== 'loading' && (
-        <div style={{ maxWidth: 480 }}>
-          <div className="chunky" style={{ padding: '24px 26px', marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-              <div>
-                <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-500)', margin: '0 0 4px' }}>Saved trip</p>
-                <h3 className="font-display" style={{ fontSize: 24, margin: '0 0 8px', color: 'var(--ink)' }}>
-                  {trip.answers.days}-day Aruba trip
-                </h3>
-                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13, color: 'var(--sand-700)' }}>
-                  {trip.answers.groupType && (
-                    <span>👥 {trip.answers.groupType}</span>
-                  )}
-                  {activityCount > 0 && (
-                    <span>🏄 {activityCount} activit{activityCount === 1 ? 'y' : 'ies'}</span>
-                  )}
-                  {trip.answers.budget && (
-                    <span>💰 {trip.answers.budget}</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn-red" onClick={() => setPage('itinerary')} style={{ flex: 1, padding: '12px 20px', fontSize: 14 }}>
-              View itinerary →
-            </button>
-            <button onClick={() => setPage('questionnaire')}
-              style={{ flex: 1, padding: '12px 20px', fontSize: 14, fontWeight: 700, fontFamily: 'inherit', borderRadius: 12, border: '2px solid var(--ink)', background: 'var(--cream)', color: 'var(--ink)', boxShadow: '3px 3px 0 var(--ink)', cursor: 'pointer' }}>
-              Edit questionnaire
-            </button>
-          </div>
+  const totalActivities = trip.plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening]).length;
+  const bookedCount = trip.plan
+    .flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening])
+    .filter((c) => booked.has(c.uid)).length;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
+        <div>
+          <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 4px', color: 'var(--ink)' }}>
+            {trip.answers.days}-day Aruba trip
+          </h2>
+          <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: 0 }}>
+            {totalActivities} activit{totalActivities === 1 ? 'y' : 'ies'}
+            {bookedCount > 0 && ` · ${bookedCount} confirmed`}
+          </p>
         </div>
-      )}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button
+            onClick={handleExport}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 14px', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--cream)', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)', cursor: 'pointer' }}
+          >
+            <Calendar size={13} /> Export .ics
+          </button>
+          <button className="btn-red" onClick={() => setPage('itinerary')} style={{ padding: '9px 14px', fontSize: 13 }}>
+            Edit itinerary →
+          </button>
+        </div>
+      </div>
+
+      {trip.plan.map((day) => {
+        const slots: { slot: Slot; cards: PlannedCard[] }[] = (
+          [
+            { slot: 'morning'   as Slot, cards: day.morning },
+            { slot: 'afternoon' as Slot, cards: day.afternoon },
+            { slot: 'evening'   as Slot, cards: day.evening },
+          ] as { slot: Slot; cards: PlannedCard[] }[]
+        ).filter((s) => s.cards.length > 0);
+        if (slots.length === 0) return null;
+        return (
+          <div key={day.day} className="chunky" style={{ padding: '16px 20px', marginBottom: 12 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: 'var(--ink)' }}>
+              Day {day.day}{day.title ? ` — ${day.title}` : ''}
+            </div>
+            {slots.map(({ slot, cards }) => (
+              <div key={slot} style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-500)', marginBottom: 4 }}>
+                  {SLOT_LABEL[slot]}
+                </div>
+                {cards.map((card) => (
+                  <BookedRow
+                    key={card.uid}
+                    card={card}
+                    slot={slot}
+                    resolveEntry={resolveEntry}
+                    booked={booked}
+                    onToggle={toggleBooked}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-// ────────────────────────────────────────────── Practical panel ──────────── //
+// ───────��────────���───────────────────────────────── Bookings panel ────────── //
+
+function BookingsPanel({
+  trip, onLogin,
+}: {
+  trip: TripLoadState;
+  onLogin: () => void;
+}) {
+  const { user, loading: authLoading } = useAuth();
+  const { catalog } = useCatalog();
+  const { booked, toggle: toggleBooked } = useBooked();
+
+  const tags = useMemo(
+    () => trip && trip !== 'loading' ? answersToTags(trip.answers) : new Set<never>(),
+    [trip],
+  );
+
+  const resolveEntry = useCallback(
+    (slotEntry: SlotEntry, slot?: Slot): CardEntry | null =>
+      resolveSlotEntry(slotEntry, catalog, tags as never, slot),
+    [catalog, tags],
+  );
+
+  const handleExportConfirmed = () => {
+    if (!trip || trip === 'loading') return;
+    const ics = buildIcs(trip.plan, trip.answers, resolveEntry, booked);
+    downloadIcs(ics, 'aruba-confirmed.ics');
+  };
+
+  if (authLoading) return <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading…</p>;
+
+  if (!user) {
+    return (
+      <div>
+        <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Bookings</h2>
+        <div className="chunky" style={{ padding: '32px 28px', textAlign: 'center', maxWidth: 440 }}>
+          <div style={{ fontSize: 36, marginBottom: 14 }}>✓</div>
+          <p className="font-display" style={{ fontSize: 20, margin: '0 0 8px', color: 'var(--ink)' }}>Sign in to track bookings.</p>
+          <button className="btn-red" onClick={onLogin} style={{ padding: '11px 22px', fontSize: 14 }}>Log in</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (trip === 'loading') return <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading…</p>;
+
+  // Collect all booked cards across the plan, preserving day + slot context.
+  type BookedEntry = { card: PlannedCard; day: number; slot: Slot };
+  const bookedCards: BookedEntry[] = trip
+    ? trip.plan.flatMap((d) =>
+        (['morning', 'afternoon', 'evening'] as Slot[]).flatMap((slot) =>
+          d[slot]
+            .filter((c) => booked.has(c.uid))
+            .map((card) => ({ card, day: d.day, slot }))
+        )
+      )
+    : [];
+
+  if (bookedCards.length === 0) {
+    return (
+      <div>
+        <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Bookings</h2>
+        <div className="chunky" style={{ padding: '32px 28px', maxWidth: 440 }}>
+          <p className="font-display" style={{ fontSize: 20, margin: '0 0 8px', color: 'var(--ink)' }}>Nothing confirmed yet.</p>
+          <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: 0 }}>
+            Check the box next to any activity in Itineraries to mark it as booked.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
+        <div>
+          <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 4px', color: 'var(--ink)' }}>Bookings</h2>
+          <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: 0 }}>
+            {bookedCards.length} confirmed activit{bookedCards.length === 1 ? 'y' : 'ies'}
+          </p>
+        </div>
+        <button
+          onClick={handleExportConfirmed}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 14px', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--cream)', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)', cursor: 'pointer' }}
+        >
+          <Calendar size={13} /> Export confirmed .ics
+        </button>
+      </div>
+
+      <div className="chunky" style={{ padding: '8px 20px' }}>
+        {bookedCards.map(({ card, day, slot }) => {
+          const entry = resolveEntry(card.entry, slot);
+          if (!entry) return null;
+          return (
+            <div key={card.uid}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--sand-100)' }}>
+              <button
+                onClick={() => toggleBooked(card.uid)}
+                style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 6, border: '2px solid var(--ink)', background: 'var(--green)', color: 'var(--cream)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                aria-label="Unmark as booked"
+              >
+                <Check size={12} sw={3} />
+              </button>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {entryTitle(entry)}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--sand-500)' }}>
+                  Day {day} · {SLOT_LABEL[slot]}
+                </div>
+              </div>
+              <span className="chip-outline" style={{ fontSize: 10, padding: '2px 8px', flexShrink: 0 }}>
+                <Clock size={10} /> {entryDuration(entry)}
+              </span>
+              <span className="chip-outline" style={{ fontSize: 10, padding: '2px 8px', flexShrink: 0 }}>
+                <Dollar size={10} /> {entryCost(entry)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ──────────��─────────────────────────────────── Practical panel ──────────── //
 
 function PracticalPanel() {
   const [open, setOpen] = useState<string | null>(null);
@@ -501,12 +729,9 @@ function PracticalPanel() {
         Everything you need to know before and during your trip.
       </p>
 
-      {/* INFO_TOPICS accordions */}
       <div style={{ marginBottom: 48 }}>
         {INFO_TOPICS.map((topic) => (
-          <div key={topic.title}
-            className="chunky"
-            style={{ marginBottom: 10, padding: 0, overflow: 'hidden' }}>
+          <div key={topic.title} className="chunky" style={{ marginBottom: 10, padding: 0, overflow: 'hidden' }}>
             <button
               onClick={() => setOpen(open === topic.title ? null : topic.title)}
               style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontWeight: 700, fontSize: 15, textAlign: 'left', color: 'var(--ink)' }}>
@@ -524,7 +749,6 @@ function PracticalPanel() {
         ))}
       </div>
 
-      {/* GTK_CARDS grid */}
       <h3 className="font-display" style={{ fontSize: 24, margin: '0 0 8px', color: 'var(--ink)' }}>Good-to-knows</h3>
       <p style={{ fontStyle: 'italic', fontSize: 13, color: 'var(--sand-700)', margin: '0 0 20px' }}>
         The little things locals wish every visitor knew.
@@ -551,11 +775,19 @@ function PracticalPanel() {
   );
 }
 
-// ──────────────────────────────────────────────────── Dashboard ──────────── //
+// ─────────────���────────────────────────────────────── Dashboard ──────────── //
 
 export default function Dashboard({ setPage, initialSection = 'surprise', onLogin }: Props) {
   const [section, setSection] = useState<DashSection>(initialSection);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+
+  // Trip state loaded once at the Dashboard level — shared by Itinerary + Bookings panels.
+  const [trip, setTrip] = useState<TripLoadState>('loading');
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) { setTrip(null); return; }
+    loadTrip(user.id).then((t) => setTrip(t ?? null));
+  }, [user, authLoading]);
 
   return (
     <>
@@ -571,7 +803,6 @@ export default function Dashboard({ setPage, initialSection = 'surprise', onLogi
       <div className="bleed" style={{ background: 'var(--cream)' }}>
         <div className="container-1280 dashboard-layout">
 
-          {/* Sidebar */}
           <nav className="dashboard-sidebar" aria-label="Dashboard sections">
             {SECTIONS.map((s) => (
               <button
@@ -585,11 +816,11 @@ export default function Dashboard({ setPage, initialSection = 'surprise', onLogi
             ))}
           </nav>
 
-          {/* Content */}
           <div className="dashboard-content">
             {section === 'surprise'  && <SurprisePanel   setPage={setPage} />}
             {section === 'starred'   && <StarredPanel     setPage={setPage} />}
-            {section === 'itinerary' && <ItineraryPanel   setPage={setPage} onLogin={onLogin} />}
+            {section === 'itinerary' && <ItineraryPanel   setPage={setPage} trip={trip} onLogin={onLogin} />}
+            {section === 'bookings'  && <BookingsPanel    trip={trip} onLogin={onLogin} />}
             {section === 'practical' && <PracticalPanel />}
           </div>
         </div>
