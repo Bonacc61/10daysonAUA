@@ -20,6 +20,7 @@ import { generatePlan } from '../data/itineraryGenerator';
 import { logEvent } from '../data/feedback';
 import { useAuth } from '../lib/auth';
 import { loadTrip, upsertTrip } from '../lib/trips';
+import { loadShare } from '../lib/shares';
 import SignIn from '../components/SignIn';
 import {
   seedPlan, addCard, removeCard, replaceCardEntry, moveCard, findCard,
@@ -63,8 +64,37 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   const [hydrated, setHydrated] = useState(false);
   const hydratedUser = useRef<string | null>(null);
 
+  // --- Shared read-only view (/i/<id>) -------------------------------------
+  const [readOnly, setReadOnly] = useState<boolean>(!!shareId);
+  const [shareLoading, setShareLoading] = useState<boolean>(!!shareId);
+  const [shareMissing, setShareMissing] = useState(false);
+
+  // A shared link always shows its snapshot — even for signed-in visitors — so
+  // this seeds the plan/answers directly and never regenerates or hydrates.
+  useEffect(() => {
+    if (!shareId) { setReadOnly(false); setShareLoading(false); return; }
+    setReadOnly(true);
+    setShareLoading(true);
+    setShareMissing(false);
+    let alive = true;
+    loadShare(shareId).then((s) => {
+      if (!alive) return;
+      if (s) {
+        setPlan(s.plan);
+        setRejected(s.rejected);
+        setRejectedGroups(s.rejectedGroups);
+        setAnswers(s.answers);
+      } else {
+        setShareMissing(true);
+      }
+      setShareLoading(false);
+    });
+    return () => { alive = false; };
+  }, [shareId, setAnswers]);
+
   // On sign-in, load the saved trip and hydrate it (the saved trip wins).
   useEffect(() => {
+    if (shareId) return;               // a shared view never loads the visitor's own trip
     if (!user) { setHydrated(false); hydratedUser.current = null; return; }
     if (hydratedUser.current === user.id) return;
     hydratedUser.current = user.id;
@@ -78,18 +108,18 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
       }
       setHydrated(true);
     });
-  }, [user, setAnswers]);
+  }, [user, setAnswers, shareId]);
 
   // Debounced persist once hydrated — so we never overwrite the saved plan with
   // the freshly-generated one before it has loaded. Writes answers + plan (which
   // carries the activities) + swap memory.
   useEffect(() => {
-    if (!user || !hydrated) return;
+    if (shareId || !user || !hydrated) return;   // never autosave a shared snapshot
     const id = window.setTimeout(() => {
       void upsertTrip(user.id, { answers, plan, rejected, rejectedGroups });
     }, 800);
     return () => window.clearTimeout(id);
-  }, [user, hydrated, answers, plan, rejected, rejectedGroups]);
+  }, [user, hydrated, answers, plan, rejected, rejectedGroups, shareId]);
 
   // Pass the questionnaire answers so the card face + "Other suggestions" only
   // ever show items that fit (e.g. nothing far over budget). This is the display
@@ -337,6 +367,22 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
     logEvent({ action: 'rename', day: plan[dayIdx]?.day });
   };
 
+  if (shareLoading) {
+    return (
+      <div className="bleed" style={{ background: 'var(--cream)', minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ fontStyle: 'italic', color: 'rgba(0,0,0,0.6)' }}>Loading shared itinerary…</p>
+      </div>
+    );
+  }
+  if (shareMissing) {
+    return (
+      <div className="bleed" style={{ background: 'var(--cream)', minHeight: '60vh', display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24 }}>
+        <h1 className="font-display" style={{ fontSize: 32, margin: 0, color: 'var(--ink)' }}>This shared itinerary couldn’t be found.</h1>
+        <p style={{ color: 'rgba(0,0,0,0.7)', margin: 0 }}>The link may be mistyped or removed.</p>
+        <button className="btn-red" onClick={() => setPage('landing')} style={{ padding: '10px 18px' }}>Build your own →</button>
+      </div>
+    );
+  }
 
   return (
     <>
