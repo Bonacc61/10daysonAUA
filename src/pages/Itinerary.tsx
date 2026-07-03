@@ -7,7 +7,7 @@ import {
   SortableContext, useSortable, sortableKeyboardCoordinates, verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Bookmark, Chev, X } from '../components/Icons';
+import { Bookmark, Chev, Share, X } from '../components/Icons';
 import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
 import { INFO_TOPICS } from '../data/activities';
@@ -93,7 +93,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin }: Pro
   // Pass the questionnaire answers so the card face + "Other suggestions" only
   // ever show items that fit (e.g. nothing far over budget). This is the display
   // chokepoint — the plan stores only ids, so the shown items are rebuilt here.
-  const resolveEntry = (slotEntry: SlotEntry): CardEntry | null => resolveSlotEntry(slotEntry, catalog, tags);
+  const resolveEntry = (slotEntry: SlotEntry, slot?: Slot): CardEntry | null => resolveSlotEntry(slotEntry, catalog, tags, slot);
 
   const toggle = (set: Set<string>, uid: string) => {
     const next = new Set(set);
@@ -404,7 +404,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin }: Pro
 
               <div style={{ position: 'sticky', bottom: 16, marginTop: 32, display: 'flex', justifyContent: 'center', zIndex: 5 }}>
                 <div className="chunky itin-action-bar" style={{ padding: '14px 22px', display: 'inline-flex', alignItems: 'center', gap: 16, background: 'var(--ink)', color: 'var(--cream)' }}>
-                  <button className="btn-red" style={{ padding: '10px 18px', fontSize: 14 }}>Share itinerary</button>
+                  <button className="btn-red" style={{ padding: '10px 18px', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Share size={14} /> Share itinerary</button>
                   <button onClick={scrollToSignIn} className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'var(--cream)', fontSize: 14, padding: '9px 14px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     <Bookmark size={14} /> Save
                   </button>
@@ -424,7 +424,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin }: Pro
 type DayHandlers = {
   flipped: Set<string>; swapping: Set<string>;
   reasonOpen: Set<string>; appearing: Set<string>; removing: Set<string>;
-  resolveEntry: (e: SlotEntry) => CardEntry | null;
+  resolveEntry: (e: SlotEntry, slot?: Slot) => CardEntry | null;
   onFlip: (uid: string) => void;
   onOpenSwap: (uid: string) => void;
   onSwap: (uid: string, slot: Slot, e: CardEntry, reason: SwapReason) => void;
@@ -537,7 +537,7 @@ function Section({
         <div ref={setNodeRef} className={`itin-section-zone${isOver ? ' over' : ''}${cards.length === 0 ? ' empty' : ''}`}>
           {cards.length === 0 && <div className="itin-section-empty">Drop an activity here, or add one from a card's “Other suggestions”.</div>}
           {cards.map((card) => {
-            const entry = h.resolveEntry(card.entry);
+            const entry = h.resolveEntry(card.entry, section);
             if (!entry) return null;
             return (
               <SortableCard key={card.uid} card={card} entry={entry} section={section} dayNum={dayNum} {...h} />
