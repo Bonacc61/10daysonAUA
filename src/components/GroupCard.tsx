@@ -1,9 +1,10 @@
-import type { ViatorGroup, ViatorItem, SwapReason, Region } from '../types';
+import type { ViatorGroup, ViatorItem, SwapReason, Region, Section } from '../types';
 import { Star, MapPin, Clock, Dollar, Check, Swap, Plus } from './Icons';
 import GroupHeader from './GroupHeader';
 import OtherSuggestionsList from './OtherSuggestionsList';
 import SwapReasons from './SwapReasons';
-import { productUrlFor } from '../data/exploreItems';
+import { productUrlFor, primarySection } from '../data/exploreItems';
+import { itemSections } from '../data/itemFit';
 
 // Region code → display label, shown with a MapPin in the itinerary card body.
 const REGION_LABELS: Record<Region, string> = {
@@ -38,29 +39,30 @@ type Props = {
   // Itinerary-only: "+ Add" on an "other suggestion" — appends a new card to
   // the day. The row's title link still opens the affiliate URL.
   onAddItem?: (item: ViatorItem) => void;
+  onNavigateToSection?: (section: Section) => void;
 };
 
 export default function GroupCard({
   group, bestSeller, others, approved, onApprove, onSwap, onFlip,
   variant = 'itinerary', showReasons, onPickReason,
-  suggestionsOpen, onToggleSuggestions, onAddItem, bookUrl,
+  suggestionsOpen, onToggleSuggestions, onAddItem, bookUrl, onNavigateToSection,
 }: Props) {
-  // One canonical product URL for the suggested tour, used by the header band,
-  // the hero image, and the title link. Guaranteed to be a real product page or
-  // null — never the generic Aruba browse page.
   const tourUrl = productUrlFor(bestSeller);
+  const headerSection = primarySection(itemSections(bestSeller));
 
   return (
     <div className="chunky" style={{
       borderWidth: 2, padding: 0, overflow: 'hidden',
       background: 'var(--cream)',
-      // Itinerary: fill the fixed-height flip-card so the synced card/chip
-      // growth keeps the action row stable. Explore: size to content.
       ...(variant === 'itinerary'
         ? { height: '100%', display: 'flex', flexDirection: 'column' as const }
         : {}),
     }}>
-      <GroupHeader group={group} href={tourUrl ?? undefined} />
+      <GroupHeader
+        group={group}
+        href={onNavigateToSection ? undefined : (tourUrl ?? undefined)}
+        onNavigate={onNavigateToSection ? () => onNavigateToSection(headerSection) : undefined}
+      />
 
       {variant === 'explore'
         ? <ExploreBody

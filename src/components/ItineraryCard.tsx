@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import type { Activity } from '../data/activities';
-import type { CardEntry, SwapReason, ViatorItem } from '../types';
+import type { CardEntry, SwapReason, ViatorItem, Section } from '../types';
 import { Star, MapPin, Clock, Dollar, Swap } from './Icons';
 import GroupCard from './GroupCard';
 import CardBack from './CardBack';
 import SwapReasons, { SWAP_REASONS_OPEN_PX } from './SwapReasons';
 import { otherSuggestionsExpandedPx } from './OtherSuggestionsList';
-import { productUrlFor, viatorLink } from '../data/exploreItems';
+import { productUrlFor, viatorLink, primarySection } from '../data/exploreItems';
 import { parseActivityCost } from '../data/matcher';
 
 type Props = {
@@ -15,14 +15,10 @@ type Props = {
   swapping: boolean;
   onFlip: () => void;
   onSwap?: () => void;
-  // True after "Swap this" is pressed — reveals the "Why swap?" chip strip
-  // below the (still-visible) action row.
   showReasons?: boolean;
   onPickReason?: (reason: SwapReason) => void;
-  // Group-only: invoked when the user clicks "+ Add" on an "Other suggestions"
-  // row. The page-level handler appends a new card to the day. The row's title
-  // link still opens the affiliate URL in a new tab.
   onAddItem?: (item: ViatorItem) => void;
+  onNavigateToSection?: (section: Section) => void;
 };
 
 // Base height — accommodates the green header band (~44px) on top of both
@@ -35,7 +31,7 @@ const REASONS_EXTRA = SWAP_REASONS_OPEN_PX;
 
 export default function ItineraryCard({
   entry, flipped, swapping, onFlip, onSwap,
-  showReasons = false, onPickReason, onAddItem,
+  showReasons = false, onPickReason, onAddItem, onNavigateToSection,
 }: Props) {
   // Per-card state for the group's "Other suggestions" expand/collapse.
   // Lives here (not in OtherSuggestionsList) so the card's fixed height —
@@ -64,14 +60,16 @@ export default function ItineraryCard({
   const front = entry.kind === 'activity'
     ? <ActivityCardFront a={entry.activity} bookUrl={bookUrl}
                          onFlip={onFlip} onSwap={onSwap}
-                         showReasons={showReasons} onPickReason={onPickReason} />
+                         showReasons={showReasons} onPickReason={onPickReason}
+                         onNavigateToSection={onNavigateToSection} />
     : <GroupCard group={entry.group} bestSeller={entry.bestSeller}
                  others={entry.others} bookUrl={bookUrl}
                  onSwap={onSwap} onFlip={onFlip}
                  showReasons={showReasons} onPickReason={onPickReason}
                  suggestionsOpen={suggestionsOpen}
                  onToggleSuggestions={() => setSuggestionsOpen((v) => !v)}
-                 onAddItem={onAddItem} />;
+                 onAddItem={onAddItem}
+                 onNavigateToSection={onNavigateToSection} />;
 
   return (
     <div className={classes.join(' ')} style={{ height }}>
@@ -86,7 +84,7 @@ export default function ItineraryCard({
 // Local activity (non-Viator) card front face — preserved from the original
 // inline CardFront in Itinerary.tsx, with the same look and behavior.
 function ActivityCardFront({
-  a, bookUrl, onFlip, onSwap, showReasons, onPickReason,
+  a, bookUrl, onFlip, onSwap, showReasons, onPickReason, onNavigateToSection,
 }: {
   a: Activity;
   bookUrl: string | null;
@@ -94,14 +92,16 @@ function ActivityCardFront({
   onSwap?: () => void;
   showReasons?: boolean;
   onPickReason?: (reason: SwapReason) => void;
+  onNavigateToSection?: (section: Section) => void;
 }) {
+  const headerContent = <div className="chb-title">{a.category}</div>;
   return (
     <div className="chunky flip-face itin-card-front"
          style={{ borderWidth: 2, height: '100%', overflow: 'hidden', padding: 0, display: 'flex', flexDirection: 'column' }}>
-      {/* Green header band — title=category, no subtitle (location appears in the body with a MapPin). */}
-      <div className="card-header-band">
-        <div className="chb-title">{a.category}</div>
-      </div>
+      {onNavigateToSection
+        ? <button type="button" className="card-header-band" onClick={() => onNavigateToSection(primarySection(a.sections ?? []))} aria-label={`Explore ${a.category}`}>{headerContent}<span aria-hidden className="chb-chev">›</span></button>
+        : <div className="card-header-band">{headerContent}</div>
+      }
       <div className="itin-card-split" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <button
           className="itin-card-image-btn"

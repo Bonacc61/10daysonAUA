@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { Section } from './types';
 import Nav from './components/Nav';
 import Landing from './pages/Landing';
 import Explore from './pages/Explore';
@@ -87,6 +88,7 @@ function AppShell() {
   const [answers, setAnswers] = useState<Answers>(DEFAULT_ANSWERS);
   const [loginOpen, setLoginOpen] = useState(false);
   const [shareId, setShareId] = useState<string | null>(shareIdFromUrl);
+  const [initialExploreSection, setInitialExploreSection] = useState<Section | null>(null);
   // Set once the questionnaire is completed; persisted so a refresh doesn't re-lock.
   const [qDone, setQDone] = useState<boolean>(() => {
     try { return localStorage.getItem('qDone') === '1'; } catch { return false; }
@@ -102,11 +104,17 @@ function AppShell() {
   };
 
   function setPage(p: PageId) {
+    setInitialExploreSection(null);
     const path = PAGE_TO_PATH[p];
     if (window.location.pathname !== path) window.history.pushState({}, '', path);
     setShareId(null);
     setPageState(p);
   }
+
+  const navigateToExplore = (section: Section) => {
+    setPage('explore');
+    setInitialExploreSection(section);
+  };
 
   useEffect(() => {
     const onPop = () => { setPageState(pageFromUrl()); setShareId(shareIdFromUrl()); };
@@ -133,8 +141,8 @@ function AppShell() {
       <Nav page={page} setPage={setPage} onLogin={() => setLoginOpen(true)} canSeeItinerary={canSeeItinerary} />
       {page === 'landing'       && <Landing       setPage={setPage} answers={answers} setAnswers={setAnswers} />}
       {page === 'questionnaire' && <Questionnaire setPage={setPage} answers={answers} setAnswers={setAnswers} onComplete={markQuestionnaireDone} />}
-      {page === 'explore'       && <Explore       setPage={setPage} answers={answers} onLogin={() => setLoginOpen(true)} canSeeItinerary={canSeeItinerary} />}
-      {page === 'itinerary'     && (canSeeItinerary || shareId) && <Itinerary setPage={setPage} answers={answers} setAnswers={setAnswers} onLogin={() => setLoginOpen(true)} shareId={shareId} />}
+      {page === 'explore'       && <Explore       setPage={setPage} answers={answers} onLogin={() => setLoginOpen(true)} canSeeItinerary={canSeeItinerary} initialSection={initialExploreSection ?? undefined} />}
+      {page === 'itinerary'     && (canSeeItinerary || shareId) && <Itinerary setPage={setPage} answers={answers} setAnswers={setAnswers} onLogin={() => setLoginOpen(true)} shareId={shareId} onNavigateToExplore={navigateToExplore} />}
       {page === 'privacy'       && <Privacy       setPage={setPage} />}
       {page === 'surprise'      && <SurpriseMe    setPage={setPage} />}
       {page === 'dashboard'     && <Dashboard     setPage={setPage} onLogin={() => setLoginOpen(true)} />}

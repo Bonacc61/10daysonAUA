@@ -31,10 +31,10 @@ import {
   newUid, SECTIONS, type PlannedDay, type PlannedCard,
 } from '../data/itineraryPlan';
 import { suggestLunchspot, cardRegion, isLunchspot, LUNCHSPOTS } from '../data/lunchspots';
-import type { CardEntry, SlotEntry, Slot, SwapReason, ViatorItem } from '../types';
+import type { CardEntry, SlotEntry, Slot, SwapReason, ViatorItem, Section } from '../types';
 import type { PageId, Answers } from '../App';
 
-type Props = { setPage: (p: PageId) => void; answers: Answers; setAnswers: (a: Answers) => void; onLogin: () => void; shareId: string | null };
+type Props = { setPage: (p: PageId) => void; answers: Answers; setAnswers: (a: Answers) => void; onLogin: () => void; shareId: string | null; onNavigateToExplore?: (section: Section) => void };
 
 const SECTION_META: { id: Slot; label: string }[] = [
   { id: 'morning',   label: 'Morning' },
@@ -42,7 +42,7 @@ const SECTION_META: { id: Slot; label: string }[] = [
   { id: 'evening',   label: 'Evening' },
 ];
 
-export default function Itinerary({ setPage, answers, setAnswers, onLogin, shareId }: Props) {
+export default function Itinerary({ setPage, answers, setAnswers, onLogin, shareId, onNavigateToExplore }: Props) {
   const { catalog } = useCatalog();
   const tags    = useMemo(() => answersToTags(answers), [answers]);
 
@@ -513,6 +513,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
                     onSuggestLunch={onSuggestLunch}
                     bookedIds={bookedIds}
                     onToggleBooked={toggleBooked}
+                    onNavigateToSection={(section) => onNavigateToExplore?.(section)}
                   />
                 ))}
               </DndContext>
@@ -572,6 +573,7 @@ type DayHandlers = {
   onSuggestLunch: (dayNum: number) => void;
   bookedIds: Set<string>;
   onToggleBooked: (uid: string) => void;
+  onNavigateToSection: (section: Section) => void;
 };
 
 function ItineraryDay({
@@ -701,7 +703,7 @@ function SortableCard({
   card, entry, section, dayNum, readOnly,
   flipped, swapping, reasonOpen, appearing, removing,
   onFlip, onOpenSwap, onSwap, onAddItem, onRemove,
-  bookedIds, onToggleBooked,
+  bookedIds, onToggleBooked, onNavigateToSection,
 }: { card: PlannedCard; entry: CardEntry; section: Slot; dayNum: number } & DayHandlers) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.uid });
   const style = {
@@ -754,6 +756,7 @@ function SortableCard({
         showReasons={!readOnly && reasonOpen.has(card.uid)}
         onPickReason={readOnly ? undefined : (reason) => onSwap(card.uid, section, entry, reason)}
         onAddItem={readOnly ? undefined : (item) => onAddItem(dayNum, section, item)}
+        onNavigateToSection={onNavigateToSection}
       />
       {!readOnly && (
         <button

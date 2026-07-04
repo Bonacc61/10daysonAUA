@@ -49,6 +49,9 @@ body {
 a.card-header-band               { transition: filter 0.12s; }
 a.card-header-band:hover         { filter: brightness(1.18); }
 a.card-header-band:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+button.card-header-band { font-family: inherit; font-size: inherit; width: 100%; border: none; cursor: pointer; transition: filter 0.12s; }
+button.card-header-band:hover { filter: brightness(1.18); }
+button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
 
 /* "Why swap?" reason chip strip — sits below the action row and animates
    open/closed via the WRAPPER's height (not max-height). The wrapper height

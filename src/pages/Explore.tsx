@@ -12,7 +12,7 @@ import type { ViatorItem } from '../types';
 import type { Answers } from '../App';
 import type { PageId } from '../App';
 
-type Props = { setPage: (p: PageId) => void; answers: Answers; onLogin: () => void; canSeeItinerary: boolean; };
+type Props = { setPage: (p: PageId) => void; answers: Answers; onLogin: () => void; canSeeItinerary: boolean; initialSection?: Section; };
 
 // Vibe pill copy/colour from an adventure value (mirrors vibePass thresholds).
 function vibePill(adventure: number): { label: string; bg: string } {
@@ -90,11 +90,11 @@ function SkeletonCard() {
   );
 }
 
-export default function Explore({ setPage, answers, onLogin, canSeeItinerary }: Props) {
+export default function Explore({ setPage, answers, onLogin, canSeeItinerary, initialSection }: Props) {
   const { catalog, loading } = useCatalog();
   const { user } = useAuth();
 
-  const [section, setSection] = useState<string>('All');
+  const [section, setSection] = useState<string>(initialSection ?? 'All');
   const [search, setSearch] = useState('');
   const [vibe, setVibe] = useState<number>(answers.adventureLevel ?? 50);
   const [price, setPrice] = useState<number>(50);
