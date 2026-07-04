@@ -104,10 +104,10 @@ describe('refaceForAnswers — local activity slot filtering', () => {
   const makeActivity = (id: string, tod: 'Morning' | 'Afternoon' | 'Evening') => ({
     kind: 'activity' as const,
     activity: {
-      id, title: id, category: 'Test', image: '', description: '', localsSay: '',
+      id, title: id, category: 'Beaches' as const, image: '', description: '', localsSay: '',
       cost: 'Free', duration: '2 hrs', timeOfDay: tod, fitReason: '', location: '',
-      rating: 4.5, reviewCount: 100, adventure: 20, sections: ['beaches'] as const,
-      matched_by: [],
+      rating: 4.5, reviewCount: 100, adventure: 20, sections: ['beaches'] as Section[],
+      matched_by: [] as MatchTag[],
     },
   });
 
