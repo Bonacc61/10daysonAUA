@@ -69,7 +69,8 @@ export function isEveningItem(item: ViatorItem): boolean {
   return EVENING_RE.test(item.title);
 }
 export function itemSlotOk(item: ViatorItem, slot: Slot): boolean {
-  return slot !== 'evening' || isEveningItem(item);
+  if (slot === 'evening') return isEveningItem(item);
+  return !isEveningItem(item); // morning/afternoon: never surface evening-only items
 }
 
 // --- Activity kind (for same-day variety) -----------------------------------

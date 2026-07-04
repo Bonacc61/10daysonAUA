@@ -74,6 +74,12 @@ describe('slot suitability', () => {
     expect(isEveningItem(item({ title: 'Beachside Dinner Experience' }))).toBe(true);
     expect(isEveningItem(item({ title: 'Aruba Nightlife Party Bus' }))).toBe(true);
   });
+  it('an evening item is NOT ok for morning or afternoon slots', () => {
+    const party = item({ title: 'Aruba Nightlife Party Bus' });
+    expect(itemSlotOk(party, 'morning')).toBe(false);
+    expect(itemSlotOk(party, 'afternoon')).toBe(false);
+    expect(itemSlotOk(party, 'evening')).toBe(true);
+  });
   it('the food-drink section alone does NOT make a daytime item evening', () => {
     // The live food-drink cluster holds day trips, morning sails and breakfast
     // cruises. Section is not a time-of-day signal — only the title's keywords are.
