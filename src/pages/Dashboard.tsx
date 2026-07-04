@@ -749,7 +749,9 @@ function ItineraryPanel({
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {variant.label}
+                      {variant.id === 'saved' && trip && (trip as TripState).answers.tripName
+                        ? (trip as TripState).answers.tripName
+                        : variant.label}
                       {variant.id === 'saved' && trip && (
                         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'var(--yellow)', border: '1.5px solid var(--ink)', borderRadius: 6, padding: '2px 7px', boxShadow: '1px 1px 0 var(--ink)' }}>Active</span>
                       )}

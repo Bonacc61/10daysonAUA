@@ -14,7 +14,7 @@ import ItineraryCard from '../components/ItineraryCard';
 import { INFO_TOPICS } from '../data/activities';
 import { resolveSlotEntry } from '../data/activitySource';
 import { useCatalog } from '../data/useCatalog';
-import { matchPool, blendPools, constrainBySwapReason, entryPrice } from '../data/matcher';
+import { matchPool, blendPools, constrainBySwapReason, entryPrice, parseActivityCost } from '../data/matcher';
 import { fitItem, refaceForAnswers, itemSlotOk } from '../data/itemFit';
 import { answersToTags } from '../data/answerTags';
 import { generatePlan, resolvePinId } from '../data/itineraryGenerator';
@@ -865,7 +865,10 @@ function Section({
                 {shortlistOpen && (
                   <div className="itin-shortlist-picker">
                     {h.shortlistEntries.map(({ rawId, entry }) => {
-                      const name = entry.kind === 'activity' ? entry.activity.title : entry.bestSeller.title;
+                      const name     = entry.kind === 'activity' ? entry.activity.title        : entry.bestSeller.title;
+                      const duration = entry.kind === 'activity' ? entry.activity.duration     : entry.bestSeller.duration;
+                      const isFree   = entry.kind === 'activity' ? parseActivityCost(entry.activity.cost) === 0 : entry.bestSeller.price_usd === 0;
+                      const price    = entry.kind === 'activity' ? entry.activity.cost         : `$${entry.bestSeller.price_usd}`;
                       return (
                         <button
                           key={rawId}
@@ -873,7 +876,13 @@ function Section({
                           className="itin-shortlist-item"
                           onClick={() => { h.onAddSlotEntry(dayNum, section, entry); setShortlistOpen(false); }}
                         >
-                          {name}
+                          <span style={{ display: 'block', marginBottom: 4 }}>{name}</span>
+                          <span style={{ display: 'flex', gap: 8, fontSize: 11, fontWeight: 600, opacity: 0.9 }}>
+                            {duration && <span>⏱ {duration}</span>}
+                            {isFree
+                              ? <span style={{ background: 'var(--green)', color: 'var(--cream)', borderRadius: 999, padding: '1px 7px' }}>Free</span>
+                              : <span>{price}</span>}
+                          </span>
                         </button>
                       );
                     })}
