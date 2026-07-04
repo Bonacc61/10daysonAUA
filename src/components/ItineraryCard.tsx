@@ -99,7 +99,6 @@ function ActivityCardFront({
   const headerContent = (
     <>
       <div className="chb-title">{a.category}</div>
-      {pinned && <span className="itin-pinned-badge">★ Your pick</span>}
     </>
   );
   return (
@@ -173,6 +172,7 @@ function ActivityCardFront({
             <span className="chip-outline chip-coral" style={{ fontSize: 11, padding: '2px 9px' }}>
               {a.fitReason}
             </span>
+            {pinned && <span className="itin-pinned-badge">★ Your pick</span>}
           </div>
           <div style={{ marginTop: 'auto' }}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

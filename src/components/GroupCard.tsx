@@ -63,7 +63,6 @@ export default function GroupCard({
         group={group}
         href={onNavigateToSection ? undefined : (tourUrl ?? undefined)}
         onNavigate={onNavigateToSection ? () => onNavigateToSection(headerSection) : undefined}
-        pinned={pinned}
       />
 
       {variant === 'explore'
@@ -78,6 +77,7 @@ export default function GroupCard({
             bestSeller={bestSeller}
             tourUrl={tourUrl}
             bookUrl={bookUrl ?? null}
+            pinned={pinned}
             location={REGION_LABELS[bestSeller.region ?? group.region]}
             onSwap={onSwap}
             onFlip={onFlip}
@@ -218,7 +218,7 @@ function ExploreBody({
 // activity card (ActivityCardFront), with the group-specific SUGGESTED label.
 // The flip-to-back face is wired by the parent (ItineraryCard).
 function ItineraryBody({
-  bestSeller, tourUrl, bookUrl, location, onSwap, onFlip, showReasons, onPickReason,
+  bestSeller, tourUrl, bookUrl, location, onSwap, onFlip, showReasons, onPickReason, pinned,
 }: {
   bestSeller: ViatorItem;
   tourUrl: string | null;
@@ -228,6 +228,7 @@ function ItineraryBody({
   onFlip: () => void;
   showReasons?: boolean;
   onPickReason?: (reason: SwapReason) => void;
+  pinned?: boolean;
 }) {
   return (
     <div className="itin-card-split" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
@@ -305,6 +306,7 @@ function ItineraryBody({
               {bestSeller.fitReason}
             </span>
           )}
+          {pinned && <span className="itin-pinned-badge">★ Your pick</span>}
         </div>
 
         <div style={{ marginTop: 'auto' }}>
