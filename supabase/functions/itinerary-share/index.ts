@@ -33,14 +33,14 @@ Deno.serve(async (req) => {
   const { email: senderEmail } = (await userRes.json()) as { email?: string };
 
   // --- Parse body ---
-  let body: { to?: string; note?: string; itinerary_text?: string };
+  let body: { to?: string; note?: string; itinerary_text?: string; itinerary_url?: string };
   try {
     body = await req.json();
   } catch {
     return json({ error: 'Bad JSON' }, 400);
   }
 
-  const { to, note, itinerary_text } = body;
+  const { to, note, itinerary_text, itinerary_url } = body;
   if (!to || !itinerary_text) return json({ error: 'Missing to or itinerary_text' }, 400);
 
   // --- Send email ---
@@ -63,8 +63,8 @@ Deno.serve(async (req) => {
       to,
       replyTo: senderEmail ?? smtpUser,
       subject: 'Your Aruba itinerary — 10 Days on Aruba',
-      content: shareEmailText(note, itinerary_text),
-      html: shareEmailHtml(note, itinerary_text),
+      content: shareEmailText(note, itinerary_text, itinerary_url),
+      html: shareEmailHtml(note, itinerary_text, itinerary_url),
     });
 
     await client.close();

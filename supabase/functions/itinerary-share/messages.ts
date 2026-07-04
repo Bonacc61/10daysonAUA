@@ -8,19 +8,23 @@ export function escapeHtml(s: string): string {
   );
 }
 
-export function shareEmailText(note: string | undefined, itineraryText: string): string {
+export function shareEmailText(note: string | undefined, itineraryText: string, itineraryUrl?: string | null): string {
   const lines: string[] = [];
   if (note?.trim()) {
     lines.push(note.trim(), '');
   }
   lines.push('──────────────────────────────', itineraryText, '──────────────────────────────', '');
+  if (itineraryUrl) {
+    lines.push(`Book your activities via the platform: ${itineraryUrl}`, '');
+  }
   lines.push(`Plan your own trip at ${SITE}`);
   return lines.join('\n');
 }
 
-export function shareEmailHtml(note: string | undefined, itineraryText: string): string {
+export function shareEmailHtml(note: string | undefined, itineraryText: string, itineraryUrl?: string | null): string {
   const safeNote = note?.trim() ? `<p style="font-size:16px;line-height:1.6;color:#1A1A1A;margin:0 0 20px;font-style:italic;">${escapeHtml(note.trim())}</p>` : '';
   const safeItinerary = escapeHtml(itineraryText).replace(/\n/g, '<br>');
+  const bookUrl = itineraryUrl ?? SITE;
 
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#d9d5c8;padding:24px 12px 40px;font-family:Inter,-apple-system,Helvetica,Arial,sans-serif;">
   <tr><td align="center">
@@ -33,7 +37,12 @@ export function shareEmailHtml(note: string | undefined, itineraryText: string):
         <h1 style="font-family:Caprasimo,Georgia,'Times New Roman',serif;font-size:27px;line-height:1.15;color:#1A1A1A;margin:0 0 18px;">Your Aruba itinerary ✈</h1>
         ${safeNote}
         <div style="background:#F5F0E6;border:1.5px solid #D4C9A8;border-radius:12px;padding:20px 22px;font-size:14px;line-height:1.7;color:#1A1A1A;font-family:'Courier New',Courier,monospace;white-space:pre-wrap;word-break:break-word;">${safeItinerary}</div>
-        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0 8px;"><tr>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0 12px;"><tr>
+          <td style="background:#22C55E;border:2px solid #1A1A1A;border-radius:13px;box-shadow:4px 4px 0 #1A1A1A;">
+            <a href="${bookUrl}" style="display:inline-block;padding:13px 24px;font-size:15px;font-weight:700;color:#FFFBF0;text-decoration:none;letter-spacing:-0.2px;">Book your activities via the platform &rarr;</a>
+          </td>
+        </tr></table>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 8px;"><tr>
           <td style="background:#E63946;border:2px solid #1A1A1A;border-radius:13px;box-shadow:4px 4px 0 #1A1A1A;">
             <a href="${SITE}" style="display:inline-block;padding:13px 24px;font-size:15px;font-weight:700;color:#FFFBF0;text-decoration:none;letter-spacing:-0.2px;">Plan your own trip &rarr;</a>
           </td>

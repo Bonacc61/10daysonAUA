@@ -12,6 +12,7 @@ import { useStarred } from '../lib/starred';
 import { useBooked } from '../lib/booked';
 import { useAuth } from '../lib/auth';
 import { loadTrip } from '../lib/trips';
+import { createShare } from '../lib/shares';
 import { matchPool, parseActivityCost } from '../data/matcher';
 import { viatorLink, productUrlFor, sectionLabel, primarySection } from '../data/exploreItems';
 import type { PageId } from '../App';
@@ -661,6 +662,10 @@ function ItineraryPanel({
     setEmailError(null);
     try {
       const text = buildShareText(trip, resolveEntry);
+      // Create a share link so the email includes a direct "Book your activities" URL.
+      // If it fails we still send the email — the button falls back to the homepage.
+      const { id: shareId } = await createShare(trip).catch(() => ({ id: null }));
+      const itinerary_url = shareId ? `${window.location.origin}/i/${shareId}` : null;
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
       const res = await fetch(`${supabaseUrl}/functions/v1/itinerary-share`, {
         method: 'POST',
@@ -668,7 +673,7 @@ function ItineraryPanel({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ to: emailTo.trim(), note: emailNote.trim(), itinerary_text: text }),
+        body: JSON.stringify({ to: emailTo.trim(), note: emailNote.trim(), itinerary_text: text, itinerary_url }),
       });
       if (!res.ok) {
         const msg = await res.text().catch(() => '');
