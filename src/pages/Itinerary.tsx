@@ -242,9 +242,21 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   const onFlip     = (uid: string) => setFlipped((s) => toggle(s, uid));
   const onOpenSwap = (uid: string) => setReasonOpen((s) => toggle(s, uid));
 
-  // "Save trip" / "Save" → scroll to the sign-in panel at the bottom. Saving the
-  // trip means signing in (SSO), so the buttons take the user there.
-  const scrollToSignIn = onLogin;
+  // --- Save Trip modal (name-your-trip before persisting) ------------------
+  const [saveTripOpen, setSaveTripOpen] = useState(false);
+  const [tripNameDraft, setTripNameDraft] = useState('');
+
+  const openSaveTrip = () => {
+    setTripNameDraft(answers.tripName ?? '');
+    setSaveTripOpen(true);
+  };
+
+  const confirmSaveTrip = () => {
+    const name = tripNameDraft.trim();
+    setAnswers({ ...answers, tripName: name || undefined });
+    setSaveTripOpen(false);
+    if (!user) onLogin();
+  };
 
   // A single drag context spans the whole plan so cards can be dragged across
   // days, not just between the sections of one day.
@@ -508,6 +520,11 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.7)', marginBottom: 8 }}>Your itinerary</div>
               <h1 className="font-display" style={{ fontSize: 44, margin: '0 0 6px', color: 'var(--ink)', lineHeight: 1 }}>{tripDays} days, hand-picked.</h1>
+              {answers.tripName && (
+                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 4px', letterSpacing: '-0.2px' }}>
+                  {answers.tripName}
+                </div>
+              )}
               <p style={{ fontStyle: 'italic', fontSize: 15, color: 'rgba(0,0,0,0.75)', margin: 0, maxWidth: 640 }}>
                 Swap what you don't love, and drag cards between days and between morning, afternoon and evening.
               </p>
@@ -520,7 +537,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
             {!readOnly && (
               <div className="chunky itin-header-counter" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
                 <button className="btn-ghost" onClick={() => setPage('explore')} style={{ padding: '10px 14px', fontSize: 13 }}>+ Add more →</button>
-                <button className="btn-red" onClick={scrollToSignIn} style={{ padding: '10px 16px', fontSize: 14, borderWidth: 2 }}>Save trip</button>
+                <button className="btn-red" onClick={openSaveTrip} style={{ padding: '10px 16px', fontSize: 14, borderWidth: 2 }}>Save trip</button>
               </div>
             )}
           </div>
@@ -605,7 +622,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
                       >
                         <Share size={14} /> {shareBusy ? 'Creating link…' : 'Share itinerary'}
                       </button>
-                      <button onClick={scrollToSignIn} className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'var(--cream)', fontSize: 14, padding: '9px 14px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <button onClick={openSaveTrip} className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'var(--cream)', fontSize: 14, padding: '9px 14px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                         <Bookmark size={14} /> Save
                       </button>
                       <button onClick={handleExportCalendar} className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'var(--cream)', fontSize: 14, padding: '9px 14px', display: 'inline-flex', alignItems: 'center', gap: 6 }} title="Download .ics for Google Calendar, Apple Calendar or Outlook">
@@ -627,6 +644,47 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
 
       <div id="sso-login"><SignIn /></div>
       <Footer setPage={setPage} />
+
+      {saveTripOpen && (
+        <div className="login-modal-backdrop" onClick={() => setSaveTripOpen(false)}>
+          <div className="login-modal-card" role="dialog" aria-modal="true" aria-labelledby="save-trip-title" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="login-modal-close" onClick={() => setSaveTripOpen(false)} aria-label="Close">✕</button>
+            <h2 id="save-trip-title" className="font-display" style={{ fontSize: 26, margin: '0 0 6px', color: 'var(--ink)' }}>
+              {user ? 'Your trip' : 'Save your trip'}
+            </h2>
+            <p style={{ fontStyle: 'italic', fontSize: 14, color: 'rgba(0,0,0,0.65)', margin: '0 0 20px' }}>
+              {user
+                ? 'Give it a name to find it easily later.'
+                : 'Name it, then sign in to save across devices.'}
+            </p>
+            <input
+              type="text"
+              value={tripNameDraft}
+              onChange={(e) => setTripNameDraft(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && confirmSaveTrip()}
+              placeholder="e.g. Honeymoon in Aruba"
+              maxLength={80}
+              autoFocus
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                padding: '11px 14px', borderRadius: 12,
+                border: '2px solid var(--ink)', fontSize: 15,
+                fontFamily: 'inherit', marginBottom: 14,
+                background: 'var(--cream)', color: 'var(--ink)',
+                outline: 'none',
+              }}
+            />
+            <button
+              type="button"
+              className="btn-red"
+              onClick={confirmSaveTrip}
+              style={{ width: '100%', padding: '12px 16px', fontSize: 15 }}
+            >
+              {user ? 'Save trip' : 'Continue to sign in →'}
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

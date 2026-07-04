@@ -25,6 +25,7 @@ export type Answers = {
   lodging: string;
   flags: string[];
   specialNotes: string;
+  tripName?: string;
 };
 
 export const DEFAULT_ANSWERS: Answers = {
