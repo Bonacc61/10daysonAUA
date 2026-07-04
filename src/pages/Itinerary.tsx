@@ -816,7 +816,7 @@ function Section({
         <div ref={setNodeRef} className={`itin-section-zone${isOver ? ' over' : ''}${cards.length === 0 ? ' empty' : ''}`}>
           {cards.length === 0 && (
             hasShortlist ? (
-              <div className="itin-section-empty">
+              <div className="itin-section-empty has-shortlist">
                 <button
                   type="button"
                   className="itin-shortlist-toggle"

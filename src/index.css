@@ -134,22 +134,27 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
   padding: 16px; text-align: center; color: var(--sand-500);
   font-size: 12px; font-style: italic; line-height: 1.4;
 }
-/* Shortlist picker inside empty slot */
+/* Shortlist variant — matches the green card in Explore */
+.itin-section-empty.has-shortlist {
+  background: var(--green); border: 2px solid var(--ink); border-radius: 12px;
+  box-shadow: 3px 3px 0 var(--ink); color: var(--cream);
+  font-style: normal; padding: 14px 16px; text-align: left;
+}
 .itin-shortlist-toggle {
   display: flex; align-items: center; gap: 8px; width: 100%;
   background: none; border: none; cursor: pointer;
-  color: var(--green); font-weight: 700; font-size: 13px;
+  color: var(--cream); font-weight: 700; font-size: 13px;
   font-style: normal; font-family: inherit; padding: 0;
 }
-.itin-shortlist-toggle:hover { text-decoration: underline; }
+.itin-shortlist-toggle:hover { opacity: 0.85; }
 .itin-shortlist-picker { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
 .itin-shortlist-item {
-  display: block; width: 100%; text-align: left; padding: 8px 12px;
-  background: var(--yellow-bg); border: 2px solid var(--ink); border-radius: 8px;
-  font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
-  color: var(--ink); box-shadow: 2px 2px 0 var(--ink);
+  display: block; width: 100%; text-align: left; padding: 9px 14px;
+  background: var(--red); border: 2px solid var(--ink); border-radius: 8px;
+  font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer;
+  color: var(--cream); box-shadow: 2px 2px 0 var(--ink);
 }
-.itin-shortlist-item:hover { background: var(--yellow); }
+.itin-shortlist-item:hover { opacity: 0.88; }
 /* "★ Your pick" badge in card header bands */
 .itin-pinned-badge {
   background: var(--yellow); color: var(--ink);
