@@ -100,6 +100,44 @@ describe('activityKind — same-day variety', () => {
   });
 });
 
+describe('refaceForAnswers — local activity slot filtering', () => {
+  const makeActivity = (id: string, tod: 'Morning' | 'Afternoon' | 'Evening') => ({
+    kind: 'activity' as const,
+    activity: {
+      id, title: id, category: 'Test', image: '', description: '', localsSay: '',
+      cost: 'Free', duration: '2 hrs', timeOfDay: tod, fitReason: '', location: '',
+      rating: 4.5, reviewCount: 100, adventure: 20, sections: ['beaches'] as const,
+      matched_by: [],
+    },
+  });
+
+  it('passes a morning activity through a morning slot filter', () => {
+    const entry = makeActivity('morn', 'Morning');
+    expect(refaceForAnswers([entry], new Set(), 'morning').length).toBe(1);
+  });
+
+  it('drops an evening activity from a morning pool', () => {
+    const entry = makeActivity('eve', 'Evening');
+    expect(refaceForAnswers([entry], new Set(), 'morning').length).toBe(0);
+  });
+
+  it('drops an evening activity from an afternoon pool', () => {
+    const entry = makeActivity('eve', 'Evening');
+    expect(refaceForAnswers([entry], new Set(), 'afternoon').length).toBe(0);
+  });
+
+  it('passes an evening activity through an evening slot filter', () => {
+    const entry = makeActivity('eve', 'Evening');
+    expect(refaceForAnswers([entry], new Set(), 'evening').length).toBe(1);
+  });
+
+  it('passes all timeOfDays through when no slot given (generator pre-filters)', () => {
+    const entries = ['Morning', 'Afternoon', 'Evening'].map((tod) =>
+      makeActivity(tod, tod as 'Morning' | 'Afternoon' | 'Evening'));
+    expect(refaceForAnswers(entries, new Set()).length).toBe(3);
+  });
+});
+
 describe('refaceForAnswers', () => {
   const group = { id: 'sailing-cruises', name: 'Sailing & Cruises', tagline: '', viator_taxonomy: '',
     viator_group_url: '', display_order: 0, matched_by: ['couple'] as MatchTag[], region: 'palm-beach' as const,

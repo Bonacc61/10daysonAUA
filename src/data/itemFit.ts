@@ -166,6 +166,13 @@ export function refaceForAnswers(
   for (const e of entries) {
     if (e.kind !== 'group') {
       if (excludeIds?.has(e.activity.id)) continue; // a used local pick is exhausted
+      // When a slot is given, only include activities whose timeOfDay matches.
+      // matchPool pre-filters the primary pool, but widePool/anyPool fallbacks
+      // in the swap pass the full catalog.activities without pre-filtering.
+      if (slot) {
+        const tod = slot === 'morning' ? 'Morning' : slot === 'afternoon' ? 'Afternoon' : 'Evening';
+        if (e.activity.timeOfDay !== tod) continue;
+      }
       out.push(e);
       continue;
     }
