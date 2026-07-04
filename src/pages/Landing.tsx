@@ -100,7 +100,7 @@ export default function Landing({ setPage, answers, setAnswers }: Props) {
 
             </div>
             <div className="hero-mascot" style={{ flex: '1 1 40%', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>
-              <img src="/parrot.png" alt="Aruba parrot mascot" style={{ width: '100%', maxWidth: 460, height: 'auto', display: 'block', transform: 'scaleX(-1) rotate(-4deg)' }} />
+              <img src="/parrot-HD.svg" alt="Aruba parrot mascot" style={{ width: '100%', maxWidth: 460, height: 'auto', display: 'block', transform: 'scaleX(-1) rotate(-4deg)' }} />
             </div>
           </div>
         </div>
