@@ -220,19 +220,18 @@ function SampleSection({ days, goPlan }: { days: string; goPlan: () => void }) {
               {SAMPLE_ITINERARY.slice(0, 2).map((d, i) => (
                 <DayBlock key={d.day} d={d} isLast={i === 1} />
               ))}
+              <div style={{ marginTop: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button type="button" disabled className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'rgba(255,255,255,0.7)', fontSize: 13, padding: '9px 16px', display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'default', opacity: 0.85 }}>
+                  <Calendar size={14} /> Export calendar
+                </button>
+                <button type="button" disabled className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'rgba(255,255,255,0.7)', fontSize: 13, padding: '9px 16px', display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'default', opacity: 0.85 }}>
+                  <Share size={14} /> Share itinerary
+                </button>
+                <button type="button" disabled className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'rgba(255,255,255,0.7)', fontSize: 13, padding: '9px 16px', display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'default', opacity: 0.85 }}>
+                  <Mail size={14} /> Email to me
+                </button>
+              </div>
             </div>
-          </div>
-
-          <div style={{ marginTop: 28, paddingTop: 24, borderTop: '2px dashed rgba(255,255,255,0.35)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <button type="button" disabled className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'rgba(255,255,255,0.7)', fontSize: 13, padding: '9px 16px', display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'default', opacity: 0.85 }}>
-              <Calendar size={14} /> Export calendar
-            </button>
-            <button type="button" disabled className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'rgba(255,255,255,0.7)', fontSize: 13, padding: '9px 16px', display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'default', opacity: 0.85 }}>
-              <Share size={14} /> Share itinerary
-            </button>
-            <button type="button" disabled className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'rgba(255,255,255,0.7)', fontSize: 13, padding: '9px 16px', display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'default', opacity: 0.85 }}>
-              <Mail size={14} /> Email to me
-            </button>
           </div>
         </div>
       </div>
