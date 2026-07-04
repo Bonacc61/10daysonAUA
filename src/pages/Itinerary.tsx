@@ -245,17 +245,33 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   // --- Save Trip modal (name-your-trip before persisting) ------------------
   const [saveTripOpen, setSaveTripOpen] = useState(false);
   const [tripNameDraft, setTripNameDraft] = useState('');
+  const [saveTripStatus, setSaveTripStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   const openSaveTrip = () => {
     setTripNameDraft(answers.tripName ?? '');
+    setSaveTripStatus('idle');
     setSaveTripOpen(true);
   };
 
-  const confirmSaveTrip = () => {
+  const confirmSaveTrip = async () => {
+    if (saveTripStatus === 'saving') return;
     const name = tripNameDraft.trim();
-    setAnswers({ ...answers, tripName: name || undefined });
-    setSaveTripOpen(false);
-    if (!user) onLogin();
+    const newAnswers = { ...answers, tripName: name || undefined };
+    setAnswers(newAnswers);
+
+    if (user) {
+      setSaveTripStatus('saving');
+      const { error } = await upsertTrip(user.id, { answers: newAnswers, plan, rejected, rejectedGroups });
+      if (error) {
+        setSaveTripStatus('error');
+        return;
+      }
+      setSaveTripStatus('saved');
+      window.setTimeout(() => setSaveTripOpen(false), 1200);
+    } else {
+      setSaveTripOpen(false);
+      onLogin();
+    }
   };
 
   // A single drag context spans the whole plan so cards can be dragged across
@@ -646,42 +662,61 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
       <Footer setPage={setPage} />
 
       {saveTripOpen && (
-        <div className="login-modal-backdrop" onClick={() => setSaveTripOpen(false)}>
+        <div className="login-modal-backdrop" onClick={() => saveTripStatus !== 'saving' && setSaveTripOpen(false)}>
           <div className="login-modal-card" role="dialog" aria-modal="true" aria-labelledby="save-trip-title" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="login-modal-close" onClick={() => setSaveTripOpen(false)} aria-label="Close">✕</button>
-            <h2 id="save-trip-title" className="font-display" style={{ fontSize: 26, margin: '0 0 6px', color: 'var(--ink)' }}>
-              {user ? 'Your trip' : 'Save your trip'}
-            </h2>
-            <p style={{ fontStyle: 'italic', fontSize: 14, color: 'rgba(0,0,0,0.65)', margin: '0 0 20px' }}>
-              {user
-                ? 'Give it a name to find it easily later.'
-                : 'Name it, then sign in to save across devices.'}
-            </p>
-            <input
-              type="text"
-              value={tripNameDraft}
-              onChange={(e) => setTripNameDraft(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && confirmSaveTrip()}
-              placeholder="e.g. Honeymoon in Aruba"
-              maxLength={80}
-              autoFocus
-              style={{
-                width: '100%', boxSizing: 'border-box',
-                padding: '11px 14px', borderRadius: 12,
-                border: '2px solid var(--ink)', fontSize: 15,
-                fontFamily: 'inherit', marginBottom: 14,
-                background: 'var(--cream)', color: 'var(--ink)',
-                outline: 'none',
-              }}
-            />
-            <button
-              type="button"
-              className="btn-red"
-              onClick={confirmSaveTrip}
-              style={{ width: '100%', padding: '12px 16px', fontSize: 15 }}
-            >
-              {user ? 'Save trip' : 'Continue to sign in →'}
-            </button>
+            <button type="button" className="login-modal-close" onClick={() => setSaveTripOpen(false)} aria-label="Close" disabled={saveTripStatus === 'saving'}>✕</button>
+
+            {saveTripStatus === 'saved' ? (
+              <>
+                <h2 className="font-display" style={{ fontSize: 26, margin: '0 0 8px', color: 'var(--ink)' }}>Trip saved ✓</h2>
+                <p style={{ fontSize: 14, color: 'rgba(0,0,0,0.65)', margin: 0 }}>
+                  {tripNameDraft.trim() ? <><b>{tripNameDraft.trim()}</b> — saved to your account.</> : 'Saved to your account.'}
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 id="save-trip-title" className="font-display" style={{ fontSize: 26, margin: '0 0 6px', color: 'var(--ink)' }}>
+                  {user ? 'Save your trip' : 'Save your trip'}
+                </h2>
+                <p style={{ fontStyle: 'italic', fontSize: 14, color: 'rgba(0,0,0,0.65)', margin: '0 0 20px' }}>
+                  {user
+                    ? 'Give it a name, then save.'
+                    : 'Name it, then sign in to save across devices.'}
+                </p>
+                <input
+                  type="text"
+                  value={tripNameDraft}
+                  onChange={(e) => { setTripNameDraft(e.target.value); setSaveTripStatus('idle'); }}
+                  onKeyDown={(e) => e.key === 'Enter' && void confirmSaveTrip()}
+                  placeholder="e.g. Honeymoon in Aruba"
+                  maxLength={80}
+                  autoFocus
+                  disabled={saveTripStatus === 'saving'}
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    padding: '11px 14px', borderRadius: 12,
+                    border: '2px solid var(--ink)', fontSize: 15,
+                    fontFamily: 'inherit', marginBottom: 14,
+                    background: 'var(--cream)', color: 'var(--ink)',
+                    outline: 'none',
+                  }}
+                />
+                <button
+                  type="button"
+                  className="btn-red"
+                  onClick={() => void confirmSaveTrip()}
+                  disabled={saveTripStatus === 'saving'}
+                  style={{ width: '100%', padding: '12px 16px', fontSize: 15, opacity: saveTripStatus === 'saving' ? 0.7 : 1 }}
+                >
+                  {saveTripStatus === 'saving' ? 'Saving…' : user ? 'Save trip' : 'Continue to sign in →'}
+                </button>
+                {saveTripStatus === 'error' && (
+                  <p role="alert" style={{ color: 'var(--red)', fontSize: 13, margin: '10px 0 0' }}>
+                    Something went wrong — please try again.
+                  </p>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}
