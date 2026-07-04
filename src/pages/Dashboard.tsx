@@ -724,7 +724,7 @@ function ItineraryPanel({
           const isLocked   = !variant.available;
 
           return (
-            <div key={variant.id} className="chunky" style={{ padding: 0, overflow: 'hidden', opacity: isLocked ? 0.55 : 1 }}>
+            <div key={variant.id} className="chunky" style={{ padding: 0, opacity: isLocked ? 0.55 : 1 }}>
               {/* Collapsed header row */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px' }}>
                 {/* Expand/collapse button — fills remaining space */}
@@ -780,7 +780,7 @@ function ItineraryPanel({
                         <Download size={15} />
                       </button>
                       {exportOpen === variant.id && (
-                        <div className="chunky" style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, padding: '6px 0', minWidth: 190, zIndex: 20, background: 'var(--cream)' }}>
+                        <div className="chunky" style={{ position: 'absolute', ...(isExpanded ? { top: 'calc(100% + 6px)' } : { bottom: 'calc(100% + 6px)' }), right: 0, padding: '6px 0', minWidth: 190, zIndex: 20, background: 'var(--cream)' }}>
                           <button onClick={handleIcsExport}
                             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
                             <Calendar size={14} /><span>.ics — Calendar</span>
@@ -809,7 +809,7 @@ function ItineraryPanel({
                         <IOSShare size={15} />
                       </button>
                       {shareOpen === variant.id && (
-                        <div className="chunky" style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, padding: '6px 0', minWidth: 190, zIndex: 20, background: 'var(--cream)' }}>
+                        <div className="chunky" style={{ position: 'absolute', ...(isExpanded ? { top: 'calc(100% + 6px)' } : { bottom: 'calc(100% + 6px)' }), right: 0, padding: '6px 0', minWidth: 190, zIndex: 20, background: 'var(--cream)' }}>
                           <button
                             onClick={() => { setShareOpen(null); setEmailOpen(true); setEmailSent(false); setEmailError(null); }}
                             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
