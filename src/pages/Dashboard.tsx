@@ -183,17 +183,33 @@ function SurprisePanel({ setPage, trip }: { setPage: (p: PageId) => void; trip: 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [starred.size]);
 
+  // iOS 13+ requires DeviceMotionEvent.requestPermission() from a user gesture
+  // before accelerometer values are non-null. We detect the need, ask on tap,
+  // then re-register the listener once permission is granted.
+  const needsMotionPermission =
+    typeof DeviceMotionEvent !== 'undefined' &&
+    typeof (DeviceMotionEvent as { requestPermission?: unknown }).requestPermission === 'function';
+  const [motionGranted, setMotionGranted] = useState(!needsMotionPermission);
+
+  const requestMotionPermission = async () => {
+    try {
+      const result = await (DeviceMotionEvent as unknown as { requestPermission: () => Promise<string> }).requestPermission();
+      if (result === 'granted') setMotionGranted(true);
+    } catch { /* user dismissed or browser blocked */ }
+  };
+
   useEffect(() => {
+    if (!motionGranted) return;
     let last = 0;
     const onMotion = (e: DeviceMotionEvent) => {
       const a = e.accelerationIncludingGravity;
       if (!a) return;
       const mag = Math.sqrt((a.x ?? 0) ** 2 + (a.y ?? 0) ** 2 + (a.z ?? 0) ** 2);
-      if (mag > 22 && Date.now() - last > 1200) { last = Date.now(); spin(); }
+      if (mag > 20 && Date.now() - last > 1200) { last = Date.now(); spin(); }
     };
     window.addEventListener('devicemotion', onMotion);
     return () => window.removeEventListener('devicemotion', onMotion);
-  }, [spin]);
+  }, [spin, motionGranted]);
 
   const slotEmoji = { morning: '🌅', afternoon: '☀️', evening: '🌙' };
 
@@ -206,6 +222,20 @@ function SurprisePanel({ setPage, trip }: { setPage: (p: PageId) => void; trip: 
             ? 'Here\'s an activity for right now — tap to roll a different one.'
             : 'Heart things in Explore first — then let us do the deciding.'}
         </p>
+        {needsMotionPermission && !motionGranted && (
+          <button
+            type="button"
+            onClick={() => void requestMotionPermission()}
+            style={{ marginTop: 10, background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--sand-500)', textDecoration: 'underline', padding: 0, fontFamily: 'inherit' }}
+          >
+            📱 Enable shake to roll
+          </button>
+        )}
+        {motionGranted && (
+          <p style={{ marginTop: 6, fontSize: 12, color: 'var(--sand-400)', fontStyle: 'italic' }}>
+            📱 Shake your phone to roll a new pick
+          </p>
+        )}
       </div>
 
       {loading && <div style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading…</div>}

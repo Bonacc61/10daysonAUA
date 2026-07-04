@@ -383,22 +383,7 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 
 /* Itinerary layout: left practical-info rail + right timeline column.
    The rail is sticky so users can reference it while scrolling through days. */
-.itinerary-layout {
-  display: grid;
-  grid-template-columns: 25% 1fr;
-  gap: 36px;
-  align-items: start;
-}
-.itinerary-rail {
-  position: sticky;
-  top: 20px;
-  align-self: start;
-}
 .itinerary-main { min-width: 0; }
-@media (max-width: 900px) {
-  .itinerary-layout { grid-template-columns: 1fr; gap: 24px; }
-  .itinerary-rail { position: static; }
-}
 
 /* Collapsible info card */
 .info-topic {

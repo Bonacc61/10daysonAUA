@@ -11,7 +11,6 @@ import { Bookmark, Calendar, Chev, Share, X } from '../components/Icons';
 import { buildIcs, downloadIcs } from '../lib/icsExport';
 import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
-import { INFO_TOPICS } from '../data/activities';
 import { resolveSlotEntry } from '../data/activitySource';
 import { useCatalog } from '../data/useCatalog';
 import { matchPool, blendPools, constrainBySwapReason, entryPrice, parseActivityCost } from '../data/matcher';
@@ -86,7 +85,6 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   // Rejection memory feeds the swap matcher so it won't re-offer dismissed picks.
   const [rejected,       setRejected]       = useState<Set<string>>(new Set());
   const [rejectedGroups, setRejectedGroups] = useState<Set<string>>(new Set());
-  const [practicalOpen, setPracticalOpen] = useState(false);
 
   // Which cards the user has manually marked as booked (uid-keyed, persisted to localStorage).
   const { booked: bookedIds, toggle: toggleBooked } = useBooked();
@@ -567,30 +565,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
               You're viewing a shared Aruba itinerary — sign in to save your own editable copy.
             </div>
           )}
-          <div className="itinerary-layout">
-            <aside className="itinerary-rail">
-              <button
-                type="button"
-                onClick={() => setPracticalOpen((o) => !o)}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, margin: '4px 0 14px' }}
-                aria-expanded={practicalOpen}
-              >
-                <span className="font-display" style={{ fontSize: 16, letterSpacing: '-0.2px', color: 'var(--ink)' }}>Practical info</span>
-                <span style={{ fontFamily: 'Caprasimo, Georgia, serif', fontSize: 26, lineHeight: 1, color: 'var(--ink)', userSelect: 'none' }}>{practicalOpen ? '−' : '+'}</span>
-              </button>
-              {practicalOpen && INFO_TOPICS.map((topic) => (
-                <details key={topic.title} className="info-topic">
-                  <summary>
-                    <span className="info-topic-title">{topic.title}</span>
-                    <span className="info-topic-chev"><Chev size={14} sw={2.5} /></span>
-                  </summary>
-                  <div className="info-topic-body">
-                    {topic.body.map((line, i) => <p key={i}>{line}</p>)}
-                  </div>
-                </details>
-              ))}
-            </aside>
-
+          <div>
             <div className="itinerary-main">
               <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
                 {plan.map((d, i) => (
