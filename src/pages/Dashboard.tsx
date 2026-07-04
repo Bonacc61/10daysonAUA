@@ -293,7 +293,7 @@ function SurprisePanel({ setPage, trip }: { setPage: (p: PageId) => void; trip: 
 
 // ─────────────────────────────────────────────── Starred cards ───────────── //
 
-function StarredActivityCard({ entry, onStar }: { entry: ExploreEntry & { kind: 'activity' }; onStar: () => void }) {
+function StarredActivityCard({ entry, onStar }: { entry: ExploreEntry & { kind: 'activity' }; onStar?: () => void }) {
   const a = entry.activity;
   const bUrl = bookingUrl(entry);
   return (
@@ -301,9 +301,11 @@ function StarredActivityCard({ entry, onStar }: { entry: ExploreEntry & { kind: 
       <div className="a-img">
         <img src={a.image} alt={a.title} />
         <span className="a-rating"><Star size={10} /> {a.rating}</span>
-        <button className="a-star-btn active" onClick={onStar} aria-label="Remove from favourites">
-          <Heart size={14} fill="currentColor" />
-        </button>
+        {onStar && (
+          <button className="a-star-btn active" onClick={onStar} aria-label="Remove from favourites">
+            <Heart size={14} fill="currentColor" />
+          </button>
+        )}
       </div>
       <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-500)', marginBottom: 4 }}>{a.category}</div>
@@ -331,7 +333,7 @@ function StarredActivityCard({ entry, onStar }: { entry: ExploreEntry & { kind: 
   );
 }
 
-function StarredItemCard({ entry, onStar }: { entry: ExploreEntry & { kind: 'item' }; onStar: () => void }) {
+function StarredItemCard({ entry, onStar }: { entry: ExploreEntry & { kind: 'item' }; onStar?: () => void }) {
   const { item } = entry;
   const bUrl = bookingUrl(entry);
   const sec  = sectionLabel(primarySection(entry.sections));
@@ -340,9 +342,11 @@ function StarredItemCard({ entry, onStar }: { entry: ExploreEntry & { kind: 'ite
       <div className="a-img">
         <img src={item.image_url} alt={item.title} />
         <span className="a-rating"><Star size={10} /> {item.rating}</span>
-        <button className="a-star-btn active" onClick={onStar} aria-label="Remove from favourites">
-          <Heart size={14} fill="currentColor" />
-        </button>
+        {onStar && (
+          <button className="a-star-btn active" onClick={onStar} aria-label="Remove from favourites">
+            <Heart size={14} fill="currentColor" />
+          </button>
+        )}
       </div>
       <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-500)', marginBottom: 4 }}>{sec}</div>
@@ -441,7 +445,7 @@ function StarredPanel({ setPage }: { setPage: (p: PageId) => void }) {
 
 function PersonalizedPanel({ setPage, trip }: { setPage: (p: PageId) => void; trip: TripLoadState }) {
   const { catalog, loading } = useCatalog();
-  const { starred, toggle: toggleStar } = useStarred();
+  const { starred } = useStarred();
   const [vibe,  setVibe]  = useState(50);
   const [price, setPrice] = useState(50);
 
@@ -506,8 +510,8 @@ function PersonalizedPanel({ setPage, trip }: { setPage: (p: PageId) => void; tr
           <div className="explore-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20 }}>
             {entries.map((e) =>
               e.kind === 'item'
-                ? <StarredItemCard     key={`item:${e.item.id}`} entry={e} onStar={() => toggleStar(`item:${e.item.id}`)} />
-                : <StarredActivityCard key={e.activity.id}       entry={e} onStar={() => toggleStar(e.activity.id)} />
+                ? <StarredItemCard     key={`item:${e.item.id}`} entry={e} />
+                : <StarredActivityCard key={e.activity.id}       entry={e} />
             )}
           </div>
         </>
