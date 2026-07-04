@@ -313,8 +313,8 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   const onAddSlotEntry = (dayNum: number, section: Slot, entry: CardEntry) => {
     const uid = newUid();
     const slotEntry: SlotEntry = entry.kind === 'activity'
-      ? { kind: 'activity', id: entry.activity.id }
-      : { kind: 'group', groupId: entry.group.id, bestSellerId: entry.bestSeller.id };
+      ? { kind: 'activity', id: entry.activity.id, pinned: true }
+      : { kind: 'group', groupId: entry.group.id, bestSellerId: entry.bestSeller.id, pinned: true };
     setPlan((p) => addCard(p, dayNum, section, slotEntry, uid));
     setAppearing((s) => new Set(s).add(uid));
     window.setTimeout(() => setAppearing((s) => { const n = new Set(s); n.delete(uid); return n; }), 320);
