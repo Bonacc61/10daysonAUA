@@ -13,6 +13,7 @@ type Props = {
   entry: CardEntry;
   flipped: boolean;
   swapping: boolean;
+  pinned?: boolean;
   onFlip: () => void;
   onSwap?: () => void;
   showReasons?: boolean;
@@ -30,7 +31,7 @@ const BASE_HEIGHT = 284;
 const REASONS_EXTRA = SWAP_REASONS_OPEN_PX;
 
 export default function ItineraryCard({
-  entry, flipped, swapping, onFlip, onSwap,
+  entry, flipped, swapping, pinned, onFlip, onSwap,
   showReasons = false, onPickReason, onAddItem, onNavigateToSection,
 }: Props) {
   // Per-card state for the group's "Other suggestions" expand/collapse.
@@ -58,12 +59,12 @@ export default function ItineraryCard({
     : <CardBack kind="group"    bestSeller={entry.bestSeller}  onFlip={onFlip} />;
 
   const front = entry.kind === 'activity'
-    ? <ActivityCardFront a={entry.activity} bookUrl={bookUrl}
+    ? <ActivityCardFront a={entry.activity} bookUrl={bookUrl} pinned={pinned}
                          onFlip={onFlip} onSwap={onSwap}
                          showReasons={showReasons} onPickReason={onPickReason}
                          onNavigateToSection={onNavigateToSection} />
     : <GroupCard group={entry.group} bestSeller={entry.bestSeller}
-                 others={entry.others} bookUrl={bookUrl}
+                 others={entry.others} bookUrl={bookUrl} pinned={pinned}
                  onSwap={onSwap} onFlip={onFlip}
                  showReasons={showReasons} onPickReason={onPickReason}
                  suggestionsOpen={suggestionsOpen}
@@ -84,17 +85,23 @@ export default function ItineraryCard({
 // Local activity (non-Viator) card front face — preserved from the original
 // inline CardFront in Itinerary.tsx, with the same look and behavior.
 function ActivityCardFront({
-  a, bookUrl, onFlip, onSwap, showReasons, onPickReason, onNavigateToSection,
+  a, bookUrl, pinned, onFlip, onSwap, showReasons, onPickReason, onNavigateToSection,
 }: {
   a: Activity;
   bookUrl: string | null;
+  pinned?: boolean;
   onFlip: () => void;
   onSwap?: () => void;
   showReasons?: boolean;
   onPickReason?: (reason: SwapReason) => void;
   onNavigateToSection?: (section: Section) => void;
 }) {
-  const headerContent = <div className="chb-title">{a.category}</div>;
+  const headerContent = (
+    <>
+      <div className="chb-title">{a.category}</div>
+      {pinned && <span className="itin-pinned-badge">★ Your pick</span>}
+    </>
+  );
   return (
     <div className="chunky flip-face itin-card-front"
          style={{ borderWidth: 2, height: '100%', overflow: 'hidden', padding: 0, display: 'flex', flexDirection: 'column' }}>

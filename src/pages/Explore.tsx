@@ -12,7 +12,7 @@ import type { ViatorItem } from '../types';
 import type { Answers } from '../App';
 import type { PageId } from '../App';
 
-type Props = { setPage: (p: PageId) => void; answers: Answers; onLogin: () => void; canSeeItinerary: boolean; initialSection?: Section; };
+type Props = { setPage: (p: PageId) => void; answers: Answers; onLogin: () => void; canSeeItinerary: boolean; initialSection?: Section; shortlist: Set<string>; setShortlist: (s: Set<string>) => void; };
 
 // Vibe pill copy/colour from an adventure value (mirrors vibePass thresholds).
 function vibePill(adventure: number): { label: string; bg: string } {
@@ -90,7 +90,7 @@ function SkeletonCard() {
   );
 }
 
-export default function Explore({ setPage, answers, onLogin, canSeeItinerary, initialSection }: Props) {
+export default function Explore({ setPage, answers, onLogin, canSeeItinerary, initialSection, shortlist, setShortlist }: Props) {
   const { catalog, loading } = useCatalog();
   const { user } = useAuth();
 
@@ -98,7 +98,6 @@ export default function Explore({ setPage, answers, onLogin, canSeeItinerary, in
   const [search, setSearch] = useState('');
   const [vibe, setVibe] = useState<number>(answers.adventureLevel ?? 50);
   const [price, setPrice] = useState<number>(50);
-  const [added, setAdded] = useState<Set<string>>(new Set());
   const { starred, toggle: toggleStar } = useStarred();
 
   const guardedStar = (id: string) => {
@@ -116,11 +115,9 @@ export default function Explore({ setPage, answers, onLogin, canSeeItinerary, in
   const entries = filterExploreEntries(catalog, { section, search, vibe, price });
 
   const toggleAdd = (id: string) => {
-    setAdded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
+    const next = new Set(shortlist);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setShortlist(next);
   };
 
   const totalCount = entries.length;
@@ -167,9 +164,9 @@ export default function Explore({ setPage, answers, onLogin, canSeeItinerary, in
             <aside className="explore-sidebar" style={{ flex: '0 0 240px' }}>
               <Slider label="Vibe" value={vibe} onChange={setVibe} lo="🌴 Chill" hi="Adrenaline 🪂" hint={vibeHint(vibe)} />
               <Slider label="Price" value={price} onChange={setPrice} lo="✨ Free" hi="Splurge 💸" hint={priceHint(price)} />
-              {added.size > 0 && (
+              {shortlist.size > 0 && (
                 <div className="chunky" style={{ padding: 18, background: 'var(--green)', color: 'var(--cream)' }}>
-                  <div className="font-display" style={{ fontSize: 18, marginBottom: 6 }}>{added.size} added</div>
+                  <div className="font-display" style={{ fontSize: 18, marginBottom: 6 }}>{shortlist.size} added</div>
                   <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 12 }}>Your hand-picked shortlist.</div>
                   <button className="btn-red" onClick={() => setPage(canSeeItinerary ? 'itinerary' : 'questionnaire')} style={{ width: '100%', padding: '10px 14px', fontSize: 14 }}>Build itinerary →</button>
                 </div>
@@ -190,8 +187,8 @@ export default function Explore({ setPage, answers, onLogin, canSeeItinerary, in
                   ? Array.from({ length: 12 }, (_, i) => <SkeletonCard key={i} />)
                   : entries.map((e) => (
                     e.kind === 'item'
-                      ? <ItemTile key={`item:${e.item.id}`} item={e.item} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} region={regionOf(e.item)} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} starred={starred.has(`item:${e.item.id}`)} onStar={() => guardedStar(`item:${e.item.id}`)} />
-                      : <ActivityTile key={e.activity.id} a={e.activity} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} adventure={e.adventure} bookNow={bookingUrl(e)} added={added.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} starred={starred.has(e.activity.id)} onStar={() => guardedStar(e.activity.id)} />
+                      ? <ItemTile key={`item:${e.item.id}`} item={e.item} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} region={regionOf(e.item)} adventure={e.adventure} bookNow={bookingUrl(e)} added={shortlist.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} starred={starred.has(`item:${e.item.id}`)} onStar={() => guardedStar(`item:${e.item.id}`)} />
+                      : <ActivityTile key={e.activity.id} a={e.activity} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} adventure={e.adventure} bookNow={bookingUrl(e)} added={shortlist.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} starred={starred.has(e.activity.id)} onStar={() => guardedStar(e.activity.id)} />
                   ))}
               </div>
               {!loading && totalCount === 0 && (

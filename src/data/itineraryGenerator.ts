@@ -17,7 +17,7 @@ import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, blendPools, entryPrice } from './matcher';
-import { fitItem, refaceForAnswers, budgetCap, activityKind } from './itemFit';
+import { fitItem, refaceForAnswers, budgetCap, activityKind, isEveningItem } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 
@@ -252,10 +252,64 @@ function titleFor(picks: CardEntry[], day: number): string {
   return first.kind === 'group' ? first.group.name : first.activity.category;
 }
 
+// ---------- Pin-placement helpers (exported for unit tests) ------------------
+
+// Resolve an Explore shortlist id → CardEntry against the filtered catalog.
+// id format: 'item:<viatorItemId>' for Viator items, '<activityId>' for local.
+// Returns null if the id is stale (product no longer in catalog).
+export function resolvePinId(rawId: string, catalog: Catalog): CardEntry | null {
+  if (rawId.startsWith('item:')) {
+    const itemId = rawId.slice(5);
+    const item = catalog.items.find((i) => i.id === itemId);
+    if (!item) return null;
+    const group = catalog.groups.find((g) => g.id === item.group_id);
+    if (!group) return null;
+    const others = catalog.items.filter((i) => i.group_id === group.id && i.id !== item.id);
+    return { kind: 'group', group, bestSeller: item, others };
+  }
+  const activity = catalog.activities.find((a) => a.id === rawId);
+  if (!activity) return null;
+  return { kind: 'activity', activity };
+}
+
+// Preferred and fallback slot lists for a resolved pin.
+export function getPinSlotPrefs(entry: CardEntry): { preferred: Slot[]; fallback: Slot[] } {
+  if (entry.kind === 'group') {
+    return isEveningItem(entry.bestSeller)
+      ? { preferred: ['evening'], fallback: ['morning', 'afternoon'] }
+      : { preferred: ['morning', 'afternoon'], fallback: [] };
+  }
+  const tod = entry.activity.timeOfDay;
+  if (tod === 'Morning')   return { preferred: ['morning'],   fallback: [] };
+  if (tod === 'Evening')   return { preferred: ['evening'],   fallback: [] };
+  return { preferred: ['afternoon'], fallback: [] };
+}
+
+// Scan from cursor (1-based, wraps modulo nDays) for the earliest day+slot that
+// satisfies the preferred list; if none found, try the fallback list.
+export function findPinSlot(
+  preferred: Slot[],
+  fallback: Slot[],
+  nDays: number,
+  cursor: number,
+  slotAvail: (day: number, slot: Slot) => boolean,
+): { day: number; slot: Slot } | null {
+  for (const slots of [preferred, fallback]) {
+    if (slots.length === 0) continue;
+    for (let i = 0; i < nDays; i++) {
+      const d = ((cursor - 1 + i) % nDays) + 1;
+      for (const slot of slots) {
+        if (slotAvail(d, slot)) return { day: d, slot };
+      }
+    }
+  }
+  return null;
+}
+
 export function generatePlan(
   answers: Answers,
   catalog: Catalog,
-  opts: { seed?: number } = {},
+  opts: { seed?: number; pinned?: string[] } = {},
 ): Day[] {
   const tags = answersToTags(answers);
   const prefSections = new Set<Section>();
@@ -273,6 +327,43 @@ export function generatePlan(
   const cap = budgetCap(tags);
   let budgetLeft = cap === Infinity ? Infinity : cap * nDays;
 
+  // --- Pin pre-pass: claim slots for shortlisted picks before normal fill. ----
+  // Pins are budget-exempt — the user chose these explicitly so they always
+  // land regardless of cost. They still debit the budget pool so normal fill
+  // respects what a pin consumed.
+  const pinClaimed = new Map<number, Set<Slot>>();
+  const openAft = (day: number) => nDays > 1 && (day === 1 || day === nDays);
+  const slotAvail = (day: number, slot: Slot): boolean => {
+    if (slot === 'morning' && flags.has('no-early-mornings')) return false;
+    if (slot === 'afternoon' && openAft(day)) return false;
+    return !pinClaimed.get(day)?.has(slot);
+  };
+
+  type PinPlacement = { cardEntry: CardEntry; slotEntry: SlotEntry };
+  const pinnedSlots = new Map<number, Map<Slot, PinPlacement>>();
+  let dayCursor = 1;
+
+  for (const rawId of (opts.pinned ?? [])) {
+    const resolved = resolvePinId(rawId, filteredCatalog);
+    if (!resolved) continue;
+
+    const { preferred, fallback } = getPinSlotPrefs(resolved);
+    const placement = findPinSlot(preferred, fallback, nDays, dayCursor, slotAvail);
+    if (!placement) continue;
+
+    const { day, slot } = placement;
+    if (!pinClaimed.has(day)) pinClaimed.set(day, new Set());
+    pinClaimed.get(day)!.add(slot);
+
+    const slotEntry: SlotEntry = { ...toSlotEntry(resolved), pinned: true };
+    if (!pinnedSlots.has(day)) pinnedSlots.set(day, new Map());
+    pinnedSlots.get(day)!.set(slot, { cardEntry: resolved, slotEntry });
+
+    // Advance cursor so pins spread across the trip.
+    dayCursor = (day % nDays) + 1;
+  }
+  // ---------------------------------------------------------------------------
+
   const days: Day[] = [];
   for (let d = 1; d <= nDays; d += 1) {
     const slots: Record<Slot, SlotEntry[]> = { morning: [], afternoon: [], evening: [] };
@@ -289,6 +380,19 @@ export function generatePlan(
     for (const slot of SECTIONS) {
       if (slot === 'afternoon' && openAfternoon) continue;
       if (slot === 'morning' && flags.has('no-early-mornings')) continue;
+
+      const pin = pinnedSlots.get(d)?.get(slot);
+      if (pin) {
+        const { cardEntry: pick, slotEntry } = pin;
+        budgetLeft -= entryPrice(pick);
+        ctx.lastUsedDay.set(entryId(pick), d);
+        usedKinds.add(entryKind(pick));
+        if (!anchor) anchor = entryRegion(pick);
+        picks.push(pick);
+        slots[slot].push(slotEntry);
+        continue;
+      }
+
       const pick = pickForSlot(ctx, slot, anchor, Math.max(0, budgetLeft), usedKinds);
       if (!pick) continue;
       budgetLeft -= entryPrice(pick);

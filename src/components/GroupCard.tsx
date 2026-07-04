@@ -40,12 +40,13 @@ type Props = {
   // the day. The row's title link still opens the affiliate URL.
   onAddItem?: (item: ViatorItem) => void;
   onNavigateToSection?: (section: Section) => void;
+  pinned?: boolean;
 };
 
 export default function GroupCard({
   group, bestSeller, others, approved, onApprove, onSwap, onFlip,
   variant = 'itinerary', showReasons, onPickReason,
-  suggestionsOpen, onToggleSuggestions, onAddItem, bookUrl, onNavigateToSection,
+  suggestionsOpen, onToggleSuggestions, onAddItem, bookUrl, onNavigateToSection, pinned,
 }: Props) {
   const tourUrl = productUrlFor(bestSeller);
   const headerSection = primarySection(itemSections(bestSeller));
@@ -62,6 +63,7 @@ export default function GroupCard({
         group={group}
         href={onNavigateToSection ? undefined : (tourUrl ?? undefined)}
         onNavigate={onNavigateToSection ? () => onNavigateToSection(headerSection) : undefined}
+        pinned={pinned}
       />
 
       {variant === 'explore'

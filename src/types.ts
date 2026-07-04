@@ -71,8 +71,8 @@ export type ViatorItem = {
 
 // === Slot pointers + card entries ===
 export type SlotEntry =
-  | { kind: 'activity'; id: string }
-  | { kind: 'group'; groupId: string; bestSellerId: string };
+  | { kind: 'activity'; id: string; pinned?: boolean }
+  | { kind: 'group'; groupId: string; bestSellerId: string; pinned?: boolean };
 
 export type CardEntry =
   | { kind: 'activity'; activity: import('./data/activities').Activity }

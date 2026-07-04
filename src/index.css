@@ -134,6 +134,28 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
   padding: 16px; text-align: center; color: var(--sand-500);
   font-size: 12px; font-style: italic; line-height: 1.4;
 }
+/* Shortlist picker inside empty slot */
+.itin-shortlist-toggle {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: none; border: none; cursor: pointer;
+  color: var(--green); font-weight: 700; font-size: 13px;
+  font-style: normal; font-family: inherit; padding: 0;
+}
+.itin-shortlist-toggle:hover { text-decoration: underline; }
+.itin-shortlist-picker { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.itin-shortlist-item {
+  display: block; width: 100%; text-align: left; padding: 8px 12px;
+  background: var(--yellow-bg); border: 2px solid var(--ink); border-radius: 8px;
+  font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
+  color: var(--ink); box-shadow: 2px 2px 0 var(--ink);
+}
+.itin-shortlist-item:hover { background: var(--yellow); }
+/* "★ Your pick" badge in card header bands */
+.itin-pinned-badge {
+  background: var(--yellow); color: var(--ink);
+  font-size: 10px; font-weight: 800; font-style: normal;
+  padding: 2px 8px; border-radius: 999px; flex-shrink: 0; white-space: nowrap;
+}
 
 /* Per-card drag handle + remove control cluster (top-right of each card). */
 .itin-sortable { position: relative; }

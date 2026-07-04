@@ -17,7 +17,7 @@ import { useCatalog } from '../data/useCatalog';
 import { matchPool, blendPools, constrainBySwapReason, entryPrice } from '../data/matcher';
 import { fitItem, refaceForAnswers, itemSlotOk } from '../data/itemFit';
 import { answersToTags } from '../data/answerTags';
-import { generatePlan } from '../data/itineraryGenerator';
+import { generatePlan, resolvePinId } from '../data/itineraryGenerator';
 import { logEvent } from '../data/feedback';
 import { useAuth } from '../lib/auth';
 import { useBooked } from '../lib/booked';
@@ -34,7 +34,7 @@ import { suggestLunchspot, cardRegion, isLunchspot, LUNCHSPOTS } from '../data/l
 import type { CardEntry, SlotEntry, Slot, SwapReason, ViatorItem, Section } from '../types';
 import type { PageId, Answers } from '../App';
 
-type Props = { setPage: (p: PageId) => void; answers: Answers; setAnswers: (a: Answers) => void; onLogin: () => void; shareId: string | null; onNavigateToExplore?: (section: Section) => void };
+type Props = { setPage: (p: PageId) => void; answers: Answers; setAnswers: (a: Answers) => void; onLogin: () => void; shareId: string | null; onNavigateToExplore?: (section: Section) => void; shortlist?: Set<string> };
 
 const SECTION_META: { id: Slot; label: string }[] = [
   { id: 'morning',   label: 'Morning' },
@@ -42,14 +42,17 @@ const SECTION_META: { id: Slot; label: string }[] = [
   { id: 'evening',   label: 'Evening' },
 ];
 
-export default function Itinerary({ setPage, answers, setAnswers, onLogin, shareId, onNavigateToExplore }: Props) {
+export default function Itinerary({ setPage, answers, setAnswers, onLogin, shareId, onNavigateToExplore, shortlist = new Set<string>() }: Props) {
   const { catalog } = useCatalog();
   const tags    = useMemo(() => answersToTags(answers), [answers]);
 
   // Build the initial itinerary from the answers + the live catalog (Viator
   // groups + local picks), honoring the requested day count (1–14). Generated
   // once on mount; user edits (approve/swap/drag) then own the plan.
-  const [plan, setPlan] = useState<PlannedDay[]>(() => seedPlan(generatePlan(answers, catalog)));
+  // Shortlisted picks are pre-placed with pinned=true so they always land.
+  const [plan, setPlan] = useState<PlannedDay[]>(() =>
+    seedPlan(generatePlan(answers, catalog, { pinned: [...shortlist] }))
+  );
   const tripDays = plan.length;
 
   // Per-card UI state, all keyed by card uid.
@@ -123,7 +126,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
       setShareErr(null);
       const { id, error } = await createShare({ answers, plan, rejected, rejectedGroups });
       setShareBusy(false);
-      if (!id) { setShareErr(error ?? 'Couldn’t create link — try again'); return; }
+      if (!id) { setShareErr(error ?? "Couldn't create link — try again"); return; }
       url = `${window.location.origin}/i/${id}`;
       setShareUrl(url);
     }
@@ -177,6 +180,24 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   // ever show items that fit (e.g. nothing far over budget). This is the display
   // chokepoint — the plan stores only ids, so the shown items are rebuilt here.
   const resolveEntry = (slotEntry: SlotEntry, slot?: Slot): CardEntry | null => resolveSlotEntry(slotEntry, catalog, tags, slot);
+
+  // Count placed pinned picks: pinned=true AND resolved face matches the stored id.
+  const pinnedCount = useMemo(() => {
+    let n = 0;
+    for (const day of plan) {
+      for (const sec of SECTION_META) {
+        for (const card of day[sec.id]) {
+          const e = card.entry;
+          if (!e.pinned) continue;
+          if (e.kind === 'activity') { n++; continue; }
+          const resolved = resolveEntry(e, sec.id);
+          if (resolved?.kind === 'group' && resolved.bestSeller.id === e.bestSellerId) n++;
+        }
+      }
+    }
+    return n;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan, catalog]);
 
   const toggle = (set: Set<string>, uid: string) => {
     const next = new Set(set);
@@ -242,6 +263,27 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
       toIndex = loc.index;
     }
     onMove(activeUid, toDayIdx, toSection, toIndex);
+  };
+
+  // Resolved shortlist entries for the empty-slot picker.
+  const shortlistEntries = useMemo((): { rawId: string; entry: CardEntry }[] => {
+    return [...shortlist]
+      .map((rawId) => {
+        const entry = resolvePinId(rawId, catalog);
+        return entry ? { rawId, entry } : null;
+      })
+      .filter((x): x is { rawId: string; entry: CardEntry } => x !== null);
+  }, [shortlist, catalog]);
+
+  // Add a shortlist entry to a specific day+section (used from the empty-slot picker).
+  const onAddSlotEntry = (dayNum: number, section: Slot, entry: CardEntry) => {
+    const uid = newUid();
+    const slotEntry: SlotEntry = entry.kind === 'activity'
+      ? { kind: 'activity', id: entry.activity.id }
+      : { kind: 'group', groupId: entry.group.id, bestSellerId: entry.bestSeller.id };
+    setPlan((p) => addCard(p, dayNum, section, slotEntry, uid));
+    setAppearing((s) => new Set(s).add(uid));
+    window.setTimeout(() => setAppearing((s) => { const n = new Set(s); n.delete(uid); return n; }), 320);
   };
 
   // "+ Add to itinerary" from an Other-suggestion row — appends a group card
@@ -429,7 +471,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   if (shareMissing) {
     return (
       <div className="bleed" style={{ background: 'var(--cream)', minHeight: '60vh', display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24 }}>
-        <h1 className="font-display" style={{ fontSize: 32, margin: 0, color: 'var(--ink)' }}>This shared itinerary couldn’t be found.</h1>
+        <h1 className="font-display" style={{ fontSize: 32, margin: 0, color: 'var(--ink)' }}>This shared itinerary couldn't be found.</h1>
         <p style={{ color: 'rgba(0,0,0,0.7)', margin: 0 }}>The link may be mistyped or removed.</p>
         <button className="btn-red" onClick={() => setPage('landing')} style={{ padding: '10px 18px' }}>Build your own →</button>
       </div>
@@ -447,6 +489,11 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
               <p style={{ fontStyle: 'italic', fontSize: 15, color: 'rgba(0,0,0,0.75)', margin: 0, maxWidth: 640 }}>
                 Swap what you don't love, and drag cards between days and between morning, afternoon and evening.
               </p>
+              {pinnedCount > 0 && (
+                <p style={{ fontWeight: 700, fontSize: 14, color: 'var(--green)', margin: '8px 0 0' }}>
+                  ★ {pinnedCount} of your {pinnedCount === 1 ? 'pick' : 'picks'} placed
+                </p>
+              )}
             </div>
             {!readOnly && (
               <div className="chunky itin-header-counter" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -462,7 +509,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
         <div className="container-1280">
           {readOnly && (
             <div className="chunky" style={{ background: 'var(--yellow-bg)', border: '2px solid var(--ink)', padding: '12px 18px', marginBottom: 24, fontWeight: 700, color: 'var(--ink)' }}>
-              You’re viewing a shared Aruba itinerary — sign in to save your own editable copy.
+              You're viewing a shared Aruba itinerary — sign in to save your own editable copy.
             </div>
           )}
           <div className="itinerary-layout">
@@ -509,11 +556,13 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
                     onOpenSwap={onOpenSwap}
                     onSwap={onSwap}
                     onAddItem={onAddItem}
+                    onAddSlotEntry={onAddSlotEntry}
                     onRemove={onRemove}
                     onSuggestLunch={onSuggestLunch}
                     bookedIds={bookedIds}
                     onToggleBooked={toggleBooked}
                     onNavigateToSection={(section) => onNavigateToExplore?.(section)}
+                    shortlistEntries={shortlistEntries}
                   />
                 ))}
               </DndContext>
@@ -569,11 +618,13 @@ type DayHandlers = {
   onOpenSwap: (uid: string) => void;
   onSwap: (uid: string, slot: Slot, e: CardEntry, reason: SwapReason) => void;
   onAddItem: (dayNum: number, section: Slot, item: ViatorItem) => void;
+  onAddSlotEntry: (dayNum: number, section: Slot, entry: CardEntry) => void;
   onRemove: (uid: string) => void;
   onSuggestLunch: (dayNum: number) => void;
   bookedIds: Set<string>;
   onToggleBooked: (uid: string) => void;
   onNavigateToSection: (section: Section) => void;
+  shortlistEntries: { rawId: string; entry: CardEntry }[];
 };
 
 function ItineraryDay({
@@ -671,6 +722,8 @@ function Section({
   dayIdx, dayNum, section, label, cards, ...h
 }: { dayIdx: number; dayNum: number; section: Slot; label: string; cards: PlannedCard[] } & DayHandlers) {
   const { setNodeRef, isOver } = useDroppable({ id: `zone:${dayIdx}:${section}` });
+  const [shortlistOpen, setShortlistOpen] = useState(false);
+  const hasShortlist = !h.readOnly && h.shortlistEntries.length > 0;
   return (
     <div style={{ marginBottom: 16 }}>
       <div className="itin-section-label">{label}</div>
@@ -682,9 +735,41 @@ function Section({
       <SortableContext items={cards.map((c) => c.uid)} strategy={verticalListSortingStrategy}>
         <div ref={setNodeRef} className={`itin-section-zone${isOver ? ' over' : ''}${cards.length === 0 ? ' empty' : ''}`}>
           {cards.length === 0 && (
-            <div className="itin-section-empty">
-              {h.readOnly ? 'Nothing planned.' : 'Drop an activity here, or add one from a card’s “Other suggestions”.'}
-            </div>
+            hasShortlist ? (
+              <div className="itin-section-empty">
+                <button
+                  type="button"
+                  className="itin-shortlist-toggle"
+                  onClick={() => setShortlistOpen((v) => !v)}
+                  aria-expanded={shortlistOpen}
+                >
+                  <span style={{ fontSize: 13 }}>★</span>
+                  Add activity from hand-picked shortlist
+                  <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.7 }}>{shortlistOpen ? '▲' : '▼'}</span>
+                </button>
+                {shortlistOpen && (
+                  <div className="itin-shortlist-picker">
+                    {h.shortlistEntries.map(({ rawId, entry }) => {
+                      const name = entry.kind === 'activity' ? entry.activity.title : entry.bestSeller.title;
+                      return (
+                        <button
+                          key={rawId}
+                          type="button"
+                          className="itin-shortlist-item"
+                          onClick={() => { h.onAddSlotEntry(dayNum, section, entry); setShortlistOpen(false); }}
+                        >
+                          {name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="itin-section-empty">
+                {h.readOnly ? 'Nothing planned.' : `Drop an activity here, or add one from a card's "Other suggestions".`}
+              </div>
+            )
           )}
           {cards.map((card) => {
             const entry = h.resolveEntry(card.entry, section);
@@ -751,6 +836,10 @@ function SortableCard({
         entry={entry}
         flipped={flipped.has(card.uid)}
         swapping={swapping.has(card.uid)}
+        pinned={card.entry.pinned
+          ? (card.entry.kind === 'activity'
+              || (entry.kind === 'group' && entry.bestSeller.id === card.entry.bestSellerId))
+          : false}
         onFlip={() => onFlip(card.uid)}
         onSwap={readOnly ? undefined : () => onOpenSwap(card.uid)}
         showReasons={!readOnly && reasonOpen.has(card.uid)}

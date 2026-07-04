@@ -5,15 +5,17 @@ type Props = {
   href?: string;
   showChevron?: boolean;
   onNavigate?: () => void;
+  pinned?: boolean;
 };
 
-export default function GroupHeader({ group, href, showChevron = true, onNavigate }: Props) {
+export default function GroupHeader({ group, href, showChevron = true, onNavigate, pinned }: Props) {
   const inner = (
     <>
       <div>
         <div className="chb-title">{group.name}</div>
         <div className="chb-subtitle">{group.tagline}</div>
       </div>
+      {pinned && <span className="itin-pinned-badge">★ Your pick</span>}
       {showChevron && (href || onNavigate) && <span aria-hidden className="chb-chev">›</span>}
     </>
   );

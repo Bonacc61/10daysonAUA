@@ -118,6 +118,18 @@ export function resolveSlotEntry(
 
   const all = itemsInGroup(g.id, catalog);
   if (all.length === 0) return null;
+
+  // Pinned short-circuit: the user explicitly picked this item, so return it
+  // verbatim without any fit/budget/slot re-facing. If the stored id has gone
+  // stale (live catalog refresh changed product codes), fall through to normal
+  // self-healing so the card never blanks.
+  if (slotEntry.pinned) {
+    const exact = all.find((x) => x.id === slotEntry.bestSellerId);
+    if (exact) {
+      return { kind: 'group', group: g, bestSeller: exact, others: all.filter((i) => i.id !== exact.id) };
+    }
+  }
+
   // Answer-aware + slot-aware filter, degrading gracefully so the card never
   // blanks: fit+slot → fit → slot → raw. The slot filter matters because the
   // plan stores only ids — without it this display chokepoint would happily
