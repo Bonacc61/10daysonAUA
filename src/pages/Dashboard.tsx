@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
-import { iconFor, Calendar, Check, Chev, Clock, Dice, Dollar, Heart, Info, MapPin, Star } from '../components/Icons';
+import { iconFor, Calendar, Check, Chev, Clock, Dice, Doc, Dollar, Download, Heart, Info, IOSShare, Mail, MapPin, Star } from '../components/Icons';
 import { useCatalog } from '../data/useCatalog';
 import { filterExploreEntries, bookingUrl } from '../data/exploreItems';
 import { INFO_TOPICS, GTK_CARDS } from '../data/activities';
@@ -314,16 +314,18 @@ function StarredActivityCard({ entry, onStar }: { entry: ExploreEntry & { kind: 
         <p style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--sand-700)', margin: '0 0 12px', flex: 1 }}>
           {a.description.length > 110 ? a.description.slice(0, 107) + '…' : a.description}
         </p>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: bUrl ? 12 : 0 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: (bUrl || parseActivityCost(a.cost) === 0) ? 12 : 0 }}>
           <span className="chip-outline" style={{ fontSize: 10, padding: '2px 8px' }}><Clock size={10} /> {a.duration}</span>
           <span className="chip-outline" style={{ fontSize: 10, padding: '2px 8px' }}><Dollar size={10} /> {a.cost}</span>
         </div>
-        {bUrl && (
+        {bUrl ? (
           <a href={bUrl} target="_blank" rel="noopener noreferrer"
              style={{ display: 'block', padding: '8px 12px', fontSize: 12, fontWeight: 700, textDecoration: 'none', textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '2px 2px 0 var(--ink)' }}>
             Book now
           </a>
-        )}
+        ) : parseActivityCost(a.cost) === 0 ? (
+          <span style={{ display: 'block', padding: '8px 12px', fontSize: 12, fontWeight: 700, textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)' }}>✓ Free</span>
+        ) : null}
       </div>
     </div>
   );
@@ -348,16 +350,18 @@ function StarredItemCard({ entry, onStar }: { entry: ExploreEntry & { kind: 'ite
         <p style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--sand-700)', margin: '0 0 12px', flex: 1 }}>
           {(item.description ?? '').length > 110 ? (item.description ?? '').slice(0, 107) + '…' : (item.description ?? '')}
         </p>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: bUrl ? 12 : 0 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: (bUrl || item.price_usd === 0) ? 12 : 0 }}>
           <span className="chip-outline" style={{ fontSize: 10, padding: '2px 8px' }}><Clock size={10} /> {item.duration}</span>
           <span className="chip-outline" style={{ fontSize: 10, padding: '2px 8px' }}><Dollar size={10} /> ${item.price_usd}</span>
         </div>
-        {bUrl && (
+        {bUrl ? (
           <a href={bUrl} target="_blank" rel="noopener noreferrer"
              style={{ display: 'block', padding: '8px 12px', fontSize: 12, fontWeight: 700, textDecoration: 'none', textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '2px 2px 0 var(--ink)' }}>
             Book now
           </a>
-        )}
+        ) : item.price_usd === 0 ? (
+          <span style={{ display: 'block', padding: '8px 12px', fontSize: 12, fontWeight: 700, textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)' }}>✓ Free</span>
+        ) : null}
       </div>
     </div>
   );
@@ -560,6 +564,37 @@ function BookedRow({
 
 // ────────────────────────────────────────────── Itinerary panel ──────────── //
 
+function buildShareText(
+  trip: TripState,
+  resolveEntry: (e: SlotEntry, slot?: Slot) => CardEntry | null,
+): string {
+  const lines: string[] = [`Your ${trip.answers.days}-day Aruba itinerary`, ''];
+  for (const day of trip.plan) {
+    lines.push(`Day ${day.day}${day.title ? ` — ${day.title}` : ''}`);
+    const slots: [string, Slot, typeof day.morning][] = [
+      ['Morning',   'morning',   day.morning],
+      ['Afternoon', 'afternoon', day.afternoon],
+      ['Evening',   'evening',   day.evening],
+    ];
+    for (const [label, slot, cards] of slots) {
+      for (const card of cards) {
+        const entry = resolveEntry(card.entry, slot);
+        if (!entry) continue;
+        if (entry.kind === 'activity') {
+          const cost = entry.activity.cost ?? '';
+          lines.push(`  ${label}: ${entry.activity.title} (${entry.activity.duration}${cost ? ', ' + cost : ''})`);
+        } else {
+          const price = entry.bestSeller.price_usd === 0 ? 'Free' : `$${entry.bestSeller.price_usd}`;
+          lines.push(`  ${label}: ${entry.bestSeller.title} (${entry.bestSeller.duration}, ${price})`);
+        }
+      }
+    }
+    lines.push('');
+  }
+  lines.push('Built with 10 Days on Aruba — https://10daysonaruba.com');
+  return lines.join('\n');
+}
+
 const ITINERARY_VARIANTS: { id: string; label: string; description: string; available: boolean }[] = [
   { id: 'saved',     label: 'Your trip',         description: 'Your personalised itinerary',      available: true  },
   { id: 'adventure', label: 'Adventure-leaning',  description: 'Adrenaline-first, beaches second', available: false },
@@ -573,12 +608,19 @@ function ItineraryPanel({
   trip: TripLoadState;
   onLogin: () => void;
 }) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
   const { catalog } = useCatalog();
   const { booked, toggle: toggleBooked } = useBooked();
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [expanded,     setExpanded]     = useState<string | null>(null);
   const [collapsedDays, setCollapsedDays] = useState<Set<number>>(new Set());
-  const [exportOpen, setExportOpen] = useState(false);
+  const [exportOpen,   setExportOpen]   = useState<string | null>(null);
+  const [shareOpen,    setShareOpen]    = useState<string | null>(null);
+  const [emailOpen,    setEmailOpen]    = useState(false);
+  const [emailTo,      setEmailTo]      = useState('');
+  const [emailNote,    setEmailNote]    = useState('');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent,    setEmailSent]    = useState(false);
+  const [emailError,   setEmailError]   = useState<string | null>(null);
 
   const tags = useMemo(
     () => trip && trip !== 'loading' ? answersToTags(trip.answers) : new Set<never>(),
@@ -601,12 +643,39 @@ function ItineraryPanel({
     if (!trip || trip === 'loading') return;
     const ics = buildIcs(trip.plan, trip.answers, resolveEntry, booked);
     downloadIcs(ics);
-    setExportOpen(false);
+    setExportOpen(null);
   };
 
   const handlePdfExport = () => {
     window.print();
-    setExportOpen(false);
+    setExportOpen(null);
+  };
+
+  const handleSendEmail = async () => {
+    if (!trip || trip === 'loading' || !session) return;
+    setEmailSending(true);
+    setEmailError(null);
+    try {
+      const text = buildShareText(trip, resolveEntry);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const res = await fetch(`${supabaseUrl}/functions/v1/itinerary-share`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ to: emailTo.trim(), note: emailNote.trim(), itinerary_text: text }),
+      });
+      if (!res.ok) {
+        const msg = await res.text().catch(() => '');
+        throw new Error(msg || `Error ${res.status}`);
+      }
+      setEmailSent(true);
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : 'Failed to send. Please try again.');
+    } finally {
+      setEmailSending(false);
+    }
   };
 
   if (authLoading) return <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading…</p>;
@@ -649,6 +718,7 @@ function ItineraryPanel({
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {ITINERARY_VARIANTS.map((variant) => {
+
           const isExpanded = expanded === variant.id;
           const hasTrip    = variant.id === 'saved' && !!trip;
           const isLocked   = !variant.available;
@@ -656,37 +726,101 @@ function ItineraryPanel({
           return (
             <div key={variant.id} className="chunky" style={{ padding: 0, overflow: 'hidden', opacity: isLocked ? 0.55 : 1 }}>
               {/* Collapsed header row */}
-              <button
-                onClick={() => {
-                  if (isLocked) return;
-                  if (!hasTrip) { setPage('questionnaire'); return; }
-                  setExpanded(isExpanded ? null : variant.id);
-                  setExportOpen(false);
-                }}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', background: 'transparent', border: 'none', cursor: isLocked ? 'default' : 'pointer', font: 'inherit', textAlign: 'left' }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {variant.label}
-                    {variant.id === 'saved' && trip && (
-                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'var(--yellow)', border: '1.5px solid var(--ink)', borderRadius: 6, padding: '2px 7px', boxShadow: '1px 1px 0 var(--ink)' }}>Active</span>
-                    )}
-                    {isLocked && (
-                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-400)', border: '1.5px solid var(--sand-200)', borderRadius: 6, padding: '2px 7px' }}>Coming soon</span>
-                    )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px' }}>
+                {/* Expand/collapse button — fills remaining space */}
+                <button
+                  onClick={() => {
+                    if (isLocked) return;
+                    if (!hasTrip) { setPage('questionnaire'); return; }
+                    setExpanded(isExpanded ? null : variant.id);
+                    setExportOpen(null);
+                    setShareOpen(null);
+                  }}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12, background: 'transparent', border: 'none', cursor: isLocked ? 'default' : 'pointer', font: 'inherit', textAlign: 'left', minWidth: 0, padding: 0 }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {variant.label}
+                      {variant.id === 'saved' && trip && (
+                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'var(--yellow)', border: '1.5px solid var(--ink)', borderRadius: 6, padding: '2px 7px', boxShadow: '1px 1px 0 var(--ink)' }}>Active</span>
+                      )}
+                      {isLocked && (
+                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-400)', border: '1.5px solid var(--sand-200)', borderRadius: 6, padding: '2px 7px' }}>Coming soon</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--sand-500)', marginTop: 2 }}>
+                      {variant.id === 'saved' && trip
+                        ? `${trip.answers.days} days · ${totalActivities} activities${bookedCount > 0 ? ` · ${bookedCount} confirmed` : ''}`
+                        : variant.description}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--sand-500)', marginTop: 2 }}>
-                    {variant.id === 'saved' && trip
-                      ? `${trip.answers.days} days · ${totalActivities} activities${bookedCount > 0 ? ` · ${bookedCount} confirmed` : ''}`
-                      : variant.description}
+                  {!isLocked && (
+                    <span style={{ color: 'var(--sand-400)', flexShrink: 0, transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+                      <Chev size={18} />
+                    </span>
+                  )}
+                </button>
+
+                {/* Export + Share icons — visible on the active row; handlers guard against missing trip */}
+                {variant.id === 'saved' && !isLocked && (
+                  <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                    {/* Export dropdown */}
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!hasTrip) { setPage('questionnaire'); return; }
+                          setExportOpen(exportOpen === variant.id ? null : variant.id);
+                          setShareOpen(null);
+                        }}
+                        title={hasTrip ? 'Export itinerary' : 'Build your itinerary first'}
+                        aria-label="Export itinerary"
+                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 8, border: '1.5px solid var(--sand-200)', background: exportOpen === variant.id ? 'var(--sand-100)' : 'transparent', color: hasTrip ? 'var(--sand-600)' : 'var(--sand-300)', cursor: 'pointer' }}
+                      >
+                        <Download size={15} />
+                      </button>
+                      {exportOpen === variant.id && (
+                        <div className="chunky" style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, padding: '6px 0', minWidth: 190, zIndex: 20, background: 'var(--cream)' }}>
+                          <button onClick={handleIcsExport}
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
+                            <Calendar size={14} /><span>.ics — Calendar</span>
+                          </button>
+                          <button onClick={handlePdfExport}
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
+                            <Doc size={14} /><span>.pdf — Email / Print</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Share dropdown */}
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!hasTrip) { setPage('questionnaire'); return; }
+                          setShareOpen(shareOpen === variant.id ? null : variant.id);
+                          setExportOpen(null);
+                        }}
+                        title={hasTrip ? 'Share itinerary' : 'Build your itinerary first'}
+                        aria-label="Share itinerary"
+                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 8, border: '1.5px solid var(--sand-200)', background: shareOpen === variant.id ? 'var(--sand-100)' : 'transparent', color: hasTrip ? 'var(--sand-600)' : 'var(--sand-300)', cursor: 'pointer' }}
+                      >
+                        <IOSShare size={15} />
+                      </button>
+                      {shareOpen === variant.id && (
+                        <div className="chunky" style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, padding: '6px 0', minWidth: 190, zIndex: 20, background: 'var(--cream)' }}>
+                          <button
+                            onClick={() => { setShareOpen(null); setEmailOpen(true); setEmailSent(false); setEmailError(null); }}
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
+                            <Mail size={14} /><span>Share via email</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-                {!isLocked && (
-                  <span style={{ color: 'var(--sand-400)', flexShrink: 0, transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
-                    <Chev size={18} />
-                  </span>
                 )}
-              </button>
+              </div>
 
               {/* Expanded content — full Itinerary-page style, days collapsible */}
               {isExpanded && hasTrip && trip && (
@@ -770,15 +904,15 @@ function ItineraryPanel({
                   <div style={{ display: 'flex', gap: 10, padding: '16px 28px 20px', flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid var(--sand-100)' }}>
                     <div style={{ position: 'relative' }}>
                       <button
-                        onClick={() => setExportOpen((o) => !o)}
+                        onClick={() => setExportOpen(exportOpen === variant.id ? null : variant.id)}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 14px', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--cream)', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)', cursor: 'pointer' }}
                       >
                         <Calendar size={13} /> Export
-                        <span style={{ marginLeft: 2, transform: exportOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s', display: 'inline-flex' }}>
+                        <span style={{ marginLeft: 2, transform: exportOpen === variant.id ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s', display: 'inline-flex' }}>
                           <Chev size={12} />
                         </span>
                       </button>
-                      {exportOpen && (
+                      {exportOpen === variant.id && (
                         <div className="chunky" style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: 0, padding: '6px 0', minWidth: 190, zIndex: 10, background: 'var(--cream)' }}>
                           <button onClick={handleIcsExport}
                             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
@@ -786,7 +920,7 @@ function ItineraryPanel({
                           </button>
                           <button onClick={handlePdfExport}
                             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
-                            <Star size={14} /><span>.pdf — Email / Print</span>
+                            <Doc size={14} /><span>.pdf — Email / Print</span>
                           </button>
                         </div>
                       )}
@@ -811,6 +945,69 @@ function ItineraryPanel({
           );
         })}
       </div>
+
+      {/* Email share modal */}
+      {emailOpen && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setEmailOpen(false); setEmailTo(''); setEmailNote(''); setEmailSent(false); setEmailError(null); } }}
+        >
+          <div className="chunky" style={{ width: '100%', maxWidth: 440, padding: '28px 28px 24px', background: 'var(--cream)', position: 'relative' }}>
+            {emailSent ? (
+              <>
+                <p style={{ fontSize: 28, margin: '0 0 10px' }}>✓</p>
+                <h3 className="font-display" style={{ fontSize: 22, margin: '0 0 10px', color: 'var(--ink)' }}>Sent!</h3>
+                <p style={{ fontSize: 14, color: 'var(--sand-700)', margin: '0 0 20px' }}>Your itinerary is on its way to <strong>{emailTo}</strong>.</p>
+                <button className="btn-red" onClick={() => { setEmailOpen(false); setEmailTo(''); setEmailNote(''); setEmailSent(false); }} style={{ padding: '9px 18px', fontSize: 14 }}>Close</button>
+              </>
+            ) : (
+              <>
+                <h3 className="font-display" style={{ fontSize: 22, margin: '0 0 4px', color: 'var(--ink)' }}>Share via email</h3>
+                <p style={{ fontSize: 13, color: 'var(--sand-500)', margin: '0 0 20px' }}>Send your itinerary as a branded 10 Days on Aruba email.</p>
+                <label style={{ display: 'block', fontWeight: 700, fontSize: 13, marginBottom: 6, color: 'var(--ink)' }}>
+                  Recipient email
+                  <input
+                    type="email"
+                    value={emailTo}
+                    onChange={(e) => setEmailTo(e.target.value)}
+                    placeholder="friend@example.com"
+                    style={{ display: 'block', width: '100%', marginTop: 6, padding: '10px 12px', fontSize: 14, fontFamily: 'inherit', borderRadius: 10, border: '2px solid var(--sand-200)', outline: 'none', boxSizing: 'border-box', background: 'var(--cream)' }}
+                  />
+                </label>
+                <label style={{ display: 'block', fontWeight: 700, fontSize: 13, margin: '14px 0 6px', color: 'var(--ink)' }}>
+                  Personal note <span style={{ fontWeight: 400, color: 'var(--sand-400)' }}>(optional)</span>
+                  <textarea
+                    value={emailNote}
+                    onChange={(e) => setEmailNote(e.target.value)}
+                    placeholder="Hey! Here's our Aruba plan…"
+                    rows={3}
+                    style={{ display: 'block', width: '100%', marginTop: 6, padding: '10px 12px', fontSize: 14, fontFamily: 'inherit', borderRadius: 10, border: '2px solid var(--sand-200)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', background: 'var(--cream)' }}
+                  />
+                </label>
+                {emailError && (
+                  <p style={{ fontSize: 13, color: 'var(--red)', margin: '10px 0 0' }}>{emailError}</p>
+                )}
+                <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+                  <button
+                    onClick={handleSendEmail}
+                    disabled={emailSending || !emailTo.trim()}
+                    className="btn-red"
+                    style={{ flex: 1, padding: '10px 18px', fontSize: 14, opacity: (emailSending || !emailTo.trim()) ? 0.6 : 1, cursor: (emailSending || !emailTo.trim()) ? 'not-allowed' : 'pointer' }}
+                  >
+                    {emailSending ? 'Sending…' : 'Send itinerary'}
+                  </button>
+                  <button
+                    onClick={() => { setEmailOpen(false); setEmailTo(''); setEmailNote(''); setEmailError(null); }}
+                    style={{ padding: '10px 18px', fontSize: 14, fontWeight: 700, fontFamily: 'inherit', borderRadius: 10, border: '2px solid var(--sand-200)', background: 'transparent', color: 'var(--ink)', cursor: 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -314,9 +314,11 @@ function ItineraryBody({
                 <Swap size={13} aria-hidden /> Swap this
               </button>
             )}
-            {bookUrl && (
+            {bookUrl ? (
               <a href={bookUrl} target="_blank" rel="noopener noreferrer" className="itin-book-btn">Book now ↗</a>
-            )}
+            ) : bestSeller.price_usd === 0 ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '8px 13px', fontSize: 13, fontWeight: 700, borderRadius: 10, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)' }}>✓ Free</span>
+            ) : null}
           </div>
           <SwapReasons open={!!showReasons} onPick={(r) => onPickReason?.(r)} />
         </div>

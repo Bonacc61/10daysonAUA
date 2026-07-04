@@ -6,12 +6,13 @@ import Footer from '../components/Footer';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
 import { filterExploreEntries, bookingUrl, viatorLink, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL } from '../data/exploreItems';
+import { parseActivityCost } from '../data/matcher';
 import type { Section } from '../types';
 import type { ViatorItem } from '../types';
 import type { Answers } from '../App';
 import type { PageId } from '../App';
 
-type Props = { setPage: (p: PageId) => void; answers: Answers; onLogin: () => void };
+type Props = { setPage: (p: PageId) => void; answers: Answers; onLogin: () => void; canSeeItinerary: boolean; };
 
 // Vibe pill copy/colour from an adventure value (mirrors vibePass thresholds).
 function vibePill(adventure: number): { label: string; bg: string } {
@@ -89,7 +90,7 @@ function SkeletonCard() {
   );
 }
 
-export default function Explore({ setPage, answers, onLogin }: Props) {
+export default function Explore({ setPage, answers, onLogin, canSeeItinerary }: Props) {
   const { catalog, loading } = useCatalog();
   const { user } = useAuth();
 
@@ -170,7 +171,7 @@ export default function Explore({ setPage, answers, onLogin }: Props) {
                 <div className="chunky" style={{ padding: 18, background: 'var(--green)', color: 'var(--cream)' }}>
                   <div className="font-display" style={{ fontSize: 18, marginBottom: 6 }}>{added.size} added</div>
                   <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 12 }}>Your hand-picked shortlist.</div>
-                  <button className="btn-red" onClick={() => setPage('itinerary')} style={{ width: '100%', padding: '10px 14px', fontSize: 14 }}>Build itinerary →</button>
+                  <button className="btn-red" onClick={() => setPage(canSeeItinerary ? 'itinerary' : 'questionnaire')} style={{ width: '100%', padding: '10px 14px', fontSize: 14 }}>Build itinerary →</button>
                 </div>
               )}
             </aside>
@@ -220,16 +221,18 @@ function AddButton({ added, onAdd, fill }: { added: boolean; onAdd: () => void; 
   );
 }
 
-// Card action row: "Book now" (only when bookable — paid + has a Viator link)
-// plus the shortlist Add button. Free / unbookable cards show just Add.
-function CardActions({ bookNow, added, onAdd }: { bookNow: string | null; added: boolean; onAdd: () => void }) {
+// Card action row: "Book now" (paid + Viator link), "✓ Free" (free entry), or
+// just the Add button (no booking URL and not explicitly free).
+function CardActions({ bookNow, free, added, onAdd }: { bookNow: string | null; free?: boolean; added: boolean; onAdd: () => void }) {
   return (
     <div style={{ display: 'flex', gap: 8 }}>
-      {bookNow && (
+      {bookNow ? (
         <a href={bookNow} target="_blank" rel="noopener noreferrer"
            style={{ flex: 1, padding: '9px 12px', fontSize: 13, fontWeight: 700, textDecoration: 'none', textAlign: 'center', display: 'inline-block', borderRadius: 12, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '3px 3px 0 var(--ink)' }}>Book now</a>
-      )}
-      <AddButton added={added} onAdd={onAdd} fill={!bookNow} />
+      ) : free ? (
+        <span style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '9px 12px', fontSize: 13, fontWeight: 700, borderRadius: 12, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '3px 3px 0 var(--ink)' }}>✓ Free</span>
+      ) : null}
+      <AddButton added={added} onAdd={onAdd} fill={!bookNow && !free} />
     </div>
   );
 }
@@ -266,7 +269,7 @@ function ItemTile({ item, section, sectionUrl: _sectionUrl, region, adventure, b
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Clock size={11} /> {item.duration}</span>
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Dollar size={11} /> {item.price_usd}</span>
         </div>
-        <div style={{ marginTop: 'auto' }}><CardActions bookNow={bookNow} added={added} onAdd={onAdd} /></div>
+        <div style={{ marginTop: 'auto' }}><CardActions bookNow={bookNow} free={item.price_usd === 0} added={added} onAdd={onAdd} /></div>
       </div>
     </div>
   );
@@ -297,7 +300,7 @@ function ActivityTile({ a, section, sectionUrl: _sectionUrl, adventure, bookNow,
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Clock size={11} /> {a.duration}</span>
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Dollar size={11} /> {a.cost}</span>
         </div>
-        <div style={{ marginTop: 'auto' }}><CardActions bookNow={bookNow} added={added} onAdd={onAdd} /></div>
+        <div style={{ marginTop: 'auto' }}><CardActions bookNow={bookNow} free={parseActivityCost(a.cost) === 0} added={added} onAdd={onAdd} /></div>
       </div>
     </div>
   );
