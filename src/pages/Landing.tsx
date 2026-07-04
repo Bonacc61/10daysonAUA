@@ -1,14 +1,13 @@
 import React, { type CSSProperties, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import {
-  Clock, Users, Sparkle, Chev, iconFor,
+  Clock, Users, Sparkle, Chev, iconFor, Share, Calendar, Mail,
 } from '../components/Icons';
 import Footer from '../components/Footer';
 import {
   SAMPLE_ITINERARY,
   FAQ_ITEMS,
   GTK_CARDS,
-  INFO_TOPICS,
   activityById,
   type Activity,
   type Day,
@@ -99,16 +98,6 @@ export default function Landing({ setPage, answers, setAnswers }: Props) {
                 </svg>
               </div>
 
-              <a
-                className="hero-reddit-pill"
-                href="https://reddit.com/r/Aruba/"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: 'var(--cream)', border: '2px solid var(--ink)', borderRadius: 999, transform: 'rotate(-2deg)', boxShadow: '3px 3px 0 var(--ink)', textDecoration: 'none', color: 'var(--ink)', cursor: 'pointer' }}
-              >
-                <span style={{ width: 18, height: 18, background: '#FF4500', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 11 }}>r</span>
-                <span className="font-display" style={{ fontSize: 13 }}>built with the r/Aruba crew</span>
-              </a>
             </div>
             <div className="hero-mascot" style={{ flex: '1 1 40%', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>
               <img src="/parrot.png" alt="Aruba parrot mascot" style={{ width: '100%', maxWidth: 460, height: 'auto', display: 'block', transform: 'scaleX(-1) rotate(-4deg)' }} />
@@ -234,28 +223,16 @@ function SampleSection({ days, goPlan }: { days: string; goPlan: () => void }) {
             </div>
           </div>
 
-          {/* Practical-info preview — same six topics that live in the Itinerary
-              left rail. Collapsed by default; click any to expand. */}
-          <div style={{ marginTop: 36, paddingTop: 28, borderTop: '2px dashed rgba(255,255,255,0.35)' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.9)', marginBottom: 6 }}>
-              + practical info
-            </div>
-            <p style={{ fontStyle: 'italic', fontSize: 15, lineHeight: 1.5, color: 'rgba(255,255,255,0.85)', margin: '0 0 18px', maxWidth: 720 }}>
-              Plus the on-the-ground stuff most planners forget.
-            </p>
-            <div className="sample-info-grid">
-              {INFO_TOPICS.map((topic) => (
-                <details key={topic.title} className="info-topic sample-info-topic">
-                  <summary>
-                    <span className="info-topic-title">{topic.title}</span>
-                    <span className="info-topic-chev"><Chev size={14} sw={2.5} /></span>
-                  </summary>
-                  <div className="info-topic-body">
-                    {topic.body.map((line, i) => <p key={i}>{line}</p>)}
-                  </div>
-                </details>
-              ))}
-            </div>
+          <div style={{ marginTop: 28, paddingTop: 24, borderTop: '2px dashed rgba(255,255,255,0.35)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <button type="button" disabled className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'rgba(255,255,255,0.7)', fontSize: 13, padding: '9px 16px', display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'default', opacity: 0.85 }}>
+              <Calendar size={14} /> Export calendar
+            </button>
+            <button type="button" disabled className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'rgba(255,255,255,0.7)', fontSize: 13, padding: '9px 16px', display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'default', opacity: 0.85 }}>
+              <Share size={14} /> Share itinerary
+            </button>
+            <button type="button" disabled className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'rgba(255,255,255,0.7)', fontSize: 13, padding: '9px 16px', display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'default', opacity: 0.85 }}>
+              <Mail size={14} /> Email to me
+            </button>
           </div>
         </div>
       </div>
