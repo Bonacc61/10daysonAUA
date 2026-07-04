@@ -43,7 +43,7 @@ const SECTION_META: { id: Slot; label: string }[] = [
 ];
 
 export default function Itinerary({ setPage, answers, setAnswers, onLogin, shareId, onNavigateToExplore, shortlist = new Set<string>() }: Props) {
-  const { catalog } = useCatalog();
+  const { catalog, loading: catalogLoading } = useCatalog();
   const tags    = useMemo(() => answersToTags(answers), [answers]);
 
   // Build the initial itinerary from the answers + the live catalog (Viator
@@ -53,6 +53,28 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   const [plan, setPlan] = useState<PlannedDay[]>(() =>
     seedPlan(generatePlan(answers, catalog, { pinned: [...shortlist] }))
   );
+
+  // When the live Viator catalog lands (stub→live swap), regenerate the plan so
+  // shortlisted picks can be pinned in. Stub IDs (slug-style) don't match live
+  // Viator item IDs, so the initial generation can't resolve or place any pins.
+  // Guard: only fires once, only when there's a shortlist, and never for shared
+  // views or trips already hydrated from the user's saved data.
+  const catalogLiveRef = useRef(false);
+  useEffect(() => {
+    if (catalogLoading) return;
+    if (catalogLiveRef.current) return;
+    catalogLiveRef.current = true;
+    if (shortlist.size === 0) return;
+    if (shareId) return;
+    if (hydrated) return;
+    const hasPins = plan.some((d) =>
+      [...d.morning, ...d.afternoon, ...d.evening].some((c) => c.entry.pinned),
+    );
+    if (hasPins) return;
+    setPlan(seedPlan(generatePlan(answers, catalog, { pinned: [...shortlist] })));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalogLoading]);
+
   const tripDays = plan.length;
 
   // Per-card UI state, all keyed by card uid.
