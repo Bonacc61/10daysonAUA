@@ -67,6 +67,14 @@ export type ViatorItem = {
   fitReason?: string;      // short coral chip — why this matches (mirrors Activity.fitReason)
   reddit_quote?: { rating: number; mentions: number; quote: string };
   ta_quote?: string;
+  review_highlights?: ReviewHighlight[];
+};
+
+export type ReviewHighlight = {
+  reviewer: string;
+  rating: number;
+  quote: string;
+  locale: string;
 };
 
 // === Slot pointers + card entries ===

@@ -22,6 +22,7 @@ import { useAuth } from '../lib/auth';
 import { useBooked } from '../lib/booked';
 import { loadTrip, upsertTrip } from '../lib/trips';
 import { createShare, loadShare } from '../lib/shares';
+import { capture } from '../lib/analytics';
 import { supabase } from '../lib/supabase';
 import SignIn from '../components/SignIn';
 import SharePopover from '../components/SharePopover';
@@ -149,6 +150,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
       if (!id) { setShareErr(error ?? "Couldn't create link — try again"); return; }
       url = `${window.location.origin}/i/${id}`;
       setShareUrl(url);
+      capture('itinerary_shared');
     }
     // Native OS share sheet on mobile; the desktop popover otherwise. If
     // navigator.share throws for a reason other than a user cancel — e.g. iOS
@@ -192,6 +194,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
     if (shareId || !user || !hydrated) return;   // never autosave a shared snapshot
     const id = window.setTimeout(() => {
       void upsertTrip(user.id, { answers, plan, rejected, rejectedGroups });
+      capture('itinerary_saved', { trigger: 'auto' });
     }, 800);
     return () => window.clearTimeout(id);
   }, [user, hydrated, answers, plan, rejected, rejectedGroups, shareId]);
@@ -264,6 +267,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
         setSaveTripStatus('error');
         return;
       }
+      capture('itinerary_saved', { trigger: 'manual' });
       setSaveTripStatus('saved');
       window.setTimeout(() => setSaveTripOpen(false), 1200);
     } else {

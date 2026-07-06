@@ -104,6 +104,11 @@ type Ctx = {
   prefSections: Set<Section>;
   rand: () => number;
   lastUsedDay: Map<string, number>;
+  // Once any item from a group is placed, the whole group is retired for the
+  // rest of the trip. This prevents the same experience (e.g. "Atlantis
+  // Submarine Tour") from appearing multiple times just because the group
+  // carries several booking-option items with distinct IDs.
+  usedGroupIds: Set<string>;
 };
 
 // Candidates for a slot. useTags=null widens which GROUPS are eligible (time-of-
@@ -111,20 +116,21 @@ type Ctx = {
 // (ctx.tags) via refaceForAnswers — widening relevance must never resurface an
 // item the traveller can't afford or wouldn't want.
 //
-// Already-used ids are excluded at face-selection time, so each group re-faces to
-// its best *unused* item: a single group with many items surfaces a different one
-// each day instead of collapsing to one fixed face (the reason evenings used to
-// repeat — the whole slot was often served by one group's single best-seller).
+// usedGroupIds excludes entire Viator groups once any of their items has been
+// placed, so the same experience never repeats (e.g. "Atlantis Submarine Tour"
+// across 5 days). Local activities are excluded by lastUsedDay (item-level).
 function candidatesFor(ctx: Ctx, slot: Slot, useTags: Set<MatchTag> | null): CardEntry[] {
   const usedIds = new Set(ctx.lastUsedDay.keys());
   if (useTags === null) {
     const activities = ctx.catalog.activities.filter((a) => a.timeOfDay === SLOT_TOD[slot]);
     const groups = ctx.catalog.groups.filter(
-      (g) => g.allowed_slots.length === 0 || g.allowed_slots.includes(slot),
+      (g) => (g.allowed_slots.length === 0 || g.allowed_slots.includes(slot))
+           && !ctx.usedGroupIds.has(g.id),
     );
     return refaceForAnswers(blendPools(activities, groups, ctx.catalog.items, NO_FILTER), ctx.tags, slot, usedIds);
   }
-  const { activities, groups } = matchPool(ctx.catalog.activities, ctx.catalog.groups, useTags, slot);
+  const { activities, groups: matchedGroups } = matchPool(ctx.catalog.activities, ctx.catalog.groups, useTags, slot);
+  const groups = matchedGroups.filter((g) => !ctx.usedGroupIds.has(g.id));
   return refaceForAnswers(blendPools(activities, groups, ctx.catalog.items, NO_FILTER), ctx.tags, slot, usedIds);
 }
 
@@ -319,7 +325,7 @@ export function generatePlan(
   const seed = ((opts.seed ?? 0) ^ hashAnswers(answers)) >>> 0;
   const flags = new Set(answers.flags ?? []);
   const filteredCatalog = applyCatalogFlags(catalog, flags);
-  const ctx: Ctx = { catalog: filteredCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map() };
+  const ctx: Ctx = { catalog: filteredCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), usedGroupIds: new Set() };
 
   // Trip-wide budget pool: keeps the AVERAGE daily activity spend within the
   // tier cap (budget-conscious ≈ $110/day on average), letting days vary while
@@ -386,6 +392,7 @@ export function generatePlan(
         const { cardEntry: pick, slotEntry } = pin;
         budgetLeft -= entryPrice(pick);
         ctx.lastUsedDay.set(entryId(pick), d);
+        if (pick.kind === 'group') ctx.usedGroupIds.add(pick.group.id);
         usedKinds.add(entryKind(pick));
         if (!anchor) anchor = entryRegion(pick);
         picks.push(pick);
@@ -393,10 +400,15 @@ export function generatePlan(
         continue;
       }
 
-      const pick = pickForSlot(ctx, slot, anchor, Math.max(0, budgetLeft), usedKinds);
+      // Arrival day (day 1) is a free/chill settle-in day — no paid tours.
+      // Single-day trips are exempted (the traveller has no other day).
+      const freeOnly = nDays > 1 && d === 1;
+      const maxP = freeOnly ? 0 : Math.max(0, budgetLeft);
+      const pick = pickForSlot(ctx, slot, anchor, maxP, usedKinds);
       if (!pick) continue;
       budgetLeft -= entryPrice(pick);
       ctx.lastUsedDay.set(entryId(pick), d);
+      if (pick.kind === 'group') ctx.usedGroupIds.add(pick.group.id);
       usedKinds.add(entryKind(pick));
       if (!anchor) anchor = entryRegion(pick);
       picks.push(pick);

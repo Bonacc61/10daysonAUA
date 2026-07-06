@@ -1,5 +1,6 @@
 import React, { type CSSProperties, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { capture } from '../lib/analytics';
 import {
   Clock, Users, Sparkle, Chev, iconFor, Share, Calendar, Mail,
 } from '../components/Icons';
@@ -344,6 +345,7 @@ function ContactSection({ setPage }: { setPage: (p: PageId) => void }) {
         });
         if (err) throw err;
       }
+      capture('contact_message_sent');
       setSent(true);
     } catch {
       setError('Something went wrong — please try again.');

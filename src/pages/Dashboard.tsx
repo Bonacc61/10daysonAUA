@@ -13,6 +13,7 @@ import { useBooked } from '../lib/booked';
 import { useAuth } from '../lib/auth';
 import { loadTrip } from '../lib/trips';
 import { createShare } from '../lib/shares';
+import { capture } from '../lib/analytics';
 import { matchPool, parseActivityCost } from '../data/matcher';
 import { viatorLink, productUrlFor, sectionLabel, primarySection } from '../data/exploreItems';
 import type { PageId } from '../App';
@@ -709,6 +710,7 @@ function ItineraryPanel({
         const msg = await res.text().catch(() => '');
         throw new Error(msg || `Error ${res.status}`);
       }
+      capture('itinerary_shared', { via: 'email' });
       setEmailSent(true);
     } catch (err) {
       setEmailError(err instanceof Error ? err.message : 'Failed to send. Please try again.');

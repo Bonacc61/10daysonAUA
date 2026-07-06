@@ -17,6 +17,77 @@ export function hasKey(): boolean {
   return KEY.length > 0;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export type ReviewHighlight = {
+  reviewer: string;   // first initial + dot, e.g. "J."
+  rating: number;     // 1–5
+  quote: string;      // trimmed to ~160 chars
+  locale: string;     // language code, e.g. "en"
+};
+
+// Fetch top-rated review highlights for a product.
+// Requires Full-access tier — Basic-access gets 403.
+// Throws { tier: true } on 403 so callers can stop retrying across products.
+// Retries up to 2× on 429 with exponential backoff.
+export async function getProductReviews(
+  productCode: string,
+  count = 4,
+): Promise<ReviewHighlight[]> {
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    if (attempt > 1) await sleep(1500 * (attempt - 1));
+    const r = await fetch(`${BASE}/reviews/product`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({
+        productCode,
+        provider: 'ALL',
+        count,
+        start: 1,
+        sortBy: 'MOST_HELPFUL_HIGHEST_RATING_FIRST',
+        ratings: [4, 5],
+      }),
+    });
+    if (r.status === 403) {
+      await r.text(); // drain
+      throw Object.assign(
+        new Error(`reviews/product 403 for ${productCode}: endpoint not available on current access tier`),
+        { tier: true },
+      );
+    }
+    if (r.status === 429) {
+      await r.text();
+      if (attempt === MAX_ATTEMPTS) throw new Error(`reviews/product rate-limited after ${MAX_ATTEMPTS} attempts`);
+      continue;
+    }
+    if (!r.ok) {
+      throw new Error(`reviews/product ${r.status} for ${productCode}: ${(await r.text()).slice(0, 200)}`);
+    }
+    const body = await r.json();
+    const reviews: Record<string, unknown>[] = body?.reviews ?? [];
+    return reviews
+      .slice(0, count)
+      .map((rv) => {
+        const raw = String(rv.text ?? rv.reviewText ?? '').trim();
+        const quote = raw.length > 160
+          ? raw.slice(0, 160).replace(/\s+\S*$/, '') + '…'
+          : raw;
+        const name = String(rv.userName ?? rv.authorName ?? '');
+        return {
+          reviewer: name ? name.charAt(0).toUpperCase() + '.' : 'Traveler',
+          rating: Number(rv.rating ?? 5),
+          quote,
+          locale: String(rv.language ?? 'en'),
+        };
+      })
+      .filter((h) => h.quote.length > 20);
+  }
+  return [];
+}
+
 // Cheap authenticated call for the health op.
 export async function ping(): Promise<{ ok: boolean; status: number }> {
   const r = await fetch(`${BASE}/products/tags`, { headers: headers() });

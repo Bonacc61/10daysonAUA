@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { identifyUser, resetUser } from './analytics';
 
 type AuthValue = {
   session: Session | null;
@@ -26,7 +27,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
     supabase.auth.getSession().then(({ data }) => { setSession(data.session); setLoading(false); });
-    const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    const { data } = supabase.auth.onAuthStateChange((event, s) => {
+      setSession(s);
+      if (event === 'SIGNED_IN' && s?.user) {
+        // Account is "new" if created within the last 30 seconds.
+        const ageMs = Date.now() - new Date(s.user.created_at).getTime();
+        identifyUser(s.user.id, ageMs < 30_000);
+      }
+      if (event === 'SIGNED_OUT') resetUser();
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 
