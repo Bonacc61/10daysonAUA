@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react';
 import type { PageId } from '../App';
 import { useAuth } from '../lib/auth';
 
@@ -9,7 +10,20 @@ type Props = {
 };
 
 export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [menuOpen]);
 
   const link = (id: PageId, label: string, keepOnMobile = false) => (
     <button
@@ -57,13 +71,53 @@ export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) 
           {link('landing', 'How it works')}
           {link('explore', 'Explore', true)}
           {link('itinerary', 'Itinerary')}
-          <button
-            className="nav-login"
-            onClick={() => (user ? setPage('dashboard') : onLogin())}
-            title={user ? `Signed in as ${user.email}` : undefined}
-          >
-            {user ? 'My Aruba' : 'Log in'}
-          </button>
+          {user ? (
+            <div ref={menuRef} style={{ position: 'relative' }}>
+              <button
+                className="nav-login"
+                onClick={() => setMenuOpen((o) => !o)}
+                title={`Signed in as ${user.email}`}
+              >
+                My Aruba ▾
+              </button>
+              {menuOpen && (
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                  background: 'var(--cream)', border: '2px solid var(--ink)',
+                  borderRadius: 8, minWidth: 160, zIndex: 200,
+                  boxShadow: '3px 3px 0 var(--ink)',
+                  overflow: 'hidden',
+                }}>
+                  <button
+                    onClick={() => { setMenuOpen(false); setPage('dashboard'); }}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left',
+                      padding: '10px 16px', background: 'transparent', border: 'none',
+                      cursor: 'pointer', font: 'inherit', fontSize: 14, fontWeight: 600,
+                      color: 'var(--ink)', borderBottom: '1px solid var(--ink)',
+                    }}
+                  >
+                    My Aruba
+                  </button>
+                  <button
+                    onClick={async () => { setMenuOpen(false); await signOut(); }}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left',
+                      padding: '10px 16px', background: 'transparent', border: 'none',
+                      cursor: 'pointer', font: 'inherit', fontSize: 14, fontWeight: 500,
+                      color: 'var(--red)',
+                    }}
+                  >
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button className="nav-login" onClick={onLogin}>
+              Log in
+            </button>
+          )}
         </div>
       </div>
     </div>
