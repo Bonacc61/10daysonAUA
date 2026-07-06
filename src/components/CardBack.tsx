@@ -1,5 +1,5 @@
 import type { Activity } from '../data/activities';
-import type { ViatorItem, ReviewHighlight } from '../types';
+import type { ViatorItem } from '../types';
 import { Star } from './Icons';
 
 type Props =
@@ -41,18 +41,7 @@ export default function CardBack(props: Props) {
     ? (ACTIVITY_REDDIT[id] ?? FALLBACK_REDDIT)
     : (props.bestSeller.reddit_quote ?? FALLBACK_REDDIT);
 
-  // review_highlights: use the first highlight when present; fall back to ta_quote string.
-  const highlights: ReviewHighlight[] | undefined = isActivity
-    ? undefined
-    : props.bestSeller.review_highlights;
-  const topHighlight = highlights?.[0];
-
-  const ta = topHighlight?.quote
-    ?? (isActivity ? (ACTIVITY_TA[id] ?? FALLBACK_TA) : (props.bestSeller.ta_quote ?? FALLBACK_TA));
-
-  const taByline = topHighlight
-    ? `${topHighlight.reviewer} · ★${topHighlight.rating}`
-    : null;
+  const ta = isActivity ? (ACTIVITY_TA[id] ?? FALLBACK_TA) : (props.bestSeller.ta_quote ?? FALLBACK_TA);
 
   const taCount = isActivity ? props.activity.reviewCount : props.bestSeller.review_count;
   const taRating = isActivity ? props.activity.rating : props.bestSeller.rating;
@@ -134,14 +123,9 @@ export default function CardBack(props: Props) {
           <p style={{ fontSize: 11.5, lineHeight: 1.4, color: '#155724',
                       margin: 0, fontStyle: 'italic', overflow: 'hidden',
                       display: '-webkit-box',
-                      WebkitLineClamp: taByline ? 2 : 3, WebkitBoxOrient: 'vertical' }}>
+                      WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
             "{ta}"
           </p>
-          {taByline && (
-            <span style={{ fontSize: 10, color: '#3A7D44', fontWeight: 600, marginTop: 2 }}>
-              — {taByline}
-            </span>
-          )}
         </div>
       </div>
     </div>

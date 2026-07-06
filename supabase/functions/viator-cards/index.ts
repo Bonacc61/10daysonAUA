@@ -7,15 +7,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { GROUPS, ARUBA_DESTINATION_ID } from './groups.ts';
 import { normalizeProduct } from './normalize.ts';
-import { hasKey, ping, searchProducts, searchProductsPaged, freetextSearch, getProduct, getTags, getProductReviews } from './viator.ts';
-import type { ReviewHighlight } from './viator.ts';
+import { hasKey, ping, searchProducts, searchProductsPaged, freetextSearch, getProduct, getTags } from './viator.ts';
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
-
-// Reviews are fetched for the top N products by rating×log(reviews) score.
-// Keeps the sync well within Supabase's 150 s edge-function timeout.
-const REVIEWS_FETCH_MAX = 30;
-const REVIEWS_DELAY_MS  = 350; // between consecutive review calls
 
 function supabaseAdmin() {
   return createClient(
@@ -168,73 +162,6 @@ serve(async (req) => {
         allowed_slots: g.allowed_slots,
       });
     }
-
-    // ── Review highlights ─────────────────────────────────────────────────
-    // Fetch top reviews for the highest-signal products (tier permitting).
-    // Basic-access returns 403 on the first call → we stop immediately and
-    // log clearly; all review_highlights stay null. Full-access gets real data.
-    const reviewMap = new Map<string, ReviewHighlight[]>();
-    {
-      // Sort by rating × log(review_count+1) to prioritise quality products.
-      const ranked = [...items as Array<Record<string,unknown>>]
-        .filter((it) => (it.review_count as number) > 0)
-        .sort((a, b) =>
-          (b.rating as number) * Math.log((b.review_count as number) + 1) -
-          (a.rating as number) * Math.log((a.review_count as number) + 1)
-        )
-        .slice(0, REVIEWS_FETCH_MAX);
-
-      let tierBlocked = false;
-      for (const it of ranked) {
-        if (tierBlocked) break;
-        if (it !== ranked[0]) {
-          await new Promise((r) => setTimeout(r, REVIEWS_DELAY_MS));
-        }
-        try {
-          const highlights = await getProductReviews(it.id as string, 4);
-          if (highlights.length) reviewMap.set(it.id as string, highlights);
-        } catch (e: unknown) {
-          if ((e as { tier?: boolean }).tier) {
-            console.warn('[viator-cards] reviews/product endpoint blocked (403) — Basic-access tier does not include reviews. Upgrade to Full-access to populate review_highlights.');
-            tierBlocked = true;
-          } else {
-            console.warn(`[viator-cards] reviews skip ${it.id}: ${String(e).slice(0, 120)}`);
-          }
-        }
-      }
-    }
-
-    // Attach review_highlights to items and upsert into viator_items table.
-    const now = new Date().toISOString();
-    const sb = supabaseAdmin();
-    const dbRows: unknown[] = [];
-    for (const it of items as Array<Record<string, unknown>>) {
-      const highlights = reviewMap.get(it.id as string) ?? null;
-      (it as Record<string, unknown>).review_highlights = highlights;
-      dbRows.push({
-        id:              it.id,
-        group_id:        it.group_id,
-        title:           it.title,
-        image_url:       it.image_url,
-        price_usd:       it.price_usd,
-        duration:        it.duration,
-        rating:          it.rating,
-        review_count:    it.review_count,
-        viator_item_url: it.viator_item_url,
-        description:     it.description,
-        is_best_seller:  it.is_best_seller,
-        display_order:   it.display_order,
-        review_highlights: highlights,
-        updated_at:      now,
-      });
-    }
-    // Batch upsert in chunks of 50 (Supabase recommends ≤100 rows per call).
-    for (let i = 0; i < dbRows.length; i += 50) {
-      const chunk = dbRows.slice(i, i + 50);
-      const { error } = await sb.from('viator_items').upsert(chunk as Parameters<typeof sb.from>[0][], { onConflict: 'id' });
-      if (error) console.warn(`[viator-cards] viator_items upsert chunk ${i}: ${error.message}`);
-    }
-    // ─────────────────────────────────────────────────────────────────────
 
     // Live data for curated local-pick matches (rating/image/price/link).
     const localMatches: Record<string, unknown> = {};
