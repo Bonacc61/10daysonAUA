@@ -169,19 +169,26 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
     setSharePopoverOpen(true);
   };
 
-  // On sign-in, load the saved trip and hydrate it (the saved trip wins).
+  // On sign-in, load the saved trip and hydrate it — unless the user just filled
+  // out a new questionnaire (detected by answers differing from the saved ones),
+  // in which case the freshly generated plan takes precedence.
+  const answersAtMount = useRef(answers);
   useEffect(() => {
     if (shareId) return;               // a shared view never loads the visitor's own trip
     if (!user) { setHydrated(false); hydratedUser.current = null; return; }
     if (hydratedUser.current === user.id) return;
     hydratedUser.current = user.id;
     setHydrated(false);
+    const currentAnswers = answersAtMount.current;
     loadTrip(user.id).then((t) => {
       if (t) {
-        setPlan(t.plan);
-        setRejected(t.rejected);
-        setRejectedGroups(t.rejectedGroups);
-        setAnswers(t.answers);
+        const freshQuestionnaire = JSON.stringify(t.answers) !== JSON.stringify(currentAnswers);
+        if (!freshQuestionnaire) {
+          setPlan(t.plan);
+          setRejected(t.rejected);
+          setRejectedGroups(t.rejectedGroups);
+          setAnswers(t.answers);
+        }
       }
       setHydrated(true);
     });
