@@ -173,11 +173,31 @@ Empirically, near-identical experiences score 0.92–0.98; clearly distinct
 activities (hiking vs snorkelling) score < 0.70. Constant is named
 `EMBEDDING_CLUSTER_THRESHOLD` in `index.ts` for easy tuning.
 
-**Deployment:** after setting an API key secret, redeploy:
-```bash
-supabase secrets set OPENAI_API_KEY=sk-...   # or VOYAGE_API_KEY=pa-...
-supabase functions deploy viator-cards
-```
+**Activation steps (one-time):**
+
+1. Get an API key — either:
+   - **OpenAI:** platform.openai.com → API keys → Create new secret key
+   - **Voyage AI:** voyageai.com → sign up → API keys (Anthropic-backed, same price)
+
+2. Set the secret in Supabase:
+   ```bash
+   supabase secrets set OPENAI_API_KEY=sk-...
+   # or
+   supabase secrets set VOYAGE_API_KEY=pa-...
+   ```
+
+3. Redeploy the edge function:
+   ```bash
+   SUPABASE_ACCESS_TOKEN=$(cat /root/.supabase_token) supabase functions deploy viator-cards
+   ```
+
+4. Verify it worked — the function logs:
+   `[viator-cards] openai: 400 items → N experience clusters`
+   Check Supabase dashboard → Edge Functions → viator-cards → Logs.
+
+Until step 3 is done the function falls back silently to tag Jaccard dedup.
+No frontend changes needed — cluster IDs flow through the existing catalog
+response automatically.
 
 **Tests:** `itineraryGenerator.test.ts`:
 - "never places two items sharing an experience_cluster_id" — primary path
