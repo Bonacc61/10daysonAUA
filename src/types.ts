@@ -67,6 +67,10 @@ export type ViatorItem = {
   fitReason?: string;      // short coral chip — why this matches (mirrors Activity.fitReason)
   reddit_quote?: { rating: number; mentions: number; quote: string };
   ta_quote?: string;
+  // Assigned at ingest by embedding-based clustering (viator-cards edge fn).
+  // Items sharing a cluster id represent the same real-world experience across
+  // different operators/product codes. The generator deduplicates by this id.
+  experience_cluster_id?: string;
 };
 
 // === Slot pointers + card entries ===

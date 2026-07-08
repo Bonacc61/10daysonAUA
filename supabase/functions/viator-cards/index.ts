@@ -8,6 +8,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { GROUPS, ARUBA_DESTINATION_ID } from './groups.ts';
 import { normalizeProduct } from './normalize.ts';
 import { hasKey, ping, searchProducts, searchProductsPaged, freetextSearch, getProduct, getTags } from './viator.ts';
+import { embedBatch, clusterByEmbedding, activeProvider } from './embeddings.ts';
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
@@ -162,6 +163,42 @@ serve(async (req) => {
         allowed_slots: g.allowed_slots,
       });
     }
+
+    // ── Semantic clustering via embeddings ────────────────────────────────────
+    // Assigns each item an experience_cluster_id. Items sharing a cluster
+    // represent the same real-world experience (e.g. two Natural Pool jeep-safari
+    // listings from different operators). Clusters are sorted by rating desc so
+    // the highest-rated product is always the cluster founder (its id becomes the
+    // cluster id). The generator uses cluster ids — not raw vectors — to prevent
+    // placing semantically identical items in the same plan.
+    // Falls back silently when no embedding provider is configured.
+    const EMBEDDING_CLUSTER_THRESHOLD = 0.88;
+    const provider = activeProvider();
+    if (provider) {
+      try {
+        type Row = Record<string, unknown>;
+        // Sort descending by rating so the best item founds each cluster.
+        const sorted = [...(items as Row[])].sort(
+          (a, b) => (b.rating as number) - (a.rating as number),
+        );
+        const texts = sorted.map(
+          (it) => `${it.title}. ${String(it.description ?? '')}`.slice(0, 500),
+        );
+        const embeddings = await embedBatch(texts);
+        const ids = sorted.map((it) => String(it.id));
+        const clusters = clusterByEmbedding(ids, embeddings, EMBEDDING_CLUSTER_THRESHOLD);
+        // Write cluster ids back onto the original items array (order-independent).
+        const clusterById = new Map(sorted.map((it, i) => [String(it.id), clusters.get(ids[i])!]));
+        for (const it of items as Row[]) {
+          it.experience_cluster_id = clusterById.get(String(it.id)) ?? String(it.id);
+        }
+        const nClusters = new Set(clusters.values()).size;
+        console.log(`[viator-cards] ${provider}: ${(items as Row[]).length} items → ${nClusters} experience clusters`);
+      } catch (e) {
+        console.warn(`[viator-cards] embedding clustering skipped (${provider}): ${String(e).slice(0, 160)}`);
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     // Live data for curated local-pick matches (rating/image/price/link).
     const localMatches: Record<string, unknown> = {};

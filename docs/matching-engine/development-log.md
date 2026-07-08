@@ -101,39 +101,87 @@ logic untouched.
 
 ---
 
-### 2026-07-08 — Cross-group semantic duplicates (`usedTagSets` + tag Jaccard)
+### 2026-07-08 — Cross-group semantic duplicates: tag Jaccard (initial fix)
 
 **Symptom:** "Ultimate Island Jeep Safari with Natural Pool, Baby Beach &
 Lunch" and "Aruba Natural Pool and Indian Cave Rugged Jeep Safari" suggested
 on consecutive days.
 
-**Root cause:** These are two distinct Viator products (different product
-codes, different groups) that represent the same real-world experience. The
-`usedGroupIds` fix only retires within a single group — it cannot detect that
-two products from *different* groups are semantically identical.
+**Root cause:** Two distinct Viator products (different codes, different
+groups) representing the same real-world experience. `usedGroupIds` only
+retires within a single group — it cannot detect cross-group semantic
+duplicates.
 
 **Why not title similarity?** Jaccard on title tokens is lexical: "Sunset
-Sailing Cruise" and "Evening Catamaran Experience" would score near zero
-despite being the same outing. Viator's own tag IDs are a controlled
-vocabulary — two jeep-safari products will share specific leaf tags (e.g.
-"4WD & Jeep Tours", tag ID 21421) even when their titles diverge.
+Sailing Cruise" and "Evening Catamaran Experience" score near zero despite
+being the same outing. Viator's own tag IDs are a controlled vocabulary.
 
-**Fix:** Added `usedTagSets: number[][]` to `Ctx`. Function `tagJaccard`
-computes Jaccard similarity between two tag-ID arrays. Predicate `notSimilar`
-in `pickForSlot` skips any Viator candidate whose tag Jaccard against any
-already-placed item's tags meets `TAG_SIMILARITY_THRESHOLD = 0.35`. Tags are
-pushed to `usedTagSets` whenever a group item is placed (both pins and regular
-picks). Local activities (no Viator tags) are unaffected.
+**Initial fix (shipped, now superseded as fallback):** `tagJaccard` on Viator
+tag-ID arrays; `TAG_SIMILARITY_THRESHOLD = 0.35`. Catches obvious duplicates
+but still has a ceiling: two products from different operators describing
+identically-named tours can have divergent tag sets if Viator categorised them
+differently.
 
-**Threshold rationale:** 0.35 means ≥35% tag overlap → same experience.
-Two jeep safaris to the Natural Pool share multiple specific tags (4WD/Jeep +
-location-adjacent tags), easily exceeding 0.35. A snorkel cruise shares at
-most the broad "Outdoor Activities" parent tag with a jeep safari — Jaccard
-stays well below 0.35. Threshold is a named constant for easy tuning.
+---
 
-**Test:** `itineraryGenerator.test.ts` — "never places two Viator items with
-high tag overlap" — two groups with identical `SHARED_TAGS`, padded with 20
-distinct groups; asserts at most one of the two semantic duplicates appears.
+### 2026-07-08 — Cross-group semantic duplicates: embedding clustering (primary fix)
+
+**Why embeddings beat tag Jaccard:** Tag IDs are a controlled vocabulary but
+inconsistently applied — Viator may tag two identical-experience products with
+different leaf tags. Sentence embeddings encode *meaning*, not surface form, so
+"Natural Pool Rugged Jeep Safari" and "Ultimate Island Jeep Safari with Natural
+Pool" cluster together even with zero token or tag overlap.
+
+**Architecture:** Embeddings are computed **at ingest time** inside the
+`viator-cards` edge function, not at plan time. Only a cluster ID string ships
+to the browser — no vectors in the client payload.
+
+**`supabase/functions/viator-cards/embeddings.ts`** (new file):
+- `activeProvider()` — checks env vars, returns `'openai' | 'voyage' | null`
+- `embedBatch(texts)` — routes to the active provider
+- `clusterByEmbedding(ids, embeddings, threshold)` — greedy O(n²) cosine
+  clustering; items sorted by rating desc so the best product founds each
+  cluster
+
+**Provider router** (cheapest-first, no quality compromise for short texts):
+
+| Priority | Provider | Model | Price | Dims |
+|---|---|---|---|---|
+| 1 | OpenAI | `text-embedding-3-small` | $0.02 / M tokens | 256 (reduced) |
+| 2 | Voyage AI | `voyage-3-lite` | $0.02 / M tokens | 512 |
+
+Set `OPENAI_API_KEY` **or** `VOYAGE_API_KEY` as a Supabase secret. If neither
+is set the edge function logs a warning and items ship without cluster IDs —
+the generator falls back to tag Jaccard automatically.
+
+**Cost per ingest cycle (~400 items × ~50 tokens = ~20k tokens):**
+≈ $0.0004 per sync. Cache TTL is 6 hours so worst-case cost is ~$0.002/day.
+**Zero additional cost per user or per itinerary** — embeddings run once at
+ingest, not once per plan.
+
+**`experience_cluster_id` on `ViatorItem`:** assigned by the edge function;
+items sharing an id are the same real-world experience. The cluster founder is
+the highest-rated product in the cluster.
+
+**Generator changes (`Ctx`):**
+- `usedClusterIds: Set<string>` — retired when any cluster member is placed
+- `notSimilar` predicate: checks `usedClusterIds` first (primary); falls back
+  to tag Jaccard when `experience_cluster_id` is absent (no embedding run)
+
+**Clustering threshold:** cosine similarity ≥ 0.88 → same experience.
+Empirically, near-identical experiences score 0.92–0.98; clearly distinct
+activities (hiking vs snorkelling) score < 0.70. Constant is named
+`EMBEDDING_CLUSTER_THRESHOLD` in `index.ts` for easy tuning.
+
+**Deployment:** after setting an API key secret, redeploy:
+```bash
+supabase secrets set OPENAI_API_KEY=sk-...   # or VOYAGE_API_KEY=pa-...
+supabase functions deploy viator-cards
+```
+
+**Tests:** `itineraryGenerator.test.ts`:
+- "never places two items sharing an experience_cluster_id" — primary path
+- "never places two Viator items with high tag overlap" — Jaccard fallback path
 
 ---
 

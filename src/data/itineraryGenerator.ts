@@ -128,12 +128,13 @@ type Ctx = {
   // rest of the trip. Prevents booking-option variants (adult/child/45-min)
   // of the same product from each claiming a separate day.
   usedGroupIds: Set<string>;
-  // Tag-ID fingerprints of every Viator item placed so far. Before placing a
-  // candidate, its tags are compared (Jaccard) against every fingerprint here.
-  // If any pair exceeds TAG_SIMILARITY_THRESHOLD the candidate is skipped —
-  // this catches cross-group semantic duplicates where two different Viator
-  // listings describe the same real-world experience (e.g. two jeep-safari-
-  // to-Natural-Pool products living in different tag groups).
+  // Cluster IDs (from embedding-based clustering at ingest) of placed Viator
+  // items. When an item is placed its cluster is retired for the rest of the
+  // trip, preventing semantically identical listings (e.g. two Natural Pool
+  // jeep-safari products from different operators) from both appearing.
+  // Falls back to tag Jaccard when cluster IDs are absent.
+  usedClusterIds: Set<string>;
+  // Tag-ID fingerprints used as fallback when no embedding cluster is available.
   usedTagSets: number[][];
 };
 
@@ -212,11 +213,16 @@ function pickForSlot(
   // leaves the slot open ("Drop an activity here") rather than repeating.
   const unused = (e: CardEntry) => !ctx.lastUsedDay.has(entryId(e));
   const newKind = (e: CardEntry) => !usedKinds.has(entryKind(e));
-  // Semantic dedup: skip any Viator item whose tag-ID Jaccard against a
-  // previously placed item's tags meets the similarity threshold. Local
-  // activities (no Viator tags) are always eligible — they dedupe by id only.
+  // Semantic dedup: skip candidates that represent an already-placed experience.
+  // Primary signal: embedding-derived cluster ID (set at ingest by viator-cards).
+  // Fallback: Viator tag-ID Jaccard (used when no embedding provider was set).
+  // Local activities (no Viator tags, no cluster ID) bypass both — they dedupe
+  // by item ID via lastUsedDay only.
   const notSimilar = (e: CardEntry): boolean => {
     if (e.kind !== 'group') return true;
+    const cid = e.bestSeller.experience_cluster_id;
+    if (cid) return !ctx.usedClusterIds.has(cid);
+    // Fallback: tag Jaccard
     const tags = e.bestSeller.tags ?? [];
     if (tags.length === 0) return true;
     return !ctx.usedTagSets.some((used) => tagJaccard(tags, used) >= TAG_SIMILARITY_THRESHOLD);
@@ -357,7 +363,7 @@ export function generatePlan(
   const seed = ((opts.seed ?? 0) ^ hashAnswers(answers)) >>> 0;
   const flags = new Set(answers.flags ?? []);
   const filteredCatalog = applyCatalogFlags(catalog, flags);
-  const ctx: Ctx = { catalog: filteredCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), usedGroupIds: new Set(), usedTagSets: [] };
+  const ctx: Ctx = { catalog: filteredCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [] };
 
   // Trip-wide budget pool: keeps the AVERAGE daily activity spend within the
   // tier cap (budget-conscious ≈ $110/day on average), letting days vary while
@@ -426,6 +432,8 @@ export function generatePlan(
         ctx.lastUsedDay.set(entryId(pick), d);
         if (pick.kind === 'group') {
           ctx.usedGroupIds.add(pick.group.id);
+          const cid = pick.bestSeller.experience_cluster_id;
+          if (cid) ctx.usedClusterIds.add(cid);
           const tags = pick.bestSeller.tags ?? [];
           if (tags.length > 0) ctx.usedTagSets.push(tags);
         }
@@ -446,6 +454,8 @@ export function generatePlan(
       ctx.lastUsedDay.set(entryId(pick), d);
       if (pick.kind === 'group') {
         ctx.usedGroupIds.add(pick.group.id);
+        const cid = pick.bestSeller.experience_cluster_id;
+        if (cid) ctx.usedClusterIds.add(cid);
         const tags = pick.bestSeller.tags ?? [];
         if (tags.length > 0) ctx.usedTagSets.push(tags);
       }

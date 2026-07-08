@@ -157,10 +157,48 @@ describe('generatePlan — pacing + no unintended empty slots', () => {
     plan.forEach((d) => expect(d.evening.length).toBeGreaterThanOrEqual(1));
   });
 
-  it('never places two Viator items with high tag overlap (semantic dedup)', () => {
-    // Two groups share the same specific Viator tag IDs — simulating e.g. two
-    // "Natural Pool Jeep Safari" listings from different operators. Only one
-    // should appear in the plan; the other should be blocked by tag similarity.
+  it('never places two items sharing an experience_cluster_id (embedding dedup)', () => {
+    // Two groups from different operators assigned the same cluster id at ingest
+    // (simulating what the embedding router would produce). Only one should appear.
+    const CLUSTER = 'natural-pool-jeep-safari';
+    const groupA: ViatorGroup = {
+      id: 'jeep-a', name: 'Jeep Safari A', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    };
+    const groupB: ViatorGroup = {
+      id: 'jeep-b', name: 'Jeep Safari B', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 1, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    };
+    const itemA: ViatorItem = {
+      id: 'jeep-a-item', group_id: 'jeep-a', title: 'Natural Pool Rugged Jeep Safari',
+      image_url: '', price_usd: 0, duration: '', rating: 4.7, review_count: 200,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      experience_cluster_id: CLUSTER,
+    };
+    const itemB: ViatorItem = {
+      id: 'jeep-b-item', group_id: 'jeep-b', title: 'Ultimate Island Jeep Safari with Natural Pool',
+      image_url: '', price_usd: 0, duration: '', rating: 4.6, review_count: 180,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      experience_cluster_id: CLUSTER,
+    };
+    const padGroups: ViatorGroup[] = Array.from({ length: 20 }, (_, n) => ({
+      id: `pad-${n}`, name: `pad-${n}`, tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: n + 2, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    }));
+    const padItems: ViatorItem[] = padGroups.map((g, n) => ({
+      id: `pad-item-${n}`, group_id: g.id, title: `Activity ${n}`,
+      image_url: '', price_usd: 0, duration: '', rating: 4.0, review_count: 50,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      experience_cluster_id: `unique-cluster-${n}`,
+    }));
+    const cat: Catalog = { activities: [], groups: [groupA, groupB, ...padGroups], items: [itemA, itemB, ...padItems] };
+    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 5 }, cat));
+    expect(ids.includes('jeep-a-item') && ids.includes('jeep-b-item')).toBe(false);
+  });
+
+  it('never places two Viator items with high tag overlap (tag-Jaccard fallback dedup)', () => {
+    // Two groups share specific Viator tag IDs — fallback path when no embedding
+    // cluster id is set. Only one should appear in the plan.
     const SHARED_TAGS = [21421, 13126, 22046]; // e.g. 4WD/Jeep + Outdoor + specific tag
     const groupA: ViatorGroup = {
       id: 'jeep-a', name: 'Jeep Safari A', tagline: '', viator_taxonomy: '', viator_group_url: '',
