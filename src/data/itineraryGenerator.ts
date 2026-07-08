@@ -23,6 +23,26 @@ import { answersToTags } from './answerTags';
 
 const DAY_COLORS = ['#FF6B47', '#3B82F6', '#22C55E', '#EAB308', '#E63946', '#8B5CF6', '#0EA5E9'];
 
+// Jaccard similarity between two Viator tag-ID arrays. Returns 0 when either
+// array is empty (no tags = no signal). Broad parent tags (e.g. "Outdoor
+// Activities") appear in many products and contribute proportionally less to
+// the score because they also inflate the union; specific leaf tags (e.g.
+// "4WD & Jeep Tours") dominate by concentrating the intersection.
+function tagJaccard(a: number[], b: number[]): number {
+  if (a.length === 0 || b.length === 0) return 0;
+  const setA = new Set(a);
+  let intersection = 0;
+  for (const t of b) if (setA.has(t)) intersection++;
+  const union = setA.size + b.length - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+// Two Viator items whose tag Jaccard meets this threshold are treated as the
+// same real-world experience and not placed in the same plan. 0.35 catches
+// e.g. two Natural Pool jeep-safari listings (many shared specific tags) while
+// keeping a snorkel cruise (zero jeep tags) eligible on the same trip.
+const TAG_SIMILARITY_THRESHOLD = 0.35;
+
 const SLOT_TOD: Record<Slot, Activity['timeOfDay']> = {
   morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening',
 };
@@ -105,10 +125,16 @@ type Ctx = {
   rand: () => number;
   lastUsedDay: Map<string, number>;
   // Once any item from a group is placed, the whole group is retired for the
-  // rest of the trip. This prevents the same experience (e.g. "Atlantis
-  // Submarine Tour") from appearing multiple times just because the group
-  // carries several booking-option items with distinct IDs.
+  // rest of the trip. Prevents booking-option variants (adult/child/45-min)
+  // of the same product from each claiming a separate day.
   usedGroupIds: Set<string>;
+  // Tag-ID fingerprints of every Viator item placed so far. Before placing a
+  // candidate, its tags are compared (Jaccard) against every fingerprint here.
+  // If any pair exceeds TAG_SIMILARITY_THRESHOLD the candidate is skipped —
+  // this catches cross-group semantic duplicates where two different Viator
+  // listings describe the same real-world experience (e.g. two jeep-safari-
+  // to-Natural-Pool products living in different tag groups).
+  usedTagSets: number[][];
 };
 
 // Candidates for a slot. useTags=null widens which GROUPS are eligible (time-of-
@@ -186,21 +212,27 @@ function pickForSlot(
   // leaves the slot open ("Drop an activity here") rather than repeating.
   const unused = (e: CardEntry) => !ctx.lastUsedDay.has(entryId(e));
   const newKind = (e: CardEntry) => !usedKinds.has(entryKind(e));
+  // Semantic dedup: skip any Viator item whose tag-ID Jaccard against a
+  // previously placed item's tags meets the similarity threshold. Local
+  // activities (no Viator tags) are always eligible — they dedupe by id only.
+  const notSimilar = (e: CardEntry): boolean => {
+    if (e.kind !== 'group') return true;
+    const tags = e.bestSeller.tags ?? [];
+    if (tags.length === 0) return true;
+    return !ctx.usedTagSets.some((used) => tagJaccard(tags, used) >= TAG_SIMILARITY_THRESHOLD);
+  };
 
   const matchedAll = ranked(ctx, candidatesFor(ctx, slot, ctx.tags), anchor);
   const widenedAll = ranked(ctx, candidatesFor(ctx, slot, null), anchor);
   const matched = matchedAll.filter(affordable);
   const widened = widenedAll.filter(affordable);
 
-  // Fill ladder, best → worst, every tier restricted to UNUSED picks so no
-  // activity is ever repeated: affordable on-theme → affordable widened →
-  // over-budget on-theme → over-budget widened (a rare over-budget-but-distinct
-  // pick beats a duplicate). `kindOk` gates every tier by same-day kind, so we
-  // run the whole ladder for new kinds first and only rerun it allowing a repeat
-  // kind when that would otherwise leave the slot empty. When nothing unused
-  // remains, we return null and the slot stays open.
+  // Fill ladder, best → worst, every tier restricted to UNUSED + NOT-SIMILAR
+  // picks: affordable on-theme → affordable widened → over-budget on-theme →
+  // over-budget widened. `kindOk` gates every tier by same-day kind variety.
+  // When nothing remains, we return null and the slot stays open.
   const runLadder = (kindOk: (e: CardEntry) => boolean): CardEntry | null => {
-    const ok = (list: CardEntry[]) => list.filter(kindOk);
+    const ok = (list: CardEntry[]) => list.filter(kindOk).filter(notSimilar);
     return (
          ok(matched).find(unused)
       ?? ok(widened).find(unused)
@@ -325,7 +357,7 @@ export function generatePlan(
   const seed = ((opts.seed ?? 0) ^ hashAnswers(answers)) >>> 0;
   const flags = new Set(answers.flags ?? []);
   const filteredCatalog = applyCatalogFlags(catalog, flags);
-  const ctx: Ctx = { catalog: filteredCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), usedGroupIds: new Set() };
+  const ctx: Ctx = { catalog: filteredCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), usedGroupIds: new Set(), usedTagSets: [] };
 
   // Trip-wide budget pool: keeps the AVERAGE daily activity spend within the
   // tier cap (budget-conscious ≈ $110/day on average), letting days vary while
@@ -392,7 +424,11 @@ export function generatePlan(
         const { cardEntry: pick, slotEntry } = pin;
         budgetLeft -= entryPrice(pick);
         ctx.lastUsedDay.set(entryId(pick), d);
-        if (pick.kind === 'group') ctx.usedGroupIds.add(pick.group.id);
+        if (pick.kind === 'group') {
+          ctx.usedGroupIds.add(pick.group.id);
+          const tags = pick.bestSeller.tags ?? [];
+          if (tags.length > 0) ctx.usedTagSets.push(tags);
+        }
         usedKinds.add(entryKind(pick));
         if (!anchor) anchor = entryRegion(pick);
         picks.push(pick);
@@ -408,7 +444,11 @@ export function generatePlan(
       if (!pick) continue;
       budgetLeft -= entryPrice(pick);
       ctx.lastUsedDay.set(entryId(pick), d);
-      if (pick.kind === 'group') ctx.usedGroupIds.add(pick.group.id);
+      if (pick.kind === 'group') {
+        ctx.usedGroupIds.add(pick.group.id);
+        const tags = pick.bestSeller.tags ?? [];
+        if (tags.length > 0) ctx.usedTagSets.push(tags);
+      }
       usedKinds.add(entryKind(pick));
       if (!anchor) anchor = entryRegion(pick);
       picks.push(pick);
