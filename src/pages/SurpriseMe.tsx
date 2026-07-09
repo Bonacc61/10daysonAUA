@@ -77,6 +77,11 @@ export default function SurpriseMe({ setPage }: Props) {
   const [pick, setPick]       = useState<Suggestion | null>(null);
   const [skipId, setSkipId]   = useState<string | null>(null);
   const [animKey, setAnimKey] = useState(0);
+  const [shakeReady, setShakeReady] = useState<boolean>(() => {
+    // Android + older iOS fire devicemotion without a permission gate.
+    const DME = window.DeviceMotionEvent as (typeof DeviceMotionEvent & { requestPermission?: () => Promise<string> }) | undefined;
+    return typeof DME?.requestPermission !== 'function';
+  });
 
   const slot = currentSlot();
   const slotTod = slot === 'morning' ? 'Morning' : slot === 'afternoon' ? 'Afternoon' : 'Evening';
@@ -94,6 +99,14 @@ export default function SurpriseMe({ setPage }: Props) {
     setPick(next);
     setAnimKey((k) => k + 1);
   }, [pool, skipId, slotTod]);
+
+  const requestShakePermission = useCallback(async () => {
+    const DME = window.DeviceMotionEvent as (typeof DeviceMotionEvent & { requestPermission?: () => Promise<string> }) | undefined;
+    if (typeof DME?.requestPermission === 'function') {
+      const result = await DME.requestPermission();
+      if (result === 'granted') setShakeReady(true);
+    }
+  }, []);
 
   // Auto-pick once catalog is ready.
   useEffect(() => {
@@ -232,7 +245,10 @@ export default function SurpriseMe({ setPage }: Props) {
                       </a>
                     )}
                     <button
-                      onClick={spin}
+                      onClick={async () => {
+                        if (!shakeReady) await requestShakePermission();
+                        spin();
+                      }}
                       disabled={pool.length <= 1}
                       style={{ flex: 1, padding: '11px 14px', fontSize: 14, fontWeight: 700, fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, border: '2px solid var(--ink)', background: 'var(--yellow-bg)', color: 'var(--ink)', boxShadow: '3px 3px 0 var(--ink)', cursor: pool.length > 1 ? 'pointer' : 'not-allowed', opacity: pool.length > 1 ? 1 : 0.4 }}
                     >
@@ -243,7 +259,7 @@ export default function SurpriseMe({ setPage }: Props) {
               </div>
 
               <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--sand-400)', marginTop: 14 }}>
-                Shake your phone for a new suggestion.
+                {shakeReady ? 'Shake your phone for a new suggestion.' : 'Tap "Try another" to enable shake gestures.'}
               </p>
             </div>
           )}
