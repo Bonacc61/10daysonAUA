@@ -86,7 +86,13 @@ export default function App() {
 function AppShell() {
   const { user, loading: authLoading } = useAuth();
   const [page, setPageState] = useState<PageId>(pageFromUrl);
-  const [answers, setAnswers] = useState<Answers>(DEFAULT_ANSWERS);
+  const [answers, setAnswers] = useState<Answers>(() => {
+    try {
+      const raw = localStorage.getItem('10doa:answers');
+      if (raw) return { ...DEFAULT_ANSWERS, ...JSON.parse(raw) as Partial<Answers> };
+    } catch { /* ignore */ }
+    return DEFAULT_ANSWERS;
+  });
   const [loginOpen, setLoginOpen] = useState(false);
   const [shareId, setShareId] = useState<string | null>(shareIdFromUrl);
   const [initialExploreSection, setInitialExploreSection] = useState<Section | null>(null);
@@ -103,6 +109,14 @@ function AppShell() {
   const markQuestionnaireDone = () => {
     try { localStorage.setItem('qDone', '1'); } catch { /* ignore */ }
     setQDone(true);
+  };
+
+  const saveAndSetAnswers = (a: Answers | ((prev: Answers) => Answers)) => {
+    setAnswers((prev) => {
+      const next = typeof a === 'function' ? a(prev) : a;
+      try { localStorage.setItem('10doa:answers', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
   };
 
   function setPage(p: PageId) {
@@ -141,10 +155,10 @@ function AppShell() {
       <SignedInToast />
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
       <Nav page={page} setPage={setPage} onLogin={() => setLoginOpen(true)} canSeeItinerary={canSeeItinerary} />
-      {page === 'landing'       && <Landing       setPage={setPage} answers={answers} setAnswers={setAnswers} />}
-      {page === 'questionnaire' && <Questionnaire setPage={setPage} answers={answers} setAnswers={setAnswers} onComplete={markQuestionnaireDone} />}
+      {page === 'landing'       && <Landing       setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} />}
+      {page === 'questionnaire' && <Questionnaire setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onComplete={markQuestionnaireDone} />}
       {page === 'explore'       && <Explore       setPage={setPage} answers={answers} onLogin={() => setLoginOpen(true)} canSeeItinerary={canSeeItinerary} initialSection={initialExploreSection ?? undefined} shortlist={shortlist} setShortlist={setShortlist} />}
-      {page === 'itinerary'     && (canSeeItinerary || shareId) && <Itinerary setPage={setPage} answers={answers} setAnswers={setAnswers} onLogin={() => setLoginOpen(true)} shareId={shareId} onNavigateToExplore={navigateToExplore} shortlist={shortlist} />}
+      {page === 'itinerary'     && (canSeeItinerary || shareId) && <Itinerary setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onLogin={() => setLoginOpen(true)} shareId={shareId} onNavigateToExplore={navigateToExplore} shortlist={shortlist} />}
       {page === 'privacy'       && <Privacy       setPage={setPage} />}
       {page === 'surprise'      && <SurpriseMe    setPage={setPage} answers={answers} />}
       {page === 'dashboard'     && <Dashboard     setPage={setPage} onLogin={() => setLoginOpen(true)} />}
