@@ -42,7 +42,7 @@ export const GROUPS: GroupConfig[] = [
     tagIds: [21701], // Cruises & Sailing (233)
     matched_by: ['beach-chill', 'couple', 'cruise-day'],
     region: 'palm-beach',
-    allowed_slots: ['afternoon'], // day sails are an afternoon thing, never the evening slot
+    allowed_slots: ['afternoon', 'evening'], // afternoon day-sails + sunset/evening cruises
     viator_group_url: `https://www.viator.com/Aruba/d28-ttd?pid=${PID}`,
   },
   {
@@ -72,7 +72,7 @@ export const GROUPS: GroupConfig[] = [
     tagIds: [21725], // Sightseeing Tours (158 Aruba) - land/city/island guided tours
     matched_by: ['culture-history', 'nature-hiking', 'couple', 'friends', 'multi-gen', 'low-adventure'],
     region: 'islandwide',
-    allowed_slots: ['morning', 'afternoon'],
+    allowed_slots: ['morning', 'afternoon', 'evening'], // sunset/evening tours exist
     viator_group_url: `https://www.viator.com/Aruba/d28-ttd?pid=${PID}`,
   },
   {

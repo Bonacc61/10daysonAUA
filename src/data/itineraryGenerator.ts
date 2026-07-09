@@ -239,12 +239,11 @@ function pickForSlot(
   // When nothing remains, we return null and the slot stays open.
   const runLadder = (kindOk: (e: CardEntry) => boolean): CardEntry | null => {
     const ok = (list: CardEntry[]) => list.filter(kindOk).filter(notSimilar);
-    return (
-         ok(matched).find(unused)
-      ?? ok(widened).find(unused)
-      ?? ok(matchedAll).find(unused)
-      ?? ok(widenedAll).find(unused)
-    ) ?? null;
+    const firstTwo = ok(matched).find(unused) ?? ok(widened).find(unused) ?? null;
+    // When maxPrice === 0 (arrival-day free-only rule), never fall through to the
+    // over-budget tiers — leave the slot open rather than place a paid item.
+    if (firstTwo !== null || maxPrice === 0) return firstTwo;
+    return ok(matchedAll).find(unused) ?? ok(widenedAll).find(unused) ?? null;
   };
 
   return runLadder(newKind) ?? runLadder(() => true);

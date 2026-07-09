@@ -140,7 +140,7 @@ describe('generatePlan — pacing + no unintended empty slots', () => {
     }));
     const eveItems: ViatorItem[] = eveGroups.map((g, n) => ({
       id: `eve-${n}`, group_id: g.id, title: `Sunset Dinner Cruise ${n}`,
-      image_url: '', price_usd: 60, duration: '', rating: 4.6, review_count: 100,
+      image_url: '', price_usd: 0, duration: '', rating: 4.6, review_count: 100,
       viator_item_url: '', is_best_seller: true, display_order: 0, sections: ['food-drink' as const],
     }));
     const dayGroups: ViatorGroup[] = Array.from({ length: 20 }, (_, n) => ({
