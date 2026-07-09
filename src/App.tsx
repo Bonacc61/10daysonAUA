@@ -146,7 +146,7 @@ function AppShell() {
       {page === 'explore'       && <Explore       setPage={setPage} answers={answers} onLogin={() => setLoginOpen(true)} canSeeItinerary={canSeeItinerary} initialSection={initialExploreSection ?? undefined} shortlist={shortlist} setShortlist={setShortlist} />}
       {page === 'itinerary'     && (canSeeItinerary || shareId) && <Itinerary setPage={setPage} answers={answers} setAnswers={setAnswers} onLogin={() => setLoginOpen(true)} shareId={shareId} onNavigateToExplore={navigateToExplore} shortlist={shortlist} />}
       {page === 'privacy'       && <Privacy       setPage={setPage} />}
-      {page === 'surprise'      && <SurpriseMe    setPage={setPage} />}
+      {page === 'surprise'      && <SurpriseMe    setPage={setPage} answers={answers} />}
       {page === 'dashboard'     && <Dashboard     setPage={setPage} onLogin={() => setLoginOpen(true)} />}
       {page === 'preview'       && <DashboardPreview setPage={setPage} />}
     </>

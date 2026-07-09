@@ -4,13 +4,14 @@ import Footer from '../components/Footer';
 import { useCatalog } from '../data/useCatalog';
 import { useStarred } from '../lib/starred';
 import { viatorLink, productUrlFor, sectionLabel, primarySection } from '../data/exploreItems';
-import { parseActivityCost } from '../data/matcher';
-import type { PageId } from '../App';
+import { matchPool, blendPools, parseActivityCost } from '../data/matcher';
+import { answersToTags } from '../data/answerTags';
+import type { PageId, Answers } from '../App';
 import type { Activity } from '../data/activities';
-import type { ViatorGroup, ViatorItem } from '../types';
+import type { ViatorGroup, ViatorItem, Slot } from '../types';
 import type { Catalog } from '../data/activitySource';
 
-type Props = { setPage: (p: PageId) => void };
+type Props = { setPage: (p: PageId) => void; answers: Answers };
 
 type Suggestion =
   | { kind: 'activity'; id: string; activity: Activity; bookUrl: string | null }
@@ -57,6 +58,32 @@ function resolvePool(starred: Set<string>, catalog: Catalog): Suggestion[] {
   return pool;
 }
 
+const NO_FILTER = { rejectedIds: new Set<string>(), rejectedGroupIds: new Set<string>() };
+
+function resolveMatchedPool(answers: Answers, catalog: Catalog, exclude: Set<string>): Suggestion[] {
+  const tags = answersToTags(answers);
+  const seen = new Set<string>(exclude);
+  const result: Suggestion[] = [];
+
+  for (const slot of ['morning', 'afternoon', 'evening'] as Slot[]) {
+    const { activities, groups } = matchPool(catalog.activities, catalog.groups, tags, slot);
+    const entries = blendPools(activities, groups, catalog.items, NO_FILTER);
+    for (const e of entries) {
+      const id = e.kind === 'activity' ? e.activity.id : `item:${e.bestSeller.id}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      if (e.kind === 'activity') {
+        result.push({ kind: 'activity', id, activity: e.activity,
+          bookUrl: e.activity.viator_item_url && parseActivityCost(e.activity.cost) > 0 ? viatorLink(e.activity.viator_item_url) : null });
+      } else {
+        result.push({ kind: 'item', id, item: e.bestSeller, group: e.group,
+          bookUrl: e.bestSeller.viator_item_url && e.bestSeller.price_usd > 0 ? productUrlFor(e.bestSeller) : null });
+      }
+    }
+  }
+  return result;
+}
+
 function drawFrom(pool: Suggestion[], skipId: string | null, slotTod: string): Suggestion | null {
   if (!pool.length) return null;
   // Prefer time-matching local activities; fall back to all.
@@ -71,7 +98,7 @@ function drawFrom(pool: Suggestion[], skipId: string | null, slotTod: string): S
   return eligible[Math.floor(Math.random() * eligible.length)] ?? null;
 }
 
-export default function SurpriseMe({ setPage }: Props) {
+export default function SurpriseMe({ setPage, answers }: Props) {
   const { catalog, loading } = useCatalog();
   const { starred, toggle: toggleStar } = useStarred();
   const [pick, setPick]       = useState<Suggestion | null>(null);
@@ -86,11 +113,19 @@ export default function SurpriseMe({ setPage }: Props) {
   const slot = currentSlot();
   const slotTod = slot === 'morning' ? 'Morning' : slot === 'afternoon' ? 'Afternoon' : 'Evening';
 
-  const pool = useMemo(
+  const starredPool = useMemo(
     () => resolvePool(starred, catalog),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [starred.size, catalog.activities.length, catalog.items.length],
   );
+
+  const matchedPool = useMemo(() => {
+    if (answers.interests.length === 0) return [];
+    return resolveMatchedPool(answers, catalog, starred);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answers, starred.size, catalog.activities.length, catalog.items.length]);
+
+  const pool = useMemo(() => [...starredPool, ...matchedPool], [starredPool, matchedPool]);
 
   const spin = useCallback(() => {
     const next = drawFrom(pool, skipId, slotTod);
@@ -114,9 +149,9 @@ export default function SurpriseMe({ setPage }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, pool.length]);
 
-  // Re-pick when starred changes and current pick was unstarred.
+  // Re-pick when a starred item is un-hearted and isn't reachable via questionnaire matches either.
   useEffect(() => {
-    if (pick && !starred.has(pick.id)) {
+    if (pick && !pool.some((p) => p.id === pick.id)) {
       const next = drawFrom(pool, null, slotTod);
       if (next) { setSkipId(next.id); setPick(next); setAnimKey((k) => k + 1); }
       else { setPick(null); setSkipId(null); }
@@ -149,8 +184,13 @@ export default function SurpriseMe({ setPage }: Props) {
           </h1>
           <p style={{ fontStyle: 'italic', fontSize: 15, color: 'rgba(0,0,0,0.65)', margin: 0 }}>
             {pool.length > 0
-              ? `Drawing from ${pool.length} starred activit${pool.length === 1 ? 'y' : 'ies'}.`
-              : 'Heart activities in Explore to get personalised suggestions.'}
+              ? [
+                  starredPool.length > 0 && `${starredPool.length} starred`,
+                  matchedPool.length > 0 && `${matchedPool.length} questionnaire match${matchedPool.length === 1 ? '' : 'es'}`,
+                ].filter(Boolean).join(' + ') + '.'
+              : answers.interests.length > 0
+                ? 'No matches found. Try hearting activities in Explore.'
+                : 'Heart activities or complete the questionnaire to get suggestions.'}
           </p>
         </div>
       </div>
@@ -165,9 +205,13 @@ export default function SurpriseMe({ setPage }: Props) {
           {!loading && pool.length === 0 && (
             <div className="chunky" style={{ padding: '36px 32px', textAlign: 'center', maxWidth: 480, marginTop: 24 }}>
               <div style={{ fontSize: 40, marginBottom: 16 }}>♡</div>
-              <p className="font-display" style={{ fontSize: 22, margin: '0 0 10px', color: 'var(--ink)' }}>Nothing starred yet.</p>
+              <p className="font-display" style={{ fontSize: 22, margin: '0 0 10px', color: 'var(--ink)' }}>
+                {answers.interests.length > 0 ? 'Nothing to show yet.' : 'Tell us what you like.'}
+              </p>
               <p style={{ fontSize: 14, color: 'var(--sand-700)', margin: '0 0 24px' }}>
-                Tap the heart on any activity in Explore to save it here.
+                {answers.interests.length > 0
+                  ? 'Heart activities in Explore to save them here.'
+                  : 'Fill out the questionnaire so we can suggest activities, or heart activities in Explore.'}
               </p>
               <button className="btn-red" onClick={() => setPage('explore')} style={{ padding: '12px 24px', fontSize: 15 }}>
                 Browse Explore →
@@ -197,10 +241,10 @@ export default function SurpriseMe({ setPage }: Props) {
                   </span>
                   {/* Heart toggle */}
                   <button
-                    className={`a-star-btn active`}
+                    className={`a-star-btn${starred.has(pick.id) ? ' active' : ''}`}
                     style={{ top: 12, left: 12, right: 'unset' }}
                     onClick={() => toggleStar(pick.id)}
-                    aria-label="Remove from favourites"
+                    aria-label={starred.has(pick.id) ? 'Remove from favourites' : 'Add to favourites'}
                   >
                     <Heart size={15} fill="currentColor" />
                   </button>
