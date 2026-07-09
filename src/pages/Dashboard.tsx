@@ -14,9 +14,9 @@ import { useAuth } from '../lib/auth';
 import { loadTrip } from '../lib/trips';
 import { createShare } from '../lib/shares';
 import { capture } from '../lib/analytics';
-import { matchPool, parseActivityCost } from '../data/matcher';
+import { matchPool, blendPools, parseActivityCost } from '../data/matcher';
 import { viatorLink, productUrlFor, sectionLabel, primarySection } from '../data/exploreItems';
-import type { PageId } from '../App';
+import type { PageId, Answers } from '../App';
 import type { Activity } from '../data/activities';
 import type { ViatorGroup, ViatorItem } from '../types';
 import type { Catalog } from '../data/activitySource';
@@ -44,6 +44,7 @@ type Props = {
   setPage:         (p: PageId) => void;
   initialSection?: DashSection;
   onLogin:         () => void;
+  answers:         Answers;
 };
 
 // ─────────────────────────────────── shared Slider (mirrors Explore.tsx) ─── //
@@ -92,42 +93,49 @@ function currentSlot(): 'morning' | 'afternoon' | 'evening' {
 
 const SLOT_GREETING = { morning: 'Rise and roll', afternoon: 'Midday roulette', evening: 'Night owl energy' };
 
-function resolvePool(starred: Set<string>, catalog: Catalog, tags: Set<MatchTag>): Suggestion[] {
-  // Build sets of activity/group ids that pass the answer filter.
-  // When no answers are available (tags empty), everything passes.
-  let matchActIds: Set<string> | null = null;
-  let matchGroupIds: Set<string> | null = null;
-  if (tags.size > 0) {
-    // matchPool requires a Slot; union all three so every time-of-day is included.
-    // drawFrom() handles the per-slot narrowing at roll time.
-    const allActIds   = new Set<string>();
-    const allGroupIds = new Set<string>();
-    for (const slot of ['morning', 'afternoon', 'evening'] as const) {
-      const { activities: ma, groups: mg } = matchPool(catalog.activities, catalog.groups, tags, slot);
-      ma.forEach((a) => allActIds.add(a.id));
-      mg.forEach((g) => allGroupIds.add(g.id));
-    }
-    matchActIds   = allActIds;
-    matchGroupIds = allGroupIds;
-  }
+const NO_FILTER = { rejectedIds: new Set<string>(), rejectedGroupIds: new Set<string>() };
 
+function resolveStarredPool(starred: Set<string>, catalog: Catalog): Suggestion[] {
   const pool: Suggestion[] = [];
   for (const sid of starred) {
     if (sid.startsWith('item:')) {
       const itemId = sid.slice(5);
       const item   = catalog.items.find((i) => i.id === itemId);
       const group  = item && catalog.groups.find((g) => g.id === item.group_id);
-      if (item && group && (!matchGroupIds || matchGroupIds.has(group.id))) {
+      if (item && group) {
         pool.push({ kind: 'item', id: sid, item, group, bookUrl: item.viator_item_url && item.price_usd > 0 ? productUrlFor(item) : null });
       }
     } else {
       const activity = catalog.activities.find((a) => a.id === sid);
-      if (activity && (!matchActIds || matchActIds.has(activity.id))) {
+      if (activity) {
         pool.push({ kind: 'activity', id: sid, activity, bookUrl: activity.viator_item_url && parseActivityCost(activity.cost) > 0 ? viatorLink(activity.viator_item_url) : null });
       }
     }
   }
   return pool;
+}
+
+function resolveMatchedPool(tags: Set<MatchTag>, catalog: Catalog, exclude: Set<string>): Suggestion[] {
+  if (tags.size === 0) return [];
+  const seen = new Set<string>(exclude);
+  const result: Suggestion[] = [];
+  for (const slot of ['morning', 'afternoon', 'evening'] as const) {
+    const { activities, groups } = matchPool(catalog.activities, catalog.groups, tags, slot);
+    const entries = blendPools(activities, groups, catalog.items, NO_FILTER);
+    for (const e of entries) {
+      const id = e.kind === 'activity' ? e.activity.id : `item:${e.bestSeller.id}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      if (e.kind === 'activity') {
+        result.push({ kind: 'activity', id, activity: e.activity,
+          bookUrl: e.activity.viator_item_url && parseActivityCost(e.activity.cost) > 0 ? viatorLink(e.activity.viator_item_url) : null });
+      } else {
+        result.push({ kind: 'item', id, item: e.bestSeller, group: e.group,
+          bookUrl: e.bestSeller.viator_item_url && e.bestSeller.price_usd > 0 ? productUrlFor(e.bestSeller) : null });
+      }
+    }
+  }
+  return result;
 }
 
 function drawFrom(pool: Suggestion[], skipId: string | null, slotTod: string): Suggestion | null {
@@ -143,7 +151,7 @@ function drawFrom(pool: Suggestion[], skipId: string | null, slotTod: string): S
 
 // ─────────────────────────────────────────────── Surprise panel ──────────── //
 
-function SurprisePanel({ setPage, trip }: { setPage: (p: PageId) => void; trip: TripLoadState }) {
+function SurprisePanel({ setPage, trip, answers }: { setPage: (p: PageId) => void; trip: TripLoadState; answers: Answers }) {
   const { catalog, loading } = useCatalog();
   const { starred, toggle: toggleStar } = useStarred();
   const [pick, setPick]     = useState<Suggestion | null>(null);
@@ -153,16 +161,24 @@ function SurprisePanel({ setPage, trip }: { setPage: (p: PageId) => void; trip: 
   const slot    = currentSlot();
   const slotTod = slot === 'morning' ? 'Morning' : slot === 'afternoon' ? 'Afternoon' : 'Evening';
 
-  const tags = useMemo(
-    () => (trip && trip !== 'loading') ? answersToTags(trip.answers) : new Set<MatchTag>(),
-    [trip],
+  const tags = useMemo(() => {
+    const src = (trip && trip !== 'loading') ? trip.answers : answers;
+    return src.interests.length > 0 ? answersToTags(src) : new Set<MatchTag>();
+  }, [trip, answers]);
+
+  const starredPool = useMemo(
+    () => resolveStarredPool(starred, catalog),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [starred.size, catalog.activities.length, catalog.items.length],
   );
 
-  const pool = useMemo(
-    () => resolvePool(starred, catalog, tags),
+  const matchedPool = useMemo(
+    () => resolveMatchedPool(tags, catalog, starred),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [starred.size, catalog.activities.length, catalog.items.length, tags],
+    [tags, starred.size, catalog.activities.length, catalog.items.length],
   );
+
+  const pool = useMemo(() => [...starredPool, ...matchedPool], [starredPool, matchedPool]);
 
   const spin = useCallback(() => {
     const next = drawFrom(pool, skipId, slotTod);
@@ -175,8 +191,9 @@ function SurprisePanel({ setPage, trip }: { setPage: (p: PageId) => void; trip: 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, pool.length]);
 
+  // Only auto-advance when a starred item is un-hearted AND it's not in the questionnaire pool.
   useEffect(() => {
-    if (pick && !starred.has(pick.id)) {
+    if (pick && !pool.some((p) => p.id === pick.id)) {
       const next = drawFrom(pool, null, slotTod);
       if (next) { setSkipId(next.id); setPick(next); setAnimKey((k) => k + 1); }
       else { setPick(null); setSkipId(null); }
@@ -220,8 +237,13 @@ function SurprisePanel({ setPage, trip }: { setPage: (p: PageId) => void; trip: 
         <h2 className="font-display" style={{ fontSize: 36, margin: '0 0 4px', color: 'var(--ink)' }}>Feeling spontaneous?</h2>
         <p style={{ fontStyle: 'italic', fontSize: 14, color: 'var(--sand-700)', margin: 0 }}>
           {pool.length > 0
-            ? 'Here\'s an activity for right now — tap to roll a different one.'
-            : 'Heart things in Explore first — then let us do the deciding.'}
+            ? [
+                starredPool.length > 0 && `${starredPool.length} hearted`,
+                matchedPool.length > 0 && `${matchedPool.length} questionnaire match${matchedPool.length === 1 ? '' : 'es'}`,
+              ].filter(Boolean).join(' + ') + ' — shake or tap to roll.'
+            : tags.size > 0
+              ? 'No matches found yet — try hearting activities in Explore.'
+              : 'Complete the questionnaire or heart activities in Explore.'}
         </p>
         {needsMotionPermission && !motionGranted && (
           <button
@@ -244,9 +266,13 @@ function SurprisePanel({ setPage, trip }: { setPage: (p: PageId) => void; trip: 
       {!loading && pool.length === 0 && (
         <div className="chunky" style={{ padding: '32px 28px', textAlign: 'center', maxWidth: 440 }}>
           <div style={{ fontSize: 36, marginBottom: 14 }}>🎲</div>
-          <p className="font-display" style={{ fontSize: 20, margin: '0 0 8px', color: 'var(--ink)' }}>Nothing to roll yet.</p>
+          <p className="font-display" style={{ fontSize: 20, margin: '0 0 8px', color: 'var(--ink)' }}>
+            {tags.size > 0 ? 'Nothing matched yet.' : 'Nothing to roll yet.'}
+          </p>
           <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: '0 0 20px' }}>
-            Heart a few activities in Explore. Come back here when you can't decide. We'll pick for you — no agonising required.
+            {tags.size > 0
+              ? 'Heart activities in Explore to save them here, or they\'ll appear automatically once we load your matches.'
+              : 'Complete the questionnaire and we\'ll suggest activities. You can also heart things in Explore — we\'ll pick for you when you can\'t decide.'}
           </p>
           <button className="btn-red" onClick={() => setPage('explore')} style={{ padding: '11px 22px', fontSize: 14 }}>
             Browse Explore →
@@ -272,8 +298,8 @@ function SurprisePanel({ setPage, trip }: { setPage: (p: PageId) => void; trip: 
               <span style={{ position: 'absolute', top: 12, right: 12, background: 'var(--ink)', color: 'var(--yellow)', padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                 <Star size={11} /> {pick.kind === 'activity' ? pick.activity.rating : pick.item.rating}
               </span>
-              <button className="a-star-btn active" style={{ top: 12, left: 12, right: 'unset' }}
-                onClick={() => toggleStar(pick.id)} aria-label="Remove from favourites">
+              <button className={`a-star-btn${starred.has(pick.id) ? ' active' : ''}`} style={{ top: 12, left: 12, right: 'unset' }}
+                onClick={() => toggleStar(pick.id)} aria-label={starred.has(pick.id) ? 'Remove from favourites' : 'Add to favourites'}>
                 <Heart size={15} fill="currentColor" />
               </button>
             </div>
@@ -1240,7 +1266,7 @@ function PracticalPanel() {
 
 // ─────────────���────────────────────────────────────── Dashboard ──────────── //
 
-export default function Dashboard({ setPage, initialSection = 'starred', onLogin }: Props) {
+export default function Dashboard({ setPage, initialSection = 'starred', onLogin, answers }: Props) {
   const [section, setSection] = useState<DashSection>(initialSection);
   const [activitiesTab, setActivitiesTab] = useState<'favourite' | 'personalized'>('favourite');
   const [activitiesOpen, setActivitiesOpen] = useState(initialSection === 'starred');
@@ -1326,7 +1352,7 @@ export default function Dashboard({ setPage, initialSection = 'starred', onLogin
           </nav>
 
           <div className="dashboard-content">
-            {section === 'surprise'  && <SurprisePanel      setPage={setPage} trip={trip} />}
+            {section === 'surprise'  && <SurprisePanel      setPage={setPage} trip={trip} answers={answers} />}
             {section === 'starred'   && activitiesTab === 'favourite'    && <StarredPanel       setPage={setPage} />}
             {section === 'starred'   && activitiesTab === 'personalized' && <PersonalizedPanel  setPage={setPage} trip={trip} />}
             {section === 'itinerary' && <ItineraryPanel   setPage={setPage} trip={trip} onLogin={onLogin} />}

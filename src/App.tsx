@@ -161,7 +161,7 @@ function AppShell() {
       {page === 'itinerary'     && (canSeeItinerary || shareId) && <Itinerary setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onLogin={() => setLoginOpen(true)} shareId={shareId} onNavigateToExplore={navigateToExplore} shortlist={shortlist} />}
       {page === 'privacy'       && <Privacy       setPage={setPage} />}
       {page === 'surprise'      && <SurpriseMe    setPage={setPage} answers={answers} />}
-      {page === 'dashboard'     && <Dashboard     setPage={setPage} onLogin={() => setLoginOpen(true)} />}
+      {page === 'dashboard'     && <Dashboard     setPage={setPage} onLogin={() => setLoginOpen(true)} answers={answers} />}
       {page === 'preview'       && <DashboardPreview setPage={setPage} />}
     </>
   );
