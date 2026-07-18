@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import DashboardPreview from './pages/DashboardPreview';
 import SignedInToast from './components/SignedInToast';
 import LoginModal from './components/LoginModal';
+import CookieBanner from './components/CookieBanner';
 import { AuthProvider, useAuth } from './lib/auth';
 
 export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary' | 'privacy' | 'surprise' | 'dashboard' | 'preview';
@@ -152,6 +153,7 @@ function AppShell() {
 
   return (
     <>
+      <CookieBanner onPrivacy={() => setPage('privacy')} />
       <SignedInToast />
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
       <Nav page={page} setPage={setPage} onLogin={() => setLoginOpen(true)} canSeeItinerary={canSeeItinerary} />

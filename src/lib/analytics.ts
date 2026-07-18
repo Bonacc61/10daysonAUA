@@ -1,7 +1,13 @@
 // Thin PostHog wrapper. All analytics calls go through here so the rest of the
 // app never imports posthog-js directly and the whole thing is no-op when the
 // key is absent (local dev without a .env entry, or CI).
+//
+// GDPR: PostHog must not initialise until the user explicitly accepts analytics.
+// Call initAnalytics() only after reading CONSENT_KEY === 'true' from localStorage
+// or after the user clicks Accept in the CookieBanner.
 import posthog from 'posthog-js';
+
+export const CONSENT_KEY = '10doa:analytics-consent';
 
 const KEY  = import.meta.env.VITE_POSTHOG_KEY  as string | undefined;
 const HOST = (import.meta.env.VITE_POSTHOG_HOST as string | undefined) ?? 'https://eu.i.posthog.com';
