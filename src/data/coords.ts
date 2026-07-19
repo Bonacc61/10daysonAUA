@@ -13,7 +13,7 @@ export const ACTIVITY_COORDS: Record<string, Coord> = {
   'gasparito-restaurant':         { lng: -70.0416, lat: 12.5649 },
   'oranjestad-walking':           { lng: -70.0262, lat: 12.5175 },
   'kitesurfing-lesson':           { lng: -70.0534, lat: 12.5876 },
-  'natural-pool-jeep':            { lng: -69.9323, lat: 12.5422 },
+  'natural-pool-jeep':            { lng: -69.9183, lat: 12.5597 },
   'malmok-beach':                 { lng: -70.0558, lat: 12.5818 },
   'tres-trapi':                   { lng: -70.0530, lat: 12.5743 },
   'manchebo-beach':               { lng: -70.0612, lat: 12.5297 },
