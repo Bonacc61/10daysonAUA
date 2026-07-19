@@ -508,8 +508,10 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 @media (max-width: 640px) {
   .container-1280 { padding: 0 14px; }
 
-  /* ---------- Nav: hide text links, keep logo + Explore + Log in ---------- */
+  /* ---------- Nav: hide desktop links, show mobile carousel ---------- */
   .nav-link-text { display: none !important; }
+  .nav-links-desktop { display: none !important; }
+  .nav-mobile-row { display: flex !important; }
   .nav-logo { height: 30px !important; }
   .nav-row { padding: 12px 14px !important; gap: 10px !important; }
 

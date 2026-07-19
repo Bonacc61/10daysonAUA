@@ -5,7 +5,7 @@ export const ACTIVITY_COORDS: Record<string, Coord> = {
   'eagle-beach-morning':          { lng: -70.0570, lat: 12.5430 },
   'baby-beach-snorkel':           { lng: -69.8855, lat: 12.4183 },
   'arikok-hiking':                { lng: -69.9408, lat: 12.5003 },
-  'california-lighthouse-sunset': { lng: -70.0628, lat: 12.6257 },
+  'california-lighthouse-sunset': { lng: -70.0569, lat: 12.6256 },
   'flamingo-renaissance':         { lng: -70.0274, lat: 12.5154 },
   'boca-catalina-snorkel':        { lng: -70.0538, lat: 12.5757 },
   'antilla-wreck-dive':           { lng: -70.0603, lat: 12.5851 },
