@@ -131,7 +131,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
         mapboxAccessToken={TOKEN}
         initialViewState={ARUBA_CENTER}
         style={{ width: '100%', height: '100%' }}
-        mapStyle="mapbox://styles/mapbox/satellite-streets-v12"
+        mapStyle="mapbox://styles/mapbox/navigation-day-v1"
         onClick={() => setPopup(null)}
       >
         <NavigationControl position="top-right" />
