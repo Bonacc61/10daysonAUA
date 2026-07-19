@@ -9,7 +9,7 @@ export const ACTIVITY_COORDS: Record<string, Coord> = {
   'flamingo-renaissance':         { lng: -70.0293, lat: 12.5009 },  // latlong.net Renaissance Island
   'boca-catalina-snorkel':        { lng: -70.0515, lat: 12.6046 },  // Wikipedia Beaches of Aruba
   'antilla-wreck-dive':           { lng: -70.0580, lat: 12.6020 },  // Wikipedia SS Antilla article
-  'zeerovers-fresh-catch':        { lng: -69.9500, lat: 12.4630 },  // Savaneta waterfront, address 270A
+  'zeerovers-fresh-catch':        { lng: -69.9466, lat: 12.4461 },  // Tripexpert/OSM: Savaneta 270A pier
   'gasparito-restaurant':         { lng: -70.0415, lat: 12.5618 },  // Mapcarta / search results
   'oranjestad-walking':           { lng: -70.0270, lat: 12.5240 },  // latitude.to Oranjestad
   'kitesurfing-lesson':           { lng: -70.0471, lat: 12.5858 },  // Hadicurari Beach (beginner lessons)
