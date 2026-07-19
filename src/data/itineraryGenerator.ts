@@ -260,9 +260,18 @@ function applyCatalogFlags(catalog: Catalog, flags: Set<string>): Catalog {
     groups = groups.filter(g => !g.matched_by.includes('watersports' as MatchTag));
   }
 
+  if (flags.has('no-car')) {
+    activities = activities.filter(a => !a.requires_car);
+    // Viator tours include hotel pickup — no group filtering needed.
+  }
+
   // mobility: cap at adventure ~30 (excludes arikok, natural pool, kitesurfing)
   // intense-hikes: cap at adventure ~52 (excludes arikok ~55, natural pool ~70, kitesurfing ~85)
-  const adventureCap = flags.has('mobility') ? 30 : flags.has('intense-hikes') ? 52 : null;
+  // with-baby: cap at adventure ~25 (keeps beaches, food, sunsets; drops snorkel, hikes, watersports)
+  const adventureCap = flags.has('mobility') ? 30
+    : flags.has('intense-hikes') ? 52
+    : flags.has('with-baby') ? 25
+    : null;
   if (adventureCap !== null) {
     activities = activities.filter(a => (a.adventure ?? 20) <= adventureCap);
     const excludeTags: MatchTag[] = adventureCap <= 30
