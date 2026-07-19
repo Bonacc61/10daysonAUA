@@ -212,7 +212,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
             if (!e.coord) return null;
             return (
               <Marker key={e.key} longitude={e.coord.lng} latitude={e.coord.lat} anchor="bottom"
-                onClick={ev => { ev.originalEvent.stopPropagation(); if (e.url) { window.open(e.url, '_blank', 'noopener,noreferrer'); } else { setPopup({ lng: e.coord!.lng, lat: e.coord!.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url }); } }}>
+                onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: e.coord!.lng, lat: e.coord!.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url }); }}>
                 <PhotoPin image={e.image} color={dayColor} label={String(i + 1)} />
               </Marker>
             );
@@ -243,7 +243,13 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
           {/* Popup — styled as chunky card, no category header */}
           {popup && (
             <Popup longitude={popup.lng} latitude={popup.lat} closeOnClick={false} onClose={() => setPopup(null)} anchor="bottom" offset={16} maxWidth="220px" className="map-popup">
-              <div style={{ fontFamily: 'Inter,sans-serif', minWidth: 180 }}>
+              <a
+                href={popup.url ?? undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => { if (!popup.url) e.preventDefault(); }}
+                style={{ display: 'block', fontFamily: 'Inter,sans-serif', minWidth: 180, textDecoration: 'none', color: 'inherit', cursor: popup.url ? 'pointer' : 'default' }}
+              >
                 {popup.image && (
                   <div style={{ width: '100%', height: 110, overflow: 'hidden', background: '#e0dbd0' }}>
                     <img src={popup.image} alt={popup.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={ev => { (ev.target as HTMLImageElement).style.display = 'none'; }} />
@@ -253,19 +259,16 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
                   <div style={{ fontSize: 10, color: '#888', marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.4 }}>{popup.sub}</div>
                   <div style={{ fontWeight: 700, fontSize: 13, color: '#1a1a1a', marginBottom: 5, lineHeight: 1.3 }}>{popup.title}</div>
                   {(popup.price || popup.duration) && (
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: popup.url ? 8 : 0 }}>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: popup.url ? 6 : 0 }}>
                       {popup.price && <span style={{ fontSize: 11, color: '#E63946', fontWeight: 600 }}>{popup.price}</span>}
                       {popup.duration && <span style={{ fontSize: 11, color: '#888' }}>⏱ {popup.duration}</span>}
                     </div>
                   )}
                   {popup.url && (
-                    <a href={popup.url} target="_blank" rel="noopener noreferrer"
-                      style={{ display: 'block', textAlign: 'center', background: '#1a1a1a', color: '#fffbf0', fontSize: 11, fontWeight: 700, padding: '6px 10px', borderRadius: 8, textDecoration: 'none', letterSpacing: 0.3 }}>
-                      Book on Viator →
-                    </a>
+                    <div style={{ fontSize: 11, color: '#888', fontStyle: 'italic' }}>Tap to book on Viator →</div>
                   )}
                 </div>
-              </div>
+              </a>
             </Popup>
           )}
         </RMap>
@@ -368,7 +371,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
               <div
                 key={e.key}
                 style={{ flexShrink: 0, width: 120, cursor: 'pointer' }}
-                onClick={() => { if (e.url) { window.open(e.url, '_blank', 'noopener,noreferrer'); } else if (e.coord) { setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url }); } }}
+                onClick={() => e.coord && setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url })}
               >
                 <div style={{ width: 120, height: 72, borderRadius: 10, overflow: 'hidden', background: '#e8e2d6', border: `2px solid ${dayColor}`, flexShrink: 0 }}>
                   {e.image
