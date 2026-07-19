@@ -25,9 +25,29 @@ export const ACTIVITY_COORDS: Record<string, Coord> = {
 
 // Per-item coordinate overrides for Viator items. Checked before GROUP_COORDS so
 // a specific product can pin to its activity location rather than the group centroid.
+// Natural Pool (Conchi), Arikok NE coast: lng -69.9137, lat 12.5563
+const NATURAL_POOL: Coord = { lng: -69.9137, lat: 12.5563 };
 export const VIATOR_ITEM_COORDS: Record<string, Coord> = {
-  'utv-cave-pool': { lng: -69.9137, lat: 12.5563 },
-  'jeep-arikok':   { lng: -69.9137, lat: 12.5563 },
+  // Stub IDs
+  'utv-cave-pool': NATURAL_POOL,
+  'jeep-arikok':   NATURAL_POOL,
+  // Live Viator IDs — natural pool / Arikok jeep tours
+  '6841POOL':   NATURAL_POOL,  // Aruba Natural Pool and Indian Cave Rugged Jeep Safari
+  '6841P7':     NATURAL_POOL,  // Aruba UTV Adventure to Natural Pool (Jeep Transfer)
+  '6841ISLAND': NATURAL_POOL,  // Ultimate Island Jeep Safari with Natural Pool & Baby Beach
+  '2455NPJEEP': NATURAL_POOL,  // Aruba Off Road Safari Tour to Natural Pool
+  '441143P1':   NATURAL_POOL,  // Aruba Arikok National Park Jeep Safari: Natural Pool & Baby Beach
+  '441143P8':   NATURAL_POOL,  // Aruba Natural Pool Jeep Adventure
+  '358826P1':   NATURAL_POOL,  // PRIVATE Jeep Safari Natural Pool, Indian Caves & Baby Beach
+  '39473P4':    NATURAL_POOL,  // Aruba Jeep Tour: Natural Pool, Caves and Baby Beach
+  '47774P4':    NATURAL_POOL,  // Aruba Natural Pools Northshore Safari Tour
+  '300281P9':   NATURAL_POOL,  // Arikok Sunrise Hiking Tour to Natural Pool
+  '6593P16':    NATURAL_POOL,  // Aruba Natural Wonders Caves and Natural Pool Jeep Tour
+  '137607P17':  NATURAL_POOL,  // Aruba Outback Safari Jeep Tour - Lighthouse, Arikok & Conchi
+  '137607P20':  NATURAL_POOL,  // Aruba Private Open-Air Safari Jeep Tour + Arikok and Conchi
+  '5629889P1':  NATURAL_POOL,  // Full Day Jeep Tour with Arikok National Park and Caves
+  '324189P4':   NATURAL_POOL,  // National Park Arikok Jeep Safari Adventures
+  '446074P1':   NATURAL_POOL,  // Private Aruba National Park Hiking & Natural Pool Swimming
 };
 
 // Fallback coordinates for Viator groups (representative point for the group's area).
