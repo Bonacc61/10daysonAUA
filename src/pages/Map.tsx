@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import RMap, { Marker, Popup, Source, Layer, NavigationControl } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useCatalog } from '../data/useCatalog';
@@ -90,6 +90,25 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
     return { routeMarkers: markers, routeSources: sources };
   }, [plan, catalog]);
 
+  // Road-snapped geometry fetched from Mapbox Directions API per day.
+  // Falls back to straight lines (routeSources) until the fetch resolves.
+  const [roadCoords, setRoadCoords] = useState<Map<string, [number, number][]>>(new Map());
+
+  useEffect(() => {
+    if (!plan || !TOKEN) return;
+    setRoadCoords(new Map()); // reset when plan changes
+    routeSources.forEach(async (source) => {
+      const coordStr = source.coordinates.map(([lng, lat]) => `${lng},${lat}`).join(';');
+      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${coordStr}?geometries=geojson&overview=full&access_token=${TOKEN}`;
+      try {
+        const res = await fetch(url);
+        const data = await res.json() as { routes?: Array<{ geometry: { coordinates: [number, number][] } }> };
+        const coords = data.routes?.[0]?.geometry?.coordinates;
+        if (coords) setRoadCoords(prev => new Map(prev).set(source.id, coords));
+      } catch { /* fall back to straight line */ }
+    });
+  }, [routeSources, TOKEN]);
+
   const activeRouteMarkers = activeDay ? routeMarkers.filter(m => m.dayIndex + 1 === activeDay) : routeMarkers;
   const activeRouteSources = activeDay ? routeSources.filter(s => s.dayIndex + 1 === activeDay)  : routeSources;
 
@@ -136,12 +155,15 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
       >
         <NavigationControl position="top-right" />
 
-        {/* ── Itinerary route lines ── */}
-        {showRoute && activeRouteSources.map(s => (
-          <Source key={s.id} type="geojson" data={{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: s.coordinates } }}>
-            <Layer id={`${s.id}-line`} type="line" paint={{ 'line-color': s.color, 'line-width': 3, 'line-opacity': 0.9, 'line-dasharray': [3, 1.5] }} />
-          </Source>
-        ))}
+        {/* ── Itinerary route lines (road-snapped when Directions API has resolved) ── */}
+        {showRoute && activeRouteSources.map(s => {
+          const coords = roadCoords.get(s.id) ?? s.coordinates;
+          return (
+            <Source key={s.id} type="geojson" data={{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } }}>
+              <Layer id={`${s.id}-line`} type="line" paint={{ 'line-color': s.color, 'line-width': 4, 'line-opacity': 0.9 }} />
+            </Source>
+          );
+        })}
 
         {/* ── Itinerary numbered markers ── */}
         {showRoute && activeRouteMarkers.map((m, i) => (
