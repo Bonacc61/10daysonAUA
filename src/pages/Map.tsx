@@ -40,7 +40,9 @@ function imageFor(entry: SlotEntry, catalog: Catalog): string | null {
 
 function titleFor(entry: SlotEntry, catalog: Catalog): string {
   if (entry.kind === 'activity') return catalog.activities.find(a => a.id === entry.id)?.title ?? entry.id;
-  return catalog.groups.find(g => g.id === entry.groupId)?.name ?? entry.groupId;
+  return catalog.items.find(i => i.id === entry.bestSellerId)?.title
+    ?? catalog.groups.find(g => g.id === entry.groupId)?.name
+    ?? entry.groupId;
 }
 
 type AnyPopup = { lng: number; lat: number; title: string; sub: string };
@@ -90,8 +92,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   // Road-snapped route from Mapbox Directions API
   const [roadCoords, setRoadCoords] = useState<[number, number][] | null>(null);
   useEffect(() => {
-    setRoadCoords(null);
-    if (!TOKEN || straightCoords.length < 2) return;
+    if (!TOKEN || straightCoords.length < 2) { setRoadCoords(null); return; }
     let alive = true;
     const coordStr = straightCoords.map(([lng, lat]) => `${lng},${lat}`).join(';');
     fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coordStr}?geometries=geojson&overview=full&access_token=${TOKEN}`)
@@ -114,9 +115,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
     const meta = GROUP_META[g.id];
     if (!c || !meta) return [];
     const count = catalog.items.filter(i => i.group_id === g.id).length;
-    const topItems = catalog.items.filter(i => i.group_id === g.id)
-      .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 4).map(i => i.title);
-    return [{ groupId: g.id, lng: c.lng, lat: c.lat, count, ...meta, topItems }];
+    return [{ groupId: g.id, lng: c.lng, lat: c.lat, count, ...meta }];
   }), [catalog]);
 
   if (!TOKEN) {
@@ -164,8 +163,8 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
             );
           })}
 
-          {/* Catalog: Viator group pills */}
-          {!planDay && groupPins.map(g => (
+          {/* Catalog: Viator group pills — always shown as background context */}
+          {groupPins.map(g => (
             <Marker key={g.groupId} longitude={g.lng} latitude={g.lat} anchor="center"
               onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: g.lng, lat: g.lat, title: g.label, sub: `${g.count} activities on Viator` }); }}>
               <div style={{ background: g.color, color: '#fff', borderRadius: 20, padding: '5px 10px', fontSize: 11, fontWeight: 700, fontFamily: 'Inter,sans-serif', border: '2px solid #fff', boxShadow: '0 2px 8px rgba(0,0,0,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
@@ -174,8 +173,8 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
             </Marker>
           ))}
 
-          {/* Catalog: local activity dots */}
-          {!planDay && ACTIVITIES.map(a => {
+          {/* Catalog: local activity dots — always shown as background context */}
+          {ACTIVITIES.map(a => {
             const c = ACTIVITY_COORDS[a.id];
             if (!c) return null;
             return (
@@ -197,8 +196,8 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
           )}
         </RMap>
 
-        {/* Top-left legend (catalog mode only) */}
-        {!planDay && (
+        {/* Top-left legend */}
+        {(
           <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10, background: 'rgba(255,251,240,0.97)', backdropFilter: 'blur(10px)', border: '2px solid #1a1a1a', borderRadius: 10, padding: '10px 12px', boxShadow: '0 2px 12px rgba(0,0,0,0.18)' }}>
             {Object.entries(CAT_COLOR).map(([cat, color]) => (
               <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
@@ -286,8 +285,8 @@ function PhotoPin({ image, color, label }: { image: string | null; color: string
           ? <img src={image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={ev => { (ev.target as HTMLImageElement).style.display = 'none'; }} />
           : <div style={{ width: '100%', height: '100%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, fontWeight: 700, fontFamily: 'Inter,sans-serif' }}>{label}</div>
         }
-        {/* Number badge overlay */}
-        <div style={{ position: 'absolute', bottom: 2, right: 2, width: 16, height: 16, borderRadius: '50%', background: color, border: '1.5px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 9, fontWeight: 700, fontFamily: 'Inter,sans-serif' }}>{label}</div>
+        {/* Number badge overlay — only when photo fills the circle, so label isn't shown twice */}
+        {image && <div style={{ position: 'absolute', bottom: 2, right: 2, width: 16, height: 16, borderRadius: '50%', background: color, border: '1.5px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 9, fontWeight: 700, fontFamily: 'Inter,sans-serif' }}>{label}</div>}
       </div>
       {/* Triangle tail */}
       <div style={{ width: 0, height: 0, borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `9px solid ${color}`, marginTop: -1 }} />
