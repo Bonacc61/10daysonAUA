@@ -957,3 +957,42 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   .cookie-actions { width: 100%; }
   .cookie-btn { flex: 1; }
 }
+
+/* ── Map page ──────────────────────────────────────────────────────────── */
+
+/* Override Mapbox popup to match the app's chunky card style */
+.map-popup .mapboxgl-popup-content {
+  padding: 0;
+  background: var(--cream);
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  box-shadow: 4px 4px 0 rgba(26,26,26,0.18);
+  overflow: hidden;
+}
+.map-popup .mapboxgl-popup-close-button {
+  top: 6px; right: 6px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--cream);
+  border: 1.5px solid var(--ink);
+  font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+.map-popup .mapboxgl-popup-tip { border-top-color: var(--ink); }
+
+/* Activity strip: centres cards when few, scrolls when many */
+.map-strip-outer { overflow-x: auto; scrollbar-width: none; }
+.map-strip-outer::-webkit-scrollbar { display: none; }
+.map-strip-inner {
+  display: inline-flex;
+  gap: 10px;
+  padding: 8px 16px 14px;
+  min-width: min-content;
+}
+/* Centre the inline-flex block when it fits within the container */
+.map-strip-outer { text-align: center; }
+.map-strip-inner { text-align: left; }
+
+.map-day-arrows   { display: flex; }
+.map-day-timeline { display: none; }

@@ -5,6 +5,7 @@ import { useCatalog } from '../data/useCatalog';
 import { generatePlan } from '../data/itineraryGenerator';
 import { ACTIVITY_COORDS, GROUP_COORDS } from '../data/coords';
 import { ACTIVITIES } from '../data/activities';
+import { viatorLink } from '../data/exploreItems';
 import type { Answers, PageId } from '../App';
 import type { SlotEntry } from '../types';
 import type { Catalog } from '../data/activitySource';
@@ -26,7 +27,7 @@ const GROUP_META: Record<string, { label: string; color: string }> = {
 };
 
 type Coord = { lng: number; lat: number };
-type DayEntry = { key: string; slot: string; title: string; image: string | null; coord: Coord | null; price: string | null; duration: string | null };
+type DayEntry = { key: string; slot: string; title: string; image: string | null; coord: Coord | null; price: string | null; duration: string | null; url: string | null };
 
 function coordFor(entry: SlotEntry): Coord | null {
   if (entry.kind === 'activity') return ACTIVITY_COORDS[entry.id] ?? null;
@@ -56,19 +57,59 @@ function titleFor(entry: SlotEntry, catalog: Catalog): string {
     ?? entry.groupId;
 }
 
-type AnyPopup = { lng: number; lat: number; title: string; sub: string; price?: string | null; duration?: string | null };
+function urlFor(entry: SlotEntry, catalog: Catalog): string | null {
+  const raw = entry.kind === 'activity'
+    ? catalog.activities.find(a => a.id === entry.id)?.viator_item_url
+    : catalog.items.find(i => i.id === entry.bestSellerId)?.viator_item_url;
+  return raw ? viatorLink(raw) : null;
+}
+
+type AnyPopup = { lng: number; lat: number; title: string; sub: string; price?: string | null; duration?: string | null; image?: string | null; url?: string | null };
+const PLAN_VARIANTS = [
+  { label: 'Your trip',          description: 'Your personalised itinerary' },
+  { label: 'Adventure-leaning',  description: 'Adrenaline-first, beaches second' },
+  { label: 'Chill-leaning',      description: 'Slow mornings, easy afternoons' },
+];
+
 type Props = { answers: Answers; canSeeItinerary: boolean; setPage: (p: PageId) => void };
 
 export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   const { catalog } = useCatalog();
   const [popup, setPopup] = useState<AnyPopup | null>(null);
   const [activeDay, setActiveDay] = useState(1);
+  const [activePlanIdx, setActivePlanIdx] = useState(0);
   const stripRef = useRef<HTMLDivElement>(null);
 
-  const plan = useMemo(
-    () => (canSeeItinerary ? generatePlan(answers, catalog) : null),
-    [answers, catalog, canSeeItinerary],
-  );
+  // Generate 3 variant plans matching the Dashboard's itinerary variants.
+  const plans = useMemo(() => {
+    if (!canSeeItinerary) return null;
+    const adventureAnswers = {
+      ...answers,
+      adventureLevel: Math.max(answers.adventureLevel, 75),
+      interests: [...new Set([...answers.interests, 'adventure', 'nature-hiking'])],
+    };
+    const chillAnswers = {
+      ...answers,
+      adventureLevel: Math.min(answers.adventureLevel, 25),
+      interests: [...new Set([
+        ...answers.interests.filter(i => i !== 'adventure' && i !== 'nature-hiking'),
+        'beach-chill', 'wellness-spa',
+      ])],
+    };
+    return [
+      generatePlan(answers,         catalog, { seed: 0 }),
+      generatePlan(adventureAnswers, catalog, { seed: 0 }),
+      generatePlan(chillAnswers,     catalog, { seed: 0 }),
+    ];
+  }, [answers, catalog, canSeeItinerary]);
+
+  const plan = plans?.[activePlanIdx] ?? null;
+
+  const switchPlan = (idx: number) => {
+    setActivePlanIdx(idx);
+    setActiveDay(1);
+    setPopup(null);
+  };
 
   // Clamp activeDay when plan length is known
   const totalDays = plan?.length ?? 0;
@@ -92,6 +133,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
         coord: coordFor(entry),
         price: priceFor(entry, catalog),
         duration: durationFor(entry, catalog),
+        url: urlFor(entry, catalog),
       }))
     );
   }, [planDay, catalog]);
@@ -170,7 +212,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
             if (!e.coord) return null;
             return (
               <Marker key={e.key} longitude={e.coord.lng} latitude={e.coord.lat} anchor="bottom"
-                onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: e.coord!.lng, lat: e.coord!.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration }); }}>
+                onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: e.coord!.lng, lat: e.coord!.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url }); }}>
                 <PhotoPin image={e.image} color={dayColor} label={String(i + 1)} />
               </Marker>
             );
@@ -198,18 +240,31 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
             );
           })}
 
-          {/* Popup */}
+          {/* Popup — styled as chunky card, no category header */}
           {popup && (
-            <Popup longitude={popup.lng} latitude={popup.lat} closeOnClick={false} onClose={() => setPopup(null)} anchor="bottom" offset={16}>
-              <div style={{ fontFamily: 'Inter,sans-serif', padding: '2px 4px', minWidth: 160 }}>
-                <div style={{ fontSize: 11, color: '#888', marginBottom: 3 }}>{popup.sub}</div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a1a', marginBottom: 4 }}>{popup.title}</div>
-                {(popup.price || popup.duration) && (
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {popup.price && <span style={{ fontSize: 11, color: '#E63946', fontWeight: 600 }}>{popup.price}</span>}
-                    {popup.duration && <span style={{ fontSize: 11, color: '#888' }}>⏱ {popup.duration}</span>}
+            <Popup longitude={popup.lng} latitude={popup.lat} closeOnClick={false} onClose={() => setPopup(null)} anchor="bottom" offset={16} maxWidth="220px" className="map-popup">
+              <div style={{ fontFamily: 'Inter,sans-serif', minWidth: 180 }}>
+                {popup.image && (
+                  <div style={{ width: '100%', height: 110, overflow: 'hidden', background: '#e0dbd0' }}>
+                    <img src={popup.image} alt={popup.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={ev => { (ev.target as HTMLImageElement).style.display = 'none'; }} />
                   </div>
                 )}
+                <div style={{ padding: '8px 10px 10px' }}>
+                  <div style={{ fontSize: 10, color: '#888', marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.4 }}>{popup.sub}</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: '#1a1a1a', marginBottom: 5, lineHeight: 1.3 }}>{popup.title}</div>
+                  {(popup.price || popup.duration) && (
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: popup.url ? 8 : 0 }}>
+                      {popup.price && <span style={{ fontSize: 11, color: '#E63946', fontWeight: 600 }}>{popup.price}</span>}
+                      {popup.duration && <span style={{ fontSize: 11, color: '#888' }}>⏱ {popup.duration}</span>}
+                    </div>
+                  )}
+                  {popup.url && (
+                    <a href={popup.url} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'block', textAlign: 'center', background: '#1a1a1a', color: '#fffbf0', fontSize: 11, fontWeight: 700, padding: '6px 10px', borderRadius: 8, textDecoration: 'none', letterSpacing: 0.3 }}>
+                      Book on Viator →
+                    </a>
+                  )}
+                </div>
               </div>
             </Popup>
           )}
@@ -237,17 +292,38 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
         )}
       </div>
 
-      {/* ── Bottom panel: day nav + activity photo strip ── */}
+      {/* ── Bottom panel: plan switcher + day nav + activity photo strip ── */}
       {plan && planDay && (
         <div style={{ background: 'rgba(255,251,240,0.98)', backdropFilter: 'blur(12px)', borderTop: '1px solid rgba(0,0,0,0.1)', flexShrink: 0 }}>
-          {/* Day navigation row */}
-          <div style={{ display: 'flex', alignItems: 'center', padding: '10px 16px 4px', gap: 12 }}>
+
+          {/* Itinerary variant switcher — mirrors Dashboard ITINERARY_VARIANTS */}
+          <div style={{ padding: '10px 16px 0' }}>
+            <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 4 }}>
+              {PLAN_VARIANTS.map((v, i) => {
+                const active = activePlanIdx === i;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => switchPlan(i)}
+                    style={{ padding: '5px 14px', borderRadius: 20, border: `1.5px solid ${active ? '#1a1a1a' : '#ddd'}`, background: active ? '#1a1a1a' : 'transparent', color: active ? '#fff' : '#888', fontSize: 12, fontWeight: 600, fontFamily: 'Inter,sans-serif', cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap' }}
+                  >
+                    {v.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p style={{ textAlign: 'center', fontSize: 11, color: '#aaa', fontFamily: 'Inter,sans-serif', margin: 0 }}>
+              {PLAN_VARIANTS[activePlanIdx].description}
+            </p>
+          </div>
+
+          {/* Mobile: ‹ Day N of M · Title › arrows */}
+          <div className="map-day-arrows" style={{ alignItems: 'center', padding: '8px 16px 4px', gap: 12 }}>
             <button
               onClick={() => setActiveDay(d => Math.max(1, d - 1))}
               disabled={safeDay <= 1}
               style={{ width: 32, height: 32, borderRadius: '50%', border: '1.5px solid #ccc', background: safeDay <= 1 ? '#f5f5f5' : '#fff', cursor: safeDay <= 1 ? 'default' : 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: safeDay <= 1 ? '#ccc' : '#1a1a1a', flexShrink: 0 }}
             >‹</button>
-
             <div style={{ flex: 1, textAlign: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: dayColor, border: '1.5px solid rgba(0,0,0,0.1)' }} />
@@ -256,7 +332,6 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
                 <span style={{ fontSize: 13, color: '#555', fontFamily: 'Inter,sans-serif' }}>· {planDay.title}</span>
               </div>
             </div>
-
             <button
               onClick={() => setActiveDay(d => Math.min(totalDays, d + 1))}
               disabled={safeDay >= totalDays}
@@ -264,11 +339,28 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
             >›</button>
           </div>
 
+          {/* Desktop: clickable dot timeline across all days */}
+          <div className="map-day-timeline" style={{ alignItems: 'flex-end', gap: 0, padding: '10px 24px 6px', overflowX: 'auto', scrollbarWidth: 'none' }}>
+            {plan.map((d, i) => {
+              const active = safeDay === i + 1;
+              return (
+                <button
+                  key={d.day}
+                  onClick={() => { setActiveDay(i + 1); setPopup(null); }}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'transparent', border: 'none', cursor: 'pointer', padding: '0 10px', flexShrink: 0 }}
+                >
+                  <span style={{ fontSize: 11, fontWeight: active ? 700 : 400, fontFamily: 'Inter,sans-serif', color: active ? '#1a1a1a' : '#aaa', whiteSpace: 'nowrap', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {active ? d.title : `D${i + 1}`}
+                  </span>
+                  <div style={{ width: active ? 14 : 9, height: active ? 14 : 9, borderRadius: '50%', background: d.color, border: active ? '2px solid #1a1a1a' : '1.5px solid transparent', boxShadow: active ? '0 0 0 2px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.15s' }} />
+                </button>
+              );
+            })}
+          </div>
+
           {/* Horizontal photo strip */}
-          <div
-            ref={stripRef}
-            style={{ display: 'flex', gap: 10, padding: '8px 16px 14px', overflowX: 'auto', scrollbarWidth: 'none' }}
-          >
+          <div ref={stripRef} className="map-strip-outer">
+            <div className="map-strip-inner">
             {dayEntries.length === 0 && (
               <div style={{ fontSize: 13, color: '#aaa', fontFamily: 'Inter,sans-serif', padding: '12px 0' }}>Free day — nothing scheduled.</div>
             )}
@@ -276,7 +368,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
               <div
                 key={e.key}
                 style={{ flexShrink: 0, width: 120, cursor: 'pointer' }}
-                onClick={() => e.coord && setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration })}
+                onClick={() => e.coord && setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url })}
               >
                 <div style={{ width: 120, height: 72, borderRadius: 10, overflow: 'hidden', background: '#e8e2d6', border: `2px solid ${dayColor}`, flexShrink: 0 }}>
                   {e.image
@@ -293,8 +385,12 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
                     {e.duration && <span style={{ fontSize: 10, color: '#888' }}>{e.duration}</span>}
                   </div>
                 )}
+                {e.url && (
+                  <div style={{ marginTop: 4, fontSize: 10, color: '#1a1a1a', fontWeight: 700, textDecoration: 'underline', letterSpacing: 0.2 }}>Book →</div>
+                )}
               </div>
             ))}
+            </div>
           </div>
         </div>
       )}
