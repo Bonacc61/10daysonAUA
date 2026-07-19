@@ -212,7 +212,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
             if (!e.coord) return null;
             return (
               <Marker key={e.key} longitude={e.coord.lng} latitude={e.coord.lat} anchor="bottom"
-                onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: e.coord!.lng, lat: e.coord!.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url }); }}>
+                onClick={ev => { ev.originalEvent.stopPropagation(); if (e.url) { window.open(e.url, '_blank', 'noopener,noreferrer'); } else { setPopup({ lng: e.coord!.lng, lat: e.coord!.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url }); } }}>
                 <PhotoPin image={e.image} color={dayColor} label={String(i + 1)} />
               </Marker>
             );
@@ -368,7 +368,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
               <div
                 key={e.key}
                 style={{ flexShrink: 0, width: 120, cursor: 'pointer' }}
-                onClick={() => e.coord && setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url })}
+                onClick={() => { if (e.url) { window.open(e.url, '_blank', 'noopener,noreferrer'); } else if (e.coord) { setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url }); } }}
               >
                 <div style={{ width: 120, height: 72, borderRadius: 10, overflow: 'hidden', background: '#e8e2d6', border: `2px solid ${dayColor}`, flexShrink: 0 }}>
                   {e.image
