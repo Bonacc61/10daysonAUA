@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import RMap, { Marker, Popup, Source, Layer, NavigationControl } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useCatalog } from '../data/useCatalog';
+import { useAuth } from '../lib/auth';
 import { generatePlan } from '../data/itineraryGenerator';
 import { ACTIVITY_COORDS, GROUP_COORDS, VIATOR_ITEM_COORDS } from '../data/coords';
 import { ACTIVITIES } from '../data/activities';
@@ -75,6 +76,7 @@ type Props = { answers: Answers; canSeeItinerary: boolean; setPage: (p: PageId) 
 
 export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   const { catalog } = useCatalog();
+  const { user } = useAuth();
   const [popup, setPopup] = useState<AnyPopup | null>(null);
   const [activeDay, setActiveDay] = useState(1);
   const [activePlanIdx, setActivePlanIdx] = useState(0);
@@ -295,8 +297,23 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
         )}
       </div>
 
+      {/* ── Bottom panel: CTA when logged out ── */}
+      {!user && (
+        <div style={{ background: 'rgba(255,251,240,0.98)', backdropFilter: 'blur(12px)', borderTop: '2px solid var(--ink)', flexShrink: 0, padding: '20px 24px', textAlign: 'center' }}>
+          <p className="font-display" style={{ fontSize: 20, margin: '0 0 12px', color: 'var(--ink)', lineHeight: 1.2 }}>
+            Plan your Aruba trip
+          </p>
+          <p style={{ fontSize: 13, color: '#666', margin: '0 0 14px', fontFamily: 'Inter,sans-serif' }}>
+            Answer 8 quick questions — see your personalised day-by-day route mapped across the island.
+          </p>
+          <button onClick={() => setPage('questionnaire')} className="btn-primary" style={{ fontSize: 13 }}>
+            Start the quiz →
+          </button>
+        </div>
+      )}
+
       {/* ── Bottom panel: plan switcher + day nav + activity photo strip ── */}
-      {plan && planDay && (
+      {user && plan && planDay && (
         <div style={{ background: 'rgba(255,251,240,0.98)', backdropFilter: 'blur(12px)', borderTop: '1px solid rgba(0,0,0,0.1)', flexShrink: 0 }}>
 
           {/* Itinerary variant switcher — mirrors Dashboard ITINERARY_VARIANTS */}
