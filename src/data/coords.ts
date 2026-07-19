@@ -48,13 +48,18 @@ export const VIATOR_ITEM_COORDS: Record<string, Coord> = {
   '5629889P1':  NATURAL_POOL,  // Full Day Jeep Tour with Arikok National Park and Caves
   '324189P4':   NATURAL_POOL,  // National Park Arikok Jeep Safari Adventures
   '446074P1':   NATURAL_POOL,  // Private Aruba National Park Hiking & Natural Pool Swimming
+  // Bus / open-air sightseeing tours — depart from Palm Beach hotel strip
+  '139296P2': { lng: -70.0430, lat: 12.5620 },  // Best of Aruba weekend open bus Tours
+  '139296P3': { lng: -70.0430, lat: 12.5620 },  // Aruba open bus Shore Excursion
+  '6593P17':  { lng: -70.0430, lat: 12.5620 },  // Open Air Beach Bus Tour of Aruba
+  '47774P1':  { lng: -70.0430, lat: 12.5620 },  // Colorful Beach Bus Sightseeing Tour
 };
 
 // Fallback coordinates for Viator groups (representative point for the group's area).
 export const GROUP_COORDS: Record<string, Coord> = {
   'sailing-cruises':        { lng: -70.0476, lat: 12.5662 },
   'watersports':            { lng: -70.0465, lat: 12.5645 },
-  'adventure-tours':        { lng: -69.9137, lat: 12.5563 },
+  'adventure-tours':        { lng: -69.9510, lat: 12.5070 },
   'sightseeing-tours':      { lng: -70.0262, lat: 12.5175 },
   'art-culture-history':    { lng: -70.0270, lat: 12.5180 },
   'food-drink-experiences': { lng: -70.0455, lat: 12.5630 },
