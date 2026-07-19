@@ -95,6 +95,7 @@ function AppShell() {
     return DEFAULT_ANSWERS;
   });
   const [loginOpen, setLoginOpen] = useState(false);
+  const [qInitialStep, setQInitialStep] = useState(1);
   const [shareId, setShareId] = useState<string | null>(shareIdFromUrl);
   const [initialExploreSection, setInitialExploreSection] = useState<Section | null>(null);
   const [shortlist, setShortlist] = useState<Set<string>>(new Set());
@@ -122,6 +123,7 @@ function AppShell() {
 
   function setPage(p: PageId) {
     setInitialExploreSection(null);
+    if (p !== 'questionnaire') setQInitialStep(1);
     const path = PAGE_TO_PATH[p];
     if (window.location.pathname !== path) window.history.pushState({}, '', path);
     setShareId(null);
@@ -157,8 +159,8 @@ function AppShell() {
       <SignedInToast />
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
       <Nav page={page} setPage={setPage} onLogin={() => setLoginOpen(true)} canSeeItinerary={canSeeItinerary} />
-      {page === 'landing'       && <Landing       setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} />}
-      {page === 'questionnaire' && <Questionnaire setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onComplete={markQuestionnaireDone} />}
+      {page === 'landing'       && <Landing       setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onPlanClick={() => { setQInitialStep(2); setPage('questionnaire'); }} />}
+      {page === 'questionnaire' && <Questionnaire setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onComplete={markQuestionnaireDone} initialStep={qInitialStep} />}
       {page === 'explore'       && <Explore       setPage={setPage} answers={answers} onLogin={() => setLoginOpen(true)} canSeeItinerary={canSeeItinerary} initialSection={initialExploreSection ?? undefined} shortlist={shortlist} setShortlist={setShortlist} />}
       {page === 'itinerary'     && (canSeeItinerary || shareId) && <Itinerary setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onLogin={() => setLoginOpen(true)} shareId={shareId} onNavigateToExplore={navigateToExplore} shortlist={shortlist} />}
       {page === 'privacy'       && <Privacy       setPage={setPage} />}

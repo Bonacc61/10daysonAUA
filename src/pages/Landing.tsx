@@ -20,16 +20,17 @@ type Props = {
   setPage: (p: PageId) => void;
   answers: Answers;
   setAnswers: (next: Answers) => void;
+  onPlanClick?: () => void;
 };
 
-export default function Landing({ setPage, answers, setAnswers }: Props) {
+export default function Landing({ setPage, answers, setAnswers, onPlanClick }: Props) {
   const days = answers.days;
   const pct = ((days - 1) / 13) * 100;
   const label = days === 14 ? '14+' : String(days);
   const sliderStyle = { ['--pct' as string]: pct + '%' } as CSSProperties;
 
   const setDays = (v: number) => setAnswers({ ...answers, days: v });
-  const goPlan = () => setPage('questionnaire');
+  const goPlan = () => onPlanClick ? onPlanClick() : setPage('questionnaire');
 
   return (
     <>

@@ -7,6 +7,7 @@ type Props = {
   answers: Answers;
   setAnswers: (next: Answers) => void;
   onComplete: () => void;
+  initialStep?: number;
 };
 
 const GROUP_TYPES   = ['Solo', 'Couple', 'Friends', 'Family with young kids', 'Family with teens', 'Multi-gen'];
@@ -43,8 +44,8 @@ const QUESTIONS: Question[] = [
   { id: 'q8', title: 'Anything we should know?',         subtitle: 'Optional. Select what applies — we\'ll plan around it.' },
 ];
 
-export default function Questionnaire({ setPage, answers, setAnswers, onComplete }: Props) {
-  const [step, setStep] = useState(1);
+export default function Questionnaire({ setPage, answers, setAnswers, onComplete, initialStep = 1 }: Props) {
+  const [step, setStep] = useState(initialStep);
   const [loading, setLoading] = useState(false);
   const total = QUESTIONS.length;
   const q = QUESTIONS[step - 1];
@@ -78,7 +79,7 @@ export default function Questionnaire({ setPage, answers, setAnswers, onComplete
         <div className="container-1280" style={{ padding: '14px 36px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <button
-              onClick={() => (step > 1 ? setStep(step - 1) : setPage('landing'))}
+              onClick={() => (step > initialStep ? setStep(step - 1) : setPage('landing'))}
               className="btn-ghost"
               style={{ padding: '7px 12px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
