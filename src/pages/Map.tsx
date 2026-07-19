@@ -306,7 +306,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
           <p style={{ fontSize: 13, color: '#666', margin: '0 0 14px', fontFamily: 'Inter,sans-serif' }}>
             Answer 8 quick questions — see your personalised day-by-day route mapped across the island.
           </p>
-          <button onClick={() => setPage('questionnaire')} className="btn-primary" style={{ fontSize: 13 }}>
+          <button onClick={() => setPage('questionnaire')} className="btn-red" style={{ fontSize: 13 }}>
             Start the quiz →
           </button>
         </div>
