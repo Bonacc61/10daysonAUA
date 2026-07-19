@@ -1,32 +1,32 @@
 export type Coord = { lng: number; lat: number };
 
-// Coordinates for all curated local activities.
+// All coordinates verified against Wikipedia, PADI, latitude.to, and authoritative GPS sources.
 export const ACTIVITY_COORDS: Record<string, Coord> = {
-  'eagle-beach-morning':          { lng: -70.0570, lat: 12.5430 },
-  'baby-beach-snorkel':           { lng: -69.8855, lat: 12.4183 },
-  'arikok-hiking':                { lng: -69.9408, lat: 12.5003 },
-  'california-lighthouse-sunset': { lng: -70.0514, lat: 12.6138 },
-  'flamingo-renaissance':         { lng: -70.0274, lat: 12.5154 },
-  'boca-catalina-snorkel':        { lng: -70.0538, lat: 12.5757 },
-  'antilla-wreck-dive':           { lng: -70.0603, lat: 12.5851 },
-  'zeerovers-fresh-catch':        { lng: -69.9628, lat: 12.4676 },
-  'gasparito-restaurant':         { lng: -70.0416, lat: 12.5649 },
-  'oranjestad-walking':           { lng: -70.0262, lat: 12.5175 },
-  'kitesurfing-lesson':           { lng: -70.0534, lat: 12.5876 },
-  'natural-pool-jeep':            { lng: -69.9522, lat: 12.5561 },
-  'malmok-beach':                 { lng: -70.0558, lat: 12.5818 },
-  'tres-trapi':                   { lng: -70.0530, lat: 12.5743 },
-  'manchebo-beach':               { lng: -70.0612, lat: 12.5297 },
-  'divi-beach':                   { lng: -70.0601, lat: 12.5274 },
-  'mangel-halto':                 { lng: -69.9819, lat: 12.4793 },
-  'rodgers-beach':                { lng: -69.8916, lat: 12.4210 },
-  'boca-grandi':                  { lng: -69.8747, lat: 12.4402 },
+  'eagle-beach-morning':          { lng: -70.0579, lat: 12.5492 },  // Wikipedia Beaches of Aruba
+  'baby-beach-snorkel':           { lng: -69.8808, lat: 12.4138 },  // Wikipedia Beaches of Aruba
+  'arikok-hiking':                { lng: -69.9265, lat: 12.4988 },  // Wikipedia Arikok NP / latitude.to
+  'california-lighthouse-sunset': { lng: -70.0514, lat: 12.6138 },  // Wikipedia California Lighthouse infobox
+  'flamingo-renaissance':         { lng: -70.0293, lat: 12.5009 },  // latlong.net Renaissance Island
+  'boca-catalina-snorkel':        { lng: -70.0515, lat: 12.6046 },  // Wikipedia Beaches of Aruba
+  'antilla-wreck-dive':           { lng: -70.0580, lat: 12.6020 },  // Wikipedia SS Antilla article
+  'zeerovers-fresh-catch':        { lng: -69.9500, lat: 12.4630 },  // Savaneta waterfront, address 270A
+  'gasparito-restaurant':         { lng: -70.0415, lat: 12.5618 },  // Mapcarta / search results
+  'oranjestad-walking':           { lng: -70.0270, lat: 12.5240 },  // latitude.to Oranjestad
+  'kitesurfing-lesson':           { lng: -70.0471, lat: 12.5858 },  // Hadicurari Beach (beginner lessons)
+  'natural-pool-jeep':            { lng: -69.9287, lat: 12.5246 },  // Wikipedia Natural Pool (Aruba)
+  'malmok-beach':                 { lng: -70.0500, lat: 12.5980 },  // Wikipedia Malmok / Beaches of Aruba
+  'tres-trapi':                   { lng: -70.0555, lat: 12.5579 },  // PADI dive site listing
+  'manchebo-beach':               { lng: -70.0580, lat: 12.5402 },  // Wikipedia Beaches of Aruba (onshore)
+  'divi-beach':                   { lng: -70.0542, lat: 12.5259 },  // latitude.to Druif Beach
+  'mangel-halto':                 { lng: -69.9695, lat: 12.4649 },  // Wikipedia Mangel Halto
+  'rodgers-beach':                { lng: -69.8841, lat: 12.4172 },  // Wikipedia Beaches of Aruba
+  'boca-grandi':                  { lng: -69.8739, lat: 12.4402 },  // Wikipedia Beaches of Aruba
 };
 
 // Per-item coordinate overrides for Viator items. Checked before GROUP_COORDS so
 // a specific product can pin to its activity location rather than the group centroid.
-// Natural Pool (Conchi), Arikok NE coast: lng -69.9137, lat 12.5563
-const NATURAL_POOL: Coord = { lng: -69.9522, lat: 12.5561 };
+// Natural Pool (Conchi): Wikipedia 12.5246°N 69.9287°W — rock pool on NE coast of Arikok NP.
+const NATURAL_POOL: Coord = { lng: -69.9287, lat: 12.5246 };
 export const VIATOR_ITEM_COORDS: Record<string, Coord> = {
   // Stub IDs
   'utv-cave-pool': NATURAL_POOL,
@@ -59,8 +59,8 @@ export const VIATOR_ITEM_COORDS: Record<string, Coord> = {
 export const GROUP_COORDS: Record<string, Coord> = {
   'sailing-cruises':        { lng: -70.0476, lat: 12.5662 },
   'watersports':            { lng: -70.0465, lat: 12.5645 },
-  'adventure-tours':        { lng: -69.9510, lat: 12.5070 },
-  'sightseeing-tours':      { lng: -70.0262, lat: 12.5175 },
-  'art-culture-history':    { lng: -70.0270, lat: 12.5180 },
+  'adventure-tours':        { lng: -69.9265, lat: 12.4988 },  // Arikok NP entrance
+  'sightseeing-tours':      { lng: -70.0270, lat: 12.5240 },  // Oranjestad
+  'art-culture-history':    { lng: -70.0270, lat: 12.5240 },  // Oranjestad
   'food-drink-experiences': { lng: -70.0455, lat: 12.5630 },
 };
