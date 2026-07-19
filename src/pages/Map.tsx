@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import RMap, { Marker, Popup, Source, Layer, NavigationControl } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useCatalog } from '../data/useCatalog';
@@ -7,296 +7,290 @@ import { ACTIVITY_COORDS, GROUP_COORDS } from '../data/coords';
 import { ACTIVITIES } from '../data/activities';
 import type { Answers, PageId } from '../App';
 import type { SlotEntry } from '../types';
+import type { Catalog } from '../data/activitySource';
 
 const TOKEN = (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined) ?? '';
 const ARUBA_CENTER = { longitude: -70.0164, latitude: 12.5211, zoom: 11.5 };
 
-// Category colours for local activity pins.
 const CAT_COLOR: Record<string, string> = {
-  Beaches:    '#0096C7',
-  Activities: '#F4A261',
-  Watersports:'#005F73',
-  Food:       '#E9C46A',
-  Tours:      '#6A994E',
+  Beaches: '#0096C7', Activities: '#F4A261',
+  Watersports: '#005F73', Food: '#E9C46A', Tours: '#6A994E',
 };
-
-// Display name + colour per Viator group.
 const GROUP_META: Record<string, { label: string; color: string }> = {
-  'sailing-cruises':        { label: 'Sailing',   color: '#0077B6' },
-  'watersports':            { label: 'Watersports',color: '#00B4D8' },
-  'adventure-tours':        { label: 'Adventure', color: '#E76F51' },
-  'sightseeing-tours':      { label: 'Sightseeing',color: '#6A994E' },
-  'art-culture-history':    { label: 'Culture',   color: '#9B5DE5' },
-  'food-drink-experiences': { label: 'Food & drink',color: '#F4A261' },
+  'sailing-cruises':        { label: 'Sailing',      color: '#0077B6' },
+  'watersports':            { label: 'Watersports',  color: '#00B4D8' },
+  'adventure-tours':        { label: 'Adventure',    color: '#E76F51' },
+  'sightseeing-tours':      { label: 'Sightseeing',  color: '#6A994E' },
+  'art-culture-history':    { label: 'Culture',      color: '#9B5DE5' },
+  'food-drink-experiences': { label: 'Food & drink', color: '#F4A261' },
 };
 
 type Coord = { lng: number; lat: number };
+type DayEntry = { key: string; slot: string; title: string; image: string | null; coord: Coord | null };
 
 function coordFor(entry: SlotEntry): Coord | null {
   if (entry.kind === 'activity') return ACTIVITY_COORDS[entry.id] ?? null;
   return GROUP_COORDS[entry.groupId] ?? null;
 }
 
-type ActivityPopup = { kind: 'activity'; lng: number; lat: number; title: string; category: string; cost: string; rating: number };
-type GroupPopup   = { kind: 'group';    lng: number; lat: number; groupId: string; label: string; topItems: string[] };
-type RouteMarkerPopup = { kind: 'route'; lng: number; lat: number; title: string; subtitle: string; color: string };
-type AnyPopup = ActivityPopup | GroupPopup | RouteMarkerPopup;
+function imageFor(entry: SlotEntry, catalog: Catalog): string | null {
+  if (entry.kind === 'activity') return catalog.activities.find(a => a.id === entry.id)?.image ?? null;
+  return catalog.items.find(i => i.id === entry.bestSellerId)?.image_url ?? null;
+}
 
-type RouteMarker = { lng: number; lat: number; color: string; label: string; dayIndex: number; title: string; subtitle: string };
-type RouteSource  = { id: string; color: string; dayIndex: number; coordinates: [number, number][] };
+function titleFor(entry: SlotEntry, catalog: Catalog): string {
+  if (entry.kind === 'activity') return catalog.activities.find(a => a.id === entry.id)?.title ?? entry.id;
+  return catalog.groups.find(g => g.id === entry.groupId)?.name ?? entry.groupId;
+}
 
+type AnyPopup = { lng: number; lat: number; title: string; sub: string };
 type Props = { answers: Answers; canSeeItinerary: boolean; setPage: (p: PageId) => void };
 
 export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   const { catalog } = useCatalog();
-  const [popup, setPopup]         = useState<AnyPopup | null>(null);
-  const [activeDay, setActiveDay] = useState<number | null>(null); // 1-based
-  const [showRoute, setShowRoute] = useState(true);
+  const [popup, setPopup] = useState<AnyPopup | null>(null);
+  const [activeDay, setActiveDay] = useState(1);
+  const stripRef = useRef<HTMLDivElement>(null);
 
   const plan = useMemo(
     () => (canSeeItinerary ? generatePlan(answers, catalog) : null),
     [answers, catalog, canSeeItinerary],
   );
 
-  // Build itinerary route data
-  const { routeMarkers, routeSources } = useMemo(() => {
-    if (!plan) return { routeMarkers: [] as RouteMarker[], routeSources: [] as RouteSource[] };
-    const markers: RouteMarker[] = [];
-    const sources: RouteSource[] = [];
+  // Clamp activeDay when plan length is known
+  const totalDays = plan?.length ?? 0;
+  const safeDay = Math.min(Math.max(activeDay, 1), totalDays || 1);
+  const planDay = plan?.[safeDay - 1] ?? null;
 
-    plan.forEach((day, dayIdx) => {
-      const slots = [...day.morning, ...day.afternoon, ...day.evening];
-      const coords: [number, number][] = [];
-      let n = 0;
-      slots.forEach(entry => {
-        const c = coordFor(entry);
-        if (!c) return;
-        n++;
-        let title = '', sub = '';
-        if (entry.kind === 'activity') {
-          const act = catalog.activities.find(a => a.id === entry.id);
-          title = act?.title ?? entry.id;
-          sub = act?.category ?? '';
-        } else {
-          const grp = catalog.groups.find(g => g.id === entry.groupId);
-          title = grp?.name ?? entry.groupId;
-          sub = 'Guided activity';
-        }
-        markers.push({ lng: c.lng, lat: c.lat, color: day.color, label: String(n), dayIndex: dayIdx, title, subtitle: `Day ${day.day} · ${sub}` });
-        coords.push([c.lng, c.lat]);
-      });
-      if (coords.length >= 2) sources.push({ id: `route-${dayIdx}`, color: day.color, dayIndex: dayIdx, coordinates: coords });
-    });
-    return { routeMarkers: markers, routeSources: sources };
-  }, [plan, catalog]);
+  // Build the entries for the active day with image + coord
+  const dayEntries = useMemo((): DayEntry[] => {
+    if (!planDay) return [];
+    const slots: Array<[string, SlotEntry[]]> = [
+      ['Morning', planDay.morning],
+      ['Afternoon', planDay.afternoon],
+      ['Evening', planDay.evening],
+    ];
+    return slots.flatMap(([slot, entries]) =>
+      entries.map((entry, i) => ({
+        key: `${slot}-${i}`,
+        slot,
+        title: titleFor(entry, catalog),
+        image: imageFor(entry, catalog),
+        coord: coordFor(entry),
+      }))
+    );
+  }, [planDay, catalog]);
 
-  // Road-snapped geometry fetched from Mapbox Directions API per day.
-  // Falls back to straight lines (routeSources) until the fetch resolves.
-  const [roadCoords, setRoadCoords] = useState<Map<string, [number, number][]>>(new Map());
+  // Straight-line waypoints for the active day (used as fallback + for Directions API)
+  const straightCoords = useMemo((): [number, number][] =>
+    dayEntries.flatMap(e => e.coord ? [[e.coord.lng, e.coord.lat]] : []),
+    [dayEntries],
+  );
 
+  // Road-snapped route from Mapbox Directions API
+  const [roadCoords, setRoadCoords] = useState<[number, number][] | null>(null);
   useEffect(() => {
-    if (!plan || !TOKEN) return;
-    setRoadCoords(new Map()); // reset when plan changes
-    routeSources.forEach(async (source) => {
-      const coordStr = source.coordinates.map(([lng, lat]) => `${lng},${lat}`).join(';');
-      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${coordStr}?geometries=geojson&overview=full&access_token=${TOKEN}`;
-      try {
-        const res = await fetch(url);
-        const data = await res.json() as { routes?: Array<{ geometry: { coordinates: [number, number][] } }> };
-        const coords = data.routes?.[0]?.geometry?.coordinates;
-        if (coords) setRoadCoords(prev => new Map(prev).set(source.id, coords));
-      } catch { /* fall back to straight line */ }
-    });
-  }, [routeSources, TOKEN]);
+    setRoadCoords(null);
+    if (!TOKEN || straightCoords.length < 2) return;
+    let alive = true;
+    const coordStr = straightCoords.map(([lng, lat]) => `${lng},${lat}`).join(';');
+    fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coordStr}?geometries=geojson&overview=full&access_token=${TOKEN}`)
+      .then(r => r.json())
+      .then((data: { routes?: Array<{ geometry: { coordinates: [number, number][] } }> }) => {
+        if (alive) setRoadCoords(data.routes?.[0]?.geometry?.coordinates ?? null);
+      })
+      .catch(() => { /* fall back to straight */ });
+    return () => { alive = false; };
+  }, [straightCoords, TOKEN]);
 
-  const activeRouteMarkers = activeDay ? routeMarkers.filter(m => m.dayIndex + 1 === activeDay) : routeMarkers;
-  const activeRouteSources = activeDay ? routeSources.filter(s => s.dayIndex + 1 === activeDay)  : routeSources;
+  // Reset strip scroll when day changes
+  useEffect(() => {
+    stripRef.current?.scrollTo({ left: 0, behavior: 'smooth' });
+  }, [safeDay]);
 
-  // Build Viator group pins (one per group, with item count)
-  const groupPins = useMemo(() => catalog.groups.map(g => {
+  // Viator group pins
+  const groupPins = useMemo(() => catalog.groups.flatMap(g => {
     const c = GROUP_COORDS[g.id];
-    if (!c) return null;
+    const meta = GROUP_META[g.id];
+    if (!c || !meta) return [];
     const count = catalog.items.filter(i => i.group_id === g.id).length;
-    const meta  = GROUP_META[g.id] ?? { label: g.name, color: '#888' };
-    const topItems = catalog.items
-      .filter(i => i.group_id === g.id)
-      .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
-      .slice(0, 4)
-      .map(i => i.title);
-    return { groupId: g.id, lng: c.lng, lat: c.lat, count, ...meta, topItems };
-  }).filter(Boolean), [catalog]);
+    const topItems = catalog.items.filter(i => i.group_id === g.id)
+      .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 4).map(i => i.title);
+    return [{ groupId: g.id, lng: c.lng, lat: c.lat, count, ...meta, topItems }];
+  }), [catalog]);
 
   if (!TOKEN) {
     return (
       <div style={{ minHeight: 'calc(100vh - 70px)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--cream)', padding: 24 }}>
         <div style={{ maxWidth: 440, textAlign: 'center' }}>
-          <div style={{ fontSize: 52, marginBottom: 12 }}>🗺️</div>
           <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 10px' }}>One step away</h2>
-          <p style={{ color: '#666', marginBottom: 16, lineHeight: 1.6 }}>
-            Add your Mapbox public token to <code style={{ background: '#ede8de', padding: '2px 6px', borderRadius: 4 }}>.env.production</code>:
-          </p>
-          <code style={{ display: 'block', background: '#f4f0e8', padding: '12px 16px', borderRadius: 8, fontSize: 13, textAlign: 'left', border: '1px solid #ddd5c0' }}>
-            VITE_MAPBOX_TOKEN=pk.ey…
-          </code>
-          <p style={{ color: '#999', fontSize: 13, marginTop: 10 }}>Get a free token at mapbox.com → Account → Tokens</p>
+          <p style={{ color: '#666', marginBottom: 16 }}>Add <code style={{ background: '#ede8de', padding: '2px 6px', borderRadius: 4 }}>VITE_MAPBOX_TOKEN=pk.ey…</code> to <code>.env.production</code></p>
         </div>
       </div>
     );
   }
 
+  const routeCoords = roadCoords ?? straightCoords;
+  const dayColor = planDay?.color ?? '#E63946';
+
   return (
-    <div style={{ height: 'calc(100vh - 70px)', position: 'relative', overflow: 'hidden' }}>
-      <RMap
-        mapboxAccessToken={TOKEN}
-        initialViewState={ARUBA_CENTER}
-        style={{ width: '100%', height: '100%' }}
-        mapStyle="mapbox://styles/mapbox/navigation-day-v1"
-        onClick={() => setPopup(null)}
-      >
-        <NavigationControl position="top-right" />
+    <div style={{ height: 'calc(100vh - 70px)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      {/* Map fills remaining space above the bottom panel */}
+      <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+        <RMap
+          mapboxAccessToken={TOKEN}
+          initialViewState={ARUBA_CENTER}
+          style={{ width: '100%', height: '100%' }}
+          mapStyle="mapbox://styles/mapbox/navigation-day-v1"
+          onClick={() => setPopup(null)}
+        >
+          <NavigationControl position="top-right" />
 
-        {/* ── Itinerary route lines (road-snapped when Directions API has resolved) ── */}
-        {showRoute && activeRouteSources.map(s => {
-          const coords = roadCoords.get(s.id) ?? s.coordinates;
-          return (
-            <Source key={s.id} type="geojson" data={{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } }}>
-              <Layer id={`${s.id}-line`} type="line" paint={{ 'line-color': s.color, 'line-width': 4, 'line-opacity': 0.9 }} />
+          {/* Road-snapped route for the active day */}
+          {planDay && routeCoords.length >= 2 && (
+            <Source type="geojson" data={{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: routeCoords } }}>
+              <Layer id="route-line" type="line" paint={{ 'line-color': dayColor, 'line-width': 4, 'line-opacity': 0.9 }} />
             </Source>
-          );
-        })}
+          )}
 
-        {/* ── Itinerary numbered markers ── */}
-        {showRoute && activeRouteMarkers.map((m, i) => (
-          <Marker key={`rm-${i}`} longitude={m.lng} latitude={m.lat} anchor="center" onClick={e => { e.originalEvent.stopPropagation(); setPopup({ kind: 'route', lng: m.lng, lat: m.lat, title: m.title, subtitle: m.subtitle, color: m.color }); }}>
-            <div style={{ width: 30, height: 30, borderRadius: '50%', background: m.color, border: '2.5px solid #fff', boxShadow: '0 2px 8px rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 700, fontFamily: 'Inter,sans-serif', cursor: 'pointer' }}>
-              {m.label}
-            </div>
-          </Marker>
-        ))}
+          {/* Photo pin markers for active day */}
+          {planDay && dayEntries.map((e, i) => {
+            if (!e.coord) return null;
+            return (
+              <Marker key={e.key} longitude={e.coord.lng} latitude={e.coord.lat} anchor="bottom"
+                onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: e.coord!.lng, lat: e.coord!.lat, title: e.title, sub: e.slot }); }}>
+                <PhotoPin image={e.image} color={dayColor} label={String(i + 1)} />
+              </Marker>
+            );
+          })}
 
-        {/* ── Viator group cluster pins ── */}
-        {groupPins.map(g => !g ? null : (
-          <Marker key={`g-${g.groupId}`} longitude={g.lng} latitude={g.lat} anchor="center"
-            onClick={e => { e.originalEvent.stopPropagation(); setPopup({ kind: 'group', lng: g.lng, lat: g.lat, groupId: g.groupId, label: g.label, topItems: g.topItems }); }}>
-            <div style={{ background: g.color, color: '#fff', borderRadius: 20, padding: '5px 10px', fontSize: 11, fontWeight: 700, fontFamily: 'Inter,sans-serif', border: '2px solid #fff', boxShadow: '0 2px 8px rgba(0,0,0,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
-              {g.label}
-              <span style={{ background: 'rgba(255,255,255,0.28)', borderRadius: 10, padding: '1px 6px', fontSize: 10 }}>{g.count}</span>
-            </div>
-          </Marker>
-        ))}
-
-        {/* ── Local activity pins ── */}
-        {ACTIVITIES.map(a => {
-          const c = ACTIVITY_COORDS[a.id];
-          if (!c) return null;
-          const color = CAT_COLOR[a.category] ?? '#E63946';
-          return (
-            <Marker key={`a-${a.id}`} longitude={c.lng} latitude={c.lat} anchor="center"
-              onClick={e => { e.originalEvent.stopPropagation(); setPopup({ kind: 'activity', lng: c.lng, lat: c.lat, title: a.title, category: a.category, cost: a.cost, rating: a.rating }); }}>
-              <div style={{ width: 14, height: 14, borderRadius: '50%', background: color, border: '2px solid #fff', boxShadow: '0 1px 5px rgba(0,0,0,0.45)', cursor: 'pointer' }} />
+          {/* Catalog: Viator group pills */}
+          {!planDay && groupPins.map(g => (
+            <Marker key={g.groupId} longitude={g.lng} latitude={g.lat} anchor="center"
+              onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: g.lng, lat: g.lat, title: g.label, sub: `${g.count} activities on Viator` }); }}>
+              <div style={{ background: g.color, color: '#fff', borderRadius: 20, padding: '5px 10px', fontSize: 11, fontWeight: 700, fontFamily: 'Inter,sans-serif', border: '2px solid #fff', boxShadow: '0 2px 8px rgba(0,0,0,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
+                {g.label}<span style={{ background: 'rgba(255,255,255,0.28)', borderRadius: 10, padding: '1px 6px', fontSize: 10 }}>{g.count}</span>
+              </div>
             </Marker>
-          );
-        })}
+          ))}
 
-        {/* ── Popups ── */}
-        {popup && popup.kind === 'activity' && (
-          <Popup longitude={popup.lng} latitude={popup.lat} closeOnClick={false} onClose={() => setPopup(null)} anchor="bottom" offset={14}>
-            <div style={{ fontFamily: 'Inter,sans-serif', padding: '2px 4px', minWidth: 170 }}>
-              <div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>{popup.category}</div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a1a', marginBottom: 4 }}>{popup.title}</div>
-              <div style={{ display: 'flex', gap: 10, fontSize: 12, color: '#555' }}>
-                <span>★ {popup.rating.toFixed(1)}</span>
-                <span>{popup.cost}</span>
+          {/* Catalog: local activity dots */}
+          {!planDay && ACTIVITIES.map(a => {
+            const c = ACTIVITY_COORDS[a.id];
+            if (!c) return null;
+            return (
+              <Marker key={a.id} longitude={c.lng} latitude={c.lat} anchor="center"
+                onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: c.lng, lat: c.lat, title: a.title, sub: `${a.category} · ${a.cost}` }); }}>
+                <div style={{ width: 14, height: 14, borderRadius: '50%', background: CAT_COLOR[a.category] ?? '#E63946', border: '2px solid #fff', boxShadow: '0 1px 5px rgba(0,0,0,0.4)', cursor: 'pointer' }} />
+              </Marker>
+            );
+          })}
+
+          {/* Popup */}
+          {popup && (
+            <Popup longitude={popup.lng} latitude={popup.lat} closeOnClick={false} onClose={() => setPopup(null)} anchor="bottom" offset={16}>
+              <div style={{ fontFamily: 'Inter,sans-serif', padding: '2px 4px', minWidth: 160 }}>
+                <div style={{ fontSize: 11, color: '#888', marginBottom: 3 }}>{popup.sub}</div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a1a' }}>{popup.title}</div>
+              </div>
+            </Popup>
+          )}
+        </RMap>
+
+        {/* Top-left legend (catalog mode only) */}
+        {!planDay && (
+          <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10, background: 'rgba(255,251,240,0.97)', backdropFilter: 'blur(10px)', border: '2px solid #1a1a1a', borderRadius: 10, padding: '10px 12px', boxShadow: '0 2px 12px rgba(0,0,0,0.18)' }}>
+            {Object.entries(CAT_COLOR).map(([cat, color]) => (
+              <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                <span style={{ fontSize: 12, fontFamily: 'Inter,sans-serif', color: '#333' }}>{cat}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* No-itinerary CTA */}
+        {!canSeeItinerary && (
+          <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 10, background: 'rgba(255,251,240,0.97)', backdropFilter: 'blur(12px)', border: '2px solid #1a1a1a', borderRadius: 12, padding: '16px 18px', maxWidth: 240, boxShadow: '0 4px 16px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontWeight: 700, fontSize: 14, fontFamily: 'Inter,sans-serif', marginBottom: 6 }}>Map your trip</div>
+            <p style={{ fontSize: 12, color: '#666', margin: '0 0 12px', lineHeight: 1.5 }}>Answer 8 questions to see your day-by-day route mapped across Aruba.</p>
+            <button onClick={() => setPage('questionnaire')} className="btn-primary" style={{ width: '100%', justifyContent: 'center', fontSize: 13 }}>Start planning →</button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Bottom panel: day nav + activity photo strip ── */}
+      {plan && planDay && (
+        <div style={{ background: 'rgba(255,251,240,0.98)', backdropFilter: 'blur(12px)', borderTop: '1px solid rgba(0,0,0,0.1)', flexShrink: 0 }}>
+          {/* Day navigation row */}
+          <div style={{ display: 'flex', alignItems: 'center', padding: '10px 16px 4px', gap: 12 }}>
+            <button
+              onClick={() => setActiveDay(d => Math.max(1, d - 1))}
+              disabled={safeDay <= 1}
+              style={{ width: 32, height: 32, borderRadius: '50%', border: '1.5px solid #ccc', background: safeDay <= 1 ? '#f5f5f5' : '#fff', cursor: safeDay <= 1 ? 'default' : 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: safeDay <= 1 ? '#ccc' : '#1a1a1a', flexShrink: 0 }}
+            >‹</button>
+
+            <div style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: dayColor, border: '1.5px solid rgba(0,0,0,0.1)' }} />
+                <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'Inter,sans-serif', color: '#1a1a1a' }}>Day {safeDay}</span>
+                <span style={{ fontSize: 13, color: '#888', fontFamily: 'Inter,sans-serif' }}>of {totalDays}</span>
+                <span style={{ fontSize: 13, color: '#555', fontFamily: 'Inter,sans-serif' }}>· {planDay.title}</span>
               </div>
             </div>
-          </Popup>
-        )}
-        {popup && popup.kind === 'group' && (
-          <Popup longitude={popup.lng} latitude={popup.lat} closeOnClick={false} onClose={() => setPopup(null)} anchor="bottom" offset={20}>
-            <div style={{ fontFamily: 'Inter,sans-serif', padding: '2px 4px', minWidth: 200 }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a1a', marginBottom: 8 }}>{popup.label}</div>
-              {popup.topItems.map((t, i) => (
-                <div key={i} style={{ fontSize: 12, color: '#444', padding: '3px 0', borderTop: i === 0 ? 'none' : '1px solid #f0ece4' }}>
-                  {t}
-                </div>
-              ))}
-              <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>+ more on Viator</div>
-            </div>
-          </Popup>
-        )}
-        {popup && popup.kind === 'route' && (
-          <Popup longitude={popup.lng} latitude={popup.lat} closeOnClick={false} onClose={() => setPopup(null)} anchor="bottom" offset={20}>
-            <div style={{ fontFamily: 'Inter,sans-serif', padding: '2px 4px', minWidth: 160 }}>
-              <div style={{ fontSize: 11, color: '#888', marginBottom: 3 }}>{popup.subtitle}</div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a1a' }}>{popup.title}</div>
-            </div>
-          </Popup>
-        )}
-      </RMap>
 
-      {/* ── Top controls ── */}
-      <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {/* Legend */}
-        <div style={{ background: 'rgba(255,251,240,0.97)', backdropFilter: 'blur(10px)', border: '2px solid #1a1a1a', borderRadius: 10, padding: '10px 12px', boxShadow: '0 2px 12px rgba(0,0,0,0.18)' }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#999', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8, fontFamily: 'Inter,sans-serif' }}>Activities</div>
-          {Object.entries(CAT_COLOR).map(([cat, color]) => (
-            <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, border: '1.5px solid rgba(0,0,0,0.1)', flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontFamily: 'Inter,sans-serif', color: '#333' }}>{cat}</span>
-            </div>
-          ))}
-          <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #e8e2d6' }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#999', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, fontFamily: 'Inter,sans-serif' }}>Viator</div>
-            {Object.values(GROUP_META).map(({ label, color }) => (
-              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
-                <div style={{ width: 22, height: 10, borderRadius: 10, background: color, flexShrink: 0 }} />
-                <span style={{ fontSize: 12, fontFamily: 'Inter,sans-serif', color: '#333' }}>{label}</span>
+            <button
+              onClick={() => setActiveDay(d => Math.min(totalDays, d + 1))}
+              disabled={safeDay >= totalDays}
+              style={{ width: 32, height: 32, borderRadius: '50%', border: '1.5px solid #ccc', background: safeDay >= totalDays ? '#f5f5f5' : '#fff', cursor: safeDay >= totalDays ? 'default' : 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: safeDay >= totalDays ? '#ccc' : '#1a1a1a', flexShrink: 0 }}
+            >›</button>
+          </div>
+
+          {/* Horizontal photo strip */}
+          <div
+            ref={stripRef}
+            style={{ display: 'flex', gap: 10, padding: '8px 16px 14px', overflowX: 'auto', scrollbarWidth: 'none' }}
+          >
+            {dayEntries.length === 0 && (
+              <div style={{ fontSize: 13, color: '#aaa', fontFamily: 'Inter,sans-serif', padding: '12px 0' }}>Free day — nothing scheduled.</div>
+            )}
+            {dayEntries.map(e => (
+              <div
+                key={e.key}
+                style={{ flexShrink: 0, width: 120, cursor: 'pointer' }}
+                onClick={() => e.coord && setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot })}
+              >
+                <div style={{ width: 120, height: 72, borderRadius: 10, overflow: 'hidden', background: '#e8e2d6', border: `2px solid ${dayColor}`, flexShrink: 0 }}>
+                  {e.image
+                    ? <img src={e.image} alt={e.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={ev => { (ev.target as HTMLImageElement).style.display = 'none'; }} />
+                    : <div style={{ width: '100%', height: '100%', background: dayColor, opacity: 0.2 }} />
+                  }
+                </div>
+                <div style={{ fontSize: 10, color: '#999', fontFamily: 'Inter,sans-serif', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.4 }}>{e.slot}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a', fontFamily: 'Inter,sans-serif', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{e.title}</div>
               </div>
             ))}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// Photo pin marker: circular photo above a coloured triangle tail.
+function PhotoPin({ image, color, label }: { image: string | null; color: string; label: string }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.3))' }}>
+      <div style={{ width: 50, height: 50, borderRadius: '50%', border: `3px solid ${color}`, background: '#e0dbd0', overflow: 'hidden', position: 'relative' }}>
+        {image
+          ? <img src={image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={ev => { (ev.target as HTMLImageElement).style.display = 'none'; }} />
+          : <div style={{ width: '100%', height: '100%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, fontWeight: 700, fontFamily: 'Inter,sans-serif' }}>{label}</div>
+        }
+        {/* Number badge overlay */}
+        <div style={{ position: 'absolute', bottom: 2, right: 2, width: 16, height: 16, borderRadius: '50%', background: color, border: '1.5px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 9, fontWeight: 700, fontFamily: 'Inter,sans-serif' }}>{label}</div>
       </div>
-
-      {/* ── Day legend / route controls (shown when itinerary exists) ── */}
-      {plan && plan.length > 0 && (
-        <div style={{ position: 'absolute', bottom: 32, left: 16, zIndex: 10, background: 'rgba(255,251,240,0.97)', backdropFilter: 'blur(10px)', border: '2px solid #1a1a1a', borderRadius: 12, padding: '12px 14px', boxShadow: '0 4px 20px rgba(0,0,0,0.22)', maxHeight: 'calc(100vh - 300px)', overflowY: 'auto', minWidth: 170 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#999', letterSpacing: 1, textTransform: 'uppercase', fontFamily: 'Inter,sans-serif' }}>Your route</div>
-            <button
-              onClick={() => setShowRoute(v => !v)}
-              style={{ fontSize: 11, fontWeight: 600, color: showRoute ? '#E63946' : '#aaa', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Inter,sans-serif', padding: 0 }}
-            >
-              {showRoute ? 'Hide' : 'Show'}
-            </button>
-          </div>
-          {showRoute && plan.map((day, i) => (
-            <button key={i} onClick={() => setActiveDay(activeDay === i + 1 ? null : i + 1)}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, background: activeDay === i + 1 ? `${day.color}22` : 'transparent', border: 'none', cursor: 'pointer', padding: '5px 6px', borderRadius: 6, width: '100%', textAlign: 'left', opacity: activeDay && activeDay !== i + 1 ? 0.3 : 1, transition: 'opacity 0.2s, background 0.2s' }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: day.color, flexShrink: 0, border: '1.5px solid rgba(0,0,0,0.12)' }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a', fontFamily: 'Inter,sans-serif', whiteSpace: 'nowrap' }}>Day {day.day}</span>
-              <span style={{ fontSize: 11, color: '#888', fontFamily: 'Inter,sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 90 }}>{day.title}</span>
-            </button>
-          ))}
-          {showRoute && activeDay && (
-            <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #e0d9cc' }}>
-              <button onClick={() => setActiveDay(null)} style={{ fontSize: 11, color: '#E63946', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Inter,sans-serif', padding: 0, width: '100%', textAlign: 'center' }}>
-                Show all days
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── No itinerary CTA ── */}
-      {!canSeeItinerary && (
-        <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 10, background: 'rgba(255,251,240,0.97)', backdropFilter: 'blur(12px)', border: '2px solid #1a1a1a', borderRadius: 12, padding: '16px 18px', maxWidth: 240, boxShadow: '0 4px 16px rgba(0,0,0,0.2)' }}>
-          <div style={{ fontWeight: 700, fontSize: 14, fontFamily: 'Inter,sans-serif', marginBottom: 6, color: '#1a1a1a' }}>Map your trip</div>
-          <p style={{ fontSize: 12, color: '#666', margin: '0 0 12px', lineHeight: 1.5 }}>Complete the questionnaire to overlay your day-by-day route.</p>
-          <button onClick={() => setPage('questionnaire')} className="btn-primary" style={{ width: '100%', justifyContent: 'center', fontSize: 13 }}>
-            Start planning →
-          </button>
-        </div>
-      )}
+      {/* Triangle tail */}
+      <div style={{ width: 0, height: 0, borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `9px solid ${color}`, marginTop: -1 }} />
     </div>
   );
 }
