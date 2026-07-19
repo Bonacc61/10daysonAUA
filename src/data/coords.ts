@@ -13,7 +13,7 @@ export const ACTIVITY_COORDS: Record<string, Coord> = {
   'gasparito-restaurant':         { lng: -70.0416, lat: 12.5649 },
   'oranjestad-walking':           { lng: -70.0262, lat: 12.5175 },
   'kitesurfing-lesson':           { lng: -70.0534, lat: 12.5876 },
-  'natural-pool-jeep':            { lng: -69.9137, lat: 12.5563 },
+  'natural-pool-jeep':            { lng: -69.9522, lat: 12.5561 },
   'malmok-beach':                 { lng: -70.0558, lat: 12.5818 },
   'tres-trapi':                   { lng: -70.0530, lat: 12.5743 },
   'manchebo-beach':               { lng: -70.0612, lat: 12.5297 },
@@ -26,7 +26,7 @@ export const ACTIVITY_COORDS: Record<string, Coord> = {
 // Per-item coordinate overrides for Viator items. Checked before GROUP_COORDS so
 // a specific product can pin to its activity location rather than the group centroid.
 // Natural Pool (Conchi), Arikok NE coast: lng -69.9137, lat 12.5563
-const NATURAL_POOL: Coord = { lng: -69.9137, lat: 12.5563 };
+const NATURAL_POOL: Coord = { lng: -69.9522, lat: 12.5561 };
 export const VIATOR_ITEM_COORDS: Record<string, Coord> = {
   // Stub IDs
   'utv-cave-pool': NATURAL_POOL,
