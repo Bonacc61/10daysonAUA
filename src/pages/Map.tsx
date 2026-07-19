@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import RMap, { Marker, Popup, Source, Layer, NavigationControl } from 'react-map-gl/mapbox';
+import RMap, { Marker, Popup, Source, Layer, NavigationControl, type MapRef } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useCatalog } from '../data/useCatalog';
 import { useAuth } from '../lib/auth';
@@ -81,6 +81,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   const [activeDay, setActiveDay] = useState(1);
   const [activePlanIdx, setActivePlanIdx] = useState(0);
   const stripRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<MapRef>(null);
 
   // Generate 3 variant plans matching the Dashboard's itinerary variants.
   const plans = useMemo(() => {
@@ -166,6 +167,22 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
     stripRef.current?.scrollTo({ left: 0, behavior: 'smooth' });
   }, [safeDay]);
 
+  // Auto-fit map to show all pins for the active day
+  useEffect(() => {
+    const valid = dayEntries.filter(e => e.coord).map(e => e.coord!);
+    if (valid.length === 0 || !mapRef.current) return;
+    if (valid.length === 1) {
+      mapRef.current.flyTo({ center: [valid[0].lng, valid[0].lat], zoom: 13, duration: 800 });
+      return;
+    }
+    const lngs = valid.map(c => c.lng);
+    const lats = valid.map(c => c.lat);
+    mapRef.current.fitBounds(
+      [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+      { padding: 80, maxZoom: 14, duration: 800 },
+    );
+  }, [dayEntries]);
+
   // Viator group pins
   const groupPins = useMemo(() => catalog.groups.flatMap(g => {
     const c = GROUP_COORDS[g.id];
@@ -194,6 +211,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
       {/* Map fills remaining space above the bottom panel */}
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
         <RMap
+          ref={mapRef}
           mapboxAccessToken={TOKEN}
           initialViewState={ARUBA_CENTER}
           style={{ width: '100%', height: '100%' }}
