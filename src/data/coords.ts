@@ -13,7 +13,7 @@ export const ACTIVITY_COORDS: Record<string, Coord> = {
   'gasparito-restaurant':         { lng: -70.0416, lat: 12.5649 },
   'oranjestad-walking':           { lng: -70.0262, lat: 12.5175 },
   'kitesurfing-lesson':           { lng: -70.0534, lat: 12.5876 },
-  'natural-pool-jeep':            { lng: -69.9183, lat: 12.5597 },
+  'natural-pool-jeep':            { lng: -69.9137, lat: 12.5563 },
   'malmok-beach':                 { lng: -70.0558, lat: 12.5818 },
   'tres-trapi':                   { lng: -70.0530, lat: 12.5743 },
   'manchebo-beach':               { lng: -70.0612, lat: 12.5297 },
@@ -23,11 +23,18 @@ export const ACTIVITY_COORDS: Record<string, Coord> = {
   'boca-grandi':                  { lng: -69.9160, lat: 12.4513 },
 };
 
+// Per-item coordinate overrides for Viator items. Checked before GROUP_COORDS so
+// a specific product can pin to its activity location rather than the group centroid.
+export const VIATOR_ITEM_COORDS: Record<string, Coord> = {
+  'utv-cave-pool': { lng: -69.9137, lat: 12.5563 },
+  'jeep-arikok':   { lng: -69.9137, lat: 12.5563 },
+};
+
 // Fallback coordinates for Viator groups (representative point for the group's area).
 export const GROUP_COORDS: Record<string, Coord> = {
   'sailing-cruises':        { lng: -70.0476, lat: 12.5662 },
   'watersports':            { lng: -70.0465, lat: 12.5645 },
-  'adventure-tours':        { lng: -69.9408, lat: 12.5003 },
+  'adventure-tours':        { lng: -69.9137, lat: 12.5563 },
   'sightseeing-tours':      { lng: -70.0262, lat: 12.5175 },
   'art-culture-history':    { lng: -70.0270, lat: 12.5180 },
   'food-drink-experiences': { lng: -70.0455, lat: 12.5630 },

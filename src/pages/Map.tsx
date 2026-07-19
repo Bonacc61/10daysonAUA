@@ -3,7 +3,7 @@ import RMap, { Marker, Popup, Source, Layer, NavigationControl } from 'react-map
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useCatalog } from '../data/useCatalog';
 import { generatePlan } from '../data/itineraryGenerator';
-import { ACTIVITY_COORDS, GROUP_COORDS } from '../data/coords';
+import { ACTIVITY_COORDS, GROUP_COORDS, VIATOR_ITEM_COORDS } from '../data/coords';
 import { ACTIVITIES } from '../data/activities';
 import { viatorLink } from '../data/exploreItems';
 import type { Answers, PageId } from '../App';
@@ -31,7 +31,7 @@ type DayEntry = { key: string; slot: string; title: string; image: string | null
 
 function coordFor(entry: SlotEntry): Coord | null {
   if (entry.kind === 'activity') return ACTIVITY_COORDS[entry.id] ?? null;
-  return GROUP_COORDS[entry.groupId] ?? null;
+  return VIATOR_ITEM_COORDS[entry.bestSellerId] ?? GROUP_COORDS[entry.groupId] ?? null;
 }
 
 function imageFor(entry: SlotEntry, catalog: Catalog): string | null {
