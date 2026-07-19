@@ -28,12 +28,18 @@ export default function Footer({ setPage }: Props) {
           earn a small commission at no extra cost to you. We only recommend things we'd
           send a friend to.
         </p>
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: 16, display: 'flex', gap: 16, justifyContent: 'center' }}>
           <button
             onClick={() => setPage('privacy')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#666', fontFamily: 'inherit', padding: 0, textDecoration: 'underline' }}
           >
             Privacy Policy
+          </button>
+          <button
+            onClick={() => setPage('terms')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#666', fontFamily: 'inherit', padding: 0, textDecoration: 'underline' }}
+          >
+            Terms of Service
           </button>
         </div>
         <div style={{ fontSize: 10, color: '#555', marginTop: 10, letterSpacing: '0.04em' }}>

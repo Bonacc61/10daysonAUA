@@ -6,6 +6,7 @@ import Explore from './pages/Explore';
 import Questionnaire from './pages/Questionnaire';
 import Itinerary from './pages/Itinerary';
 import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 import SurpriseMe from './pages/SurpriseMe';
 import Dashboard from './pages/Dashboard';
 import DashboardPreview from './pages/DashboardPreview';
@@ -15,7 +16,7 @@ import CookieBanner from './components/CookieBanner';
 import TripMap from './pages/Map';
 import { AuthProvider, useAuth } from './lib/auth';
 
-export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary' | 'map' | 'privacy' | 'surprise' | 'dashboard' | 'preview';
+export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary' | 'map' | 'privacy' | 'terms' | 'surprise' | 'dashboard' | 'preview';
 
 export type Answers = {
   days: number;
@@ -48,6 +49,7 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/map': 'map',
   '/questionnaire': 'questionnaire',
   '/privacy': 'privacy',
+  '/terms': 'terms',
   '/surprise': 'surprise',
   '/dashboard': 'dashboard',
   '/preview': 'preview',
@@ -59,6 +61,7 @@ const PAGE_TO_PATH: Record<PageId, string> = {
   itinerary: '/itinerary',
   map: '/map',
   privacy: '/privacy',
+  terms: '/terms',
   surprise: '/surprise',
   dashboard: '/dashboard',
   preview: '/preview',
@@ -168,6 +171,7 @@ function AppShell() {
       {page === 'itinerary'     && (canSeeItinerary || shareId) && <Itinerary setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onLogin={() => setLoginOpen(true)} shareId={shareId} onNavigateToExplore={navigateToExplore} shortlist={shortlist} />}
       {page === 'map'           && <TripMap setPage={setPage} answers={answers} canSeeItinerary={canSeeItinerary} />}
       {page === 'privacy'       && <Privacy       setPage={setPage} />}
+      {page === 'terms'         && <Terms         setPage={setPage} />}
       {page === 'surprise'      && <SurpriseMe    setPage={setPage} answers={answers} />}
       {page === 'dashboard'     && <Dashboard     setPage={setPage} onLogin={() => setLoginOpen(true)} answers={answers} />}
       {page === 'preview'       && <DashboardPreview setPage={setPage} />}
