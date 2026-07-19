@@ -26,7 +26,7 @@ const GROUP_META: Record<string, { label: string; color: string }> = {
 };
 
 type Coord = { lng: number; lat: number };
-type DayEntry = { key: string; slot: string; title: string; image: string | null; coord: Coord | null };
+type DayEntry = { key: string; slot: string; title: string; image: string | null; coord: Coord | null; price: string | null; duration: string | null };
 
 function coordFor(entry: SlotEntry): Coord | null {
   if (entry.kind === 'activity') return ACTIVITY_COORDS[entry.id] ?? null;
@@ -38,6 +38,17 @@ function imageFor(entry: SlotEntry, catalog: Catalog): string | null {
   return catalog.items.find(i => i.id === entry.bestSellerId)?.image_url ?? null;
 }
 
+function priceFor(entry: SlotEntry, catalog: Catalog): string | null {
+  if (entry.kind === 'activity') return catalog.activities.find(a => a.id === entry.id)?.cost ?? null;
+  const item = catalog.items.find(i => i.id === entry.bestSellerId);
+  return item?.price_usd ? `From $${Math.round(item.price_usd)}` : null;
+}
+
+function durationFor(entry: SlotEntry, catalog: Catalog): string | null {
+  if (entry.kind === 'activity') return catalog.activities.find(a => a.id === entry.id)?.duration ?? null;
+  return catalog.items.find(i => i.id === entry.bestSellerId)?.duration ?? null;
+}
+
 function titleFor(entry: SlotEntry, catalog: Catalog): string {
   if (entry.kind === 'activity') return catalog.activities.find(a => a.id === entry.id)?.title ?? entry.id;
   return catalog.items.find(i => i.id === entry.bestSellerId)?.title
@@ -45,7 +56,7 @@ function titleFor(entry: SlotEntry, catalog: Catalog): string {
     ?? entry.groupId;
 }
 
-type AnyPopup = { lng: number; lat: number; title: string; sub: string };
+type AnyPopup = { lng: number; lat: number; title: string; sub: string; price?: string | null; duration?: string | null };
 type Props = { answers: Answers; canSeeItinerary: boolean; setPage: (p: PageId) => void };
 
 export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
@@ -79,6 +90,8 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
         title: titleFor(entry, catalog),
         image: imageFor(entry, catalog),
         coord: coordFor(entry),
+        price: priceFor(entry, catalog),
+        duration: durationFor(entry, catalog),
       }))
     );
   }, [planDay, catalog]);
@@ -157,14 +170,14 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
             if (!e.coord) return null;
             return (
               <Marker key={e.key} longitude={e.coord.lng} latitude={e.coord.lat} anchor="bottom"
-                onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: e.coord!.lng, lat: e.coord!.lat, title: e.title, sub: e.slot }); }}>
+                onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: e.coord!.lng, lat: e.coord!.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration }); }}>
                 <PhotoPin image={e.image} color={dayColor} label={String(i + 1)} />
               </Marker>
             );
           })}
 
-          {/* Catalog: Viator group pills — always shown as background context */}
-          {groupPins.map(g => (
+          {/* Catalog: Viator group pills — shown only when no itinerary day is active */}
+          {!planDay && groupPins.map(g => (
             <Marker key={g.groupId} longitude={g.lng} latitude={g.lat} anchor="center"
               onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: g.lng, lat: g.lat, title: g.label, sub: `${g.count} activities on Viator` }); }}>
               <div style={{ background: g.color, color: '#fff', borderRadius: 20, padding: '5px 10px', fontSize: 11, fontWeight: 700, fontFamily: 'Inter,sans-serif', border: '2px solid #fff', boxShadow: '0 2px 8px rgba(0,0,0,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
@@ -173,8 +186,8 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
             </Marker>
           ))}
 
-          {/* Catalog: local activity dots — always shown as background context */}
-          {ACTIVITIES.map(a => {
+          {/* Catalog: local activity dots — shown only when no itinerary day is active */}
+          {!planDay && ACTIVITIES.map(a => {
             const c = ACTIVITY_COORDS[a.id];
             if (!c) return null;
             return (
@@ -190,14 +203,20 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
             <Popup longitude={popup.lng} latitude={popup.lat} closeOnClick={false} onClose={() => setPopup(null)} anchor="bottom" offset={16}>
               <div style={{ fontFamily: 'Inter,sans-serif', padding: '2px 4px', minWidth: 160 }}>
                 <div style={{ fontSize: 11, color: '#888', marginBottom: 3 }}>{popup.sub}</div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a1a' }}>{popup.title}</div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a1a', marginBottom: 4 }}>{popup.title}</div>
+                {(popup.price || popup.duration) && (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {popup.price && <span style={{ fontSize: 11, color: '#E63946', fontWeight: 600 }}>{popup.price}</span>}
+                    {popup.duration && <span style={{ fontSize: 11, color: '#888' }}>⏱ {popup.duration}</span>}
+                  </div>
+                )}
               </div>
             </Popup>
           )}
         </RMap>
 
-        {/* Top-left legend */}
-        {(
+        {/* Top-left legend — catalog mode only */}
+        {!planDay && (
           <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10, background: 'rgba(255,251,240,0.97)', backdropFilter: 'blur(10px)', border: '2px solid #1a1a1a', borderRadius: 10, padding: '10px 12px', boxShadow: '0 2px 12px rgba(0,0,0,0.18)' }}>
             {Object.entries(CAT_COLOR).map(([cat, color]) => (
               <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
@@ -257,7 +276,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
               <div
                 key={e.key}
                 style={{ flexShrink: 0, width: 120, cursor: 'pointer' }}
-                onClick={() => e.coord && setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot })}
+                onClick={() => e.coord && setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration })}
               >
                 <div style={{ width: 120, height: 72, borderRadius: 10, overflow: 'hidden', background: '#e8e2d6', border: `2px solid ${dayColor}`, flexShrink: 0 }}>
                   {e.image
@@ -266,7 +285,14 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
                   }
                 </div>
                 <div style={{ fontSize: 10, color: '#999', fontFamily: 'Inter,sans-serif', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.4 }}>{e.slot}</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a', fontFamily: 'Inter,sans-serif', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{e.title}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a', fontFamily: 'Inter,sans-serif', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: 3 }}>{e.title}</div>
+                {(e.price || e.duration) && (
+                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 2 }}>
+                    {e.price && <span style={{ fontSize: 10, color: '#E63946', fontWeight: 600 }}>{e.price}</span>}
+                    {e.price && e.duration && <span style={{ fontSize: 10, color: '#ccc' }}>·</span>}
+                    {e.duration && <span style={{ fontSize: 10, color: '#888' }}>{e.duration}</span>}
+                  </div>
+                )}
               </div>
             ))}
           </div>
