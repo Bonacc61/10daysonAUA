@@ -12,9 +12,10 @@ import DashboardPreview from './pages/DashboardPreview';
 import SignedInToast from './components/SignedInToast';
 import LoginModal from './components/LoginModal';
 import CookieBanner from './components/CookieBanner';
+import TripMap from './pages/Map';
 import { AuthProvider, useAuth } from './lib/auth';
 
-export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary' | 'privacy' | 'surprise' | 'dashboard' | 'preview';
+export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary' | 'map' | 'privacy' | 'surprise' | 'dashboard' | 'preview';
 
 export type Answers = {
   days: number;
@@ -44,6 +45,7 @@ export const DEFAULT_ANSWERS: Answers = {
 const PATH_TO_PAGE: Record<string, PageId> = {
   '/explore': 'explore',
   '/itinerary': 'itinerary',
+  '/map': 'map',
   '/questionnaire': 'questionnaire',
   '/privacy': 'privacy',
   '/surprise': 'surprise',
@@ -55,6 +57,7 @@ const PAGE_TO_PATH: Record<PageId, string> = {
   questionnaire: '/questionnaire',
   explore: '/explore',
   itinerary: '/itinerary',
+  map: '/map',
   privacy: '/privacy',
   surprise: '/surprise',
   dashboard: '/dashboard',
@@ -163,6 +166,7 @@ function AppShell() {
       {page === 'questionnaire' && <Questionnaire setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onComplete={markQuestionnaireDone} initialStep={qInitialStep} />}
       {page === 'explore'       && <Explore       setPage={setPage} answers={answers} onLogin={() => setLoginOpen(true)} canSeeItinerary={canSeeItinerary} initialSection={initialExploreSection ?? undefined} shortlist={shortlist} setShortlist={setShortlist} />}
       {page === 'itinerary'     && (canSeeItinerary || shareId) && <Itinerary setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onLogin={() => setLoginOpen(true)} shareId={shareId} onNavigateToExplore={navigateToExplore} shortlist={shortlist} />}
+      {page === 'map'           && <TripMap setPage={setPage} answers={answers} canSeeItinerary={canSeeItinerary} />}
       {page === 'privacy'       && <Privacy       setPage={setPage} />}
       {page === 'surprise'      && <SurpriseMe    setPage={setPage} answers={answers} />}
       {page === 'dashboard'     && <Dashboard     setPage={setPage} onLogin={() => setLoginOpen(true)} answers={answers} />}

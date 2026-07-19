@@ -71,6 +71,7 @@ export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) 
           {link('landing', 'How it works')}
           {link('explore', 'Explore', true)}
           {link('itinerary', 'Itinerary')}
+          {link('map', 'Map')}
           {user ? (
             <div ref={menuRef} style={{ position: 'relative' }}>
               <button
