@@ -669,9 +669,16 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 .gtk-track { position: relative; }
 .gtk-sticky {
   position: sticky; top: 0; height: 100vh;
-  display: flex; flex-direction: column; justify-content: center;
+  display: flex; flex-direction: column; padding: 2.5vh 0;
 }
-.gtk-tl { position: relative; padding-left: 6px; }
+/* The timeline fills the pinned viewport and spreads its phases from top
+   (Good-to-knows side) to bottom (FAQ side) — no top/bottom whitespace; the
+   spine connects them. Static-mode (mobile/reduced) has no height constraint so
+   space-between is a no-op there and phases just stack. */
+.gtk-tl {
+  position: relative; padding-left: 6px;
+  flex: 1; display: flex; flex-direction: column; justify-content: space-between;
+}
 /* the vertical spine */
 .gtk-tl::before {
   content: ''; position: absolute; left: 16px; top: 10px; bottom: 10px;
