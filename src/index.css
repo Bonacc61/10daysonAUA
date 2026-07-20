@@ -671,14 +671,18 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   position: sticky; top: 0; height: 100vh;
   display: flex; flex-direction: column; padding: 2.5vh 0;
 }
-/* The timeline fills the pinned viewport and spreads its phases from top
-   (Good-to-knows side) to bottom (FAQ side) — no top/bottom whitespace; the
-   spine connects them. Static-mode (mobile/reduced) has no height constraint so
-   space-between is a no-op there and phases just stack. */
-.gtk-tl {
-  position: relative; padding-left: 6px;
-  flex: 1; display: flex; flex-direction: column; justify-content: space-between;
-}
+.gtk-tl { position: relative; padding-left: 6px; }
+/* In pinned (scroll) mode the timeline fills the viewport by growing the ACTIVE
+   phase's cards into the free space, so phases stay adjacent (no gap between
+   them) with no whitespace at the top or bottom either. Static-mode (mobile /
+   reduced-motion) isn't inside .gtk-sticky, so it stacks naturally instead. */
+.gtk-sticky .gtk-tl { flex: 1; display: flex; flex-direction: column; }
+.gtk-sticky .gtk-phase { display: flex; flex-direction: column; }
+.gtk-sticky .gtk-phase[data-active] { flex: 1 1 auto; min-height: 0; }
+.gtk-sticky .gtk-phase[data-active] .gtk-phase-wrap { flex: 1; min-height: 0; }
+.gtk-sticky .gtk-phase[data-active] .gtk-phase-inner { height: 100%; }
+.gtk-sticky .gtk-phase[data-active] .gtk-phase-cards { height: 100%; grid-template-rows: 1fr 1fr; }
+.gtk-sticky .gtk-phase[data-active] .tlc { display: flex; flex-direction: column; justify-content: center; }
 /* the vertical spine */
 .gtk-tl::before {
   content: ''; position: absolute; left: 16px; top: 10px; bottom: 10px;
