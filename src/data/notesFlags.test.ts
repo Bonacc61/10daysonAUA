@@ -30,6 +30,10 @@ describe('flagsFromNotes — contraindication keyword parsing', () => {
     expect(flagsFromNotes("we don't want a car")).toContain('no-car');
   });
 
+  it('does NOT flag no-car on "no car seat" (false-exclusion guard)', () => {
+    expect(flagsFromNotes('we have no car seat for the baby')).not.toContain('no-car');
+  });
+
   it('does NOT false-trigger with-baby on the "Baby Beach" place name', () => {
     // Bare "baby" is intentionally not a pattern — Baby Beach is a real Aruba spot.
     expect(flagsFromNotes('We really want to visit Baby Beach')).toEqual([]);

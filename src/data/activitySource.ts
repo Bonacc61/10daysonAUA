@@ -38,13 +38,16 @@ function normalizePopularity(items: ViatorItem[]): ViatorItem[] {
 
 // Synchronous local stub — the instant first paint and the offline/failure
 // fallback. Live Viator data (when configured) replaces groups+items via
-// loadCatalog(); local activities always stay local.
+// loadCatalog(); local activities always stay local. Memoised once: the stub is
+// a compile-time constant, so re-normalising (sort + clone) on every call — and
+// useCatalog reads it every render — is wasted work and hands back a fresh
+// `items` array each time, defeating downstream useMemo keyed on catalog.items.
+let stubCatalog: Catalog | null = null;
 export function getCatalog(): Catalog {
-  return {
-    activities: ACTIVITIES,
-    groups: VIATOR_GROUPS,
-    items: normalizePopularity(VIATOR_ITEMS),
-  };
+  if (!stubCatalog) {
+    stubCatalog = { activities: ACTIVITIES, groups: VIATOR_GROUPS, items: normalizePopularity(VIATOR_ITEMS) };
+  }
+  return stubCatalog;
 }
 
 let liveCatalog: Catalog | null = null;

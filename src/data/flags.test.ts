@@ -196,7 +196,9 @@ describe('generatePlan — mobility flag', () => {
   });
 
   it('activities with adventure ≤ 30 still appear with mobility', () => {
-    const { actIds } = sweepSeeds({ ...BASE, flags: ['mobility'] }, catalog);
+    // gentle-activity competes with 8 afternoon fillers, so its appearance is
+    // seed-probabilistic — sweep enough seeds to reliably surface it (reachable).
+    const { actIds } = sweepSeeds({ ...BASE, flags: ['mobility'] }, catalog, 16);
     expect(actIds.has('gentle-activity')).toBe(true);
   });
 });

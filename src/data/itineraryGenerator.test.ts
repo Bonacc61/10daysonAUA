@@ -284,3 +284,36 @@ describe('generatePlan — tailoring scales with a rich Viator catalog', () => {
     expect(advThemes.every((t) => t === 'adventure' || t === 'watersports')).toBe(true);
   });
 });
+
+describe('generatePlan — popularity floor (bookability)', () => {
+  const cat = getCatalog(); // normalizePopularity ran — every item has a score
+
+  it('never auto-fills an item from the bottom quartile of its budget tier', () => {
+    const byId = new Map(cat.items.map((i) => [i.id, i]));
+    for (const seed of [1, 2, 3]) {
+      const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, cat, { seed });
+      for (const day of plan) {
+        for (const e of [...day.morning, ...day.afternoon, ...day.evening]) {
+          if (e.kind !== 'group' || e.pinned) continue;
+          const item = byId.get(e.bestSellerId);
+          if (!item) continue;
+          expect(item.popularity_score ?? 1).toBeGreaterThanOrEqual(0.25);
+        }
+      }
+    }
+  });
+
+  it('a pinned niche item still lands (explicit choice beats the floor)', () => {
+    const niche = cat.items
+      .filter((i) => (i.popularity_score ?? 1) < 0.25)
+      .sort((a, b) => (a.popularity_score ?? 0) - (b.popularity_score ?? 0))[0];
+    expect(niche).toBeDefined(); // stub catalog has bottom-quartile items
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 5 }, cat, { pinned: [`item:${niche.id}`] });
+    const placed = plan.some((d) =>
+      [...d.morning, ...d.afternoon, ...d.evening].some(
+        (e) => e.pinned && e.kind === 'group' && e.bestSellerId === niche.id,
+      ),
+    );
+    expect(placed).toBe(true);
+  });
+});

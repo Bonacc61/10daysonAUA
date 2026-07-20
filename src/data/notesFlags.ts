@@ -15,7 +15,8 @@ import type { Answers } from '../App';
 const NOTE_FLAG_PATTERNS: Array<{ flag: string; re: RegExp }> = [
   { flag: 'no-boats', re: /\b(sea-?sick(ness)?|motion[\s-]?sick(ness)?)\b/i },
   { flag: 'mobility', re: /\b(wheelchair|limited mobility|mobility (issue|problem|need|concern)s?|can'?t walk (far|much)|difficulty walking|hard to walk)\b/i },
-  { flag: 'no-car', re: /\b(no (rental )?car|without a car|not renting a car|don'?t (have|want) a car|no driving)\b/i },
+  // "no car" but NOT "no car seat" (a false exclusion of car-required activities).
+  { flag: 'no-car', re: /\b(no (rental )?car(?!\s*seat)|without a car|not renting a car|don'?t (have|want) a car|no driving)\b/i },
 ];
 
 // Structured flags implied by the free-text notes. Empty for empty/absent notes.

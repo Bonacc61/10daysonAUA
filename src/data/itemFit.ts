@@ -122,7 +122,10 @@ export function isWaterBased(item: ViatorItem): boolean {
 // Boat-based crowd-pleasers are stripped upstream by the `no-boats` flag before
 // scoring, so a traveller who flags seasickness never has them boosted.
 const CROWD_PLEASER_DEST = /natural pool|arikok|conchi/i;
-const CROWD_PLEASER_EVENING = /sunset|dinner/i;
+// "sunset" (sails/cruises) and "dinner cruise" specifically — NOT any title with
+// "dinner", so a landlocked farmhouse or steakhouse dinner isn't boosted for
+// every persona. Land dinners still surface via normal food-drink interest fit.
+const CROWD_PLEASER_EVENING = /sunset|dinner cruise/i;
 export function isCrowdPleaser(item: ViatorItem): boolean {
   const kind = activityKind(item);
   if (kind === 'sail' || kind === 'snorkel') return true;          // catamarans, snorkel + Jolly Pirates

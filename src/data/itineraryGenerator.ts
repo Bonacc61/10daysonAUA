@@ -17,7 +17,7 @@ import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, blendPools, entryPrice } from './matcher';
-import { fitItem, refaceForAnswers, budgetCap, activityKind, isEveningItem, isWaterBased } from './itemFit';
+import { fitItem, refaceForAnswers, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 import { effectiveFlags } from './notesFlags';
@@ -305,6 +305,10 @@ function hashAnswers(a: Answers): number {
   const s = JSON.stringify([
     a.days, a.groupType, a.budget, [...a.interests].sort(), a.adventureLevel, a.lodging,
     [...(a.flags ?? [])].sort(),
+    // Include specialNotes so a contraindication note ("seasick" → no-boats) that
+    // changes the filtered catalog also changes the seed — keeps the seed a
+    // faithful identifier of the plan it produces.
+    a.specialNotes ?? '',
   ]);
   let h = 2166136261;
   for (let i = 0; i < s.length; i += 1) {
@@ -392,11 +396,13 @@ export function generatePlan(
   // tier by popularity) — we'd rather leave a slot open than suggest a niche
   // product few travellers actually book. Explore still shows everything, and
   // pins resolve against the unfloored catalog: an explicit shortlist choice
-  // always beats this heuristic.
+  // always beats this heuristic. Crowd-pleasers are exempt from the floor: they
+  // are curated as universally bookable, so a lightly-reviewed catamaran or
+  // Natural Pool tour must not be filtered out before its boost can apply.
   const fillCatalog: Catalog = {
     ...filteredCatalog,
     items: filteredCatalog.items.filter(
-      (i) => i.popularity_score === undefined || i.popularity_score >= MIN_FILL_POPULARITY,
+      (i) => i.popularity_score === undefined || i.popularity_score >= MIN_FILL_POPULARITY || isCrowdPleaser(i),
     ),
   };
   const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [] };
