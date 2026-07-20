@@ -731,6 +731,61 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   .gtk-phase-wrap, .gtk-node { transition: none; }
 }
 
+/* Dashboard "Good-to-knows" still uses the pinned-tag board (separate from the
+   landing timeline above). Kept here so the signed-in Dashboard stays styled. */
+.gtk-board {
+  background-image: radial-gradient(rgba(26,26,26,0.09) 1.5px, transparent 1.6px);
+  background-size: 20px 20px; background-position: -4px -4px;
+  border-radius: 18px; padding: 22px 16px;
+}
+.gtk-tag {
+  position: relative; background: var(--cream);
+  border: 2px solid var(--ink); border-radius: 14px;
+  padding: 24px 18px 18px;
+  box-shadow: 5px 6px 0 0 var(--accent);
+  transform: rotate(var(--tilt, -1.2deg));
+  transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease;
+}
+.gtk-tag:hover { transform: rotate(0deg) translateY(-5px); box-shadow: 9px 12px 0 0 var(--accent); z-index: 2; }
+.gtk-tag::before {
+  content: ''; position: absolute; top: -8px; left: 24px;
+  width: 46px; height: 16px; background: var(--accent); opacity: .55;
+  border: 1.5px solid var(--ink); border-radius: 2px; transform: rotate(-4deg);
+}
+.gtk-tag-num {
+  position: absolute; top: 11px; right: 15px;
+  font-family: 'Caprasimo', Georgia, serif; font-size: 34px; line-height: 1;
+  color: var(--accent); opacity: .26; pointer-events: none;
+}
+.gtk-tag-stamp {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--ink); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 2px 2px 0 var(--ink); margin-bottom: 13px;
+}
+.gtk-tag-title { font-size: 20px; line-height: 1.05; color: var(--ink); margin: 0 0 6px; }
+.gtk-tag-body { font-size: 13px; line-height: 1.5; color: rgba(0,0,0,0.72); margin: 0; }
+.gtk-tag-flag {
+  display: inline-flex; align-items: center; margin-bottom: 12px;
+  font-size: 9.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--ink); background: var(--yellow);
+  border: 1.5px solid var(--ink); border-radius: 7px;
+  padding: 4px 9px; box-shadow: 2px 2px 0 var(--ink);
+}
+.gtk-tag-sign {
+  display: block; margin-top: 12px; padding-top: 9px;
+  border-top: 1.5px dashed rgba(26,26,26,0.18);
+  font-style: italic; font-size: 12.5px; color: var(--sand-700);
+}
+@media (max-width: 720px) {
+  .gtk-tag { transform: none !important; }
+  .gtk-board { padding: 16px 10px; background-size: 18px 18px; }
+  .gtk-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 640px) {
+  .gtk-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
+}
+
 
 /* Afternoon "Suggest lunchspot" button — same box footprint as
    .itin-section-empty (16px padding, 12px radius), neon blue with a

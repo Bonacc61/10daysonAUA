@@ -1,4 +1,4 @@
-import React, { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { type CSSProperties, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { capture } from '../lib/analytics';
 import {
@@ -279,7 +279,11 @@ function GtkTimelineCard({ card }: { card: typeof GTK_CARDS[number] }) {
 function GoodToKnowSection() {
   const [active, setActive] = useState(0);
   const [open, setOpen] = useState(false);
-  const [reduced, setReduced] = useState(false);
+  // Resolved synchronously on first render so reduced-motion users don't get a
+  // one-frame flash of the scroll-track variant before swapping to the static one.
+  const [reduced] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  );
   const activeRef = useRef(0);
   const storyRef = useRef<HTMLDivElement>(null);
 
@@ -290,7 +294,6 @@ function GoodToKnowSection() {
   const n = phases.length;
 
   useEffect(() => { activeRef.current = active; }, [active]);
-  useEffect(() => { setReduced(window.matchMedia('(prefers-reduced-motion: reduce)').matches); }, []);
 
   // Scrollytelling: the timeline is pinned (position:sticky) inside a tall track;
   // the fraction scrolled through the track maps directly to the open phase. No
