@@ -336,6 +336,15 @@ describe('generatePlan — premium splurge (money-no-object, week-plus)', () => 
     expect(sc.length).toBeGreaterThanOrEqual(2); // charter + a crowd-pleaser cruise
   });
 
+  it('the premium charter carries splurge=true (badge) and is not marked pinned', () => {
+    const plan = generatePlan({ ...MNO, days: 9 }, cat, { seed: 1 });
+    const charter = plan
+      .flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening])
+      .find((e) => e.kind === 'group' && e.bestSellerId === 'private-charter');
+    expect(charter?.splurge).toBe(true);
+    expect(charter?.pinned).toBeFalsy();
+  });
+
   it('a 5-day trip keeps just one sailing-cruises pick (no premium pre-pass under a week)', () => {
     const plan = generatePlan({ ...MNO, days: 5 }, cat, { seed: 1 });
     expect(sailingEntries(plan).length).toBeLessThanOrEqual(1);

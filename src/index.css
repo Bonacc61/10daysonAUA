@@ -162,6 +162,14 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
   padding: 2px 8px; border-radius: 999px; flex-shrink: 0; white-space: nowrap;
 }
 
+/* Auto-suggested aspirational pick (money-no-object splurge). Distinct from the
+   yellow "★ Your pick" pin badge — ink fill reads as premium, not user-chosen. */
+.itin-splurge-badge {
+  background: var(--ink); color: var(--cream);
+  font-size: 10px; font-weight: 800; font-style: normal;
+  padding: 2px 8px; border-radius: 999px; flex-shrink: 0; white-space: nowrap;
+}
+
 /* Per-card drag handle + remove control cluster (top-right of each card). */
 .itin-sortable { position: relative; }
 .itin-card-controls { position: absolute; top: 8px; right: 8px; z-index: 7; display: flex; gap: 4px; }

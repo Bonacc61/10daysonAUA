@@ -515,10 +515,10 @@ export function generatePlan(
       if (!pinClaimed.has(day)) pinClaimed.set(day, new Set());
       pinClaimed.get(day)!.add(slot);
       if (cid) usedPremiumClusters.add(cid);
-      // No `pinned: true` — premium splurges are auto-suggested, not user picks,
-      // so they carry no "★ Your pick" badge.
+      // `splurge: true` (not `pinned`) — auto-suggested aspirational pick, shown
+      // with a "Signature splurge" badge rather than the "★ Your pick" pin badge.
       if (!premiumSlots.has(day)) premiumSlots.set(day, new Map());
-      premiumSlots.get(day)!.set(slot, { cardEntry, slotEntry: toSlotEntry(cardEntry) });
+      premiumSlots.get(day)!.set(slot, { cardEntry, slotEntry: { ...toSlotEntry(cardEntry), splurge: true } });
       premCursor = (day % nDays) + 1;
     }
   }

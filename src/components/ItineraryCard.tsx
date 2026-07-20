@@ -14,6 +14,7 @@ type Props = {
   flipped: boolean;
   swapping: boolean;
   pinned?: boolean;
+  splurge?: boolean;
   onFlip: () => void;
   onSwap?: () => void;
   showReasons?: boolean;
@@ -31,7 +32,7 @@ const BASE_HEIGHT = 284;
 const REASONS_EXTRA = SWAP_REASONS_OPEN_PX;
 
 export default function ItineraryCard({
-  entry, flipped, swapping, pinned, onFlip, onSwap,
+  entry, flipped, swapping, pinned, splurge, onFlip, onSwap,
   showReasons = false, onPickReason, onAddItem, onNavigateToSection,
 }: Props) {
   // Per-card state for the group's "Other suggestions" expand/collapse.
@@ -64,7 +65,7 @@ export default function ItineraryCard({
                          showReasons={showReasons} onPickReason={onPickReason}
                          onNavigateToSection={onNavigateToSection} />
     : <GroupCard group={entry.group} bestSeller={entry.bestSeller}
-                 others={entry.others} bookUrl={bookUrl} pinned={pinned}
+                 others={entry.others} bookUrl={bookUrl} pinned={pinned} splurge={splurge}
                  onSwap={onSwap} onFlip={onFlip}
                  showReasons={showReasons} onPickReason={onPickReason}
                  suggestionsOpen={suggestionsOpen}

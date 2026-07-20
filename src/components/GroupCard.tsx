@@ -41,12 +41,13 @@ type Props = {
   onAddItem?: (item: ViatorItem) => void;
   onNavigateToSection?: (section: Section) => void;
   pinned?: boolean;
+  splurge?: boolean;
 };
 
 export default function GroupCard({
   group, bestSeller, others, approved, onApprove, onSwap, onFlip,
   variant = 'itinerary', showReasons, onPickReason,
-  suggestionsOpen, onToggleSuggestions, onAddItem, bookUrl, onNavigateToSection, pinned,
+  suggestionsOpen, onToggleSuggestions, onAddItem, bookUrl, onNavigateToSection, pinned, splurge,
 }: Props) {
   const tourUrl = productUrlFor(bestSeller);
   const headerSection = primarySection(itemSections(bestSeller));
@@ -78,6 +79,7 @@ export default function GroupCard({
             tourUrl={tourUrl}
             bookUrl={bookUrl ?? null}
             pinned={pinned}
+            splurge={splurge}
             location={REGION_LABELS[bestSeller.region ?? group.region]}
             onSwap={onSwap}
             onFlip={onFlip}
@@ -218,7 +220,7 @@ function ExploreBody({
 // activity card (ActivityCardFront), with the group-specific SUGGESTED label.
 // The flip-to-back face is wired by the parent (ItineraryCard).
 function ItineraryBody({
-  bestSeller, tourUrl, bookUrl, location, onSwap, onFlip, showReasons, onPickReason, pinned,
+  bestSeller, tourUrl, bookUrl, location, onSwap, onFlip, showReasons, onPickReason, pinned, splurge,
 }: {
   bestSeller: ViatorItem;
   tourUrl: string | null;
@@ -229,6 +231,7 @@ function ItineraryBody({
   showReasons?: boolean;
   onPickReason?: (reason: SwapReason) => void;
   pinned?: boolean;
+  splurge?: boolean;
 }) {
   return (
     <div className="itin-card-split" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
@@ -307,6 +310,7 @@ function ItineraryBody({
             </span>
           )}
           {pinned && <span className="itin-pinned-badge">★ Your pick</span>}
+          {splurge && !pinned && <span className="itin-splurge-badge">✨ Signature splurge</span>}
         </div>
 
         <div style={{ marginTop: 'auto' }}>

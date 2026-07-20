@@ -80,8 +80,8 @@ export type ViatorItem = {
 
 // === Slot pointers + card entries ===
 export type SlotEntry =
-  | { kind: 'activity'; id: string; pinned?: boolean }
-  | { kind: 'group'; groupId: string; bestSellerId: string; pinned?: boolean };
+  | { kind: 'activity'; id: string; pinned?: boolean; splurge?: boolean }
+  | { kind: 'group'; groupId: string; bestSellerId: string; pinned?: boolean; splurge?: boolean };
 
 export type CardEntry =
   | { kind: 'activity'; activity: import('./data/activities').Activity }

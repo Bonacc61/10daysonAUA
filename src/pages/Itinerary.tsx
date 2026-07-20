@@ -950,6 +950,8 @@ function SortableCard({
           ? (card.entry.kind === 'activity'
               || (entry.kind === 'group' && entry.bestSeller.id === card.entry.bestSellerId))
           : false}
+        splurge={card.entry.kind === 'group' && !!card.entry.splurge
+          && entry.kind === 'group' && entry.bestSeller.id === card.entry.bestSellerId}
         onFlip={() => onFlip(card.uid)}
         onSwap={readOnly ? undefined : () => onOpenSwap(card.uid)}
         showReasons={!readOnly && reasonOpen.has(card.uid)}
