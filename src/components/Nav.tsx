@@ -19,12 +19,16 @@ const MOBILE_NAV: { id: PageId; label: string }[] = [
 export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) {
   const { user, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const desktopMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
     function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const t = e.target as Node;
+      const insideDesktop = desktopMenuRef.current?.contains(t);
+      const insideMobile = mobileMenuRef.current?.contains(t);
+      if (!insideDesktop && !insideMobile) {
         setMenuOpen(false);
       }
     }
@@ -88,7 +92,7 @@ export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) 
           {link('itinerary', 'Itinerary')}
           {link('map', 'Map')}
           {user ? (
-            <div ref={menuRef} style={{ position: 'relative' }}>
+            <div ref={desktopMenuRef} style={{ position: 'relative' }}>
               <button
                 className="nav-login"
                 onClick={() => setMenuOpen((o) => !o)}
@@ -155,7 +159,7 @@ export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) 
             aria-label={`Go to ${nextMobile.label}`}
           >›</button>
           {user ? (
-            <div ref={menuRef} style={{ position: 'relative' }}>
+            <div ref={mobileMenuRef} style={{ position: 'relative' }}>
               <button className="nav-login" onClick={() => setMenuOpen(o => !o)}>My Aruba ▾</button>
               {menuOpen && (
                 <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, background: 'var(--cream)', border: '2px solid var(--ink)', borderRadius: 8, minWidth: 140, zIndex: 200, boxShadow: '3px 3px 0 var(--ink)', overflow: 'hidden' }}>
