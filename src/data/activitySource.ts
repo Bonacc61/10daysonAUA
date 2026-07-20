@@ -2,6 +2,7 @@ import { ACTIVITIES, type Activity } from './activities';
 import { VIATOR_GROUPS, VIATOR_ITEMS } from './viator-stub';
 import { LUNCHSPOTS } from './lunchspots';
 import { fitItem, bestItemForAnswers, itemSlotOk } from './itemFit';
+import { budgetTag } from './classify';
 import type { ViatorGroup, ViatorItem, SlotEntry, CardEntry, MatchTag, Slot } from '../types';
 
 export type Catalog = {
@@ -10,19 +11,29 @@ export type Catalog = {
   items: ViatorItem[];
 };
 
-// Rank items by review_count and attach a popularity_score (0–1 percentile)
-// so fitItem can compare popularity relative to the actual catalog rather than
-// against a hardcoded absolute threshold. The most-reviewed item scores 1.0;
-// the least-reviewed scores 0.0. Single-item catalogs get 0.5.
+// Rank items by review_count within their budget tier and attach a
+// popularity_score (0–1 percentile). Ranking within tier (not globally) fixes
+// a systematic bias: expensive items always have fewer reviews than cheap ones
+// because they target a smaller market, not because they're inferior. A private
+// charter should compete against other luxury options; a party cruise against
+// other mid-range ones. This keeps the budget-closeness signal in fitItem
+// effective — a money-no-object user still gets the premium item.
 function normalizePopularity(items: ViatorItem[]): ViatorItem[] {
   if (items.length === 0) return items;
-  const sorted = [...items].sort((a, b) => a.review_count - b.review_count);
-  const rank = new Map(sorted.map((item, i) => [item.id, i]));
-  const n = sorted.length;
-  return items.map((item) => ({
-    ...item,
-    popularity_score: n > 1 ? (rank.get(item.id) ?? 0) / (n - 1) : 0.5,
-  }));
+  const byTier = new Map<string, ViatorItem[]>();
+  for (const item of items) {
+    const tier = budgetTag(item.price_usd);
+    const bucket = byTier.get(tier) ?? [];
+    bucket.push(item);
+    byTier.set(tier, bucket);
+  }
+  const rankMap = new Map<string, number>();
+  for (const tierItems of byTier.values()) {
+    const sorted = [...tierItems].sort((a, b) => a.review_count - b.review_count);
+    const n = sorted.length;
+    sorted.forEach((item, i) => rankMap.set(item.id, n > 1 ? i / (n - 1) : 0.5));
+  }
+  return items.map((item) => ({ ...item, popularity_score: rankMap.get(item.id) ?? 0 }));
 }
 
 // Synchronous local stub — the instant first paint and the offline/failure
