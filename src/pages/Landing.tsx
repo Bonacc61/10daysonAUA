@@ -286,7 +286,7 @@ function GoodToKnowSection() {
       && (window.matchMedia('(prefers-reduced-motion: reduce)').matches || window.innerWidth <= 720),
   );
   const activeRef = useRef(0);
-  const trackRef = useRef<HTMLDivElement>(null);
+  const tlRef = useRef<HTMLDivElement>(null);
 
   const phases = GTK_SECTION_META.map((s) => ({
     ...s,
@@ -294,25 +294,27 @@ function GoodToKnowSection() {
   }));
   const n = phases.length;
 
+  // Trigger line and scroll-per-phase, as fractions of viewport height.
+  const LINE = 0.28;
+  const PER = 0.2;
+
   useEffect(() => { activeRef.current = active; }, [active]);
 
-  // Scrollytelling: the timeline is pinned (sticky, filling the viewport and
-  // vertically centred) while you scroll through a tall track; the fraction
-  // scrolled picks the open phase, so phases expand/collapse IN PLACE as you
-  // scroll. Filling the viewport means the pin releases exactly as the last
-  // phase ends, so there's no dead-zone gap before the FAQ.
+  // Compact natural-height timeline (no pin → no whitespace, cards at natural
+  // size). The open phase tracks how far the timeline's stable top has scrolled
+  // past the trigger line; the top doesn't move as phases collapse below it, so
+  // the mapping is monotonic.
   useEffect(() => {
     if (!open || staticMode) return;
     let raf = 0;
     const onScroll = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        const el = trackRef.current;
+        const el = tlRef.current;
         if (!el) return;
-        const total = el.offsetHeight - window.innerHeight;
-        if (total <= 0) return;
-        const scrolled = Math.min(Math.max(-el.getBoundingClientRect().top, 0), total);
-        const idx = Math.min(n - 1, Math.floor((scrolled / total) * n * 0.9999));
+        const vh = window.innerHeight;
+        const entered = LINE * vh - el.getBoundingClientRect().top;
+        const idx = Math.max(0, Math.min(n - 1, Math.floor(entered / (PER * vh))));
         if (idx !== activeRef.current) setActive(idx);
       });
     };
@@ -322,15 +324,15 @@ function GoodToKnowSection() {
   }, [open, staticMode, n]);
 
   const goPhase = (i: number) => {
-    const el = trackRef.current;
+    const el = tlRef.current;
     if (!el || staticMode) { setActive(i); return; }
-    const total = el.offsetHeight - window.innerHeight;
-    const target = window.scrollY + el.getBoundingClientRect().top + ((i + 0.5) / n) * total;
-    window.scrollTo({ top: target, behavior: 'smooth' });
+    const vh = window.innerHeight;
+    const y = window.scrollY + el.getBoundingClientRect().top - (LINE * vh - (i + 0.5) * (PER * vh));
+    window.scrollTo({ top: y, behavior: 'smooth' });
   };
 
   const tl = (
-    <div className="gtk-tl">
+    <div className="gtk-tl" ref={tlRef}>
       {phases.map((p, i) => (
         <div className="gtk-phase" data-active={staticMode || i === active ? '' : undefined} key={p.key}>
           <button
@@ -372,13 +374,7 @@ function GoodToKnowSection() {
       <div style={{ padding: '0 36px 56px' }}>
         <div className="container-1280" style={{ padding: 0 }}>
           <p className="gtk-lede">The little things locals wish every visitor knew — scroll to move through the trip.</p>
-          {staticMode ? (
-            tl
-          ) : (
-            <div className="gtk-track" ref={trackRef} style={{ height: `${n * 52}vh` }}>
-              <div className="gtk-sticky">{tl}</div>
-            </div>
-          )}
+          {tl}
         </div>
       </div>
     </details>

@@ -663,26 +663,7 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   font-style: italic; font-size: 15px; line-height: 1.5;
   color: rgba(0,0,0,0.85); margin: 0 0 26px; max-width: 620px;
 }
-/* Scrollytelling track: the sticky child fills the viewport and centres the
-   timeline, so phases change in place as you scroll and the pin releases right
-   as the last phase ends (no dead-zone gap before the FAQ). */
-.gtk-track { position: relative; }
-.gtk-sticky {
-  position: sticky; top: 0; height: 100vh;
-  display: flex; flex-direction: column; padding: 2.5vh 0;
-}
 .gtk-tl { position: relative; padding-left: 6px; }
-/* In pinned (scroll) mode the timeline fills the viewport by growing the ACTIVE
-   phase's cards into the free space, so phases stay adjacent (no gap between
-   them) with no whitespace at the top or bottom either. Static-mode (mobile /
-   reduced-motion) isn't inside .gtk-sticky, so it stacks naturally instead. */
-.gtk-sticky .gtk-tl { flex: 1; display: flex; flex-direction: column; }
-.gtk-sticky .gtk-phase { display: flex; flex-direction: column; }
-.gtk-sticky .gtk-phase[data-active] { flex: 1 1 auto; min-height: 0; }
-.gtk-sticky .gtk-phase[data-active] .gtk-phase-wrap { flex: 1; min-height: 0; }
-.gtk-sticky .gtk-phase[data-active] .gtk-phase-inner { height: 100%; }
-.gtk-sticky .gtk-phase[data-active] .gtk-phase-cards { height: 100%; grid-template-rows: 1fr 1fr; }
-.gtk-sticky .gtk-phase[data-active] .tlc { display: flex; flex-direction: column; justify-content: center; }
 /* the vertical spine */
 .gtk-tl::before {
   content: ''; position: absolute; left: 16px; top: 10px; bottom: 10px;
