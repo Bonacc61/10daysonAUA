@@ -13,6 +13,7 @@
 
 import type { Answers } from '../App';
 import type { Catalog } from './activitySource';
+import { otherItemsInGroup } from './activitySource';
 import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry, ViatorItem, ViatorGroup } from '../types';
 import { SECTIONS } from './itineraryPlan';
@@ -72,6 +73,13 @@ const INTEREST_SECTIONS: Partial<Record<MatchTag, Section[]>> = {
 // Percentile-based, so the floor rescales automatically with the live catalog.
 // Items without a score (raw test fixtures) pass — only a known-low rank drops.
 const MIN_FILL_POPULARITY = 0.25;
+
+// Premium splurge rule: money-no-object travellers on a trip of at least
+// PREMIUM_MIN_DAYS get one aspirational premium pick per DAYS_PER_PREMIUM days
+// (a private charter IN ADDITION to the crowd-pleaser cruise). Shorter trips get
+// just the one cruise. Both express "a week's worth of trip earns one splurge".
+const PREMIUM_MIN_DAYS = 7;
+const DAYS_PER_PREMIUM = 7;
 
 // mulberry32 — tiny deterministic PRNG so a seed reproduces a plan exactly.
 function rng(seed: number): () => number {
@@ -462,24 +470,43 @@ export function generatePlan(
   // its crowd-pleaser via normal fill, and both land on different days. Shorter
   // trips skip this (one cruise is plenty); non-splurge budgets never trigger it.
   const premiumSlots = new Map<number, Map<Slot, PinPlacement>>();
-  if (tags.has('money-no-object') && nDays >= 7) {
-    const maxPremium = Math.floor(nDays / 7); // 1 for a week, 2 for a fortnight
+  if (tags.has('money-no-object') && nDays >= PREMIUM_MIN_DAYS) {
+    const maxPremium = Math.floor(nDays / DAYS_PER_PREMIUM); // 1 for a week, 2 for a fortnight
+    // Items already claimed by a pin — pins live in pinnedSlots, NOT lastUsedDay
+    // (which the day loop fills later), so we derive the id set explicitly to
+    // avoid placing a pinned item a second time as a premium pick.
+    const pinnedItemIds = new Set<string>();
+    for (const daySlots of pinnedSlots.values())
+      for (const { cardEntry } of daySlots.values()) pinnedItemIds.add(entryId(cardEntry));
+
     // Best premium-tier item per group (one splurge per group), highest fit first.
     const bestPerGroup = new Map<string, { item: ViatorItem; group: ViatorGroup; score: number }>();
     for (const item of fillCatalog.items) {
       if (budgetTag(item.price_usd) !== 'money-no-object') continue; // premium tier only
-      if (ctx.lastUsedDay.has(item.id)) continue;                    // already pinned
+      if (pinnedItemIds.has(item.id)) continue;                      // already pinned
       const fit = fitItem(item, tags);
       if (fit.rejected) continue;
       const group = fillCatalog.groups.find((g) => g.id === item.group_id);
       if (!group) continue;
       const cur = bestPerGroup.get(group.id);
-      if (!cur || fit.score > cur.score) bestPerGroup.set(group.id, { item, group, score: fit.score });
+      // Tiebreak on id so equal-score picks are stable across catalog orderings.
+      if (!cur || fit.score > cur.score || (fit.score === cur.score && item.id < cur.item.id)) {
+        bestPerGroup.set(group.id, { item, group, score: fit.score });
+      }
     }
-    const ranked = [...bestPerGroup.values()].sort((a, b) => b.score - a.score).slice(0, maxPremium);
+    const ranked = [...bestPerGroup.values()]
+      .sort((a, b) => b.score - a.score || (a.item.id < b.item.id ? -1 : 1))
+      .slice(0, maxPremium);
+
     let premCursor = nDays > 1 ? 2 : 1; // bias away from the arrival (day 1) chill day
+    const usedPremiumClusters = new Set<string>(); // no two identical splurges
     for (const { item, group } of ranked) {
-      const others = fillCatalog.items.filter((i) => i.group_id === group.id && i.id !== item.id);
+      const cid = item.experience_cluster_id;
+      if (cid && usedPremiumClusters.has(cid)) continue; // same experience as an earlier splurge
+      // `others` from the full FILTERED catalog (not the popularity-floored fill
+      // pool) so the card's swap alternatives match a pinned card's, and sorted
+      // by display_order via the shared helper.
+      const others = otherItemsInGroup(group.id, item.id, filteredCatalog);
       const cardEntry: CardEntry = { kind: 'group', group, bestSeller: item, others };
       const { preferred, fallback } = getPinSlotPrefs(cardEntry);
       const placement = findPinSlot(preferred, fallback, nDays, premCursor, slotAvail);
@@ -487,6 +514,7 @@ export function generatePlan(
       const { day, slot } = placement;
       if (!pinClaimed.has(day)) pinClaimed.set(day, new Set());
       pinClaimed.get(day)!.add(slot);
+      if (cid) usedPremiumClusters.add(cid);
       // No `pinned: true` — premium splurges are auto-suggested, not user picks,
       // so they carry no "★ Your pick" badge.
       if (!premiumSlots.has(day)) premiumSlots.set(day, new Map());
@@ -534,13 +562,20 @@ export function generatePlan(
 
       // Premium splurge (money-no-object, long trip): placed like a pin but the
       // group is NOT retired — its crowd-pleaser should still surface elsewhere.
-      // Deduped at the item level only (lastUsedDay); we deliberately skip the
-      // cluster/tag marking so a same-group crowd-pleaser isn't suppressed.
+      // We mark the item id (lastUsedDay) and its experience CLUSTER, but NOT its
+      // tags: cluster id means "the same real-world experience," so normal fill
+      // won't place an identical one, while the coarser tag-Jaccard fallback
+      // would wrongly suppress a distinct-but-related crowd-pleaser (a charter
+      // and a party cruise share sail tags) — exactly the second pick we want.
       const premium = premiumSlots.get(d)?.get(slot);
       if (premium) {
         const { cardEntry: pick, slotEntry } = premium;
         budgetLeft -= entryPrice(pick);
         ctx.lastUsedDay.set(entryId(pick), d);
+        if (pick.kind === 'group') {
+          const cid = pick.bestSeller.experience_cluster_id;
+          if (cid) ctx.usedClusterIds.add(cid);
+        }
         usedKinds.add(entryKind(pick));
         if (!anchor) anchor = entryRegion(pick);
         picks.push(pick);

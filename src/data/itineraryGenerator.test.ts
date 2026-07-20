@@ -349,3 +349,21 @@ describe('generatePlan — premium splurge (money-no-object, week-plus)', () => 
     }
   });
 });
+
+describe('generatePlan — premium splurge does not duplicate a pinned item', () => {
+  const cat = getCatalog();
+  const MNO: Answers = {
+    ...DEFAULT_ANSWERS, budget: 'Money no object', adventureLevel: 30,
+    groupType: 'Couple', interests: ['beach-chill', 'watersports'],
+  };
+
+  it('pinning the private charter keeps it appearing exactly once (no pin+premium double-place)', () => {
+    for (let s = 0; s < 6; s += 1) {
+      const plan = generatePlan({ ...MNO, days: 9 }, cat, { seed: s, pinned: ['item:private-charter'] });
+      const charterCount = plan
+        .flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening])
+        .filter((e) => e.kind === 'group' && e.bestSellerId === 'private-charter').length;
+      expect(charterCount).toBe(1);
+    }
+  });
+});
