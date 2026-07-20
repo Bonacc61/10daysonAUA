@@ -14,13 +14,14 @@
 import type { Answers } from '../App';
 import type { Catalog } from './activitySource';
 import type { Activity, Day } from './activities';
-import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry } from '../types';
+import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry, ViatorItem, ViatorGroup } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, blendPools, entryPrice } from './matcher';
 import { fitItem, refaceForAnswers, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 import { effectiveFlags } from './notesFlags';
+import { budgetTag } from './classify';
 
 const DAY_COLORS = ['#FF6B47', '#3B82F6', '#22C55E', '#EAB308', '#E63946', '#8B5CF6', '#0EA5E9'];
 
@@ -450,6 +451,51 @@ export function generatePlan(
   }
   // ---------------------------------------------------------------------------
 
+  // --- Premium splurge pre-pass ---------------------------------------------
+  // A money-no-object traveller on a week-plus trip should get aspirational
+  // premium experiences (a private charter) IN ADDITION to the universal crowd-
+  // pleasers, not instead of them — they're distinct enough to do both. But such
+  // items share a Viator group with the group's crowd-pleaser (a private charter
+  // and a party cruise are both "sailing-cruises"), so normal group-dedup would
+  // surface only one. We place the top premium pick(s) here, exempt from group-
+  // dedup and marked used at the ITEM level only — so the group stays open for
+  // its crowd-pleaser via normal fill, and both land on different days. Shorter
+  // trips skip this (one cruise is plenty); non-splurge budgets never trigger it.
+  const premiumSlots = new Map<number, Map<Slot, PinPlacement>>();
+  if (tags.has('money-no-object') && nDays >= 7) {
+    const maxPremium = Math.floor(nDays / 7); // 1 for a week, 2 for a fortnight
+    // Best premium-tier item per group (one splurge per group), highest fit first.
+    const bestPerGroup = new Map<string, { item: ViatorItem; group: ViatorGroup; score: number }>();
+    for (const item of fillCatalog.items) {
+      if (budgetTag(item.price_usd) !== 'money-no-object') continue; // premium tier only
+      if (ctx.lastUsedDay.has(item.id)) continue;                    // already pinned
+      const fit = fitItem(item, tags);
+      if (fit.rejected) continue;
+      const group = fillCatalog.groups.find((g) => g.id === item.group_id);
+      if (!group) continue;
+      const cur = bestPerGroup.get(group.id);
+      if (!cur || fit.score > cur.score) bestPerGroup.set(group.id, { item, group, score: fit.score });
+    }
+    const ranked = [...bestPerGroup.values()].sort((a, b) => b.score - a.score).slice(0, maxPremium);
+    let premCursor = nDays > 1 ? 2 : 1; // bias away from the arrival (day 1) chill day
+    for (const { item, group } of ranked) {
+      const others = fillCatalog.items.filter((i) => i.group_id === group.id && i.id !== item.id);
+      const cardEntry: CardEntry = { kind: 'group', group, bestSeller: item, others };
+      const { preferred, fallback } = getPinSlotPrefs(cardEntry);
+      const placement = findPinSlot(preferred, fallback, nDays, premCursor, slotAvail);
+      if (!placement) continue;
+      const { day, slot } = placement;
+      if (!pinClaimed.has(day)) pinClaimed.set(day, new Set());
+      pinClaimed.get(day)!.add(slot);
+      // No `pinned: true` — premium splurges are auto-suggested, not user picks,
+      // so they carry no "★ Your pick" badge.
+      if (!premiumSlots.has(day)) premiumSlots.set(day, new Map());
+      premiumSlots.get(day)!.set(slot, { cardEntry, slotEntry: toSlotEntry(cardEntry) });
+      premCursor = (day % nDays) + 1;
+    }
+  }
+  // ---------------------------------------------------------------------------
+
   const days: Day[] = [];
   for (let d = 1; d <= nDays; d += 1) {
     const slots: Record<Slot, SlotEntry[]> = { morning: [], afternoon: [], evening: [] };
@@ -479,6 +525,22 @@ export function generatePlan(
           const tags = pick.bestSeller.tags ?? [];
           if (tags.length > 0) ctx.usedTagSets.push(tags);
         }
+        usedKinds.add(entryKind(pick));
+        if (!anchor) anchor = entryRegion(pick);
+        picks.push(pick);
+        slots[slot].push(slotEntry);
+        continue;
+      }
+
+      // Premium splurge (money-no-object, long trip): placed like a pin but the
+      // group is NOT retired — its crowd-pleaser should still surface elsewhere.
+      // Deduped at the item level only (lastUsedDay); we deliberately skip the
+      // cluster/tag marking so a same-group crowd-pleaser isn't suppressed.
+      const premium = premiumSlots.get(d)?.get(slot);
+      if (premium) {
+        const { cardEntry: pick, slotEntry } = premium;
+        budgetLeft -= entryPrice(pick);
+        ctx.lastUsedDay.set(entryId(pick), d);
         usedKinds.add(entryKind(pick));
         if (!anchor) anchor = entryRegion(pick);
         picks.push(pick);

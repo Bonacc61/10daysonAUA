@@ -317,3 +317,35 @@ describe('generatePlan — popularity floor (bookability)', () => {
     expect(placed).toBe(true);
   });
 });
+
+describe('generatePlan — premium splurge (money-no-object, week-plus)', () => {
+  const cat = getCatalog();
+  const MNO: Answers = {
+    ...DEFAULT_ANSWERS, budget: 'Money no object', adventureLevel: 30,
+    groupType: 'Couple', interests: ['beach-chill', 'watersports'],
+  };
+  const sailingEntries = (plan: Day[]) =>
+    plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening])
+      .filter((e): e is { kind: 'group'; groupId: string; bestSellerId: string } =>
+        e.kind === 'group' && e.groupId === 'sailing-cruises');
+
+  it('a 9-day trip surfaces the private charter AND a second sailing-cruises cruise', () => {
+    const plan = generatePlan({ ...MNO, days: 9 }, cat, { seed: 1 });
+    const sc = sailingEntries(plan);
+    expect(sc.some((e) => e.bestSellerId === 'private-charter')).toBe(true);
+    expect(sc.length).toBeGreaterThanOrEqual(2); // charter + a crowd-pleaser cruise
+  });
+
+  it('a 5-day trip keeps just one sailing-cruises pick (no premium pre-pass under a week)', () => {
+    const plan = generatePlan({ ...MNO, days: 5 }, cat, { seed: 1 });
+    expect(sailingEntries(plan).length).toBeLessThanOrEqual(1);
+  });
+
+  it('a mid-range traveller never gets the premium charter (over budget, gated to money-no-object)', () => {
+    const midRange: Answers = { ...MNO, budget: 'Mid-range' };
+    for (let s = 0; s < 6; s += 1) {
+      const plan = generatePlan({ ...midRange, days: 9 }, cat, { seed: s });
+      expect(sailingEntries(plan).some((e) => e.bestSellerId === 'private-charter')).toBe(false);
+    }
+  });
+});
