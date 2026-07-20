@@ -1,4 +1,4 @@
-import React, { type CSSProperties, useState } from 'react';
+import React, { type CSSProperties, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { capture } from '../lib/analytics';
 import {
@@ -277,19 +277,88 @@ function GtkTimelineCard({ card }: { card: typeof GTK_CARDS[number] }) {
 }
 
 function GoodToKnowSection() {
-  // Click accordion: one phase open at a time, expanding in place. Robust and
-  // gap-free — no scroll-pinning (which fought short content: sensitivity, a
-  // trailing gap before the FAQ, and no "in place" feel).
   const [active, setActive] = useState(0);
+  const [open, setOpen] = useState(false);
+  // Static (all-expanded, no pin) for reduced-motion and narrow screens, where a
+  // phase's stacked cards can be taller than the viewport the pin would clip.
+  const [staticMode] = useState(
+    () => typeof window !== 'undefined'
+      && (window.matchMedia('(prefers-reduced-motion: reduce)').matches || window.innerWidth <= 720),
+  );
+  const activeRef = useRef(0);
+  const trackRef = useRef<HTMLDivElement>(null);
+
   const phases = GTK_SECTION_META.map((s) => ({
     ...s,
     cards: GTK_CARDS.filter((c) => c.section === s.key),
   }));
+  const n = phases.length;
+
+  useEffect(() => { activeRef.current = active; }, [active]);
+
+  // Scrollytelling: the timeline is pinned (sticky, filling the viewport and
+  // vertically centred) while you scroll through a tall track; the fraction
+  // scrolled picks the open phase, so phases expand/collapse IN PLACE as you
+  // scroll. Filling the viewport means the pin releases exactly as the last
+  // phase ends, so there's no dead-zone gap before the FAQ.
+  useEffect(() => {
+    if (!open || staticMode) return;
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const el = trackRef.current;
+        if (!el) return;
+        const total = el.offsetHeight - window.innerHeight;
+        if (total <= 0) return;
+        const scrolled = Math.min(Math.max(-el.getBoundingClientRect().top, 0), total);
+        const idx = Math.min(n - 1, Math.floor((scrolled / total) * n * 0.9999));
+        if (idx !== activeRef.current) setActive(idx);
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); };
+  }, [open, staticMode, n]);
+
+  const goPhase = (i: number) => {
+    const el = trackRef.current;
+    if (!el || staticMode) { setActive(i); return; }
+    const total = el.offsetHeight - window.innerHeight;
+    const target = window.scrollY + el.getBoundingClientRect().top + ((i + 0.5) / n) * total;
+    window.scrollTo({ top: target, behavior: 'smooth' });
+  };
+
+  const tl = (
+    <div className="gtk-tl">
+      {phases.map((p, i) => (
+        <div className="gtk-phase" data-active={staticMode || i === active ? '' : undefined} key={p.key}>
+          <button
+            type="button"
+            className="gtk-phase-head"
+            aria-expanded={staticMode || i === active}
+            onClick={() => goPhase(i)}
+          >
+            <span className="gtk-node" aria-hidden />
+            <span className="gtk-phase-label font-display">{p.label}</span>
+          </button>
+          <div className="gtk-phase-wrap">
+            <div className="gtk-phase-inner">
+              <div className="gtk-phase-cards">
+                {p.cards.map((c) => <GtkTimelineCard key={c.title} card={c} />)}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <details
       className="aruba-section bleed"
       style={{ background: 'var(--yellow-bg)', borderTop: '2px solid var(--ink)' }}
+      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
     >
       <summary style={{ padding: '24px 36px' }}>
         <div className="container-1280" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, padding: 0 }}>
@@ -302,29 +371,14 @@ function GoodToKnowSection() {
       </summary>
       <div style={{ padding: '0 36px 56px' }}>
         <div className="container-1280" style={{ padding: 0 }}>
-          <p className="gtk-lede">The little things locals wish every visitor knew — tap a phase to open it.</p>
-          <div className="gtk-tl">
-            {phases.map((p, i) => (
-              <div className="gtk-phase" data-active={i === active ? '' : undefined} key={p.key}>
-                <button
-                  type="button"
-                  className="gtk-phase-head"
-                  aria-expanded={i === active}
-                  onClick={() => setActive(i)}
-                >
-                  <span className="gtk-node" aria-hidden />
-                  <span className="gtk-phase-label font-display">{p.label}</span>
-                </button>
-                <div className="gtk-phase-wrap">
-                  <div className="gtk-phase-inner">
-                    <div className="gtk-phase-cards">
-                      {p.cards.map((c) => <GtkTimelineCard key={c.title} card={c} />)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <p className="gtk-lede">The little things locals wish every visitor knew — scroll to move through the trip.</p>
+          {staticMode ? (
+            tl
+          ) : (
+            <div className="gtk-track" ref={trackRef} style={{ height: `${n * 52}vh` }}>
+              <div className="gtk-sticky">{tl}</div>
+            </div>
+          )}
         </div>
       </div>
     </details>

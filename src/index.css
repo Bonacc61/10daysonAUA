@@ -663,6 +663,14 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   font-style: italic; font-size: 15px; line-height: 1.5;
   color: rgba(0,0,0,0.85); margin: 0 0 26px; max-width: 620px;
 }
+/* Scrollytelling track: the sticky child fills the viewport and centres the
+   timeline, so phases change in place as you scroll and the pin releases right
+   as the last phase ends (no dead-zone gap before the FAQ). */
+.gtk-track { position: relative; }
+.gtk-sticky {
+  position: sticky; top: 0; height: 100vh;
+  display: flex; flex-direction: column; justify-content: center;
+}
 .gtk-tl { position: relative; padding-left: 6px; }
 /* the vertical spine */
 .gtk-tl::before {
