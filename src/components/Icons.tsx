@@ -50,6 +50,7 @@ export const Mail     = (p: IconProps) => <Icon {...p}><path d="M4 4h16c1.1 0 2 
 export const Info     = (p: IconProps) => <Icon {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></Icon>;
 export const Drop     = (p: IconProps) => <Icon {...p}><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></Icon>;
 export const Wave     = (p: IconProps) => <Icon {...p}><path d="M2 8c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0"/><path d="M2 15c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0"/></Icon>;
+export const Bag      = (p: IconProps) => <Icon {...p}><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></Icon>;
 
-const ICON_MAP = { wind: Wind, sun: Sun, dollar: Dollar, card: Card, car: Car, shield: Shield, cloud: Cloud, msg: Msg, doc: Doc, drop: Drop, wave: Wave };
+const ICON_MAP = { wind: Wind, sun: Sun, dollar: Dollar, card: Card, car: Car, shield: Shield, cloud: Cloud, msg: Msg, doc: Doc, drop: Drop, wave: Wave, bag: Bag };
 export const iconFor = (name: keyof typeof ICON_MAP) => ICON_MAP[name];

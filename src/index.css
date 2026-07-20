@@ -503,9 +503,6 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 @media (max-width: 900px) {
   .container-1280 { padding: 0 20px; }
 
-  /* Good to know grid: 4 → 2 columns */
-  .gtk-grid { grid-template-columns: repeat(2, 1fr) !important; }
-
   /* Hero typography shrinks */
   .hero-title { font-size: 44px !important; }
 
@@ -573,9 +570,6 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
     padding-right: 14px !important;
     padding-bottom: 36px !important;
   }
-
-  /* ---------- Good to know: 1 col on phone ---------- */
-  .gtk-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
 
   /* ---------- Sample-output: timeline day-block padding shrinks ---------- */
   .sample-right > div { padding-left: 44px !important; }
@@ -655,7 +649,7 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ---------- Good-to-knows: "Island intel" pinned tip board ---------- */
+/* ---------- Good-to-knows: "Island intel" swipe deck ---------- */
 .gtk-eyebrow {
   display: inline-block;
   font-size: 11px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase;
@@ -664,55 +658,77 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   padding: 4px 12px; box-shadow: 3px 3px 0 var(--ink);
   transform: rotate(-1.6deg);
 }
-.gtk-board {
-  background-image: radial-gradient(rgba(26,26,26,0.09) 1.5px, transparent 1.6px);
-  background-size: 20px 20px; background-position: -4px -4px;
-  border-radius: 18px; padding: 22px 16px;
+/* --- Good-to-know: scroll-through journey timeline ------------------------ */
+.gtk-lede {
+  font-style: italic; font-size: 15px; line-height: 1.5;
+  color: rgba(0,0,0,0.85); margin: 0 0 26px; max-width: 620px;
 }
-.gtk-tag {
-  position: relative; background: var(--cream);
-  border: 2px solid var(--ink); border-radius: 14px;
-  padding: 24px 18px 18px;
-  box-shadow: 5px 6px 0 0 var(--accent);
-  transform: rotate(var(--tilt, -1.2deg));
-  transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease;
+/* Scrollytelling: tall track + pinned timeline; scroll fraction picks the phase.
+   The inner is content-height and pins near the top (no 100vh centering, which
+   left a big empty gap under the section header before the pin engaged). */
+.gtk-story { position: relative; }
+.gtk-story-inner { position: sticky; top: 24px; }
+.gtk-tl { position: relative; padding-left: 6px; }
+/* the vertical spine */
+.gtk-tl::before {
+  content: ''; position: absolute; left: 16px; top: 10px; bottom: 10px;
+  width: 3px; background: var(--ink); border-radius: 2px;
 }
-.gtk-tag:hover { transform: rotate(0deg) translateY(-5px); box-shadow: 9px 12px 0 0 var(--accent); z-index: 2; }
-.gtk-tag::before { /* washi tape */
-  content: ''; position: absolute; top: -8px; left: 24px;
-  width: 46px; height: 16px; background: var(--accent); opacity: .55;
-  border: 1.5px solid var(--ink); border-radius: 2px; transform: rotate(-4deg);
+.gtk-phase { position: relative; padding-left: 48px; }
+.gtk-phase + .gtk-phase { margin-top: 6px; }
+.gtk-phase-head {
+  display: flex; align-items: center; gap: 13px; width: 100%;
+  padding: 12px 0; background: none; border: 0; cursor: pointer;
+  text-align: left; font: inherit; color: var(--ink); position: relative;
 }
-.gtk-tag-num {
-  position: absolute; top: 11px; right: 15px;
-  font-family: 'Caprasimo', Georgia, serif; font-size: 34px; line-height: 1;
-  color: var(--accent); opacity: .26; pointer-events: none;
+.gtk-phase-head:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; border-radius: 8px; }
+/* node sits on the spine (spine at left:16px; node is 24px, centred there) */
+.gtk-node {
+  position: absolute; left: -44px; top: 50%; transform: translateY(-50%);
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--yellow); border: 3px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink); transition: background .2s ease, transform .2s ease;
 }
-.gtk-tag-stamp {
-  width: 46px; height: 46px; border-radius: 50%;
+.gtk-phase[data-active] .gtk-node { background: var(--red); transform: translateY(-50%) scale(1.12); }
+.gtk-phase-label { font-size: 25px; line-height: 1.05; color: var(--ink); }
+/* collapse the phase's cards to nothing when inactive (0fr → 1fr) */
+.gtk-phase-wrap { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s ease; }
+.gtk-phase[data-active] .gtk-phase-wrap { grid-template-rows: 1fr; }
+.gtk-phase-inner { overflow: hidden; min-height: 0; }
+.gtk-phase-cards {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  padding: 6px 0 22px;
+}
+.tlc {
+  background: var(--cream); border: 2px solid var(--ink); border-radius: 14px;
+  box-shadow: 4px 5px 0 0 var(--accent); padding: 15px 17px;
+}
+.tlc-head { display: flex; align-items: center; gap: 11px; margin-bottom: 9px; }
+.tlc-stamp {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
   background: var(--accent); border: 2px solid var(--ink); color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 2px 2px 0 var(--ink); margin-bottom: 13px;
+  display: flex; align-items: center; justify-content: center; box-shadow: 2px 2px 0 var(--ink);
 }
-.gtk-tag-title { font-size: 20px; line-height: 1.05; color: var(--ink); margin: 0 0 6px; }
-.gtk-tag-body { font-size: 13px; line-height: 1.5; color: rgba(0,0,0,0.72); margin: 0; }
-@media (max-width: 720px) {
-  .gtk-tag { transform: none !important; }
-  .gtk-board { padding: 16px 10px; background-size: 18px 18px; }
-}
-
-.gtk-tag-flag {
-  display: inline-flex; align-items: center;
-  margin-bottom: 12px;
-  font-size: 9.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
+.tlc-title { font-size: 18px; line-height: 1.08; color: var(--ink); margin: 0; }
+.tlc-flag {
+  margin-left: auto; flex-shrink: 0;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
   color: var(--ink); background: var(--yellow);
-  border: 1.5px solid var(--ink); border-radius: 7px;
-  padding: 4px 9px; box-shadow: 2px 2px 0 var(--ink);
+  border: 1.5px solid var(--ink); border-radius: 7px; padding: 3px 8px;
+  box-shadow: 2px 2px 0 var(--ink); white-space: nowrap;
 }
-.gtk-tag-sign {
-  display: block; margin-top: 12px; padding-top: 9px;
-  border-top: 1.5px dashed rgba(26,26,26,0.18);
-  font-style: italic; font-size: 12.5px; color: var(--sand-700);
+.tlc-body { font-size: 13px; line-height: 1.55; color: rgba(0,0,0,0.72); margin: 0; }
+.tlc-sign {
+  display: block; margin-top: 9px;
+  font-style: italic; font-size: 12px; color: var(--sand-700);
+}
+@media (max-width: 720px) {
+  .gtk-phase-cards { grid-template-columns: 1fr; }
+  .gtk-phase-label { font-size: 21px; }
+  .tlc-flag { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gtk-phase-wrap, .gtk-node { transition: none; }
 }
 
 

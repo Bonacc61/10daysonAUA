@@ -1,4 +1,4 @@
-import React, { type CSSProperties, useState } from 'react';
+import React, { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { capture } from '../lib/analytics';
 import {
@@ -219,10 +219,10 @@ function SampleSection({ days, goPlan }: { days: string; goPlan: () => void }) {
               <button className="btn-coral" onClick={goPlan}>build my plan →</button>
               <img
                 src="/sample-map.png"
-                alt="Sample Aruba trip map — three activity stops connected by a route across the island"
+                alt="Sample Aruba trip map — three activity stops shown as photo pins connected by a route, with an activity card open"
                 loading="lazy"
-                width={1280}
-                height={880}
+                width={980}
+                height={760}
                 style={{
                   display: 'block', width: '100%', maxWidth: 520, height: 'auto',
                   marginTop: 22, border: '2px solid var(--ink)', borderRadius: 12,
@@ -255,29 +255,108 @@ function SampleSection({ days, goPlan }: { days: string; goPlan: () => void }) {
 
 /* ---------- Good to know ---------- */
 
-// Hand-placed tilts so the tags feel pinned to a board, not stamped on a grid.
-const GTK_TILTS = ['-1.4deg', '1.1deg', '-0.8deg', '1.3deg', '-1.2deg', '0.9deg', '-1.3deg', '1.2deg'];
+const GTK_SECTION_META = [
+  { key: 'before',     label: 'Before you get here' },
+  { key: 'first-day',  label: 'Your first day' },
+  { key: 'throughout', label: 'Throughout your stay' },
+] as const;
 
-function TipTag({ card, index }: { card: typeof GTK_CARDS[number]; index: number }) {
+function GtkTimelineCard({ card }: { card: typeof GTK_CARDS[number] }) {
   const IconCmp = iconFor(card.icon);
   return (
-    <article
-      className="gtk-tag"
-      style={{ '--accent': card.accent, '--tilt': GTK_TILTS[index % GTK_TILTS.length] } as CSSProperties}
-    >
-      <span className="gtk-tag-num">{String(index + 1).padStart(2, '0')}</span>
-      {card.note && <span className="gtk-tag-flag">{card.note}</span>}
-      <span className="gtk-tag-stamp"><IconCmp size={20} /></span>
-      <h3 className="font-display gtk-tag-title">{card.title}</h3>
-      <p className="gtk-tag-body">{card.body}</p>
-      {card.attribution && <span className="gtk-tag-sign">— {card.attribution}</span>}
-    </article>
+    <div className="tlc" style={{ '--accent': card.accent } as CSSProperties}>
+      <div className="tlc-head">
+        <span className="tlc-stamp"><IconCmp size={17} /></span>
+        <h4 className="tlc-title font-display">{card.title}</h4>
+        {card.note && <span className="tlc-flag">{card.note}</span>}
+      </div>
+      <p className="tlc-body">{card.body}</p>
+      {card.attribution && <span className="tlc-sign">— {card.attribution}</span>}
+    </div>
   );
 }
 
 function GoodToKnowSection() {
+  const [active, setActive] = useState(0);
+  const [open, setOpen] = useState(false);
+  const [reduced, setReduced] = useState(false);
+  const activeRef = useRef(0);
+  const storyRef = useRef<HTMLDivElement>(null);
+
+  const phases = GTK_SECTION_META.map((s) => ({
+    ...s,
+    cards: GTK_CARDS.filter((c) => c.section === s.key),
+  }));
+  const n = phases.length;
+
+  useEffect(() => { activeRef.current = active; }, [active]);
+  useEffect(() => { setReduced(window.matchMedia('(prefers-reduced-motion: reduce)').matches); }, []);
+
+  // Scrollytelling: the timeline is pinned (position:sticky) inside a tall track;
+  // the fraction scrolled through the track maps directly to the open phase. No
+  // layout compensation, and every phase (incl. the last) is reachable because
+  // the track — not the page tail — provides the scroll distance. Only runs once
+  // the <details> is open (closed content has no layout).
+  useEffect(() => {
+    if (!open || reduced) return;
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const el = storyRef.current;
+        if (!el) return;
+        const total = el.offsetHeight - window.innerHeight;
+        if (total <= 0) return;
+        const scrolled = Math.min(Math.max(-el.getBoundingClientRect().top, 0), total);
+        const idx = Math.min(n - 1, Math.floor((scrolled / total) * n));
+        if (idx !== activeRef.current) setActive(idx);
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); };
+  }, [open, reduced, n]);
+
+  // Clicking a phase scrolls the track to that phase's band so the pin follows.
+  const goPhase = (i: number) => {
+    const el = storyRef.current;
+    if (!el || reduced) { setActive(i); return; }
+    const total = el.offsetHeight - window.innerHeight;
+    const target = window.scrollY + el.getBoundingClientRect().top + ((i + 0.5) / n) * total;
+    window.scrollTo({ top: target, behavior: 'smooth' });
+  };
+
+  const timeline = (allOpen: boolean) => (
+    <div className="gtk-tl">
+      {phases.map((p, i) => (
+        <div className="gtk-phase" data-active={allOpen || i === active ? '' : undefined} key={p.key}>
+          <button
+            type="button"
+            className="gtk-phase-head"
+            aria-expanded={allOpen || i === active}
+            onClick={() => goPhase(i)}
+          >
+            <span className="gtk-node" aria-hidden />
+            <span className="gtk-phase-label font-display">{p.label}</span>
+          </button>
+          <div className="gtk-phase-wrap">
+                  <div className="gtk-phase-inner">
+                    <div className="gtk-phase-cards">
+                      {p.cards.map((c) => <GtkTimelineCard key={c.title} card={c} />)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+  );
+
   return (
-    <details className="aruba-section bleed" style={{ background: 'var(--yellow-bg)', borderTop: '2px solid var(--ink)' }}>
+    <details
+      className="aruba-section bleed"
+      style={{ background: 'var(--yellow-bg)', borderTop: '2px solid var(--ink)' }}
+      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+    >
       <summary style={{ padding: '24px 36px' }}>
         <div className="container-1280" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, padding: 0 }}>
           <h2 className="font-display" style={{ fontSize: 32, margin: 0, color: 'var(--ink)' }}>Good-to-knows.</h2>
@@ -289,12 +368,14 @@ function GoodToKnowSection() {
       </summary>
       <div style={{ padding: '0 36px 56px' }}>
         <div className="container-1280" style={{ padding: 0 }}>
-          <p style={{ fontStyle: 'italic', fontSize: 15, lineHeight: 1.5, color: 'rgba(0,0,0,0.8)', margin: '0 0 20px', maxWidth: 720 }}>The little things locals wish every visitor knew.</p>
-          <div className="gtk-board">
-            <div className="gtk-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 22 }}>
-              {GTK_CARDS.map((c, i) => <TipTag key={c.title} card={c} index={i} />)}
+          <p className="gtk-lede">The little things locals wish every visitor knew — the trip, start to finish.</p>
+          {reduced ? (
+            timeline(true)
+          ) : (
+            <div className="gtk-story" ref={storyRef} style={{ height: `${n * 46}vh` }}>
+              <div className="gtk-story-inner">{timeline(false)}</div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </details>

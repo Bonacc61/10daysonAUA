@@ -40,11 +40,13 @@ export type Day = {
 
 export type FAQItem = { q: string; a: string };
 
+export type GtkSection = 'before' | 'first-day' | 'throughout';
 export type GoodToKnowCard = {
-  icon: 'wind' | 'sun' | 'dollar' | 'card' | 'car' | 'shield' | 'cloud' | 'msg' | 'doc' | 'drop' | 'wave';
+  icon: 'wind' | 'sun' | 'dollar' | 'card' | 'car' | 'shield' | 'cloud' | 'msg' | 'doc' | 'drop' | 'wave' | 'bag';
   accent: string;
   title: string;
   body: string;
+  section: GtkSection;   // which phase of the trip this tip belongs to
   note?: string;        // small "do this first" style flag (e.g. arrival steps)
   attribution?: string; // a local's signature, rendered handwritten-style
 };
@@ -170,18 +172,26 @@ export const FAQ_ITEMS: FAQItem[] = [
   { q: 'How current is the information?', a: 'Hours, prices, and seasonal closures are refreshed every 14 days. Weather-dependent picks are pulled live when you generate the plan.' },
 ];
 
+// Ordered by trip phase (before → first-day → throughout); the landing page
+// groups by `section` and renders them as a scroll-through timeline.
 export const GTK_CARDS: GoodToKnowCard[] = [
-  { icon: 'doc',    accent: '#E63946', title: 'The ED-card & the $20 fee', note: 'Arrival form — do this first', body: "Every air arrival files a free ED-card at edcardaruba.aw within 7 days of landing, plus a one-time $20 sustainability fee (ages 8+, once per calendar year). Airlines check it before you board. Ignore any site charging $80+ to \"process\" it — they're middlemen. Cruise passengers are usually exempt." },
-  { icon: 'drop',   accent: '#3B82F6', title: 'Tap water', body: "Drink it — Aruba's tap meets WHO standards, so locals never buy bottled. With no freshwater rivers, the island desalinates Caribbean seawater (distillation + reverse osmosis) into crystal-clear water. Bring a refillable bottle and skip the plastic." },
-  { icon: 'wind',   accent: '#22C55E', title: 'Wind', body: "Steady trade winds, 15–25 mph: bliss on a hot beach, war on a bad-hair day — and why there are barely any mosquitoes. Eagle and Arashi stay calmest by afternoon." },
-  { icon: 'dollar', accent: '#EAB308', title: 'Tipping', attribution: 'the r/Aruba crew', body: "Restaurants often pool a 10–15% service charge (check the bill) split house-wide, so an extra 5–10% to your server is kind. Taxis run fixed government rates, cash only — just round up." },
-  { icon: 'car',    accent: '#FF6B47', title: 'Driving', attribution: 'your cab driver', body: "Right-hand side. Paved roads and Arikok's main route are fine in any car, but the Natural Pool and wild north coast need a real 4×4 — and taking a regular rental off-road voids your insurance. Donkeys, goats and iguanas legally have the right of way out in the cunucu, so slow down." },
-  { icon: 'wave',   accent: '#E63946', title: 'Where to swim', attribution: 'the lifeguard, & we mean it', body: "Stick to the calm leeward (west) side — Palm, Eagle, Baby Beach. The windward north and east coasts look spectacular, but the currents and undertow are genuinely dangerous. Don't swim there, no matter how good the photo looks." },
-  { icon: 'sun',    accent: '#EAB308', title: 'Sun', body: "A desert island just below the hurricane belt — you'll burn faster than you expect. Reef-safe sunscreen only: Aruba banned the oxybenzone kind, so check your bottle before you pack." },
-  { icon: 'card',   accent: '#22C55E', title: 'Currency', body: "The florin is pegged to the dollar (~1.79), so USD works everywhere and cards are fine. Keep small USD bills for tips, taxis and local food stalls." },
-  { icon: 'cloud',  accent: '#3B82F6', title: 'Weather', body: "Year-round ~82°F and below the hurricane belt, so the season barely matters. Rain is short showers, mostly Oct–Dec; Jan–May is the driest stretch." },
-  { icon: 'msg',    accent: '#FF6B47', title: 'Language', attribution: 'danki! kom weer', body: "English is everywhere and Dutch is official, but the mother tongue is Papiamento. Try bon dia (good day), danki (thanks) and dushi (sweet/lovely)." },
-  { icon: 'car',    accent: '#8B5CF6', title: 'No Uber here', note: 'Taxis run the island', body: "Uber, Bolt and Lyft don't operate on Aruba — but you won't be stranded. Licensed taxis run fixed government rates, so there's no haggling; just round up for good service. Your hotel receptionist will call one for you in seconds. Allow 15–20 minutes for it to arrive. Agree on the fare before you get in for longer runs like the airport or San Nicolas." },
+  // ── Before you get here ──────────────────────────────────────────────
+  { section: 'before', icon: 'doc',    accent: '#E63946', title: 'The ED-card & the $20 fee', note: 'Arrival form — do this first', body: "Every air arrival files a free ED-card at edcardaruba.aw within 7 days of landing, plus a one-time $20 sustainability fee (ages 8+, once per calendar year). Airlines check it before you board. Ignore any site charging $80+ to \"process\" it — they're middlemen. Cruise passengers are usually exempt." },
+  { section: 'before', icon: 'cloud',  accent: '#3B82F6', title: 'Weather', body: "Year-round ~82°F and below the hurricane belt, so the season barely matters. Rain is short showers, mostly Oct–Dec; Jan–May is the driest stretch." },
+  { section: 'before', icon: 'sun',    accent: '#EAB308', title: 'Sun', body: "A desert island just below the hurricane belt — you'll burn faster than you expect. Reef-safe sunscreen only: Aruba banned the oxybenzone kind, so check your bottle before you pack." },
+  { section: 'before', icon: 'card',   accent: '#22C55E', title: 'Currency', body: "The florin is pegged to the dollar (~1.79), so USD works everywhere and cards are fine. Keep small USD bills for tips, taxis and local food stalls." },
+
+  // ── Your first day ───────────────────────────────────────────────────
+  { section: 'first-day', icon: 'car',  accent: '#8B5CF6', title: 'No Uber here', note: 'Taxis run the island', body: "Uber, Bolt and Lyft don't operate on Aruba — but you won't be stranded. Licensed taxis run fixed government rates, so there's no haggling; just round up for good service. Your hotel receptionist will call one for you in seconds. Allow 15–20 minutes for it to arrive. Agree on the fare before you get in for longer runs like the airport or San Nicolas." },
+  { section: 'first-day', icon: 'car',  accent: '#FF6B47', title: 'Driving', attribution: 'your cab driver', body: "Right-hand side. Paved roads and Arikok's main route are fine in any car, but the Natural Pool and wild north coast need a real 4×4 — and taking a regular rental off-road voids your insurance. Donkeys, goats and iguanas legally have the right of way out in the cunucu, so slow down." },
+  { section: 'first-day', icon: 'bag',  accent: '#00B4D8', title: 'Stock up like an Aruban', note: 'Beach kit sorted', body: "Before you hit the sand, swing by Bula Surf Shop (Harbour House, Weststraat 2, Oranjestad) for everything you forgot to pack — rubber slippers, boardshorts, tank tops, reef-safe sunscreen, a cold-keeping thermos and the island-favourite Dushi Yiu tees. It's the local one-stop for beach kit, so you skip the resort-boutique markup and blend right in." },
+  { section: 'first-day', icon: 'wave', accent: '#E63946', title: 'Where to swim', attribution: 'the lifeguard, & we mean it', body: "Stick to the calm leeward (west) side — Palm, Eagle, Baby Beach. The windward north and east coasts look spectacular, but the currents and undertow are genuinely dangerous. Don't swim there, no matter how good the photo looks." },
+
+  // ── Throughout your stay ─────────────────────────────────────────────
+  { section: 'throughout', icon: 'drop',   accent: '#3B82F6', title: 'Tap water', body: "Drink it — Aruba's tap meets WHO standards, so locals never buy bottled. With no freshwater rivers, the island desalinates Caribbean seawater (distillation + reverse osmosis) into crystal-clear water. Bring a refillable bottle and skip the plastic." },
+  { section: 'throughout', icon: 'wind',   accent: '#22C55E', title: 'Wind', body: "Steady trade winds, 15–25 mph: bliss on a hot beach, war on a bad-hair day — and why there are barely any mosquitoes. Eagle and Arashi stay calmest by afternoon." },
+  { section: 'throughout', icon: 'dollar', accent: '#EAB308', title: 'Tipping', attribution: 'the r/Aruba crew', body: "Restaurants often pool a 10–15% service charge (check the bill) split house-wide, so an extra 5–10% to your server is kind. Taxis run fixed government rates, cash only — just round up." },
+  { section: 'throughout', icon: 'msg',    accent: '#FF6B47', title: 'Language', attribution: 'danki! kom weer', body: "English is everywhere and Dutch is official, but the mother tongue is Papiamento. Try bon dia (good day), danki (thanks) and dushi (sweet/lovely)." },
 ];
 
 export const activityById = (id: string | null): Activity | undefined =>
