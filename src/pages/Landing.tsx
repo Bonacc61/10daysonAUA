@@ -294,16 +294,18 @@ function GoodToKnowSection() {
   }));
   const n = phases.length;
 
-  // Trigger line and scroll-per-phase, as fractions of viewport height.
+  // Trigger line and scroll-per-phase, as fractions of viewport height. PER is
+  // the "how much scroll to open the next phase" that felt right for 0→1.
   const LINE = 0.28;
   const PER = 0.2;
 
   useEffect(() => { activeRef.current = active; }, [active]);
 
-  // Compact natural-height timeline (no pin → no whitespace, cards at natural
-  // size). The open phase tracks how far the timeline's stable top has scrolled
-  // past the trigger line; the top doesn't move as phases collapse below it, so
-  // the mapping is monotonic.
+  // Compact natural-height timeline (no pin → no whitespace, natural cards). The
+  // open phase = how far the timeline's stable top has scrolled past the trigger
+  // line. Plus a small bottom clamp: the section sits near the page end, so the
+  // page can run out of scroll before the LAST phase's threshold — force it open
+  // in the final few px of scroll (too small to fire early on any viewport).
   useEffect(() => {
     if (!open || staticMode) return;
     let raf = 0;
@@ -314,7 +316,9 @@ function GoodToKnowSection() {
         if (!el) return;
         const vh = window.innerHeight;
         const entered = LINE * vh - el.getBoundingClientRect().top;
-        const idx = Math.max(0, Math.min(n - 1, Math.floor(entered / (PER * vh))));
+        let idx = Math.max(0, Math.min(n - 1, Math.floor(entered / (PER * vh))));
+        const remaining = document.documentElement.scrollHeight - (window.scrollY + vh);
+        if (remaining <= 40) idx = n - 1;
         if (idx !== activeRef.current) setActive(idx);
       });
     };
@@ -324,8 +328,11 @@ function GoodToKnowSection() {
   }, [open, staticMode, n]);
 
   const goPhase = (i: number) => {
+    if (staticMode) { setActive(i); return; }
     const el = tlRef.current;
-    if (!el || staticMode) { setActive(i); return; }
+    if (!el) { setActive(i); return; }
+    // The last phase lives at the page bottom (bottom clamp), so scroll there.
+    if (i === n - 1) { window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' }); return; }
     const vh = window.innerHeight;
     const y = window.scrollY + el.getBoundingClientRect().top - (LINE * vh - (i + 0.5) * (PER * vh));
     window.scrollTo({ top: y, behavior: 'smooth' });
