@@ -663,11 +663,6 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   font-style: italic; font-size: 15px; line-height: 1.5;
   color: rgba(0,0,0,0.85); margin: 0 0 26px; max-width: 620px;
 }
-/* Scrollytelling: tall track + pinned timeline; scroll fraction picks the phase.
-   The inner is content-height and pins near the top (no 100vh centering, which
-   left a big empty gap under the section header before the pin engaged). */
-.gtk-story { position: relative; }
-.gtk-story-inner { position: sticky; top: 24px; }
 .gtk-tl { position: relative; padding-left: 6px; }
 /* the vertical spine */
 .gtk-tl::before {

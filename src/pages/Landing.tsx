@@ -285,7 +285,7 @@ function GoodToKnowSection() {
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
   const activeRef = useRef(0);
-  const storyRef = useRef<HTMLDivElement>(null);
+  const tlRef = useRef<HTMLDivElement>(null);
 
   const phases = GTK_SECTION_META.map((s) => ({
     ...s,
@@ -293,25 +293,31 @@ function GoodToKnowSection() {
   }));
   const n = phases.length;
 
+  // Scroll tuning (fractions of viewport height): LINE is the trigger line near
+  // the top; PER is how far you scroll to advance one phase (bigger = less
+  // sensitive). No tall track — the timeline flows at natural height straight
+  // into the FAQ, so there is no empty gap after the last phase.
+  const LINE = 0.24;
+  const PER = 0.2;
+
   useEffect(() => { activeRef.current = active; }, [active]);
 
-  // Scrollytelling: the timeline is pinned (position:sticky) inside a tall track;
-  // the fraction scrolled through the track maps directly to the open phase. No
-  // layout compensation, and every phase (incl. the last) is reachable because
-  // the track — not the page tail — provides the scroll distance. Only runs once
-  // the <details> is open (closed content has no layout).
+  // The open phase is driven by how far the timeline's (stable) top has scrolled
+  // past the trigger line. The container top doesn't move as phases collapse
+  // (collapsing happens below the first label), so the mapping is monotonic and
+  // jump-free; equal-size phases keep the FAQ position fixed. Only runs once the
+  // <details> is open (closed content has no layout).
   useEffect(() => {
     if (!open || reduced) return;
     let raf = 0;
     const onScroll = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        const el = storyRef.current;
+        const el = tlRef.current;
         if (!el) return;
-        const total = el.offsetHeight - window.innerHeight;
-        if (total <= 0) return;
-        const scrolled = Math.min(Math.max(-el.getBoundingClientRect().top, 0), total);
-        const idx = Math.min(n - 1, Math.floor((scrolled / total) * n));
+        const vh = window.innerHeight;
+        const entered = LINE * vh - el.getBoundingClientRect().top;
+        const idx = Math.max(0, Math.min(n - 1, Math.floor(entered / (PER * vh))));
         if (idx !== activeRef.current) setActive(idx);
       });
     };
@@ -320,17 +326,17 @@ function GoodToKnowSection() {
     return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); };
   }, [open, reduced, n]);
 
-  // Clicking a phase scrolls the track to that phase's band so the pin follows.
+  // Clicking a phase scrolls to its band so scroll state stays in sync.
   const goPhase = (i: number) => {
-    const el = storyRef.current;
+    const el = tlRef.current;
     if (!el || reduced) { setActive(i); return; }
-    const total = el.offsetHeight - window.innerHeight;
-    const target = window.scrollY + el.getBoundingClientRect().top + ((i + 0.5) / n) * total;
-    window.scrollTo({ top: target, behavior: 'smooth' });
+    const vh = window.innerHeight;
+    const y = window.scrollY + el.getBoundingClientRect().top - (LINE * vh - (i + 0.5) * (PER * vh));
+    window.scrollTo({ top: y, behavior: 'smooth' });
   };
 
   const timeline = (allOpen: boolean) => (
-    <div className="gtk-tl">
+    <div className="gtk-tl" ref={tlRef}>
       {phases.map((p, i) => (
         <div className="gtk-phase" data-active={allOpen || i === active ? '' : undefined} key={p.key}>
           <button
@@ -372,13 +378,7 @@ function GoodToKnowSection() {
       <div style={{ padding: '0 36px 56px' }}>
         <div className="container-1280" style={{ padding: 0 }}>
           <p className="gtk-lede">The little things locals wish every visitor knew — the trip, start to finish.</p>
-          {reduced ? (
-            timeline(true)
-          ) : (
-            <div className="gtk-story" ref={storyRef} style={{ height: `${n * 46}vh` }}>
-              <div className="gtk-story-inner">{timeline(false)}</div>
-            </div>
-          )}
+          {timeline(reduced)}
         </div>
       </div>
     </details>
