@@ -10,6 +10,21 @@ export type Catalog = {
   items: ViatorItem[];
 };
 
+// Rank items by review_count and attach a popularity_score (0–1 percentile)
+// so fitItem can compare popularity relative to the actual catalog rather than
+// against a hardcoded absolute threshold. The most-reviewed item scores 1.0;
+// the least-reviewed scores 0.0. Single-item catalogs get 0.5.
+function normalizePopularity(items: ViatorItem[]): ViatorItem[] {
+  if (items.length === 0) return items;
+  const sorted = [...items].sort((a, b) => a.review_count - b.review_count);
+  const rank = new Map(sorted.map((item, i) => [item.id, i]));
+  const n = sorted.length;
+  return items.map((item) => ({
+    ...item,
+    popularity_score: n > 1 ? (rank.get(item.id) ?? 0) / (n - 1) : 0.5,
+  }));
+}
+
 // Synchronous local stub — the instant first paint and the offline/failure
 // fallback. Live Viator data (when configured) replaces groups+items via
 // loadCatalog(); local activities always stay local.
@@ -17,7 +32,7 @@ export function getCatalog(): Catalog {
   return {
     activities: ACTIVITIES,
     groups: VIATOR_GROUPS,
-    items: VIATOR_ITEMS,
+    items: normalizePopularity(VIATOR_ITEMS),
   };
 }
 
@@ -70,7 +85,7 @@ export function loadCatalog(): Promise<Catalog> {
           viator_item_url: m.viator_item_url,
         };
       });
-      liveCatalog = { activities, groups, items };
+      liveCatalog = { activities, groups, items: normalizePopularity(items) };
       return liveCatalog;
     } catch {
       return getCatalog(); // stub fallback

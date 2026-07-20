@@ -71,6 +71,11 @@ export type ViatorItem = {
   // Items sharing a cluster id represent the same real-world experience across
   // different operators/product codes. The generator deduplicates by this id.
   experience_cluster_id?: string;
+  // Catalog-relative popularity percentile (0–1), computed at catalog load time
+  // from review_count rank across all items. The most-reviewed item in the catalog
+  // scores 1.0; the least scores 0.0. Self-normalising: rescales automatically
+  // as the catalog grows or review counts compound.
+  popularity_score?: number;
 };
 
 // === Slot pointers + card entries ===

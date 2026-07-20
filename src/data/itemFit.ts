@@ -131,9 +131,13 @@ export function fitItem(item: ViatorItem, tags: Set<MatchTag>): ItemFit {
     const d = ibi - ubi;
     score += d === 0 ? 3 : d === 1 ? 0 : 1;
   }
-  // Popularity prior — small tiebreak so the most-booked of equally-fitting
-  // items shows (also demotes niche, low-review luxury tours).
-  score += Math.min(item.review_count / 2000, 1.5);
+  // Popularity — catalog-relative percentile (0–1), scaled to 0–3 so a
+  // broadly-loved item (catamaran, sunset sail) reliably outscores a niche one
+  // (kayak photo shoot, submarine) within the same interest/budget tier.
+  // popularity_score is set at catalog load time by normalizePopularity() and
+  // self-adjusts as the catalog grows; ?? 0 keeps test fixtures that don't set
+  // it from throwing.
+  score += (item.popularity_score ?? 0) * 3;
   return { score, rejected: false };
 }
 
