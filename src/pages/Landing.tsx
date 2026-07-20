@@ -294,47 +294,80 @@ function GoodToKnowSection() {
   }));
   const n = phases.length;
 
-  // Trigger line and scroll-per-phase, as fractions of viewport height. PER is
-  // the "how much scroll to open the next phase" that felt right for 0→1.
+  // Trigger line (where the timeline top starts yielding) and the desired scroll
+  // distance per phase, both as fractions of viewport height.
   const LINE = 0.28;
-  const PER = 0.2;
+  const BAND_VH = 0.32;
 
   useEffect(() => { activeRef.current = active; }, [active]);
 
-  // Compact natural-height timeline (no pin → no whitespace, natural cards). The
-  // open phase = how far the timeline's stable top has scrolled past the trigger
-  // line. Plus a small bottom clamp: the section sits near the page end, so the
-  // page can run out of scroll before the LAST phase's threshold — force it open
-  // in the final few px of scroll (too small to fire early on any viewport).
+  // Snapshotted page metrics. The scroll→phase mapping must NOT depend on the
+  // live page height: only one phase is expanded at a time, so the page height
+  // changes as the active phase changes, which would feed back into the mapping
+  // and make the active index flicker at a boundary. We measure once the section
+  // is open (and on resize) and map against that stable snapshot instead.
+  const metricsRef = useRef<{ tlDocTop: number; maxScroll: number } | null>(null);
+
+  const measure = () => {
+    const el = tlRef.current;
+    if (!el) return;
+    metricsRef.current = {
+      tlDocTop: el.getBoundingClientRect().top + window.scrollY,
+      maxScroll: Math.max(1, document.documentElement.scrollHeight - window.innerHeight),
+    };
+  };
+
+  // The scroll runway for the phases: an equal `band` of scroll per phase,
+  // starting where the timeline top reaches the trigger line. The band shrinks
+  // so all n phases fit inside the page's remaining scroll — on tall viewports /
+  // short pages there isn't room for a fixed per-phase distance, and the last
+  // phase's threshold used to fall past the page bottom, collapsing everything
+  // onto the last phase (the middle got skipped). Equal bands can't skip a phase.
+  const phaseWindow = () => {
+    const m = metricsRef.current;
+    if (!m) return null;
+    const band = Math.min(BAND_VH * window.innerHeight, m.maxScroll / (n + 0.5));
+    const startS = Math.max(0, Math.min(m.tlDocTop - LINE * window.innerHeight, m.maxScroll - n * band));
+    return { startS, band, maxScroll: m.maxScroll };
+  };
+
+  // Compact natural-height timeline (no pin → no whitespace, natural cards).
   useEffect(() => {
     if (!open || staticMode) return;
     let raf = 0;
-    const onScroll = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const el = tlRef.current;
-        if (!el) return;
-        const vh = window.innerHeight;
-        const entered = LINE * vh - el.getBoundingClientRect().top;
-        let idx = Math.max(0, Math.min(n - 1, Math.floor(entered / (PER * vh))));
-        const remaining = document.documentElement.scrollHeight - (window.scrollY + vh);
-        if (remaining <= 40) idx = n - 1;
-        if (idx !== activeRef.current) setActive(idx);
-      });
+    const recalc = () => {
+      const w = phaseWindow();
+      if (!w) return;
+      // Continuous phase position, then a small dead-zone (H of a band) so a
+      // pixel of jitter at a boundary can't bounce the active index.
+      const p = (window.scrollY - w.startS) / w.band;
+      const H = 0.18;
+      let idx = activeRef.current;
+      while (idx < n - 1 && p >= idx + 1 + H) idx++;
+      while (idx > 0 && p < idx - H) idx--;
+      if (idx !== activeRef.current) setActive(idx);
     };
+    const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(recalc); };
+    const onResize = () => { measure(); recalc(); };
+    // Measure once now (rough) and again after the open animation settles.
+    measure(); recalc();
+    const t = window.setTimeout(() => { measure(); recalc(); }, 400);
     window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-    return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); };
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onResize);
+      window.clearTimeout(t);
+      cancelAnimationFrame(raf);
+    };
   }, [open, staticMode, n]);
 
   const goPhase = (i: number) => {
     if (staticMode) { setActive(i); return; }
-    const el = tlRef.current;
-    if (!el) { setActive(i); return; }
-    // The last phase lives at the page bottom (bottom clamp), so scroll there.
-    if (i === n - 1) { window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' }); return; }
-    const vh = window.innerHeight;
-    const y = window.scrollY + el.getBoundingClientRect().top - (LINE * vh - (i + 0.5) * (PER * vh));
+    const w = phaseWindow();
+    if (!w) { setActive(i); return; }
+    // Aim for the centre of phase i's band, never past the page bottom.
+    const y = Math.min(w.maxScroll, Math.round(w.startS + (i + 0.5) * w.band));
     window.scrollTo({ top: y, behavior: 'smooth' });
   };
 
