@@ -17,7 +17,7 @@ import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, blendPools, entryPrice } from './matcher';
-import { fitItem, refaceForAnswers, budgetCap, activityKind, isEveningItem } from './itemFit';
+import { fitItem, refaceForAnswers, budgetCap, activityKind, isEveningItem, isWaterBased } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 
@@ -62,6 +62,14 @@ const INTEREST_SECTIONS: Partial<Record<MatchTag, Section[]>> = {
   'nightlife':       ['food-drink'],
   'wellness-spa':    ['beaches'],
 };
+
+// Popularity floor for the auto-generated plan: items in the bottom quartile of
+// their budget tier (popularity_score < 0.25, set by normalizePopularity at
+// catalog load) never enter the fill pool. Bookability philosophy: suggest few,
+// highly-booked activities rather than fill every slot with niche products.
+// Percentile-based, so the floor rescales automatically with the live catalog.
+// Items without a score (raw test fixtures) pass — only a known-low rank drops.
+const MIN_FILL_POPULARITY = 0.25;
 
 // mulberry32 — tiny deterministic PRNG so a seed reproduces a plan exactly.
 function rng(seed: number): () => number {
@@ -256,8 +264,15 @@ function applyCatalogFlags(catalog: Catalog, flags: Set<string>): Catalog {
   let { activities, groups, items } = catalog;
 
   if (flags.has('no-boats')) {
+    // Remove every water/boat experience for a seasick traveller. Two levels:
+    //  1. groups explicitly tagged 'watersports' are dropped wholesale;
+    //  2. individual water items (cruises-water section or a water tag-kind) are
+    //     dropped across ALL groups — this catches sailing-cruises sunset sails
+    //     and dinner cruises the group-level filter alone missed, which the
+    //     crowd-pleaser boost would otherwise push to the top of the plan.
     activities = activities.filter(a => !(a.sections ?? []).includes('cruises-water'));
     groups = groups.filter(g => !g.matched_by.includes('watersports' as MatchTag));
+    items = items.filter(i => !isWaterBased(i));
   }
 
   if (flags.has('no-car')) {
@@ -371,7 +386,18 @@ export function generatePlan(
   const seed = ((opts.seed ?? 0) ^ hashAnswers(answers)) >>> 0;
   const flags = new Set(answers.flags ?? []);
   const filteredCatalog = applyCatalogFlags(catalog, flags);
-  const ctx: Ctx = { catalog: filteredCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [] };
+  // The auto-fill pool excludes low-bookability items (bottom of their budget
+  // tier by popularity) — we'd rather leave a slot open than suggest a niche
+  // product few travellers actually book. Explore still shows everything, and
+  // pins resolve against the unfloored catalog: an explicit shortlist choice
+  // always beats this heuristic.
+  const fillCatalog: Catalog = {
+    ...filteredCatalog,
+    items: filteredCatalog.items.filter(
+      (i) => i.popularity_score === undefined || i.popularity_score >= MIN_FILL_POPULARITY,
+    ),
+  };
+  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [] };
 
   // Trip-wide budget pool: keeps the AVERAGE daily activity spend within the
   // tier cap (budget-conscious ≈ $110/day on average), letting days vary while

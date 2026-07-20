@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fitItem, bestItemForAnswers, itemTags, refaceForAnswers, isEveningItem, itemSlotOk, activityKind } from './itemFit';
+import { fitItem, bestItemForAnswers, itemTags, refaceForAnswers, isEveningItem, itemSlotOk, activityKind, isCrowdPleaser } from './itemFit';
 import type { CardEntry, MatchTag, Section, ViatorItem } from '../types';
 
 function item(over: Partial<ViatorItem>): ViatorItem {
@@ -97,6 +97,55 @@ describe('activityKind — same-day variety', () => {
   it('a snorkel sail and a sunset sail are different kinds', () => {
     expect(activityKind(item({ tags: [11912] }))).toBe('snorkel');
     expect(activityKind(item({ tags: [11963] }))).toBe('sail');
+  });
+});
+
+describe('isCrowdPleaser — curated high-bookability picks', () => {
+  it('flags catamaran/sailing cruises (sail kind)', () => {
+    expect(isCrowdPleaser(item({ title: 'Catamaran Day Sail', tags: [11963] }))).toBe(true);
+  });
+  it('flags snorkel trips incl. Jolly Pirates (snorkel kind)', () => {
+    expect(isCrowdPleaser(item({ title: 'Jolly Pirates Snorkel Cruise', tags: [11912] }))).toBe(true);
+  });
+  it('flags sunset sails and dinner cruises by title', () => {
+    expect(isCrowdPleaser(item({ title: 'Champagne Sunset Sail', tags: [] }))).toBe(true);
+    expect(isCrowdPleaser(item({ title: 'Caribbean Dinner Cruise', tags: [] }))).toBe(true);
+  });
+  it('flags Natural Pool / Arikok jeep tours (offroad + destination)', () => {
+    expect(isCrowdPleaser(item({ title: 'Arikok 4x4 Jeep Safari to Natural Pool', tags: [12035] }))).toBe(true);
+    expect(isCrowdPleaser(item({ title: 'Conchi Natural Pool UTV Adventure', tags: [21421] }))).toBe(true);
+  });
+  it('does NOT flag a generic offroad tour with no crowd-pleaser destination', () => {
+    expect(isCrowdPleaser(item({ title: 'North Coast ATV Desert Ride', tags: [21421] }))).toBe(false);
+  });
+  it('does NOT flag niche activities (kayak photo shoot, submarine)', () => {
+    expect(isCrowdPleaser(item({ title: 'Sunrise Kayak Photo Shoot', tags: [12047] }))).toBe(false);
+    expect(isCrowdPleaser(item({ title: 'Atlantis Submarine Expedition', tags: [] }))).toBe(false);
+  });
+});
+
+describe('fitItem — crowd-pleaser boost', () => {
+  const PIRATES = item({ id: 'pir', title: 'Jolly Pirates Snorkel Cruise', tags: [11912],
+    price_usd: 65, review_count: 1822, popularity_score: 0.85 });
+  const CHARTER = item({ id: 'chr', title: 'Private Catamaran Charter', tags: [11888],
+    price_usd: 1450, review_count: 87, popularity_score: 0.5 });
+
+  it('a money-no-object traveller: the $65 Jolly Pirates outscores the $1,450 charter', () => {
+    const t = tags('money-no-object', 'watersports');
+    // Both are sail/snorkel crowd-pleasers, but pirates wins on popularity +
+    // the under-budget waiver (no penalty for being cheaper).
+    expect(fitItem(PIRATES, t).score).toBeGreaterThan(fitItem(CHARTER, t).score);
+  });
+
+  it('boosts a crowd-pleaser above an equally-fitting niche item', () => {
+    const niche = item({ id: 'sub', title: 'Submarine Tour', tags: [], sections: ['cruises-water'],
+      price_usd: 65, review_count: 1822, popularity_score: 0.85 });
+    const t = tags('mid-range', 'watersports');
+    expect(fitItem(PIRATES, t).score).toBeGreaterThan(fitItem(niche, t).score);
+  });
+
+  it('never overrides the hard budget cap (crowd-pleaser still rejected if unaffordable)', () => {
+    expect(fitItem(CHARTER, tags('budget')).rejected).toBe(true);
   });
 });
 

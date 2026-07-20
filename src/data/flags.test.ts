@@ -270,6 +270,21 @@ describe('generatePlan — real catalog spot-checks', () => {
     expect(actIds.has('boca-catalina-snorkel')).toBe(false);
   });
 
+  it('the sunset-sail Viator item (sailing-cruises, a crowd-pleaser) never faces a group with no-boats', () => {
+    // Regression: the sunset sail lives in sailing-cruises (not the watersports
+    // group), so the group-level filter missed it and the crowd-pleaser boost
+    // pushed it to the top even for seasick travellers. Item-level water filter
+    // must drop it.
+    const cat = getCatalog();
+    for (let s = 0; s < 12; s += 1) {
+      const plan = generatePlan({ ...BASE, days: 9, flags: ['no-boats'] }, cat, { seed: s });
+      const faces = allEntries(plan)
+        .filter((e) => e.kind === 'group')
+        .map((e) => (e as { kind: 'group'; bestSellerId: string }).bestSellerId);
+      expect(faces).not.toContain('sunset-sail');
+    }
+  });
+
   it('flags with no effect on a given activity leave it reachable (arikok with birthday flag)', () => {
     // birthday has no generator effect — arikok should still be reachable.
     const { actIds } = sweepSeeds({ ...BASE, days: 9, flags: ['birthday'] }, catalog, 12);

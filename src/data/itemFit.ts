@@ -98,6 +98,45 @@ export function activityKind(item: ViatorItem): string {
   return `sec:${primarySection(itemSections(item))}`;
 }
 
+// Water/boat experiences — used by the no-boats (seasick) filter. Any item whose
+// Explore section is cruises-water, or whose Viator tag-kind is a water sport,
+// counts. Catches sunset sails, dinner cruises and snorkel trips that live in
+// non-"watersports" groups (e.g. sailing-cruises), which the old group-level
+// filter missed — the exact items a seasick traveller must never be shown.
+const WATER_KINDS = new Set(['sail', 'snorkel', 'dive', 'jetski', 'kayak', 'sup', 'parasail', 'surf']);
+export function isWaterBased(item: ViatorItem): boolean {
+  if (itemSections(item).includes('cruises-water')) return true;
+  return WATER_KINDS.has(activityKind(item));
+}
+
+// --- Crowd-pleasers (universal high-bookability picks) ----------------------
+// A curated set of experience *types* that travellers reliably book and love —
+// the ones you'd recommend to a friend regardless of their budget or adrenaline
+// appetite (catamaran/sailing cruises, snorkel trips incl. Jolly Pirates, sunset
+// sails & dinner cruises, and the Natural Pool / Arikok jeep tours). Identified
+// by Viator tag-kind (robust on live data — survives product-code churn) plus
+// destination keywords for the two location-specific ones. This is the lever
+// that keeps the plan leading with things people actually book instead of niche
+// listings (kayak photo shoots, submarine tours) that erode trust in the picks.
+//
+// Boat-based crowd-pleasers are stripped upstream by the `no-boats` flag before
+// scoring, so a traveller who flags seasickness never has them boosted.
+const CROWD_PLEASER_DEST = /natural pool|arikok|conchi/i;
+const CROWD_PLEASER_EVENING = /sunset|dinner/i;
+export function isCrowdPleaser(item: ViatorItem): boolean {
+  const kind = activityKind(item);
+  if (kind === 'sail' || kind === 'snorkel') return true;          // catamarans, snorkel + Jolly Pirates
+  if (kind === 'offroad' && CROWD_PLEASER_DEST.test(item.title)) return true; // Natural Pool / Arikok jeep tours
+  if (CROWD_PLEASER_EVENING.test(item.title)) return true;         // sunset sails, dinner cruises
+  return false;
+}
+
+// Scoring bonus for a crowd-pleaser — comparable in weight to a strong interest
+// match (+3), so a universal favourite competes with, and usually beats, a
+// niche or narrowly-expensive option in the same slot, without erasing the
+// persona-specific picks the traveller explicitly asked for.
+const CROWD_PLEASER_BOOST = 3;
+
 // The questionnaire MatchTags a live item satisfies (budget + interests + adventure band).
 export function itemTags(item: ViatorItem): MatchTag[] {
   const sections = itemSections(item);
@@ -123,14 +162,25 @@ export function fitItem(item: ViatorItem, tags: Set<MatchTag>): ItemFit {
   const ubi = budgetIdx(userBudget(tags));
   const ibi = budgetIdx(itags.find(isBudgetTag));
 
+  const cp = isCrowdPleaser(item);
+
   let score = 0;
   // Interest + adventure-band overlap — the strongest fit signal.
   for (const t of itags) if (!isBudgetTag(t) && tags.has(t)) score += 3;
-  // Budget closeness: exact band best; one over neutral; cheaper fine.
+  // Budget closeness: exact band best; one over neutral; cheaper fine. Crowd-
+  // pleasers are NOT penalised for being under the user's budget — a great cheap
+  // experience is worth recommending to anyone, including a money-no-object
+  // traveller (a $65 Jolly Pirates cruise competes with a $1,450 charter).
   if (ubi >= 0) {
     const d = ibi - ubi;
-    score += d === 0 ? 3 : d === 1 ? 0 : 1;
+    if (d === 0) score += 3;              // exact tier
+    else if (d === 1) score += 0;         // one tier over — neutral
+    else if (d < 0) score += cp ? 3 : 1;  // cheaper — full credit for crowd-pleasers
+    else score += 1;                       // 2+ over (rare; usually hard-capped above)
   }
+  // Curation boost: nudge universally-loved experiences to the top of the slot,
+  // budget- and adrenaline-agnostic, to maximise the odds the traveller books.
+  if (cp) score += CROWD_PLEASER_BOOST;
   // Popularity — catalog-relative percentile (0–1), scaled to 0–3 so a
   // broadly-loved item (catamaran, sunset sail) reliably outscores a niche one
   // (kayak photo shoot, submarine) within the same interest/budget tier.
