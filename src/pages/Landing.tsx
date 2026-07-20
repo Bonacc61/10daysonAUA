@@ -279,11 +279,13 @@ function GtkTimelineCard({ card }: { card: typeof GTK_CARDS[number] }) {
 function GoodToKnowSection() {
   const [active, setActive] = useState(0);
   const [open, setOpen] = useState(false);
-  // Static (all-expanded, no pin) for reduced-motion and narrow screens, where a
-  // phase's stacked cards can be taller than the viewport the pin would clip.
+  // Static (all phases expanded, no scroll-driven collapse) only for
+  // prefers-reduced-motion. The scroll accordion itself works fine on mobile —
+  // it's natural-height with no pin, so there's nothing for a small viewport to
+  // clip; touch scrolling drives the phases the same as on desktop.
   const [staticMode] = useState(
     () => typeof window !== 'undefined'
-      && (window.matchMedia('(prefers-reduced-motion: reduce)').matches || window.innerWidth <= 720),
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
   const activeRef = useRef(0);
   const tlRef = useRef<HTMLDivElement>(null);
