@@ -1,4 +1,4 @@
-import React, { type CSSProperties, useEffect, useRef, useState } from 'react';
+import React, { type CSSProperties, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { capture } from '../lib/analytics';
 import {
@@ -277,94 +277,19 @@ function GtkTimelineCard({ card }: { card: typeof GTK_CARDS[number] }) {
 }
 
 function GoodToKnowSection() {
+  // Click accordion: one phase open at a time, expanding in place. Robust and
+  // gap-free — no scroll-pinning (which fought short content: sensitivity, a
+  // trailing gap before the FAQ, and no "in place" feel).
   const [active, setActive] = useState(0);
-  const [open, setOpen] = useState(false);
-  // Resolved synchronously on first render so reduced-motion users don't get a
-  // one-frame flash of the scroll-track variant before swapping to the static one.
-  const [reduced] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-  );
-  const activeRef = useRef(0);
-  const tlRef = useRef<HTMLDivElement>(null);
-
   const phases = GTK_SECTION_META.map((s) => ({
     ...s,
     cards: GTK_CARDS.filter((c) => c.section === s.key),
   }));
-  const n = phases.length;
-
-  // Scroll tuning (fractions of viewport height): LINE is the trigger line near
-  // the top; PER is how far you scroll to advance one phase (bigger = less
-  // sensitive). No tall track — the timeline flows at natural height straight
-  // into the FAQ, so there is no empty gap after the last phase.
-  const LINE = 0.24;
-  const PER = 0.2;
-
-  useEffect(() => { activeRef.current = active; }, [active]);
-
-  // The open phase is driven by how far the timeline's (stable) top has scrolled
-  // past the trigger line. The container top doesn't move as phases collapse
-  // (collapsing happens below the first label), so the mapping is monotonic and
-  // jump-free; equal-size phases keep the FAQ position fixed. Only runs once the
-  // <details> is open (closed content has no layout).
-  useEffect(() => {
-    if (!open || reduced) return;
-    let raf = 0;
-    const onScroll = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const el = tlRef.current;
-        if (!el) return;
-        const vh = window.innerHeight;
-        const entered = LINE * vh - el.getBoundingClientRect().top;
-        const idx = Math.max(0, Math.min(n - 1, Math.floor(entered / (PER * vh))));
-        if (idx !== activeRef.current) setActive(idx);
-      });
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-    return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); };
-  }, [open, reduced, n]);
-
-  // Clicking a phase scrolls to its band so scroll state stays in sync.
-  const goPhase = (i: number) => {
-    const el = tlRef.current;
-    if (!el || reduced) { setActive(i); return; }
-    const vh = window.innerHeight;
-    const y = window.scrollY + el.getBoundingClientRect().top - (LINE * vh - (i + 0.5) * (PER * vh));
-    window.scrollTo({ top: y, behavior: 'smooth' });
-  };
-
-  const timeline = (allOpen: boolean) => (
-    <div className="gtk-tl" ref={tlRef}>
-      {phases.map((p, i) => (
-        <div className="gtk-phase" data-active={allOpen || i === active ? '' : undefined} key={p.key}>
-          <button
-            type="button"
-            className="gtk-phase-head"
-            aria-expanded={allOpen || i === active}
-            onClick={() => goPhase(i)}
-          >
-            <span className="gtk-node" aria-hidden />
-            <span className="gtk-phase-label font-display">{p.label}</span>
-          </button>
-          <div className="gtk-phase-wrap">
-                  <div className="gtk-phase-inner">
-                    <div className="gtk-phase-cards">
-                      {p.cards.map((c) => <GtkTimelineCard key={c.title} card={c} />)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-  );
 
   return (
     <details
       className="aruba-section bleed"
       style={{ background: 'var(--yellow-bg)', borderTop: '2px solid var(--ink)' }}
-      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
     >
       <summary style={{ padding: '24px 36px' }}>
         <div className="container-1280" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, padding: 0 }}>
@@ -377,8 +302,29 @@ function GoodToKnowSection() {
       </summary>
       <div style={{ padding: '0 36px 56px' }}>
         <div className="container-1280" style={{ padding: 0 }}>
-          <p className="gtk-lede">The little things locals wish every visitor knew — the trip, start to finish.</p>
-          {timeline(reduced)}
+          <p className="gtk-lede">The little things locals wish every visitor knew — tap a phase to open it.</p>
+          <div className="gtk-tl">
+            {phases.map((p, i) => (
+              <div className="gtk-phase" data-active={i === active ? '' : undefined} key={p.key}>
+                <button
+                  type="button"
+                  className="gtk-phase-head"
+                  aria-expanded={i === active}
+                  onClick={() => setActive(i)}
+                >
+                  <span className="gtk-node" aria-hidden />
+                  <span className="gtk-phase-label font-display">{p.label}</span>
+                </button>
+                <div className="gtk-phase-wrap">
+                  <div className="gtk-phase-inner">
+                    <div className="gtk-phase-cards">
+                      {p.cards.map((c) => <GtkTimelineCard key={c.title} card={c} />)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </details>
