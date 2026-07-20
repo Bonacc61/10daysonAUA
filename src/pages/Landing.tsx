@@ -217,6 +217,18 @@ function SampleSection({ days, goPlan }: { days: string; goPlan: () => void }) {
                 <span className="chip-outline" style={{ border: '2px solid rgba(255,255,255,0.9)', color: 'var(--cream)', background: 'transparent' }}><Users size={13} /> Personalized to your group</span>
               </div>
               <button className="btn-coral" onClick={goPlan}>build my plan →</button>
+              <img
+                src="/sample-map.png"
+                alt="Sample Aruba trip map — three activity stops connected by a route across the island"
+                loading="lazy"
+                width={1280}
+                height={880}
+                style={{
+                  display: 'block', width: '100%', maxWidth: 520, height: 'auto',
+                  marginTop: 22, border: '2px solid var(--ink)', borderRadius: 12,
+                  boxShadow: '4px 4px 0 var(--ink)',
+                }}
+              />
             </div>
             <div className="sample-right">
               {SAMPLE_ITINERARY.slice(0, 2).map((d, i) => (
