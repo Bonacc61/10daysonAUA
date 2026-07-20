@@ -20,6 +20,7 @@ import { matchPool, blendPools, entryPrice } from './matcher';
 import { fitItem, refaceForAnswers, budgetCap, activityKind, isEveningItem, isWaterBased } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
+import { effectiveFlags } from './notesFlags';
 
 const DAY_COLORS = ['#FF6B47', '#3B82F6', '#22C55E', '#EAB308', '#E63946', '#8B5CF6', '#0EA5E9'];
 
@@ -384,7 +385,8 @@ export function generatePlan(
 
   const nDays = Math.max(1, Math.min(answers.days || 1, 14));
   const seed = ((opts.seed ?? 0) ^ hashAnswers(answers)) >>> 0;
-  const flags = new Set(answers.flags ?? []);
+  // Ticked Q8 pills UNION free-text contraindications ("seasick" → no-boats).
+  const flags = effectiveFlags(answers);
   const filteredCatalog = applyCatalogFlags(catalog, flags);
   // The auto-fill pool excludes low-bookability items (bottom of their budget
   // tier by popularity) — we'd rather leave a slot open than suggest a niche
