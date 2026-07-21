@@ -5,7 +5,9 @@ import { DEFAULT_ANSWERS } from '../App';
 import type { Answers } from '../App';
 import type { Activity, Day } from './activities';
 import type { Catalog } from './activitySource';
-import type { MatchTag, ViatorGroup, ViatorItem } from '../types';
+import type { MatchTag, ViatorGroup, ViatorItem, SlotEntry } from '../types';
+import { ACTIVITY_COORDS, VIATOR_ITEM_COORDS, GROUP_COORDS, type Coord } from './coords';
+import { distanceKm } from './enRoute';
 
 const catalog = getCatalog();
 
@@ -381,6 +383,33 @@ describe('generatePlan — en-route food suggestion', () => {
     const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 10 }, cat, { seed: 2 });
     const zeeroverCount = entryIds(plan).filter((id) => id === 'lunch-zeerover' || id === 'zeerovers-fresh-catch').length;
     expect(zeeroverCount).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('generatePlan — day-level geographic clustering', () => {
+  const cat = getCatalog();
+  const coordOf = (e: SlotEntry): Coord | undefined =>
+    e.kind === 'activity' ? ACTIVITY_COORDS[e.id] : (VIATOR_ITEM_COORDS[e.bestSellerId] ?? GROUP_COORDS[e.groupId]);
+
+  it('keeps each day geographically coherent (average intra-day spread stays tight)', () => {
+    let sum = 0;
+    let cnt = 0;
+    for (let seed = 0; seed < 6; seed += 1) {
+      const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 7 }, cat, { seed });
+      for (const d of plan) {
+        const cs = [...d.morning, ...d.afternoon, ...d.evening]
+          .map(coordOf)
+          .filter((c): c is Coord => !!c);
+        let spread = 0;
+        for (let i = 0; i < cs.length; i += 1)
+          for (let j = i + 1; j < cs.length; j += 1) spread = Math.max(spread, distanceKm(cs[i], cs[j]));
+        sum += spread;
+        cnt += 1;
+      }
+    }
+    // With the geo penalty the average intra-day spread is ~9.6km; without it
+    // ~12.3km. 11km is a stable guard that fails if clustering is removed/broken.
+    expect(sum / cnt).toBeLessThan(11);
   });
 });
 

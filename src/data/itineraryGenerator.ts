@@ -23,8 +23,8 @@ import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 import { effectiveFlags } from './notesFlags';
 import { LUNCHSPOTS } from './lunchspots';
-import { coordForEntry, type Coord } from './coords';
-import { pickEnRouteStop, foodPlaceKey } from './enRoute';
+import { coordForEntry, ACTIVITY_COORDS, VIATOR_ITEM_COORDS, GROUP_COORDS, type Coord } from './coords';
+import { pickEnRouteStop, foodPlaceKey, distanceKm } from './enRoute';
 import { budgetTag } from './classify';
 
 const DAY_COLORS = ['#FF6B47', '#3B82F6', '#22C55E', '#EAB308', '#E63946', '#8B5CF6', '#0EA5E9'];
@@ -198,8 +198,33 @@ function entryKind(e: CardEntry): string {
 // (BAND 0) gives no variety when one item dominates the slot.
 const BAND = 1;
 
-function ranked(ctx: Ctx, cands: CardEntry[], anchor: Region | undefined): CardEntry[] {
-  const scored = cands.map((e) => ({ e, s: scoreEntry(e, ctx.tags, ctx.prefSections) }));
+// Coordinate of a candidate: the activity's own point, the shown Viator item's
+// point, or the item's group-area fallback. undefined when unmapped.
+function entryCoord(e: CardEntry): Coord | undefined {
+  return e.kind === 'activity'
+    ? ACTIVITY_COORDS[e.activity.id]
+    : VIATOR_ITEM_COORDS[e.bestSeller.id] ?? GROUP_COORDS[e.group.id];
+}
+
+// Day-level geographic clustering. Once a day has an anchor point (its first
+// coord-bearing pick — the morning outing, or a pin/premium), later picks are
+// penalised by how far they sit from it, so a day stays in one part of the
+// island instead of criss-crossing (a north-tip dive + a far-south beach). Soft
+// by design: within NEAR_KM there's no penalty (local variety survives), and a
+// far pick is only pushed down the ranking — still placed if nothing closer is
+// left, rather than leaving a slot empty. Coord-less picks (islandwide cruises
+// from the west-coast marina, downtown walks) are neutral.
+const NEAR_KM = 6;
+const GEO_PENALTY_PER_KM = 0.5;
+function geoPenalty(e: CardEntry, anchorCoord: Coord | undefined): number {
+  if (!anchorCoord) return 0;
+  const c = entryCoord(e);
+  if (!c) return 0;
+  return Math.max(0, distanceKm(anchorCoord, c) - NEAR_KM) * GEO_PENALTY_PER_KM;
+}
+
+function ranked(ctx: Ctx, cands: CardEntry[], anchor: Region | undefined, anchorCoord: Coord | undefined): CardEntry[] {
+  const scored = cands.map((e) => ({ e, s: scoreEntry(e, ctx.tags, ctx.prefSections) - geoPenalty(e, anchorCoord) }));
   const maxS = scored.reduce((m, x) => Math.max(m, x.s), -Infinity);
   // Shuffle the within-BAND top band (variety on regen), then stably partition
   // by anchor-region so clustering only breaks ties — the shuffle order survives
@@ -223,7 +248,7 @@ function ranked(ctx: Ctx, cands: CardEntry[], anchor: Region | undefined): CardE
 // so a day stays varied (never an ATV tour and a Jeep safari on the same day).
 // Free/cheap local picks keep slots filled once the budget tightens.
 function pickForSlot(
-  ctx: Ctx, slot: Slot, anchor: Region | undefined,
+  ctx: Ctx, slot: Slot, anchor: Region | undefined, anchorCoord: Coord | undefined,
   maxPrice: number, usedKinds: Set<string>,
 ): CardEntry | null {
   const affordable = (e: CardEntry) => entryPrice(e) <= maxPrice;
@@ -249,8 +274,8 @@ function pickForSlot(
     return !ctx.usedTagSets.some((used) => tagJaccard(tags, used) >= TAG_SIMILARITY_THRESHOLD);
   };
 
-  const matchedAll = ranked(ctx, candidatesFor(ctx, slot, ctx.tags), anchor);
-  const widenedAll = ranked(ctx, candidatesFor(ctx, slot, null), anchor);
+  const matchedAll = ranked(ctx, candidatesFor(ctx, slot, ctx.tags), anchor, anchorCoord);
+  const widenedAll = ranked(ctx, candidatesFor(ctx, slot, null), anchor, anchorCoord);
   const matched = matchedAll.filter(affordable);
   const widened = widenedAll.filter(affordable);
 
@@ -546,6 +571,7 @@ export function generatePlan(
     const picks: CardEntry[] = [];
     const usedKinds = new Set<string>(); // activity-kinds placed today (variety)
     let anchor: Region | undefined;
+    let anchorCoord: Coord | undefined; // day's geographic centre (first coord-bearing pick)
 
     // Arrival (first) and departure (last) days keep an open afternoon — a
     // lighter pace, and it surfaces the "Drop an activity here" zone between the
@@ -571,6 +597,7 @@ export function generatePlan(
         }
         usedKinds.add(entryKind(pick));
         if (!anchor) anchor = entryRegion(pick);
+        if (!anchorCoord) anchorCoord = entryCoord(pick);
         picks.push(pick);
         slots[slot].push(slotEntry);
         continue;
@@ -594,6 +621,7 @@ export function generatePlan(
         }
         usedKinds.add(entryKind(pick));
         if (!anchor) anchor = entryRegion(pick);
+        if (!anchorCoord) anchorCoord = entryCoord(pick);
         picks.push(pick);
         slots[slot].push(slotEntry);
         continue;
@@ -603,7 +631,7 @@ export function generatePlan(
       // Single-day trips are exempted (the traveller has no other day).
       const freeOnly = nDays > 1 && d === 1;
       const maxP = freeOnly ? 0 : Math.max(0, budgetLeft);
-      const pick = pickForSlot(ctx, slot, anchor, maxP, usedKinds);
+      const pick = pickForSlot(ctx, slot, anchor, anchorCoord, maxP, usedKinds);
       if (!pick) continue;
       budgetLeft -= entryPrice(pick);
       ctx.lastUsedDay.set(entryId(pick), d);
@@ -616,6 +644,7 @@ export function generatePlan(
       }
       usedKinds.add(entryKind(pick));
       if (!anchor) anchor = entryRegion(pick);
+      if (!anchorCoord) anchorCoord = entryCoord(pick);
       picks.push(pick);
       slots[slot].push(toSlotEntry(pick));
     }
