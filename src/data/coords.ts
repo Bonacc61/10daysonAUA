@@ -23,6 +23,19 @@ export const ACTIVITY_COORDS: Record<string, Coord> = {
   'mangel-halto':                 { lng: -69.9695, lat: 12.4649 },  // Wikipedia Mangel Halto
   'rodgers-beach':                { lng: -69.8841, lat: 12.4172 },  // Wikipedia Beaches of Aruba
   'boca-grandi':                  { lng: -69.8739, lat: 12.4402 },  // Wikipedia Beaches of Aruba
+  // Curated lunch spots (kept out of the catalog) — coordinates so their pins +
+  // cards render on the Map, whether added via the "Suggest lunch spot" button or
+  // the en-route auto-suggestion. Town-level approximations.
+  'lunch-zeerover':               { lng: -69.9466, lat: 12.4461 },  // Savaneta pier
+  'lunch-oniels':                 { lng: -69.9086, lat: 12.4300 },  // San Nicolas
+  'lunch-hadicurari':             { lng: -70.0475, lat: 12.5865 },  // Hadicurari beach, Noord
+  'lunch-pikas-corner':           { lng: -70.0375, lat: 12.5720 },  // Palm Beach
+  'lunch-don-jacinto':            { lng: -70.0270, lat: 12.5240 },  // Oranjestad
+  'lunch-pastechi-house':         { lng: -70.0180, lat: 12.5220 },  // Oranjestad
+  'lunch-las-cafeteros':          { lng: -70.0010, lat: 12.5350 },  // Tanki Leendert
+  'lunch-willems-pancakes':       { lng: -70.0400, lat: 12.5750 },  // Noord
+  'lunch-lindas-pancakes':        { lng: -70.0415, lat: 12.5760 },  // Noord
+  'lunch-bingo':                  { lng: -70.0420, lat: 12.5740 },  // Noord
 };
 
 // Per-item coordinate overrides for Viator items. Checked before GROUP_COORDS so

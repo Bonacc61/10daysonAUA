@@ -10,7 +10,7 @@
 // robust, and matches the intuition of "you drive past it" far better than the
 // old region-bucket match (Savaneta and Boca Grandi are different buckets).
 
-import type { Coord } from './coords';
+import { ACTIVITY_COORDS, type Coord } from './coords';
 
 // Representative point for the west-coast resort strip (Eagle / Palm Beach),
 // where the large majority of hotels sit — the assumed start of each day's drive.
@@ -31,24 +31,29 @@ const MAX_DETOUR_KM = 3.5;
 const MIN_ALONG = 0.45;
 const MAX_ALONG = 1.1; // allow slightly past the destination, not a wild overshoot
 
-// Curated food stops that can be offered as an en-route pick, with a coordinate
-// and a place key. `id` is the card inserted into the plan (resolves via
-// LUNCHSPOTS). `placeKey` collapses a spot and any twin catalog entry to one
-// real-world place so we never double-book it (see PLACE_KEY_BY_ID).
+// Curated food stops that can be offered as an en-route pick. `id` is the card
+// inserted into the plan; Zeerover uses the real `zeerovers-fresh-catch` activity
+// (rich card + coordinate, so it pins and shows a photo on the Map), the rest are
+// curated lunch spots (now given coords in coords.ts + resolved on the Map). The
+// coordinate comes from ACTIVITY_COORDS so there's one source of truth; `placeKey`
+// collapses a spot and any twin entry to one real-world place (see PLACE_KEY_BY_ID).
 type RouteStop = { id: string; coord: Coord; placeKey: string };
 const ROUTE_STOPS: RouteStop[] = [
-  { id: 'lunch-zeerover',   coord: { lng: -69.9466, lat: 12.4461 }, placeKey: 'zeerover' },   // Savaneta pier
-  { id: 'lunch-oniels',     coord: { lng: -69.9086, lat: 12.4300 }, placeKey: 'oniels' },     // San Nicolas
-  { id: 'lunch-hadicurari', coord: { lng: -70.0475, lat: 12.5865 }, placeKey: 'hadicurari' }, // Hadicurari beach, Noord
-  { id: 'lunch-pikas-corner', coord: { lng: -70.0375, lat: 12.5720 }, placeKey: 'pikas' },    // Palm Beach
-  { id: 'lunch-don-jacinto', coord: { lng: -70.0270, lat: 12.5240 }, placeKey: 'don-jacinto' }, // Oranjestad
-];
+  { id: 'zeerovers-fresh-catch', placeKey: 'zeerover' },     // Savaneta — full activity card
+  { id: 'lunch-oniels',          placeKey: 'oniels' },       // San Nicolas
+  { id: 'lunch-hadicurari',      placeKey: 'hadicurari' },   // Hadicurari beach, Noord
+  { id: 'lunch-pikas-corner',    placeKey: 'pikas' },        // Palm Beach
+  { id: 'lunch-don-jacinto',     placeKey: 'don-jacinto' },  // Oranjestad
+]
+  .map((s) => ({ ...s, coord: ACTIVITY_COORDS[s.id] }))
+  .filter((s): s is RouteStop => !!s.coord);
 
 // Map any food-ish plan-card id to its real-world place, so a Zeerover already
-// placed as the standalone `zeerovers-fresh-catch` activity blocks the
-// `lunch-zeerover` en-route pick (and vice versa).
+// placed as the `zeerovers-fresh-catch` activity blocks the `lunch-zeerover`
+// en-route/manual pick (and vice versa).
 const PLACE_KEY_BY_ID: Record<string, string> = {
   'zeerovers-fresh-catch': 'zeerover',
+  'lunch-zeerover': 'zeerover',
   ...Object.fromEntries(ROUTE_STOPS.map((s) => [s.id, s.placeKey])),
 };
 

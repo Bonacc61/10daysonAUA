@@ -20,14 +20,14 @@ describe('enRoute geometry', () => {
 describe('pickEnRouteStop', () => {
   it('offers Zeerover for an Arikok + Boca Grandi day (drives through Savaneta)', () => {
     const pick = pickEnRouteStop([ARIKOK, BOCA_GRANDI], new Set());
-    expect(pick?.id).toBe('lunch-zeerover');
+    expect(pick?.id).toBe('zeerovers-fresh-catch');
   });
 
   it('ignores near-home spots — a Boca Grandi day is not "served" by an Oranjestad snack bar', () => {
     // don-jacinto (Oranjestad) sits near the chord but only ~0.2 of the way out,
     // so the route-fraction gate must exclude it in favour of Zeerover.
     const pick = pickEnRouteStop([BOCA_GRANDI], new Set());
-    expect(pick?.id).toBe('lunch-zeerover');
+    expect(pick?.id).toBe('zeerovers-fresh-catch');
   });
 
   it('offers nothing on a stay-near-the-resort day', () => {

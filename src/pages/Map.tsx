@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth';
 import { generatePlan } from '../data/itineraryGenerator';
 import { ACTIVITY_COORDS, GROUP_COORDS, VIATOR_ITEM_COORDS } from '../data/coords';
 import { ACTIVITIES } from '../data/activities';
+import { LUNCHSPOTS } from '../data/lunchspots';
 import { viatorLink } from '../data/exploreItems';
 import type { Answers, PageId } from '../App';
 import type { SlotEntry } from '../types';
@@ -30,29 +31,37 @@ const GROUP_META: Record<string, { label: string; color: string }> = {
 type Coord = { lng: number; lat: number };
 type DayEntry = { key: string; slot: string; title: string; image: string | null; coord: Coord | null; price: string | null; duration: string | null; url: string | null };
 
+// Local ('activity'-kind) entries are usually catalog activities, but curated
+// lunch spots (added by the "Suggest lunch spot" button or the en-route
+// suggestion) live outside the catalog in LUNCHSPOTS — check both so their cards
+// (image/title/cost) resolve instead of falling back to the raw id.
+function localActivity(id: string, catalog: Catalog) {
+  return catalog.activities.find(a => a.id === id) ?? LUNCHSPOTS.find(l => l.id === id);
+}
+
 function coordFor(entry: SlotEntry): Coord | null {
   if (entry.kind === 'activity') return ACTIVITY_COORDS[entry.id] ?? null;
   return VIATOR_ITEM_COORDS[entry.bestSellerId] ?? GROUP_COORDS[entry.groupId] ?? null;
 }
 
 function imageFor(entry: SlotEntry, catalog: Catalog): string | null {
-  if (entry.kind === 'activity') return catalog.activities.find(a => a.id === entry.id)?.image ?? null;
+  if (entry.kind === 'activity') return localActivity(entry.id, catalog)?.image ?? null;
   return catalog.items.find(i => i.id === entry.bestSellerId)?.image_url ?? null;
 }
 
 function priceFor(entry: SlotEntry, catalog: Catalog): string | null {
-  if (entry.kind === 'activity') return catalog.activities.find(a => a.id === entry.id)?.cost ?? null;
+  if (entry.kind === 'activity') return localActivity(entry.id, catalog)?.cost ?? null;
   const item = catalog.items.find(i => i.id === entry.bestSellerId);
   return item?.price_usd ? `From $${Math.round(item.price_usd)}` : null;
 }
 
 function durationFor(entry: SlotEntry, catalog: Catalog): string | null {
-  if (entry.kind === 'activity') return catalog.activities.find(a => a.id === entry.id)?.duration ?? null;
+  if (entry.kind === 'activity') return localActivity(entry.id, catalog)?.duration ?? null;
   return catalog.items.find(i => i.id === entry.bestSellerId)?.duration ?? null;
 }
 
 function titleFor(entry: SlotEntry, catalog: Catalog): string {
-  if (entry.kind === 'activity') return catalog.activities.find(a => a.id === entry.id)?.title ?? entry.id;
+  if (entry.kind === 'activity') return localActivity(entry.id, catalog)?.title ?? entry.id;
   return catalog.items.find(i => i.id === entry.bestSellerId)?.title
     ?? catalog.groups.find(g => g.id === entry.groupId)?.name
     ?? entry.groupId;
@@ -60,7 +69,7 @@ function titleFor(entry: SlotEntry, catalog: Catalog): string {
 
 function urlFor(entry: SlotEntry, catalog: Catalog): string | null {
   const raw = entry.kind === 'activity'
-    ? catalog.activities.find(a => a.id === entry.id)?.viator_item_url
+    ? localActivity(entry.id, catalog)?.viator_item_url
     : catalog.items.find(i => i.id === entry.bestSellerId)?.viator_item_url;
   return raw ? viatorLink(raw) : null;
 }

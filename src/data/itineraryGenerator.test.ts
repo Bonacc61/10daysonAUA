@@ -371,12 +371,12 @@ describe('generatePlan — en-route food suggestion', () => {
     expect(bocaDay).toBeDefined();
     const dayIds = [...bocaDay!.morning, ...bocaDay!.afternoon, ...bocaDay!.evening]
       .flatMap((e) => (e.kind === 'activity' ? [e.id] : []));
-    expect(dayIds).toContain('lunch-zeerover');
+    expect(dayIds).toContain('zeerovers-fresh-catch');
   });
 
   it('never offers an en-route food stop to a no-car traveller', () => {
     const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 8, flags: ['no-car'] }, cat, { seed: 1, pinned: ['boca-grandi'] });
-    expect(entryIds(plan)).not.toContain('lunch-zeerover');
+    expect(entryIds(plan)).not.toContain('zeerovers-fresh-catch');
   });
 
   it('never places the same food place twice on a trip', () => {
