@@ -1,4 +1,5 @@
 import type { PageId } from '../App';
+import { Instagram, Coffee } from './Icons';
 
 type Props = { setPage: (p: PageId) => void };
 
@@ -20,6 +21,54 @@ export default function Footer({ setPage }: Props) {
           style={{ height: 30, width: 'auto', display: 'inline-block', verticalAlign: 'middle' }}
         />
         <div style={{ fontSize: 12, color: '#888', marginTop: 10 }}>Made on the island. ♥</div>
+        <div style={{ marginTop: 14, display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <a
+            href="https://www.instagram.com/10daysonaruba/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              color: 'var(--cream)',
+              textDecoration: 'none',
+              fontSize: 12,
+              fontWeight: 500,
+              padding: '6px 14px',
+              borderRadius: 20,
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              transition: 'background 0.2s ease, border-color 0.2s ease',
+            }}
+          >
+            <Instagram size={15} sw={2} />
+            <span>Follow us</span>
+          </a>
+          <a
+            href="https://www.buymeacoffee.com/hello3v"
+            target="_blank"
+            rel="noopener noreferrer"
+            /* Brand-yellow support pill (Buy Me a Coffee's own colour too), with the
+               site's neobrutalist ink shadow so it pops against the dark footer. */
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              color: 'var(--ink)',
+              textDecoration: 'none',
+              fontSize: 12,
+              fontWeight: 700,
+              padding: '6px 14px',
+              borderRadius: 20,
+              background: 'var(--yellow)',
+              border: '1.5px solid var(--ink)',
+              boxShadow: '2px 2px 0 rgba(0, 0, 0, 0.55)',
+            }}
+          >
+            <Coffee size={15} sw={2} />
+            <span>Buy me a coffee</span>
+          </a>
+        </div>
         <p style={{
           fontSize: 11, color: 'var(--sand-500)',
           margin: '12px auto 0', maxWidth: 480,
