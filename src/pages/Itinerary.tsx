@@ -912,6 +912,7 @@ function SortableCard({
   const cls = ['itin-sortable'];
   if (appearing.has(card.uid)) cls.push('appearing');
   if (removing.has(card.uid))  cls.push('removing');
+  if (isDragging)              cls.push('dragging');
 
   return (
     <div ref={setNodeRef} style={style} className={cls.join(' ')}>
