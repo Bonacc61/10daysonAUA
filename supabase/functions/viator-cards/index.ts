@@ -172,7 +172,13 @@ serve(async (req) => {
     // cluster id). The generator uses cluster ids — not raw vectors — to prevent
     // placing semantically identical items in the same plan.
     // Falls back silently when no embedding provider is configured.
-    const EMBEDDING_CLUSTER_THRESHOLD = 0.88;
+    // Cosine threshold for "same real-world experience". Measured on the live
+    // catalog: two Natural-Pool jeep safaris embed at ~0.83 and two sunset dinner
+    // cruises at ~0.89 (should merge), while genuinely different activities — a
+    // private charter vs a party cruise, a charter vs a jeep — sit at ~0.56–0.60
+    // (must stay apart). 0.82 sits just under the jeep pair so union-find merges
+    // it, while staying high enough to avoid chaining unrelated products.
+    const EMBEDDING_CLUSTER_THRESHOLD = 0.82;
     const provider = activeProvider();
     if (provider) {
       try {

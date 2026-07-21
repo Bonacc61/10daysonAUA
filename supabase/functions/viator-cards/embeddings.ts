@@ -82,38 +82,39 @@ export function cosineSim(a: number[], b: number[]): number {
   return denom === 0 ? 0 : dot / denom;
 }
 
-// Greedy single-pass clustering. Each item is assigned to the closest existing
-// cluster centroid if cosine similarity ≥ threshold; otherwise it seeds a new
-// cluster. Returns itemId → clusterId (the founding member's id per cluster).
+// Connected-components clustering via union-find. Any two items whose cosine
+// similarity ≥ threshold are unioned, so the relation is TRANSITIVE: two
+// near-identical products end up in the same cluster even if neither is the
+// other's nearest "founder" (the failure mode of greedy single-pass clustering —
+// two Natural-Pool jeep safaris at cos 0.83 could otherwise attach to different
+// founders and both survive). Returns itemId → clusterId, where the cluster id is
+// the highest-rated member's id. Callers MUST pass ids/embeddings sorted by
+// rating descending, so the smallest index in each component is its best product.
 //
-// O(n²) — acceptable for n ≤ 1000. Items are processed in the order supplied
-// so sort by quality/rating descending before calling so cluster founders are
-// the best representatives.
+// O(n²) cosines — fine for n ≤ ~1000 (Aruba catalog is ~350).
 export function clusterByEmbedding(
   ids: string[],
   embeddings: number[][],
   threshold: number,
 ): Map<string, string> {
-  const centroids: Array<{ id: string; vec: number[] }> = [];
-  const assignment = new Map<string, string>();
+  const n = ids.length;
+  const parent = Array.from({ length: n }, (_, i) => i);
+  const find = (x: number): number => {
+    while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; }
+    return x;
+  };
+  const union = (a: number, b: number) => {
+    const ra = find(a), rb = find(b);
+    if (ra !== rb) parent[Math.max(ra, rb)] = Math.min(ra, rb); // keep the best-rated (lowest index) as root
+  };
 
-  for (let i = 0; i < ids.length; i++) {
-    const vec = embeddings[i];
-    let bestId  = '';
-    let bestSim = -Infinity;
-
-    for (const c of centroids) {
-      const sim = cosineSim(vec, c.vec);
-      if (sim > bestSim) { bestSim = sim; bestId = c.id; }
-    }
-
-    if (bestSim >= threshold) {
-      assignment.set(ids[i], bestId);
-    } else {
-      centroids.push({ id: ids[i], vec });
-      assignment.set(ids[i], ids[i]);
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (cosineSim(embeddings[i], embeddings[j]) >= threshold) union(i, j);
     }
   }
 
+  const assignment = new Map<string, string>();
+  for (let i = 0; i < n; i++) assignment.set(ids[i], ids[find(i)]);
   return assignment;
 }
