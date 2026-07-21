@@ -21,6 +21,9 @@ export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) 
   const [menuOpen, setMenuOpen] = useState(false);
   const desktopMenuRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+  // Mobile page-nav dropdown (replaces the ‹ Page › carousel).
+  const [navMenuOpen, setNavMenuOpen] = useState(false);
+  const navMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -35,6 +38,15 @@ export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) 
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [menuOpen]);
+
+  useEffect(() => {
+    if (!navMenuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (navMenuRef.current && !navMenuRef.current.contains(e.target as Node)) setNavMenuOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [navMenuOpen]);
 
   const link = (id: PageId, label: string) => (
     <button
@@ -57,11 +69,9 @@ export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) 
     </button>
   );
 
-  // Mobile tab carousel
+  // Mobile page-nav dropdown: current page for the trigger label.
   const mobileIdx = MOBILE_NAV.findIndex(n => n.id === page);
   const activeMobile = mobileIdx >= 0 ? mobileIdx : 1; // default to Explore
-  const prevMobile = MOBILE_NAV[(activeMobile - 1 + MOBILE_NAV.length) % MOBILE_NAV.length];
-  const nextMobile = MOBILE_NAV[(activeMobile + 1) % MOBILE_NAV.length];
 
   return (
     <div className="bleed" style={{ background: 'var(--cream)', borderBottom: '2px solid var(--ink)' }}>
@@ -140,24 +150,32 @@ export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) 
           )}
         </div>
 
-        {/* Mobile: ‹ Page › carousel + login */}
+        {/* Mobile: page dropdown + login */}
         <div className="nav-mobile-row" style={{ display: 'none', alignItems: 'center', gap: 8 }}>
-          <button
-            onClick={() => setPage(prevMobile.id)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--ink)', padding: '0 2px', lineHeight: 1 }}
-            aria-label={`Go to ${prevMobile.label}`}
-          >‹</button>
-          <button
-            onClick={() => setPage(MOBILE_NAV[activeMobile].id)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 14, fontWeight: 700, color: 'var(--red)', borderBottom: '2px solid var(--red)', padding: '4px 2px', minWidth: 80, textAlign: 'center' }}
-          >
-            {MOBILE_NAV[activeMobile].label}
-          </button>
-          <button
-            onClick={() => setPage(nextMobile.id)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--ink)', padding: '0 2px', lineHeight: 1 }}
-            aria-label={`Go to ${nextMobile.label}`}
-          >›</button>
+          <div ref={navMenuRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setNavMenuOpen(o => !o)}
+              aria-haspopup="menu"
+              aria-expanded={navMenuOpen}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 14, fontWeight: 700, color: 'var(--red)', borderBottom: '2px solid var(--red)', padding: '4px 2px', minWidth: 80 }}
+            >
+              {MOBILE_NAV[activeMobile].label} ▾
+            </button>
+            {navMenuOpen && (
+              <div role="menu" style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, background: 'var(--cream)', border: '2px solid var(--ink)', borderRadius: 8, minWidth: 168, zIndex: 200, boxShadow: '3px 3px 0 var(--ink)', overflow: 'hidden' }}>
+                {MOBILE_NAV.map((n) => (
+                  <button
+                    key={n.id}
+                    role="menuitem"
+                    onClick={() => { setNavMenuOpen(false); setPage(n.id); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 16px', background: page === n.id ? 'rgba(230,57,70,0.08)' : 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 14, fontWeight: page === n.id ? 700 : 500, color: page === n.id ? 'var(--red)' : 'var(--ink)', borderBottom: '1px solid rgba(0,0,0,0.08)' }}
+                  >
+                    {n.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {user ? (
             <div ref={mobileMenuRef} style={{ position: 'relative' }}>
               <button className="nav-login" onClick={() => setMenuOpen(o => !o)}>My Aruba ▾</button>
