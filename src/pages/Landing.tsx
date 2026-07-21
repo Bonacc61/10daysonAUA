@@ -111,7 +111,7 @@ export default function Landing({ setPage, answers, setAnswers, onPlanClick }: P
                   rel="noopener noreferrer"
                   className="parrot-coffee"
                   style={{
-                    position: 'absolute', top: '47%', left: '34%',
+                    position: 'absolute', top: '64%', left: '-26%',
                     transform: 'rotate(-11deg)', transformOrigin: 'center',
                     display: 'inline-flex', alignItems: 'center', gap: 6,
                     background: 'var(--yellow)', color: 'var(--ink)',
