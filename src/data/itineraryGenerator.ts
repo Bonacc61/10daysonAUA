@@ -266,9 +266,15 @@ function pickForSlot(
   // by item ID via lastUsedDay only.
   const notSimilar = (e: CardEntry): boolean => {
     if (e.kind !== 'group') return true;
+    // Same embedding cluster → definitely the same experience.
     const cid = e.bestSeller.experience_cluster_id;
-    if (cid) return !ctx.usedClusterIds.has(cid);
-    // Fallback: tag Jaccard
+    if (cid && ctx.usedClusterIds.has(cid)) return false;
+    // ALSO apply the tag-Jaccard net even when a cluster ID is present. Without an
+    // embedding provider the live feed's "cluster_id" is just a per-product code
+    // (e.g. 6841ISLAND vs 6841POOL for two near-identical Natural-Pool jeep
+    // safaris), so distinct codes slip past cluster-dedup — tag Jaccard is what
+    // actually recognises them as the same real-world experience. (Previously this
+    // fallback was skipped whenever a cluster ID existed, i.e. almost always.)
     const tags = e.bestSeller.tags ?? [];
     if (tags.length === 0) return true;
     return !ctx.usedTagSets.some((used) => tagJaccard(tags, used) >= TAG_SIMILARITY_THRESHOLD);
