@@ -5,7 +5,6 @@ import { useCatalog } from '../data/useCatalog';
 import { useAuth } from '../lib/auth';
 import { generatePlan } from '../data/itineraryGenerator';
 import { ACTIVITY_COORDS, GROUP_COORDS, VIATOR_ITEM_COORDS } from '../data/coords';
-import { ACTIVITIES } from '../data/activities';
 import { LUNCHSPOTS } from '../data/lunchspots';
 import { viatorLink } from '../data/exploreItems';
 import type { Answers, PageId } from '../App';
@@ -15,18 +14,6 @@ import type { Catalog } from '../data/activitySource';
 const TOKEN = (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined) ?? '';
 const ARUBA_CENTER = { longitude: -70.0164, latitude: 12.5211, zoom: 11.5 };
 
-const CAT_COLOR: Record<string, string> = {
-  Beaches: '#0096C7', Activities: '#F4A261',
-  Watersports: '#005F73', Food: '#E9C46A', Tours: '#6A994E',
-};
-const GROUP_META: Record<string, { label: string; color: string }> = {
-  'sailing-cruises':        { label: 'Sailing',      color: '#0077B6' },
-  'watersports':            { label: 'Watersports',  color: '#00B4D8' },
-  'adventure-tours':        { label: 'Adventure',    color: '#E76F51' },
-  'sightseeing-tours':      { label: 'Sightseeing',  color: '#6A994E' },
-  'art-culture-history':    { label: 'Culture',      color: '#9B5DE5' },
-  'food-drink-experiences': { label: 'Food & drink', color: '#F4A261' },
-};
 
 type Coord = { lng: number; lat: number };
 type DayEntry = { key: string; slot: string; title: string; image: string | null; coord: Coord | null; price: string | null; duration: string | null; url: string | null };
@@ -92,9 +79,12 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   const stripRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapRef>(null);
 
-  // Generate 3 variant plans matching the Dashboard's itinerary variants.
+  // Generate 3 variant plans matching the Dashboard's itinerary variants. Always
+  // generated — a logged-out / pre-quiz visitor gets a sample itinerary (from the
+  // default answers) so the Map shows the same clean single-route view as everyone
+  // else, rather than the old catalog-browse mode (legend + scattered pins). The
+  // "answer 8 questions" CTAs still overlay for those visitors.
   const plans = useMemo(() => {
-    if (!canSeeItinerary) return null;
     const adventureAnswers = {
       ...answers,
       adventureLevel: Math.max(answers.adventureLevel, 75),
@@ -113,7 +103,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
       generatePlan(adventureAnswers, catalog, { seed: 0 }),
       generatePlan(chillAnswers,     catalog, { seed: 0 }),
     ];
-  }, [answers, catalog, canSeeItinerary]);
+  }, [answers, catalog]);
 
   const plan = plans?.[activePlanIdx] ?? null;
 
@@ -192,15 +182,6 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
     );
   }, [dayEntries]);
 
-  // Viator group pins
-  const groupPins = useMemo(() => catalog.groups.flatMap(g => {
-    const c = GROUP_COORDS[g.id];
-    const meta = GROUP_META[g.id];
-    if (!c || !meta) return [];
-    const count = catalog.items.filter(i => i.group_id === g.id).length;
-    return [{ groupId: g.id, lng: c.lng, lat: c.lat, count, ...meta }];
-  }), [catalog]);
-
   if (!TOKEN) {
     return (
       <div style={{ minHeight: 'calc(100vh - 70px)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--cream)', padding: 24 }}>
@@ -247,28 +228,6 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
             );
           })}
 
-          {/* Catalog: Viator group pills — shown only when no itinerary day is active */}
-          {!planDay && groupPins.map(g => (
-            <Marker key={g.groupId} longitude={g.lng} latitude={g.lat} anchor="center"
-              onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: g.lng, lat: g.lat, title: g.label, sub: `${g.count} activities on Viator` }); }}>
-              <div style={{ background: g.color, color: '#fff', borderRadius: 20, padding: '5px 10px', fontSize: 11, fontWeight: 700, fontFamily: 'Inter,sans-serif', border: '2px solid #fff', boxShadow: '0 2px 8px rgba(0,0,0,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
-                {g.label}<span style={{ background: 'rgba(255,255,255,0.28)', borderRadius: 10, padding: '1px 6px', fontSize: 10 }}>{g.count}</span>
-              </div>
-            </Marker>
-          ))}
-
-          {/* Catalog: local activity dots — shown only when no itinerary day is active */}
-          {!planDay && ACTIVITIES.map(a => {
-            const c = ACTIVITY_COORDS[a.id];
-            if (!c) return null;
-            return (
-              <Marker key={a.id} longitude={c.lng} latitude={c.lat} anchor="center"
-                onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: c.lng, lat: c.lat, title: a.title, sub: `${a.category} · ${a.cost}` }); }}>
-                <div style={{ width: 14, height: 14, borderRadius: '50%', background: CAT_COLOR[a.category] ?? '#E63946', border: '2px solid #fff', boxShadow: '0 1px 5px rgba(0,0,0,0.4)', cursor: 'pointer' }} />
-              </Marker>
-            );
-          })}
-
           {/* Popup — styled as chunky card, no category header */}
           {popup && (
             <Popup longitude={popup.lng} latitude={popup.lat} closeOnClick={false} onClose={() => setPopup(null)} anchor="bottom" offset={16} maxWidth="220px" className="map-popup">
@@ -301,18 +260,6 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
             </Popup>
           )}
         </RMap>
-
-        {/* Top-left legend — catalog mode only */}
-        {!planDay && (
-          <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10, background: 'rgba(255,251,240,0.97)', backdropFilter: 'blur(10px)', border: '2px solid #1a1a1a', borderRadius: 10, padding: '10px 12px', boxShadow: '0 2px 12px rgba(0,0,0,0.18)' }}>
-            {Object.entries(CAT_COLOR).map(([cat, color]) => (
-              <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, flexShrink: 0 }} />
-                <span style={{ fontSize: 12, fontFamily: 'Inter,sans-serif', color: '#333' }}>{cat}</span>
-              </div>
-            ))}
-          </div>
-        )}
 
         {/* No-itinerary CTA */}
         {!canSeeItinerary && (
