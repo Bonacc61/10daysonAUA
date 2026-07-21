@@ -17,8 +17,8 @@ import { otherItemsInGroup } from './activitySource';
 import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry, ViatorItem, ViatorGroup } from '../types';
 import { SECTIONS } from './itineraryPlan';
-import { matchPool, blendPools, entryPrice } from './matcher';
-import { fitItem, refaceForAnswers, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, offroadAdrenalineBonus } from './itemFit';
+import { matchPool, entryPrice } from './matcher';
+import { fitItem, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, offroadAdrenalineBonus, itemSlotOk } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 import { effectiveFlags } from './notesFlags';
@@ -52,8 +52,6 @@ const TAG_SIMILARITY_THRESHOLD = 0.35;
 const SLOT_TOD: Record<Slot, Activity['timeOfDay']> = {
   morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening',
 };
-
-const NO_FILTER = { rejectedIds: new Set<string>(), rejectedGroupIds: new Set<string>() };
 
 // interest tag → Explore sections it favours. This is what tailors the
 // wildcard-tagged local picks (groups already differentiate via matched_by).
@@ -146,10 +144,12 @@ type Ctx = {
   prefSections: Set<Section>;
   rand: () => number;
   lastUsedDay: Map<string, number>;
-  // Once any item from a group is placed, the whole group is retired for the
-  // rest of the trip. Prevents booking-option variants (adult/child/45-min)
-  // of the same product from each claiming a separate day.
-  usedGroupIds: Set<string>;
+  // groupId → group, built once. Each per-item candidate resolves its group
+  // through this (for scoring via group.matched_by and for the stored
+  // {groupId, bestSellerId} SlotEntry) without a per-item linear scan. Booking-
+  // option variants of one product are now handled by cluster/tag dedup in
+  // notSimilar, not by whole-group retirement.
+  groupById: Map<string, ViatorGroup>;
   // Cluster IDs (from embedding-based clustering at ingest) of placed Viator
   // items. When an item is placed its cluster is retired for the rest of the
   // trip, preventing semantically identical listings (e.g. two Natural Pool
@@ -174,27 +174,42 @@ function routeFamilyOf(e: CardEntry): string | undefined {
   return LOCAL_OFFROAD.test(e.activity.title) ? 'offroad' : undefined;
 }
 
-// Candidates for a slot. useTags=null widens which GROUPS are eligible (time-of-
-// day only), but the card face + over-budget guard always use the real answers
-// (ctx.tags) via refaceForAnswers — widening relevance must never resurface an
-// item the traveller can't afford or wouldn't want.
+// Candidates for a slot — ONE CardEntry per Viator item (no group face-collapse),
+// plus local activities. useTags=null widens which items are eligible (drops the
+// group-relevance narrowing), but the slot + budget guards ALWAYS use the real
+// answers (ctx.tags): widening relevance must never resurface an item the traveller
+// can't afford or that doesn't belong in this slot.
 //
-// usedGroupIds excludes entire Viator groups once any of their items has been
-// placed, so the same experience never repeats (e.g. "Atlantis Submarine Tour"
-// across 5 days). Local activities are excluded by lastUsedDay (item-level).
+// Dedup is NOT done here — pickForSlot's `unused` (lastUsedDay, item-level) and
+// `notSimilar` (cluster → tag-Jaccard → route-family) handle it, so the same
+// experience never repeats while one group can still fill many days with its
+// different items.
 function candidatesFor(ctx: Ctx, slot: Slot, useTags: Set<MatchTag> | null): CardEntry[] {
-  const usedIds = new Set(ctx.lastUsedDay.keys());
-  if (useTags === null) {
-    const activities = ctx.catalog.activities.filter((a) => a.timeOfDay === SLOT_TOD[slot]);
-    const groups = ctx.catalog.groups.filter(
-      (g) => (g.allowed_slots.length === 0 || g.allowed_slots.includes(slot))
-           && !ctx.usedGroupIds.has(g.id),
-    );
-    return refaceForAnswers(blendPools(activities, groups, ctx.catalog.items, NO_FILTER), ctx.tags, slot, usedIds);
+  // Local activities: matched pool via matchPool (tag overlap + time-of-day);
+  // widened pool is time-of-day only. (Empty groups arg — items handled below.)
+  const activities = useTags === null
+    ? ctx.catalog.activities.filter((a) => a.timeOfDay === SLOT_TOD[slot])
+    : matchPool(ctx.catalog.activities, [], useTags, slot).activities;
+
+  // One candidate per item. Hard filters (both pools): slot-appropriate + fits the
+  // real answers (the hard budget guard). Relevance narrowing (matched pool only)
+  // uses the item's GROUP matched_by — the same signal matchPool applied at group
+  // level, now per item. Empty matched_by = wildcard (matches everyone), as before.
+  const itemEntries: CardEntry[] = [];
+  for (const item of ctx.catalog.items) {
+    if (!itemSlotOk(item, slot)) continue;
+    if (fitItem(item, ctx.tags).rejected) continue;
+    const group = ctx.groupById.get(item.group_id);
+    if (!group) continue; // data-integrity guard (mirrors blendPools' best-seller guard)
+    if (useTags !== null && group.matched_by.length > 0
+        && !group.matched_by.some((t) => useTags.has(t))) continue;
+    // others:[] — the generator never reads it; display rebuilds it in resolveSlotEntry.
+    itemEntries.push({ kind: 'group', group, bestSeller: item, others: [] });
   }
-  const { activities, groups: matchedGroups } = matchPool(ctx.catalog.activities, ctx.catalog.groups, useTags, slot);
-  const groups = matchedGroups.filter((g) => !ctx.usedGroupIds.has(g.id));
-  return refaceForAnswers(blendPools(activities, groups, ctx.catalog.items, NO_FILTER), ctx.tags, slot, usedIds);
+
+  const activityEntries: CardEntry[] = activities.map((a) => ({ kind: 'activity', activity: a }));
+  // Items first (mirrors blendPools' groups-first commercial tie-break on equal fit).
+  return [...itemEntries, ...activityEntries];
 }
 
 // A coarse "kind" for an entry, used to keep a single day varied (no two near-
@@ -480,7 +495,7 @@ export function generatePlan(
     // random food day on the opposite coast by normal fill.
     activities: filteredCatalog.activities.filter((a) => !dupedLocal(a) && !foodPlaceKey(a.id)),
   };
-  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], usedRouteFamilies: new Set() };
+  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedClusterIds: new Set(), usedTagSets: [], usedRouteFamilies: new Set() };
 
   // Trip-wide budget pool: keeps the AVERAGE daily activity spend within the
   // tier cap (budget-conscious ≈ $110/day on average), letting days vary while
@@ -620,7 +635,6 @@ export function generatePlan(
         ctx.lastUsedDay.set(entryId(pick), d);
         { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
         if (pick.kind === 'group') {
-          ctx.usedGroupIds.add(pick.group.id);
           const cid = pick.bestSeller.experience_cluster_id;
           if (cid) ctx.usedClusterIds.add(cid);
           const tags = pick.bestSeller.tags ?? [];
@@ -669,7 +683,6 @@ export function generatePlan(
       ctx.lastUsedDay.set(entryId(pick), d);
       { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
       if (pick.kind === 'group') {
-        ctx.usedGroupIds.add(pick.group.id);
         const cid = pick.bestSeller.experience_cluster_id;
         if (cid) ctx.usedClusterIds.add(cid);
         const tags = pick.bestSeller.tags ?? [];
