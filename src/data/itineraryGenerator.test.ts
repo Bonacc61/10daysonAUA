@@ -243,6 +243,49 @@ describe('generatePlan — pacing + no unintended empty slots', () => {
     expect(hasA && hasB).toBe(false);
   });
 
+  it('places two different items from the SAME group (dedup is per-cluster, not per-group)', () => {
+    // A private charter and a Jolly Pirates cruise are both in the "sailing" group
+    // but are distinct experiences (different cluster ids, no shared tags). The old
+    // per-group dedup (usedGroupIds) let only one land; item-level planning places both.
+    const sailing: ViatorGroup = {
+      id: 'sailing', name: 'Sailing & Cruises', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 0, matched_by: ['watersports'] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    };
+    const charter: ViatorItem = {
+      id: 'charter', group_id: 'sailing', title: 'Private Catamaran Charter',
+      image_url: '', price_usd: 1450, duration: '', rating: 4.9, review_count: 40,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      tags: [11888],                        // 11888 = sailing -> 'sail' kind (crowd-pleaser)
+      experience_cluster_id: 'cluster-charter',
+    };
+    const jolly: ViatorItem = {
+      id: 'jolly', group_id: 'sailing', title: 'Jolly Pirates Snorkel Cruise',
+      image_url: '', price_usd: 65, duration: '', rating: 4.7, review_count: 900,
+      viator_item_url: '', is_best_seller: false, display_order: 1,
+      tags: [11912],                        // 11912 = snorkel -> 'snorkel' kind (crowd-pleaser)
+      experience_cluster_id: 'cluster-jolly',
+    };
+    // Both are placeable crowd-pleasers; different kinds + tag-Jaccard 0 (no shared
+    // tags) + different clusters => notSimilar allows BOTH. is_best_seller:false on
+    // jolly proves a non-face item still surfaces.
+    const padGroups: ViatorGroup[] = Array.from({ length: 12 }, (_, n) => ({
+      id: `pad-${n}`, name: `pad-${n}`, tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: n + 1, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    }));
+    const padItems: ViatorItem[] = padGroups.map((g, n) => ({
+      id: `pad-item-${n}`, group_id: g.id, title: `Beach Day ${n}`,
+      image_url: '', price_usd: 0, duration: '', rating: 4.0, review_count: 10,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      sections: ['beaches' as const], experience_cluster_id: `pad-cluster-${n}`,
+    }));
+    const cat: Catalog = { activities: [], groups: [sailing, ...padGroups], items: [charter, jolly, ...padItems] };
+    // 5 days keeps the money-no-object premium pre-pass OUT of it (needs >= 7 days),
+    // so this exercises normal item-level fill only.
+    const ids = entryIds(generatePlan({ ...ADVENTURER, days: 5 }, cat));
+    expect(ids.includes('charter')).toBe(true);
+    expect(ids.includes('jolly')).toBe(true);
+  });
+
   it('dedups high-tag-overlap items even when they carry DIFFERENT cluster ids', () => {
     // The live regression: without an embedding provider, the feed assigns a
     // per-product cluster code (6841ISLAND vs 6841POOL) to two near-identical
