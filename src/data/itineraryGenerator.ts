@@ -18,7 +18,7 @@ import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry, ViatorItem, ViatorGroup } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, blendPools, entryPrice } from './matcher';
-import { fitItem, refaceForAnswers, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser } from './itemFit';
+import { fitItem, refaceForAnswers, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, offroadAdrenalineBonus } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 import { effectiveFlags } from './notesFlags';
@@ -127,6 +127,7 @@ function scoreEntry(e: CardEntry, tags: Set<MatchTag>, prefSections: Set<Section
     // over-budget reject here.
     let score = fitItem(e.bestSeller, tags).score;
     for (const t of e.group.matched_by) if (tags.has(t)) score += 2;
+    score += offroadAdrenalineBonus(e.bestSeller, tags);
     return score;
   }
   // Local activity: wildcard matched_by, so the section affinity does the work.
@@ -157,7 +158,21 @@ type Ctx = {
   usedClusterIds: Set<string>;
   // Tag-ID fingerprints used as fallback when no embedding cluster is available.
   usedTagSets: number[][];
+  // Route families placed this trip. Off-road tours (jeep/UTV/ATV) all run the
+  // same Aruba circuit, so once one is placed the whole family is retired for the
+  // rest of the trip — regardless of trip length (see routeFamilyOf).
+  usedRouteFamilies: Set<string>;
 };
+
+// The shared "route family" of an entry: a set of tours that visit the same
+// real-world circuit and so shouldn't both be recommended. Currently just Aruba's
+// off-road tours (Jeep / UTV / ATV / buggy — all the north-coast + Arikok +
+// Natural Pool run). undefined = no family (dedup by cluster/tag only).
+const LOCAL_OFFROAD = /jeep|safari|4x4|4wd|off.?road|utv|atv|natural pool|conchi/i;
+function routeFamilyOf(e: CardEntry): string | undefined {
+  if (e.kind === 'group') return activityKind(e.bestSeller) === 'offroad' ? 'offroad' : undefined;
+  return LOCAL_OFFROAD.test(e.activity.title) ? 'offroad' : undefined;
+}
 
 // Candidates for a slot. useTags=null widens which GROUPS are eligible (time-of-
 // day only), but the card face + over-budget guard always use the real answers
@@ -265,6 +280,10 @@ function pickForSlot(
   // Local activities (no Viator tags, no cluster ID) bypass both — they dedupe
   // by item ID via lastUsedDay only.
   const notSimilar = (e: CardEntry): boolean => {
+    // Route family: one off-road tour per trip (they share the same circuit),
+    // applies to Viator groups and local picks alike.
+    const fam = routeFamilyOf(e);
+    if (fam && ctx.usedRouteFamilies.has(fam)) return false;
     if (e.kind !== 'group') return true;
     // Same embedding cluster → definitely the same experience.
     const cid = e.bestSeller.experience_cluster_id;
@@ -461,7 +480,7 @@ export function generatePlan(
     // random food day on the opposite coast by normal fill.
     activities: filteredCatalog.activities.filter((a) => !dupedLocal(a) && !foodPlaceKey(a.id)),
   };
-  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [] };
+  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], usedRouteFamilies: new Set() };
 
   // Trip-wide budget pool: keeps the AVERAGE daily activity spend within the
   // tier cap (budget-conscious ≈ $110/day on average), letting days vary while
@@ -531,6 +550,11 @@ export function generatePlan(
     for (const item of fillCatalog.items) {
       if (budgetTag(item.price_usd) !== 'money-no-object') continue; // premium tier only
       if (pinnedItemIds.has(item.id)) continue;                      // already pinned
+      // Off-road is a single-per-trip route family, not a "splurge in addition"
+      // experience — a money-no-object traveller gets ONE off-road tour (chosen by
+      // adrenaline × budget in normal fill), never a premium jeep plus a
+      // crowd-pleaser UTV on the same circuit.
+      if (activityKind(item) === 'offroad') continue;
       const fit = fitItem(item, tags);
       if (fit.rejected) continue;
       const group = fillCatalog.groups.find((g) => g.id === item.group_id);
@@ -594,6 +618,7 @@ export function generatePlan(
         const { cardEntry: pick, slotEntry } = pin;
         budgetLeft -= entryPrice(pick);
         ctx.lastUsedDay.set(entryId(pick), d);
+        { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
         if (pick.kind === 'group') {
           ctx.usedGroupIds.add(pick.group.id);
           const cid = pick.bestSeller.experience_cluster_id;
@@ -621,6 +646,7 @@ export function generatePlan(
         const { cardEntry: pick, slotEntry } = premium;
         budgetLeft -= entryPrice(pick);
         ctx.lastUsedDay.set(entryId(pick), d);
+        { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
         if (pick.kind === 'group') {
           const cid = pick.bestSeller.experience_cluster_id;
           if (cid) ctx.usedClusterIds.add(cid);
@@ -641,6 +667,7 @@ export function generatePlan(
       if (!pick) continue;
       budgetLeft -= entryPrice(pick);
       ctx.lastUsedDay.set(entryId(pick), d);
+      { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
       if (pick.kind === 'group') {
         ctx.usedGroupIds.add(pick.group.id);
         const cid = pick.bestSeller.experience_cluster_id;

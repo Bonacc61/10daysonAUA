@@ -428,6 +428,47 @@ describe('generatePlan — en-route food suggestion', () => {
   });
 });
 
+describe('generatePlan — one off-road tour per trip (shared route family)', () => {
+  // Off-road tours (jeep/UTV/ATV — offroad tag 12035) all run the same Aruba
+  // circuit, so at most one should appear across the whole trip regardless of
+  // length, even from different groups / clusters.
+  const OFF = 12035;
+  const mkGroup = (n: number): ViatorGroup => ({
+    id: `off-${n}`, name: `off-${n}`, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: n, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  const mkItem = (n: number, title: string): ViatorItem => ({
+    id: `off-item-${n}`, group_id: `off-${n}`, title,
+    image_url: '', price_usd: 90, duration: '', rating: 4.7, review_count: 200,
+    viator_item_url: '', is_best_seller: true, display_order: 0,
+    tags: [OFF], experience_cluster_id: `cluster-${n}`,
+  });
+  const pad: { g: ViatorGroup[]; i: ViatorItem[] } = { g: [], i: [] };
+  for (let n = 0; n < 20; n += 1) {
+    pad.g.push({ id: `pad-${n}`, name: `pad-${n}`, tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: n + 5, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const });
+    pad.i.push({ id: `pad-item-${n}`, group_id: `pad-${n}`, title: `Beach ${n}`,
+      image_url: '', price_usd: 0, duration: '', rating: 4.0, review_count: 50,
+      viator_item_url: '', is_best_seller: true, display_order: 0, tags: [90000 + n], experience_cluster_id: `pad-c-${n}` });
+  }
+
+  it('places at most one off-road tour on a long trip, even across groups', () => {
+    const cat: Catalog = {
+      activities: [],
+      groups: [mkGroup(1), mkGroup(2), mkGroup(3), ...pad.g],
+      items: [
+        mkItem(1, 'Natural Pool Rugged Jeep Safari'),
+        mkItem(2, 'Aruba UTV Adventure to Natural Pool'),
+        mkItem(3, 'Private 4x4 Off-Road Arikok Tour'),
+        ...pad.i,
+      ],
+    };
+    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 12, interests: ['adventure'] }, cat));
+    const offroadCount = ids.filter((id) => /off-item-/.test(id)).length;
+    expect(offroadCount).toBeLessThanOrEqual(1);
+  });
+});
+
 describe('generatePlan — day-level geographic clustering', () => {
   const cat = getCatalog();
   const coordOf = (e: SlotEntry): Coord | undefined =>

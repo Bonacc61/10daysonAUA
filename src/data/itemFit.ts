@@ -134,6 +134,33 @@ export function isCrowdPleaser(item: ViatorItem): boolean {
   return false;
 }
 
+// Aruba's off-road tours (Jeep / UTV / ATV / buggy) all run the same north-coast
+// + Arikok + Natural Pool circuit, so they're one experience — the plan should
+// carry at most one (see routeFamilyOf in the generator). This splits that one
+// slot by ADRENALINE: self-drive UTV/ATV/buggy rentals are the high-thrill pick,
+// guided jeep tours the comfortable one. The generator prefers self-drive for a
+// high-adventure traveller and guided for a low-adventure one.
+// Genuine self-drive adrenaline vehicles only — NOT "jeep rental" or an
+// "e-scooter rental" (the broad word "rental" over-matched those).
+const SELF_DRIVE_OFFROAD = /\b(utv|atv|quad|quads|buggy|buggies|dune ?buggy)\b/i;
+export function isSelfDriveOffroad(item: ViatorItem): boolean {
+  return activityKind(item) === 'offroad' && SELF_DRIVE_OFFROAD.test(item.title);
+}
+
+// Adrenaline nudge for the single off-road slot: a high-adventure traveller is
+// pushed toward the self-drive UTV/ATV, a low-adventure one toward the guided
+// jeep. Big enough to beat the crowd-pleaser boost that otherwise pins every
+// budget onto a guided Natural-Pool jeep. Applied in BOTH face selection
+// (bestItemForAnswers) and slot scoring so the chosen face is the right sub-type.
+const ADRENALINE_BONUS = 5;
+export function offroadAdrenalineBonus(item: ViatorItem, tags: Set<MatchTag>): number {
+  if (activityKind(item) !== 'offroad') return 0;
+  const selfDrive = isSelfDriveOffroad(item);
+  if (tags.has('high-adventure') && selfDrive) return ADRENALINE_BONUS;
+  if (tags.has('low-adventure') && !selfDrive) return ADRENALINE_BONUS;
+  return 0;
+}
+
 // Scoring bonus for a crowd-pleaser — comparable in weight to a strong interest
 // match (+3), so a universal favourite competes with, and usually beats, a
 // niche or narrowly-expensive option in the same slot, without erasing the
@@ -201,7 +228,8 @@ export function bestItemForAnswers(items: ViatorItem[], tags: Set<MatchTag>): Vi
   for (const it of items) {
     const f = fitItem(it, tags);
     if (f.rejected) continue;
-    if (f.score > bestScore) { bestScore = f.score; best = it; }
+    const score = f.score + offroadAdrenalineBonus(it, tags);
+    if (score > bestScore) { bestScore = score; best = it; }
   }
   return best;
 }
