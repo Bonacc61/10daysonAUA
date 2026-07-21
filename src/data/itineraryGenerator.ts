@@ -22,6 +22,9 @@ import { fitItem, refaceForAnswers, budgetCap, activityKind, isEveningItem, isWa
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 import { effectiveFlags } from './notesFlags';
+import { LUNCHSPOTS } from './lunchspots';
+import { coordForEntry, type Coord } from './coords';
+import { pickEnRouteStop, foodPlaceKey } from './enRoute';
 import { budgetTag } from './classify';
 
 const DAY_COLORS = ['#FF6B47', '#3B82F6', '#22C55E', '#EAB308', '#E63946', '#8B5CF6', '#0EA5E9'];
@@ -408,11 +411,24 @@ export function generatePlan(
   // always beats this heuristic. Crowd-pleasers are exempt from the floor: they
   // are curated as universally bookable, so a lightly-reviewed catamaran or
   // Natural Pool tour must not be filtered out before its boost can apply.
+  const flooredItems = filteredCatalog.items.filter(
+    (i) => i.popularity_score === undefined || i.popularity_score >= MIN_FILL_POPULARITY || isCrowdPleaser(i),
+  );
+  // Prefer the bookable Viator experience over a hand-written local pick that
+  // duplicates it: if the live catalog actually has a matching guided tour, drop
+  // the self-guided local from the auto-fill pool so the slot goes to the
+  // bookable one (the local stays in Explore). If no Viator equivalent is present
+  // (edge fn down, thin stub), the local remains as the fallback.
+  const dupedLocal = (a: Activity): boolean =>
+    !!a.viatorDupe && filteredCatalog.items.some((it) => a.viatorDupe!.test(it.title));
   const fillCatalog: Catalog = {
     ...filteredCatalog,
-    items: filteredCatalog.items.filter(
-      (i) => i.popularity_score === undefined || i.popularity_score >= MIN_FILL_POPULARITY || isCrowdPleaser(i),
-    ),
+    items: flooredItems,
+    // Drop bookable-Viator-duplicated locals, and reserve en-route food twins
+    // (e.g. the standalone Zeerover activity) for the route post-pass so they
+    // surface on the day you actually drive past them — not scattered onto a
+    // random food day on the opposite coast by normal fill.
+    activities: filteredCatalog.activities.filter((a) => !dupedLocal(a) && !foodPlaceKey(a.id)),
   };
   const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [] };
 
@@ -611,6 +627,43 @@ export function generatePlan(
       morning: slots.morning, afternoon: slots.afternoon, evening: slots.evening,
     });
   }
+
+  // --- En-route food post-pass ------------------------------------------------
+  // If a day's plan drives out to a far corner of the island, offer a curated
+  // food stop that sits on that drive (e.g. Zeerover on an Arikok/Boca Grandi
+  // day — you pass straight through Savaneta). Appended as an ordinary afternoon
+  // food card: swappable/removable like the manual "Suggest lunch spot" pick.
+  // Skipped for no-car travellers (they aren't driving there) and for days that
+  // already include a food card. A place is never offered twice on a trip.
+  if (!flags.has('no-car')) {
+    const isFoodActivityId = (id: string): boolean =>
+      (catalog.activities.find((x) => x.id === id) ?? LUNCHSPOTS.find((x) => x.id === id))?.category === 'Food';
+    const entryIsFood = (e: SlotEntry): boolean =>
+      e.kind === 'activity' ? isFoodActivityId(e.id) : e.groupId === 'food-drink-experiences';
+    const entryFoodKey = (e: SlotEntry): string | undefined =>
+      foodPlaceKey(e.kind === 'activity' ? e.id : e.bestSellerId);
+
+    // Seed with food places already in the plan so we never double-book one.
+    const usedPlaceKeys = new Set<string>();
+    for (const day of days)
+      for (const slot of SECTIONS)
+        for (const e of day[slot]) { const k = entryFoodKey(e); if (k) usedPlaceKeys.add(k); }
+
+    for (const day of days) {
+      // An existing lunch/daytime food card blocks the stop; an evening dinner
+      // doesn't — a roadside lunch and a night-out dinner happily coexist.
+      if (day.morning.some(entryIsFood) || day.afternoon.some(entryIsFood)) continue;
+      const coords = SECTIONS
+        .flatMap((slot) => day[slot])
+        .map(coordForEntry)
+        .filter((c): c is Coord => !!c);
+      const pick = pickEnRouteStop(coords, usedPlaceKeys);
+      if (!pick) continue;
+      usedPlaceKeys.add(pick.placeKey);
+      day.afternoon.push({ kind: 'activity', id: pick.id });
+    }
+  }
+  // ---------------------------------------------------------------------------
 
   return days;
 }

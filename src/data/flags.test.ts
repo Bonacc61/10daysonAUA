@@ -287,9 +287,20 @@ describe('generatePlan — real catalog spot-checks', () => {
     }
   });
 
-  it('flags with no effect on a given activity leave it reachable (arikok with birthday flag)', () => {
-    // birthday has no generator effect — arikok should still be reachable.
+  it('flags with no effect on a given activity leave it reachable (baby beach with birthday flag)', () => {
+    // birthday has no generator effect — a plain local pick should still be
+    // reachable. (Probe with baby-beach-snorkel, which has no Viator equivalent;
+    // arikok-hiking is intentionally suppressed when the catalog sells a guided
+    // Arikok tour — see the viatorDupe test below.)
     const { actIds } = sweepSeeds({ ...BASE, days: 9, flags: ['birthday'] }, catalog, 12);
-    expect(actIds.has('arikok-hiking')).toBe(true);
+    expect(actIds.has('baby-beach-snorkel')).toBe(true);
+  });
+
+  it('suppresses the self-guided arikok-hiking local when the catalog sells a guided Arikok tour', () => {
+    // The real catalog includes a Viator "Arikok ... Jeep Safari", so the
+    // non-bookable self-guided local should never be auto-placed (it stays in
+    // Explore) — the bookable guided tour is preferred.
+    const { actIds } = sweepSeeds({ ...BASE, days: 12 }, catalog, 12);
+    expect(actIds.has('arikok-hiking')).toBe(false);
   });
 });

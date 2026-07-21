@@ -359,6 +359,31 @@ describe('generatePlan — premium splurge (money-no-object, week-plus)', () => 
   });
 });
 
+describe('generatePlan — en-route food suggestion', () => {
+  const cat = getCatalog();
+
+  it('offers Zeerover on a day that drives out to the far south (Boca Grandi pinned)', () => {
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 6 }, cat, { seed: 1, pinned: ['boca-grandi'] });
+    const bocaDay = plan.find((d) => [...d.morning, ...d.afternoon, ...d.evening]
+      .some((e) => e.kind === 'activity' && e.id === 'boca-grandi'));
+    expect(bocaDay).toBeDefined();
+    const dayIds = [...bocaDay!.morning, ...bocaDay!.afternoon, ...bocaDay!.evening]
+      .flatMap((e) => (e.kind === 'activity' ? [e.id] : []));
+    expect(dayIds).toContain('lunch-zeerover');
+  });
+
+  it('never offers an en-route food stop to a no-car traveller', () => {
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 8, flags: ['no-car'] }, cat, { seed: 1, pinned: ['boca-grandi'] });
+    expect(entryIds(plan)).not.toContain('lunch-zeerover');
+  });
+
+  it('never places the same food place twice on a trip', () => {
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 10 }, cat, { seed: 2 });
+    const zeeroverCount = entryIds(plan).filter((id) => id === 'lunch-zeerover' || id === 'zeerovers-fresh-catch').length;
+    expect(zeeroverCount).toBeLessThanOrEqual(1);
+  });
+});
+
 describe('generatePlan — premium splurge does not duplicate a pinned item', () => {
   const cat = getCatalog();
   const MNO: Answers = {

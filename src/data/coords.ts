@@ -1,3 +1,5 @@
+import type { SlotEntry } from '../types';
+
 export type Coord = { lng: number; lat: number };
 
 // All coordinates verified against Wikipedia, PADI, latitude.to, and authoritative GPS sources.
@@ -64,3 +66,11 @@ export const GROUP_COORDS: Record<string, Coord> = {
   'art-culture-history':    { lng: -70.0270, lat: 12.5240 },  // Oranjestad
   'food-drink-experiences': { lng: -70.0455, lat: 12.5630 },
 };
+
+// Best-effort coordinate for a planned slot entry: an activity's own point, a
+// Viator item's point, or the item's group-area fallback. undefined when the
+// item/place has no mapped coordinate (the caller then just skips geo logic).
+export function coordForEntry(e: SlotEntry): Coord | undefined {
+  if (e.kind === 'activity') return ACTIVITY_COORDS[e.id];
+  return VIATOR_ITEM_COORDS[e.bestSellerId] ?? GROUP_COORDS[e.groupId];
+}

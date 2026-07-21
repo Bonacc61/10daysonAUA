@@ -22,7 +22,7 @@ function spot(
 export const LUNCHSPOTS: Activity[] = [
   spot('lunch-pikas-corner', "Pika's Corner", 'Palm Beach', 'palm-beach', 'Casual local snack bar near the high-rise strip — pastechi, pan bati and cold drinks.', '$8–15 pp', "/Pika's Corner.jpg"),
   spot('lunch-pastechi-house', 'Pastechi House', 'Oranjestad', 'oranjestad', "Aruba's beloved pastechi stop — flaky fried turnovers with savory fillings.", '$6–12 pp', 'https://images.pexels.com/photos/1267320/pexels-photo-1267320.jpeg?auto=compress&cs=tinysrgb&w=800'),
-  spot('lunch-zeerover', 'Zeerover', 'San Nicolaas', 'san-nicolas', "No-frills fishermen's spot — fresh catch fried by the pound, cash only.", '$10–18 pp', '/Zeerover.png'),
+  spot('lunch-zeerover', 'Zeerover', 'Savaneta', 'savaneta', "No-frills fishermen's spot — fresh catch fried by the pound, cash only.", '$10–18 pp', '/Zeerover.png'),
   spot('lunch-hadicurari', 'Hadicurari', 'Noord', 'noord', 'Beachfront eatery by the fishing pier — fresh seafood with your toes in the sand.', '$15–30 pp', '/Hadicurari.jpg'),
   spot('lunch-don-jacinto', 'Don Jacinto', 'Oranjestad', 'oranjestad', 'Authentic Aruban home cooking in a cozy downtown setting.', '$12–22 pp', '/Don Jacinto Aruba.jpg'),
   spot('lunch-las-cafeteros', 'Las Cafeteros', 'Tanki Leendert', 'oranjestad', 'Colombian-Aruban arepas, empanadas and strong coffee.', '$8–16 pp', '/Los Cafeteros Aruba.jpg'),
