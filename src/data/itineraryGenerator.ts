@@ -150,6 +150,12 @@ type Ctx = {
   // option variants of one product are now handled by cluster/tag dedup in
   // notSimilar, not by whole-group retirement.
   groupById: Map<string, ViatorGroup>;
+  // Last-resort dedup signal: consulted in notSimilar ONLY for an item that has
+  // neither a cluster id nor tags (hand-written stub / thin offline catalog, which
+  // give item-level dedup nothing to compare). Populated by the pin and normal-fill
+  // placements below — NOT by the premium pre-pass, so a splurge and a crowd-pleaser
+  // from one group still both land.
+  usedGroupIds: Set<string>;
   // Cluster IDs (from embedding-based clustering at ingest) of placed Viator
   // items. When an item is placed its cluster is retired for the rest of the
   // trip, preventing semantically identical listings (e.g. two Natural Pool
@@ -310,7 +316,12 @@ function pickForSlot(
     // actually recognises them as the same real-world experience. (Previously this
     // fallback was skipped whenever a cluster ID existed, i.e. almost always.)
     const tags = e.bestSeller.tags ?? [];
-    if (tags.length === 0) return true;
+    if (tags.length === 0) {
+      // No tags: with no cluster id either, the Viator group is the only "same
+      // experience" signal left (hand-written stub / thin offline catalog) — dedup
+      // by it. With a cluster id present, cluster dedup above already covers it.
+      return cid ? true : !ctx.usedGroupIds.has(e.group.id);
+    }
     return !ctx.usedTagSets.some((used) => tagJaccard(tags, used) >= TAG_SIMILARITY_THRESHOLD);
   };
 
@@ -495,7 +506,7 @@ export function generatePlan(
     // random food day on the opposite coast by normal fill.
     activities: filteredCatalog.activities.filter((a) => !dupedLocal(a) && !foodPlaceKey(a.id)),
   };
-  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedClusterIds: new Set(), usedTagSets: [], usedRouteFamilies: new Set() };
+  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], usedRouteFamilies: new Set() };
 
   // Trip-wide budget pool: keeps the AVERAGE daily activity spend within the
   // tier cap (budget-conscious ≈ $110/day on average), letting days vary while
@@ -635,6 +646,7 @@ export function generatePlan(
         ctx.lastUsedDay.set(entryId(pick), d);
         { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
         if (pick.kind === 'group') {
+          ctx.usedGroupIds.add(pick.group.id);
           const cid = pick.bestSeller.experience_cluster_id;
           if (cid) ctx.usedClusterIds.add(cid);
           const tags = pick.bestSeller.tags ?? [];
@@ -683,6 +695,7 @@ export function generatePlan(
       ctx.lastUsedDay.set(entryId(pick), d);
       { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
       if (pick.kind === 'group') {
+        ctx.usedGroupIds.add(pick.group.id);
         const cid = pick.bestSeller.experience_cluster_id;
         if (cid) ctx.usedClusterIds.add(cid);
         const tags = pick.bestSeller.tags ?? [];

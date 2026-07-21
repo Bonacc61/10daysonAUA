@@ -78,11 +78,22 @@ describe.skipIf(skip)('matching engine — live catalog', () => {
 
     it(`no duplicates — ${name}`, () => {
       const plan = generatePlan(answers, catalog, { seed: 42 });
-      const ids = allEntries(plan).map(e => e.kind === 'group' ? e.groupId : e.id);
+      const entries = allEntries(plan);
+      // Never the same item twice (a group entry is identified by its shown item).
+      const itemIds = entries.map(e => e.kind === 'group' ? e.bestSellerId : e.id);
       const seen = new Set<string>();
-      const dupes: string[] = [];
-      for (const id of ids) { if (seen.has(id)) dupes.push(id); seen.add(id); }
-      expect(dupes, `duplicate IDs: ${[...new Set(dupes)].join(', ')}`).toEqual([]);
+      const dupeItems: string[] = [];
+      for (const id of itemIds) { if (seen.has(id)) dupeItems.push(id); seen.add(id); }
+      expect(dupeItems, `duplicate items: ${[...new Set(dupeItems)].join(', ')}`).toEqual([]);
+      // Never the same real-world experience twice (by cluster id, when present).
+      const clusters = entries
+        .filter((e): e is Extract<typeof e, { kind: 'group' }> => e.kind === 'group')
+        .map(e => catalog.items.find(i => i.id === e.bestSellerId)?.experience_cluster_id)
+        .filter((c): c is string => !!c);
+      const seenC = new Set<string>();
+      const dupeC: string[] = [];
+      for (const c of clusters) { if (seenC.has(c)) dupeC.push(c); seenC.add(c); }
+      expect(dupeC, `duplicate clusters: ${[...new Set(dupeC)].join(', ')}`).toEqual([]);
     });
 
     it(`day 1 has no paid viator activities — ${name}`, () => {
