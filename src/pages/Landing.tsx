@@ -2,7 +2,7 @@ import React, { type CSSProperties, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { capture } from '../lib/analytics';
 import {
-  Clock, Users, Sparkle, Chev, iconFor, Share, Calendar, Mail, Coffee,
+  Clock, Users, Sparkle, Chev, iconFor, Share, Calendar, Mail,
 } from '../components/Icons';
 import Footer from '../components/Footer';
 import {
@@ -102,29 +102,7 @@ export default function Landing({ setPage, answers, setAnswers, onPlanClick }: P
 
             </div>
             <div className="hero-mascot" style={{ flex: '1 1 40%', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>
-              <div style={{ position: 'relative', width: '100%', maxWidth: 460 }}>
-                <img src="/parrot-HD.svg" alt="Aruba parrot mascot" style={{ width: '100%', height: 'auto', display: 'block', transform: 'scaleX(-1) rotate(-4deg)' }} />
-                {/* Tilted "Buy me a coffee" sticker tucked between the parrot's beak and chest */}
-                <a
-                  href="https://www.buymeacoffee.com/hello3v"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="parrot-coffee"
-                  style={{
-                    position: 'absolute', top: '70%', left: '-15%',
-                    transform: 'rotate(-11deg)', transformOrigin: 'center',
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    background: 'var(--yellow)', color: 'var(--ink)',
-                    fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
-                    padding: '6px 12px', borderRadius: 20,
-                    border: '2px solid var(--ink)', boxShadow: '2px 2px 0 var(--ink)',
-                    textDecoration: 'none',
-                  }}
-                >
-                  <Coffee size={14} sw={2} />
-                  <span>Buy me a coffee</span>
-                </a>
-              </div>
+              <img src="/parrot-HD.svg" alt="Aruba parrot mascot" style={{ width: '100%', maxWidth: 460, height: 'auto', display: 'block', transform: 'scaleX(-1) rotate(-4deg)' }} />
             </div>
           </div>
         </div>

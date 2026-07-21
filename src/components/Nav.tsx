@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { PageId } from '../App';
 import { useAuth } from '../lib/auth';
+import { Coffee } from './Icons';
 
 type Props = {
   page: PageId;
@@ -97,6 +98,22 @@ export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) 
 
         {/* Desktop links */}
         <div className="nav-links-desktop" style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+          <a
+            href="https://www.buymeacoffee.com/hello3v"
+            target="_blank"
+            rel="noopener noreferrer"
+            /* Pill in the "10 days" logo green (#7CC145), left of the nav links. */
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: '#7CC145', color: 'var(--ink)',
+              fontSize: 13, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap',
+              padding: '5px 12px', borderRadius: 20,
+              border: '1.5px solid var(--ink)', boxShadow: '2px 2px 0 var(--ink)',
+            }}
+          >
+            <Coffee size={14} sw={2} />
+            <span>Buy me a coffee</span>
+          </a>
           {link('landing', 'How it works')}
           {link('explore', 'Explore')}
           {link('itinerary', 'Itinerary')}
