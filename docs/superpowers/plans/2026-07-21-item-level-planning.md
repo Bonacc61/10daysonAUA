@@ -429,6 +429,80 @@ Expected: still referenced by `src/pages/Itinerary.tsx` (swap) and defined in `i
 
 ---
 
+## Amendment (during execution) — last-resort group dedup + e2e invariant
+
+Task 2 as originally written (delete `usedGroupIds` entirely) regressed 2 stub tests
+(`sailing-cruises` one-pick, geo-coherence) and the 5 live-catalog e2e "no duplicates"
+tests. Cause: stub/thin-catalog items have **no cluster id and no tags**, so item-level
+`notSimilar` had no signal and near-duplicates all landed. Corrected approach:
+
+- **Keep `usedGroupIds`** (field + the `.add` in the pin and normal-fill branches; the
+  premium branch still does NOT add). Add `groupById` too.
+- **Gate its READ inside `notSimilar`**: it is consulted **only** for an item with no
+  cluster id and no tags. Change the `if (tags.length === 0) return true;` line to:
+  ```ts
+      const tags = e.bestSeller.tags ?? [];
+      if (tags.length === 0) {
+        // No tags: with no cluster id either, the Viator group is the only "same
+        // experience" signal left (hand-written stub / thin offline catalog) — dedup
+        // by it. With a cluster id present, cluster dedup above already covers it.
+        return cid ? true : !ctx.usedGroupIds.has(e.group.id);
+      }
+  ```
+- The `Ctx` keeps BOTH `usedGroupIds: Set<string>` and `groupById: Map<string, ViatorGroup>`.
+
+### Task 2b: Update the e2e "no duplicates" invariant
+
+**File:** `src/data/e2e-engine.test.ts` (the `no duplicates — ${name}` test, ~line 79)
+
+Item-level planning legitimately allows two DIFFERENT items from one Viator group, so the
+"no duplicate groupId" assertion is the old contract. Replace the id-mapping + dupe check
+with an item-level + cluster-level invariant:
+
+```ts
+    it(`no duplicates — ${name}`, () => {
+      const plan = generatePlan(answers, catalog, { seed: 42 });
+      const entries = allEntries(plan);
+      // Never the same item twice (a group entry is identified by its shown item).
+      const itemIds = entries.map(e => e.kind === 'group' ? e.bestSellerId : e.id);
+      const seen = new Set<string>();
+      const dupeItems: string[] = [];
+      for (const id of itemIds) { if (seen.has(id)) dupeItems.push(id); seen.add(id); }
+      expect(dupeItems, `duplicate items: ${[...new Set(dupeItems)].join(', ')}`).toEqual([]);
+      // Never the same real-world experience twice (by cluster id, when present).
+      const clusters = entries
+        .filter((e): e is Extract<typeof e, { kind: 'group' }> => e.kind === 'group')
+        .map(e => catalog.items.find(i => i.id === e.bestSellerId)?.experience_cluster_id)
+        .filter((c): c is string => !!c);
+      const seenC = new Set<string>();
+      const dupeC: string[] = [];
+      for (const c of clusters) { if (seenC.has(c)) dupeC.push(c); seenC.add(c); }
+      expect(dupeC, `duplicate clusters: ${[...new Set(dupeC)].join(', ')}`).toEqual([]);
+    });
+```
+
+Verify: `npx vitest run src/data/e2e-engine.test.ts` (needs `VITE_SUPABASE_ANON_KEY`; if the
+suite is skipped in this environment, note that it could not be run live).
+
+### Task 2c: Geo-coherence guard (item-level made the thin stub non-discriminating)
+
+Removing whole-group retirement changed candidate selection on the thin `getCatalog()`
+stub enough that the old geo test's average intra-day spread rose to ~12 km (guard `< 11`).
+Investigation (throwaway probe against the **live** catalog) measured **7.9 km** — so
+production geo is healthy; only the stub proxy broke. And on the stub the geo penalty now
+barely moves the number (12.2 with penalty ≈ 12.3 without), so simply raising the stub
+threshold would produce a *dead* guard. Resolution (user-approved: "e2e + rebuild stub
+fixture"):
+
+- **Rebuilt stub geo test** (`itineraryGenerator.test.ts`) on a purpose-built fixture:
+  two real Viator groups ~15 km apart (`watersports` @ Palm Beach, `adventure-tours` @
+  Arikok — both in `GROUP_COORDS`), each with 25 distinct-cluster, tag-less,
+  single-section items. Same-group picks share a coord (spread 0); a mixed day spreads
+  ~15 km. The geo penalty (~4.5 pts > score BAND) keeps every day single-region → guard
+  `< 5 km`, which fails loudly if the penalty is removed.
+- **Added a live e2e geo guard** (`e2e-engine.test.ts`): same average-intra-day-spread
+  metric on the production catalog, guard `< 11 km` (measured ~7.9 km).
+
 ## Self-review notes (author)
 
 - **Spec coverage:** item-level builder (Task 2 Step 4) ✓; delete `usedGroupIds` (Task 2 Steps 3,5,6,7) ✓; keep `notSimilar`/tag-Jaccard/route-family (untouched) ✓; `matched_by` via `item.group_id` (Task 2 Step 4, `group.matched_by.some(...)`, and `scoreEntry` unchanged) ✓; keep premium pre-pass, update comments (Task 4) ✓; no `SlotEntry`/display/swap/Explore change (Task 5 Steps 2–3 verify) ✓; 4 spec test cases: buried→surfaces + two-land (Task 1, combined), same-cluster (Task 3a), route-family (Task 3b), cross-group cluster (existing test, kept) ✓.
