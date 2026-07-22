@@ -513,7 +513,34 @@ describe('generatePlan — one off-road tour per trip (shared route family)', ()
 });
 
 describe('generatePlan — day-level geographic clustering', () => {
-  const cat = getCatalog();
+  // Two Viator groups ~15 km apart (Palm Beach watersports vs Arikok adventure-tours),
+  // each with many distinct-cluster, tag-less, single-section items. coordOf resolves
+  // each item to its GROUP_COORDS point, so a day that stays in one group has intra-day
+  // spread 0 and a day that mixes groups spreads ~15 km. All items share one Explore
+  // section, so same-day kind-variety never forces a cross-region pick, and distinct
+  // cluster ids let item-level fill place several per group across the trip. The geo
+  // penalty (~4.5 pts here, above the score BAND) should keep every day single-region →
+  // tight average; remove it and each anchor's far twin scatters picks past the guard.
+  // (The old getCatalog() stub was too thin/homogeneous to measure this once planning
+  // went item-level; production geo is guarded live in e2e-engine.test.ts.)
+  const mkItems = (groupId: string, prefix: string): ViatorItem[] =>
+    Array.from({ length: 25 }, (_, n) => ({
+      id: `${prefix}-${n}`, group_id: groupId, title: `${prefix} ${n}`,
+      image_url: '', price_usd: 0, duration: '', rating: 4.5, review_count: 50,
+      viator_item_url: '', is_best_seller: n === 0, display_order: n,
+      sections: ['beaches' as const], experience_cluster_id: `${prefix}-cluster-${n}`,
+    }));
+  const groups: ViatorGroup[] = [
+    { id: 'watersports', name: 'watersports', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 0, matched_by: [] as MatchTag[], region: 'palm-beach' as const, allowed_slots: [] as const },
+    { id: 'adventure-tours', name: 'adventure-tours', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 1, matched_by: [] as MatchTag[], region: 'arikok' as const, allowed_slots: [] as const },
+  ];
+  const cat: Catalog = {
+    activities: [],
+    groups,
+    items: [...mkItems('watersports', 'west'), ...mkItems('adventure-tours', 'far')],
+  };
   const coordOf = (e: SlotEntry): Coord | undefined =>
     e.kind === 'activity' ? ACTIVITY_COORDS[e.id] : (VIATOR_ITEM_COORDS[e.bestSellerId] ?? GROUP_COORDS[e.groupId]);
 
@@ -533,9 +560,10 @@ describe('generatePlan — day-level geographic clustering', () => {
         cnt += 1;
       }
     }
-    // With the geo penalty the average intra-day spread is ~9.6km; without it
-    // ~12.3km. 11km is a stable guard that fails if clustering is removed/broken.
-    expect(sum / cnt).toBeLessThan(11);
+    // The two groups sit ~15 km apart; a day that mixes them spreads ~15 km. With the
+    // geo penalty every day stays single-region (spread ≈ 0). Guard at 5 km fails loudly
+    // if the penalty is removed (mixing pushes the average toward ~7 km).
+    expect(sum / cnt).toBeLessThan(5);
   });
 });
 

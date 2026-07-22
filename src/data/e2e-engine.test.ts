@@ -9,7 +9,9 @@ import { generatePlan } from './itineraryGenerator';
 import { ACTIVITIES } from './activities';
 import type { Catalog } from './activitySource';
 import type { Answers } from '../App';
-import type { ViatorGroup, ViatorItem } from '../types';
+import type { ViatorGroup, ViatorItem, SlotEntry } from '../types';
+import { ACTIVITY_COORDS, VIATOR_ITEM_COORDS, GROUP_COORDS, type Coord } from './coords';
+import { distanceKm } from './enRoute';
 
 // Load from .env.production since vitest doesn't pick up VITE_ vars at runtime.
 function loadEnv(key: string): string | undefined {
@@ -43,6 +45,27 @@ describe.skipIf(skip)('matching engine — live catalog', () => {
   it('catalog is healthy (6+ groups, 300+ items)', () => {
     expect(catalog.groups.length).toBeGreaterThanOrEqual(6);
     expect(catalog.items.length).toBeGreaterThanOrEqual(300);
+  });
+
+  it('keeps days geographically coherent (avg intra-day spread stays tight)', () => {
+    const coordOf = (e: SlotEntry): Coord | undefined =>
+      e.kind === 'activity' ? ACTIVITY_COORDS[e.id] : (VIATOR_ITEM_COORDS[e.bestSellerId] ?? GROUP_COORDS[e.groupId]);
+    const answers: Answers = { days: 7, groupType: 'Couple', budget: 'mid-range', interests: ['Beach & chill', 'Watersports'], adventureLevel: 40, startOffset: 7, lodging: 'Palm Beach', flags: [], specialNotes: '' };
+    let sum = 0;
+    let cnt = 0;
+    for (let seed = 0; seed < 6; seed += 1) {
+      const plan = generatePlan(answers, catalog, { seed });
+      for (const d of plan) {
+        const cs = [...d.morning, ...d.afternoon, ...d.evening].map(coordOf).filter((c): c is Coord => !!c);
+        let spread = 0;
+        for (let i = 0; i < cs.length; i += 1)
+          for (let j = i + 1; j < cs.length; j += 1) spread = Math.max(spread, distanceKm(cs[i], cs[j]));
+        sum += spread;
+        cnt += 1;
+      }
+    }
+    // Live catalog measures ~7.9 km with the geo penalty active; 11 km is a stable guard.
+    expect(sum / cnt).toBeLessThan(11);
   });
 
   const personas: Array<{ name: string; answers: Answers }> = [
