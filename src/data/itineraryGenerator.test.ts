@@ -334,6 +334,84 @@ describe('generatePlan — pacing + no unintended empty slots', () => {
     expect(d.afternoon.length).toBeGreaterThanOrEqual(1);
     expect(d.evening.length).toBeGreaterThanOrEqual(1);
   });
+
+  it('never places two items in one group that share a cluster id', () => {
+    // Same group, same cluster (e.g. an adult and a child booking option of one
+    // snorkel product). Both carry the snorkel tag so they are high-scoring, placeable
+    // crowd-pleasers; the shared cluster id must still keep them from both landing now
+    // that whole-group retirement is gone.
+    const grp: ViatorGroup = {
+      id: 'snorkel', name: 'Snorkel Trips', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 0, matched_by: ['watersports'] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    };
+    const adult: ViatorItem = {
+      id: 'snork-adult', group_id: 'snorkel', title: 'Catalina Bay Snorkel Trip (Adult)',
+      image_url: '', price_usd: 0, duration: '', rating: 4.7, review_count: 200,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      tags: [11912],                        // 11912 = snorkel
+      experience_cluster_id: 'cluster-snorkel',
+    };
+    const child: ViatorItem = {
+      id: 'snork-child', group_id: 'snorkel', title: 'Catalina Bay Snorkel Trip (Child)',
+      image_url: '', price_usd: 0, duration: '', rating: 4.7, review_count: 190,
+      viator_item_url: '', is_best_seller: false, display_order: 1,
+      tags: [11912],                        // 11912 = snorkel (same product, other booking option)
+      experience_cluster_id: 'cluster-snorkel',
+    };
+    const padGroups: ViatorGroup[] = Array.from({ length: 12 }, (_, n) => ({
+      id: `pad-${n}`, name: `pad-${n}`, tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: n + 1, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    }));
+    const padItems: ViatorItem[] = padGroups.map((g, n) => ({
+      id: `pad-item-${n}`, group_id: g.id, title: `Beach Day ${n}`,
+      image_url: '', price_usd: 0, duration: '', rating: 4.0, review_count: 10,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      sections: ['beaches' as const], experience_cluster_id: `pad-cluster-${n}`,
+    }));
+    const cat: Catalog = { activities: [], groups: [grp, ...padGroups], items: [adult, child, ...padItems] };
+    const ids = entryIds(generatePlan({ ...ADVENTURER, days: 5 }, cat));
+    expect(ids.includes('snork-adult') && ids.includes('snork-child')).toBe(false);
+  });
+
+  it('places at most one off-road tour per trip (route-family net)', () => {
+    // Two off-road tours in different groups, different clusters, and NON-overlapping
+    // tags (4WD tag vs ATV tag) so neither cluster-dedup nor tag-Jaccard fires — only
+    // the route-family net keeps the trip to a single off-road experience.
+    const groupA: ViatorGroup = {
+      id: 'offroad-a', name: 'Jeep Co', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 0, matched_by: ['adventure'] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    };
+    const groupB: ViatorGroup = {
+      id: 'offroad-b', name: 'ATV Co', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 1, matched_by: ['adventure'] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    };
+    const jeep: ViatorItem = {
+      id: 'jeep-tour', group_id: 'offroad-a', title: 'Guided Jeep Tour',
+      image_url: '', price_usd: 0, duration: '', rating: 4.6, review_count: 100,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      tags: [12035], experience_cluster_id: 'cluster-a',   // 12035 = 4WD (offroad kind)
+    };
+    const atv: ViatorItem = {
+      id: 'atv-tour', group_id: 'offroad-b', title: 'Self-drive ATV Adventure',
+      image_url: '', price_usd: 0, duration: '', rating: 4.6, review_count: 100,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      tags: [21421], experience_cluster_id: 'cluster-b',   // 21421 = ATV (offroad kind)
+    };
+    const padGroups: ViatorGroup[] = Array.from({ length: 12 }, (_, n) => ({
+      id: `pad-${n}`, name: `pad-${n}`, tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: n + 2, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    }));
+    const padItems: ViatorItem[] = padGroups.map((g, n) => ({
+      id: `pad-item-${n}`, group_id: g.id, title: `Beach Day ${n}`,
+      image_url: '', price_usd: 0, duration: '', rating: 4.0, review_count: 10,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      sections: ['beaches' as const], experience_cluster_id: `pad-cluster-${n}`,
+    }));
+    const cat: Catalog = { activities: [], groups: [groupA, groupB, ...padGroups], items: [jeep, atv, ...padItems] };
+    const ids = entryIds(generatePlan({ ...ADVENTURER, days: 5 }, cat));
+    const offroadPlaced = [ids.includes('jeep-tour'), ids.includes('atv-tour')].filter(Boolean).length;
+    expect(offroadPlaced).toBeLessThanOrEqual(1);
+  });
 });
 
 describe('generatePlan — variety vs determinism', () => {

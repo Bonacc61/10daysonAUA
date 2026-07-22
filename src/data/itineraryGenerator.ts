@@ -119,10 +119,10 @@ function toSlotEntry(e: CardEntry): SlotEntry {
 
 function scoreEntry(e: CardEntry, tags: Set<MatchTag>, prefSections: Set<Section>): number {
   if (e.kind === 'group') {
-    // Per-item fit of the *shown* card (interests + adventure + budget + popularity,
-    // from classify.ts) plus the group's editorial signal (group type, lodging,
-    // theme). The face was already chosen by refaceForAnswers, so it's never an
-    // over-budget reject here.
+    // Per-item fit of the candidate item (interests + adventure + budget + popularity,
+    // from classify.ts) plus the group's editorial signal (group type, lodging, theme),
+    // read via the item's group. candidatesFor already dropped over-budget items
+    // (fitItem(...).rejected), so this is never an over-budget reject here.
     let score = fitItem(e.bestSeller, tags).score;
     for (const t of e.group.matched_by) if (tags.has(t)) score += 2;
     score += offroadAdrenalineBonus(e.bestSeller, tags);
@@ -552,15 +552,14 @@ export function generatePlan(
   // ---------------------------------------------------------------------------
 
   // --- Premium splurge pre-pass ---------------------------------------------
-  // A money-no-object traveller on a week-plus trip should get aspirational
-  // premium experiences (a private charter) IN ADDITION to the universal crowd-
-  // pleasers, not instead of them — they're distinct enough to do both. But such
-  // items share a Viator group with the group's crowd-pleaser (a private charter
-  // and a party cruise are both "sailing-cruises"), so normal group-dedup would
-  // surface only one. We place the top premium pick(s) here, exempt from group-
-  // dedup and marked used at the ITEM level only — so the group stays open for
-  // its crowd-pleaser via normal fill, and both land on different days. Shorter
-  // trips skip this (one cruise is plenty); non-splurge budgets never trigger it.
+  // A money-no-object traveller on a week-plus trip should get an aspirational
+  // premium experience (a private charter) IN ADDITION to the universal crowd-
+  // pleasers, not instead of them. Item-level fill alone won't guarantee it: a $65
+  // crowd-pleaser often out-scores a $1,450 charter on within-tier popularity, so the
+  // cheap pick wins every slot. We place the top premium pick(s) here and badge them.
+  // Because dedup is by cluster (not group), the group's crowd-pleaser still lands on
+  // another day — a charter and a party cruise are different clusters. Shorter trips
+  // skip this (one cruise is plenty); non-splurge budgets never trigger it.
   const premiumSlots = new Map<number, Map<Slot, PinPlacement>>();
   if (tags.has('money-no-object') && nDays >= PREMIUM_MIN_DAYS) {
     const maxPremium = Math.floor(nDays / DAYS_PER_PREMIUM); // 1 for a week, 2 for a fortnight
