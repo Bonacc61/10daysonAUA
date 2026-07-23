@@ -283,7 +283,24 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
 .day-badge { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Caprasimo', Georgia, serif; font-size: 18px; color: white; border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); flex-shrink: 0; }
 
 /* Editable day title + collapsible day --------------------------------- */
-.itin-day-head { display: flex; align-items: center; gap: 10px; margin: 6px 0 20px; }
+/* Each day's header sticks to the top while that day's cards scroll under it, then the
+   next day's wrapper scrolls up and its header takes over the pin (classic sticky
+   section headers). It sticks within its own .itin-day-wrapper, so the hand-off is
+   automatic. Opaque page-bg (cream) so scrolling cards don't show through; z-index
+   above the cards. No clipping ancestors on this page, so no JS needed. */
+.itin-day-head {
+  display: flex; align-items: center; gap: 10px; margin: 0 0 20px;
+  position: sticky; top: 0; z-index: 9; /* above .itin-card-controls (z-index 7) so
+     card grip/remove buttons don't poke through the pinned header */
+  background: var(--cream);
+  padding: 10px 0;
+}
+/* Badge lives inside the sticky header and is pulled left onto the timeline rail, so
+   the numbered day marker travels with the pinned header. left offset = the wrapper's
+   padding-left (64 desktop / 48 mobile). */
+.itin-day-head .day-badge {
+  position: absolute; left: -64px; top: 50%; transform: translateY(-50%);
+}
 .itin-day-head h2 { flex: 1; min-width: 0; }
 /* The renamable theme — dotted hover hint that it's editable. */
 .itin-day-title { cursor: text; border-radius: 4px; padding: 0 2px; transition: background 0.12s, box-shadow 0.12s; }
@@ -598,6 +615,7 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   /* Day-block heading + badge */
   .itin-day-wrapper { padding-left: 48px !important; }
   .itin-day-wrapper .day-badge { width: 36px !important; height: 36px !important; font-size: 15px !important; }
+  .itin-day-head .day-badge { left: -48px; }
   .itin-day-wrapper h2 { font-size: 24px !important; margin-top: 0 !important; }
   /* No hover on touch — keep the rename pencil always visible. */
   .itin-day-edit { opacity: 1 !important; }
@@ -663,7 +681,7 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   font-style: italic; font-size: 15px; line-height: 1.5;
   color: rgba(0,0,0,0.85); margin: 0 0 26px; max-width: 620px;
 }
-.gtk-tl { position: relative; padding-left: 6px; }
+.gtk-tl { position: relative; padding-left: 6px; --phh: 50px; --chh: 60px; }
 /* the vertical spine */
 .gtk-tl::before {
   content: ''; position: absolute; left: 16px; top: 10px; bottom: 10px;
@@ -673,8 +691,11 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 .gtk-phase + .gtk-phase { margin-top: 6px; }
 .gtk-phase-head {
   display: flex; align-items: center; gap: 13px; width: 100%;
-  padding: 12px 0; background: none; border: 0; cursor: pointer;
-  text-align: left; font: inherit; color: var(--ink); position: relative;
+  padding: 12px 0; border: 0; cursor: pointer;
+  text-align: left; font: inherit; color: var(--ink);
+  /* Sticky section header: pins the active phase's label to the top as its cards
+     scroll. Opaque section bg so scrolled content doesn't show through. */
+  position: sticky; top: 0; z-index: 4; background: var(--yellow-bg);
 }
 .gtk-phase-head:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; border-radius: 8px; }
 /* node sits on the spine (spine at left:16px; node is 24px, centred there) */
@@ -689,15 +710,32 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 /* collapse the phase's cards to nothing when inactive (0fr → 1fr) */
 .gtk-phase-wrap { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s ease; }
 .gtk-phase[data-active] .gtk-phase-wrap { grid-template-rows: 1fr; }
-.gtk-phase-inner { overflow: hidden; min-height: 0; }
+/* overflow: clip (not hidden) clips the collapse identically but does NOT create a
+   scroll container, so the sticky card headers below stick to the viewport rather
+   than to this clipped box. Keep `hidden` first as the fallback for pre-Safari-16. */
+.gtk-phase-inner { overflow: hidden; overflow: clip; min-height: 0; }
+/* Once a phase has finished expanding it drops the clip (JS sets data-open after the
+   grid-rows transition settles), so its sticky card headers can escape upward and
+   pin. Collapsing/animating phases keep the clip above, so the accordion animation
+   is unaffected. */
+.gtk-phase[data-open] .gtk-phase-inner { overflow: visible; }
+/* Single column so each card's sticky header stacks under the previous one and its
+   opaque body covers the card above it (the stack effect needs a vertical column). */
 .gtk-phase-cards {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  display: grid; grid-template-columns: 1fr; gap: 0;
   padding: 6px 0 22px;
 }
+/* The whole card is sticky, pinned under the phase header and offset by its index so
+   the cards fan-stack. Opaque cream bg means the next card (later in flow) slides up
+   and covers everything of the previous card except its top --chh strip — the header
+   row (icon + title) — leaving a stack of subheaders above the fully-shown last card. */
 .tlc {
+  position: sticky;
+  top: calc(var(--phh) + var(--i) * var(--chh));
   background: var(--cream); border: 2px solid var(--ink); border-radius: 14px;
   box-shadow: 4px 5px 0 0 var(--accent); padding: 15px 17px;
 }
+.tlc + .tlc { margin-top: 10px; }
 .tlc-head { display: flex; align-items: center; gap: 11px; margin-bottom: 9px; }
 .tlc-stamp {
   width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
@@ -718,7 +756,6 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   font-style: italic; font-size: 12px; color: var(--sand-700);
 }
 @media (max-width: 720px) {
-  .gtk-phase-cards { grid-template-columns: 1fr; }
   .gtk-phase-label { font-size: 21px; }
   .tlc-flag { display: none; }
 }

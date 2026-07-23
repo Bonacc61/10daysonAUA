@@ -98,16 +98,27 @@ emits **one `CardEntry` per item**:
 
 ### Dedup
 
-- **Delete `usedGroupIds`** entirely: the `Ctx` field, the two `!ctx.usedGroupIds.has(g.id)`
-  filters in `candidatesFor`, and the three `ctx.usedGroupIds.add(...)` write sites in
-  the day loop (pin, premium, normal fill).
-- **Keep `notSimilar` unchanged.** It already dedups per item by
-  `experience_cluster_id` → tag-Jaccard fallback → route-family. It graduates from a
-  secondary net to *the* dedup mechanism.
+- **Remove `usedGroupIds` from `candidatesFor`** (no more whole-group candidate
+  filtering) — planning is item-level.
+- **`notSimilar` becomes the primary dedup**, per item, in this hierarchy:
+  `experience_cluster_id` → tag-Jaccard → **group (last resort)** → route-family.
 - **No regression on booking-variants.** Adult/child/45-min variants of one product
-  share a cluster (or Jaccard ≈ 1.0), so `notSimilar` still blocks them — the job
-  `usedGroupIds` used to do. Genuinely different same-group items (charter vs Jolly
-  Pirates) are now *allowed* — the intended behavior change.
+  share a cluster (or Jaccard ≈ 1.0), so `notSimilar` still blocks them. Genuinely
+  different same-group items (charter vs Jolly Pirates) are now *allowed* — the
+  intended behavior change.
+
+> **Amendment (2026-07-21, during execution):** The original design said to *delete
+> `usedGroupIds` entirely*. Execution surfaced that it was quietly doing a second job:
+> deduping items that have **no cluster id AND no tags** — the state of every item in
+> the hand-written stub (the shipped offline fallback) and thin catalogs. With no
+> signal, item-level `notSimilar` had nothing to compare, so near-duplicates (e.g. all
+> five stub sailing cruises) all landed. **Resolution:** keep `usedGroupIds` but demote
+> it to the *last-resort* dedup signal — consulted in `notSimilar` **only** when an item
+> has neither a cluster id nor tags. Signal-bearing items still dedup by cluster/tag, so
+> two genuinely different same-group items still co-exist. The premium pre-pass still
+> does **not** add to `usedGroupIds` (so a splurge + a crowd-pleaser cruise both land).
+> This preserves the goal (item-level, cluster-primary dedup); it only fixes the
+> degenerate no-signal case.
 
 ### Premium-splurge pre-pass
 

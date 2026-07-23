@@ -9,7 +9,9 @@ import { generatePlan } from './itineraryGenerator';
 import { ACTIVITIES } from './activities';
 import type { Catalog } from './activitySource';
 import type { Answers } from '../App';
-import type { ViatorGroup, ViatorItem } from '../types';
+import type { ViatorGroup, ViatorItem, SlotEntry } from '../types';
+import { ACTIVITY_COORDS, VIATOR_ITEM_COORDS, GROUP_COORDS, type Coord } from './coords';
+import { distanceKm } from './enRoute';
 
 // Load from .env.production since vitest doesn't pick up VITE_ vars at runtime.
 function loadEnv(key: string): string | undefined {
@@ -45,6 +47,27 @@ describe.skipIf(skip)('matching engine — live catalog', () => {
     expect(catalog.items.length).toBeGreaterThanOrEqual(300);
   });
 
+  it('keeps days geographically coherent (avg intra-day spread stays tight)', () => {
+    const coordOf = (e: SlotEntry): Coord | undefined =>
+      e.kind === 'activity' ? ACTIVITY_COORDS[e.id] : (VIATOR_ITEM_COORDS[e.bestSellerId] ?? GROUP_COORDS[e.groupId]);
+    const answers: Answers = { days: 7, groupType: 'Couple', budget: 'mid-range', interests: ['Beach & chill', 'Watersports'], adventureLevel: 40, startOffset: 7, lodging: 'Palm Beach', flags: [], specialNotes: '' };
+    let sum = 0;
+    let cnt = 0;
+    for (let seed = 0; seed < 6; seed += 1) {
+      const plan = generatePlan(answers, catalog, { seed });
+      for (const d of plan) {
+        const cs = [...d.morning, ...d.afternoon, ...d.evening].map(coordOf).filter((c): c is Coord => !!c);
+        let spread = 0;
+        for (let i = 0; i < cs.length; i += 1)
+          for (let j = i + 1; j < cs.length; j += 1) spread = Math.max(spread, distanceKm(cs[i], cs[j]));
+        sum += spread;
+        cnt += 1;
+      }
+    }
+    // Live catalog measures ~7.9 km with the geo penalty active; 11 km is a stable guard.
+    expect(sum / cnt).toBeLessThan(11);
+  });
+
   const personas: Array<{ name: string; answers: Answers }> = [
     {
       name: 'budget couple, beach+food, 7 days',
@@ -78,11 +101,22 @@ describe.skipIf(skip)('matching engine — live catalog', () => {
 
     it(`no duplicates — ${name}`, () => {
       const plan = generatePlan(answers, catalog, { seed: 42 });
-      const ids = allEntries(plan).map(e => e.kind === 'group' ? e.groupId : e.id);
+      const entries = allEntries(plan);
+      // Never the same item twice (a group entry is identified by its shown item).
+      const itemIds = entries.map(e => e.kind === 'group' ? e.bestSellerId : e.id);
       const seen = new Set<string>();
-      const dupes: string[] = [];
-      for (const id of ids) { if (seen.has(id)) dupes.push(id); seen.add(id); }
-      expect(dupes, `duplicate IDs: ${[...new Set(dupes)].join(', ')}`).toEqual([]);
+      const dupeItems: string[] = [];
+      for (const id of itemIds) { if (seen.has(id)) dupeItems.push(id); seen.add(id); }
+      expect(dupeItems, `duplicate items: ${[...new Set(dupeItems)].join(', ')}`).toEqual([]);
+      // Never the same real-world experience twice (by cluster id, when present).
+      const clusters = entries
+        .filter((e): e is Extract<typeof e, { kind: 'group' }> => e.kind === 'group')
+        .map(e => catalog.items.find(i => i.id === e.bestSellerId)?.experience_cluster_id)
+        .filter((c): c is string => !!c);
+      const seenC = new Set<string>();
+      const dupeC: string[] = [];
+      for (const c of clusters) { if (seenC.has(c)) dupeC.push(c); seenC.add(c); }
+      expect(dupeC, `duplicate clusters: ${[...new Set(dupeC)].join(', ')}`).toEqual([]);
     });
 
     it(`day 1 has no paid viator activities — ${name}`, () => {
