@@ -61,11 +61,31 @@ function urlFor(entry: SlotEntry, catalog: Catalog): string | null {
   return raw ? viatorLink(raw) : null;
 }
 
+// The light base style still renders highway route shields (1, 2, 1A, 8A) as
+// numbered badges that read almost identically to our numbered stop markers.
+// After style load we hide every shield / road-number / exit / junction layer,
+// keeping road lines, place names, and the coastline. Minimal structural type so
+// we don't need mapbox-gl's types here; the real map satisfies it.
+type ShieldMap = {
+  getStyle: () => { layers?: { id: string }[] } | undefined;
+  setLayoutProperty: (id: string, name: string, value: unknown) => void;
+};
+const SHIELD_LAYER_RE = /shield|road-number|road-exit|motorway-junction/i;
+function hideRoadShields(map: ShieldMap): void {
+  for (const layer of map.getStyle()?.layers ?? []) {
+    if (SHIELD_LAYER_RE.test(layer.id)) {
+      try { map.setLayoutProperty(layer.id, 'visibility', 'none'); } catch { /* layer already absent */ }
+    }
+  }
+}
+
 type AnyPopup = { lng: number; lat: number; title: string; sub: string; price?: string | null; duration?: string | null; image?: string | null; url?: string | null };
+// Display labels only — the underlying variant order/indices (activePlanIdx) are
+// unchanged. Three parallel adjectives; "Your trip"/"-leaning" dropped.
 const PLAN_VARIANTS = [
-  { label: 'Your trip',          description: 'Your personalised itinerary' },
-  { label: 'Adventure-leaning',  description: 'Adrenaline-first, beaches second' },
-  { label: 'Chill-leaning',      description: 'Slow mornings, easy afternoons' },
+  { label: 'Balanced',   description: 'Your personalised itinerary' },
+  { label: 'Adventure',  description: 'Adrenaline-first, beaches second' },
+  { label: 'Chill',      description: 'Slow mornings, easy afternoons' },
 ];
 
 type Props = { answers: Answers; canSeeItinerary: boolean; setPage: (p: PageId) => void };
@@ -78,6 +98,9 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   const [activePlanIdx, setActivePlanIdx] = useState(0);
   const stripRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapRef>(null);
+  // Set on style load so the initial fitBounds runs once the map can accept it
+  // (the effect early-returns while the map isn't ready).
+  const [mapReady, setMapReady] = useState(false);
 
   // Generate 3 variant plans matching the Dashboard's itinerary variants. Always
   // generated — a logged-out / pre-quiz visitor gets a sample itinerary (from the
@@ -140,10 +163,39 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
     );
   }, [planDay, catalog]);
 
+  // Located stops for the map: every entry that has a coordinate, numbered 1..N
+  // in chronological (morning→afternoon→evening) order so the markers match the
+  // card order. Stops that resolve to the SAME point (Viator items sharing a
+  // group centroid) are fanned out on a small circle so all of them stay visible
+  // instead of stacking into a single pin. Coordless entries are excluded here
+  // (still listed in the photo strip below) — not silently dropped from the day.
+  const locatedEntries = useMemo(() => {
+    const located = dayEntries.filter((e): e is typeof e & { coord: Coord } => !!e.coord);
+    const buckets = new Map<string, number>();
+    for (const e of located) {
+      const k = `${e.coord.lng.toFixed(5)},${e.coord.lat.toFixed(5)}`;
+      buckets.set(k, (buckets.get(k) ?? 0) + 1);
+    }
+    const seen = new Map<string, number>();
+    return located.map((e, i) => {
+      const k = `${e.coord.lng.toFixed(5)},${e.coord.lat.toFixed(5)}`;
+      const total = buckets.get(k)!;
+      let coord = e.coord;
+      if (total > 1) {
+        const pos = seen.get(k) ?? 0;
+        seen.set(k, pos + 1);
+        const angle = (2 * Math.PI * pos) / total;
+        const R = 0.0016; // ~180m — enough to separate pins at our zoom levels
+        coord = { lng: coord.lng + R * Math.cos(angle), lat: coord.lat + R * Math.sin(angle) };
+      }
+      return { ...e, coord, num: i + 1 };
+    });
+  }, [dayEntries]);
+
   // Straight-line waypoints for the active day (used as fallback + for Directions API)
   const straightCoords = useMemo((): [number, number][] =>
-    dayEntries.flatMap(e => e.coord ? [[e.coord.lng, e.coord.lat]] : []),
-    [dayEntries],
+    locatedEntries.map(e => [e.coord.lng, e.coord.lat]),
+    [locatedEntries],
   );
 
   // Road-snapped route from Mapbox Directions API
@@ -166,10 +218,13 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
     stripRef.current?.scrollTo({ left: 0, behavior: 'smooth' });
   }, [safeDay]);
 
-  // Auto-fit map to show all pins for the active day
+  // Frame all of the active day's located stops — on load (once mapReady flips)
+  // and on every day change (locatedEntries changes). fitBounds on a single point
+  // collapses to an empty box, so a lone stop uses setCenter + a fixed zoom.
   useEffect(() => {
-    const valid = dayEntries.filter(e => e.coord).map(e => e.coord!);
-    if (valid.length === 0 || !mapRef.current) return;
+    if (!mapReady || !mapRef.current) return;
+    const valid = locatedEntries.map(e => e.coord);
+    if (valid.length === 0) return;
     if (valid.length === 1) {
       mapRef.current.flyTo({ center: [valid[0].lng, valid[0].lat], zoom: 13, duration: 800 });
       return;
@@ -180,7 +235,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
       [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
       { padding: 80, maxZoom: 14, duration: 800 },
     );
-  }, [dayEntries]);
+  }, [locatedEntries, mapReady]);
 
   if (!TOKEN) {
     return (
@@ -205,7 +260,12 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
           mapboxAccessToken={TOKEN}
           initialViewState={ARUBA_CENTER}
           style={{ width: '100%', height: '100%' }}
-          mapStyle="mapbox://styles/mapbox/navigation-day-v1"
+          mapStyle="mapbox://styles/mapbox/light-v11"
+          onLoad={() => {
+            const m = mapRef.current?.getMap();
+            if (m) hideRoadShields(m as unknown as ShieldMap);
+            setMapReady(true);
+          }}
           onClick={() => setPopup(null)}
         >
           <NavigationControl position="top-right" />
@@ -217,16 +277,14 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
             </Source>
           )}
 
-          {/* Photo pin markers for active day */}
-          {planDay && dayEntries.map((e, i) => {
-            if (!e.coord) return null;
-            return (
-              <Marker key={e.key} longitude={e.coord.lng} latitude={e.coord.lat} anchor="bottom"
-                onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: e.coord!.lng, lat: e.coord!.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url }); }}>
-                <PhotoPin image={e.image} color={dayColor} label={String(i + 1)} />
-              </Marker>
-            );
-          })}
+          {/* Photo pin markers for active day — every located stop, numbered to
+              match the card order, de-stacked so shared coordinates stay visible */}
+          {planDay && locatedEntries.map(e => (
+            <Marker key={e.key} longitude={e.coord.lng} latitude={e.coord.lat} anchor="bottom"
+              onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url }); }}>
+              <PhotoPin image={e.image} color={dayColor} label={String(e.num)} />
+            </Marker>
+          ))}
 
           {/* Popup — styled as chunky card, no category header */}
           {popup && (
@@ -306,7 +364,9 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
                 );
               })}
             </div>
-            <p style={{ textAlign: 'center', fontSize: 11, color: '#aaa', fontFamily: 'Inter,sans-serif', margin: 0 }}>
+            {/* Left-aligned so it reads as a subtitle for the whole control, not
+                a caption under the centred middle option. */}
+            <p style={{ textAlign: 'left', fontSize: 11, color: '#aaa', fontFamily: 'Inter,sans-serif', margin: 0 }}>
               {PLAN_VARIANTS[activePlanIdx].description}
             </p>
           </div>

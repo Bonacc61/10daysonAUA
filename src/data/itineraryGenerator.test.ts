@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generatePlan } from './itineraryGenerator';
+import { generatePlan, durationMinutes } from './itineraryGenerator';
 import { getCatalog } from './activitySource';
 import { DEFAULT_ANSWERS } from '../App';
 import type { Answers } from '../App';
@@ -33,7 +33,7 @@ function bigViatorCatalog(): Catalog {
       });
       items.push({
         id: `${id}-best`, group_id: id, title: id, image_url: '',
-        price_usd: 100, duration: '', rating: 4.5, review_count: 1,
+        price_usd: 100, duration: '2 hrs', rating: 4.5, review_count: 1,
         viator_item_url: '', is_best_seller: true, display_order: 0,
       });
     }
@@ -142,7 +142,7 @@ describe('generatePlan — pacing + no unintended empty slots', () => {
     }));
     const eveItems: ViatorItem[] = eveGroups.map((g, n) => ({
       id: `eve-${n}`, group_id: g.id, title: `Sunset Dinner Cruise ${n}`,
-      image_url: '', price_usd: 0, duration: '', rating: 4.6, review_count: 100,
+      image_url: '', price_usd: 0, duration: '2 hrs', rating: 4.6, review_count: 100,
       viator_item_url: '', is_best_seller: true, display_order: 0, sections: ['food-drink' as const],
     }));
     const dayGroups: ViatorGroup[] = Array.from({ length: 20 }, (_, n) => ({
@@ -151,7 +151,7 @@ describe('generatePlan — pacing + no unintended empty slots', () => {
     }));
     const dayItems: ViatorItem[] = dayGroups.map((g, n) => ({
       id: `dayitem-${n}`, group_id: g.id, title: `Beach Day ${n}`,
-      image_url: '', price_usd: 0, duration: '', rating: 4.6, review_count: 100,
+      image_url: '', price_usd: 0, duration: '2 hrs', rating: 4.6, review_count: 100,
       viator_item_url: '', is_best_seller: true, display_order: 0, sections: ['beaches' as const],
     }));
     const rich: Catalog = { activities: [], groups: [...dayGroups, ...eveGroups], items: [...dayItems, ...eveItems] };
@@ -328,11 +328,14 @@ describe('generatePlan — pacing + no unintended empty slots', () => {
     expect(ids.includes('jeep-a-item') && ids.includes('jeep-b-item')).toBe(false);
   });
 
-  it('keeps a single-day trip full (no arrival/departure split)', () => {
+  it('fills a single-day trip’s afternoon (no arrival/departure split)', () => {
+    // The invariant is that a 1-day trip is NOT given the multi-day arrival/
+    // departure "open afternoon" pacing — morning and afternoon both fill.
+    // Evening is intentionally not asserted: the 8h/day feasibility cap can
+    // legitimately leave it empty once two daytime activities are booked.
     const [d] = generatePlan({ ...DEFAULT_ANSWERS, days: 1 }, catalog);
     expect(d.morning.length).toBeGreaterThanOrEqual(1);
     expect(d.afternoon.length).toBeGreaterThanOrEqual(1);
-    expect(d.evening.length).toBeGreaterThanOrEqual(1);
   });
 
   it('never places two items in one group that share a cluster id', () => {
@@ -659,6 +662,81 @@ describe('generatePlan — premium splurge does not duplicate a pinned item', ()
         .flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening])
         .filter((e) => e.kind === 'group' && e.bestSellerId === 'private-charter').length;
       expect(charterCount).toBe(1);
+    }
+  });
+});
+
+describe('generatePlan — day feasibility (≤8h, buffers, spread)', () => {
+  const DAY_CAP = 480;
+  const BUFFER = 60;
+  // Total wall-clock a day consumes: activity minutes + a buffer between each pair.
+  const dayMinutes = (d: Day, cat: Catalog): number => {
+    const entries: SlotEntry[] = [...d.morning, ...d.afternoon, ...d.evening];
+    const mins = entries.map((e) => durationMinutes(
+      e.kind === 'group'
+        ? cat.items.find((i) => i.id === e.bestSellerId)?.duration
+        : cat.activities.find((a) => a.id === e.id)?.duration,
+    ));
+    return mins.reduce((a, b) => a + b, 0) + Math.max(0, entries.length - 1) * BUFFER;
+  };
+  const uniformCatalog = (duration: string): Catalog => {
+    const groups: ViatorGroup[] = Array.from({ length: 24 }, (_, n) => ({
+      id: `g-${n}`, name: `g-${n}`, tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: n, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    }));
+    const items: ViatorItem[] = groups.map((g, n) => ({
+      id: `i-${n}`, group_id: g.id, title: `Activity ${n}`, image_url: '',
+      price_usd: 0, duration, rating: 4.5, review_count: 100,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      tags: [70000 + n], experience_cluster_id: `c-${n}`,
+    }));
+    return { activities: [], groups, items };
+  };
+
+  it('durationMinutes parses ranges, hours, minutes, and full-day', () => {
+    expect(durationMinutes('2–3 hrs')).toBe(150); // en-dash range, unit dropped on low end → midpoint
+    expect(durationMinutes('3 hrs')).toBe(180);
+    expect(durationMinutes('3.5 hrs')).toBe(210);
+    expect(durationMinutes('90 min')).toBe(90);
+    expect(durationMinutes('Full day')).toBe(420);
+    expect(durationMinutes('')).toBe(180); // unparseable → conservative default
+    // Mixed-unit ranges the live edge function emits (normalize.ts durationLabel).
+    expect(durationMinutes('45 min–1.5 hrs')).toBe(68); // (45 + 90) / 2 = 67.5 → 68
+    expect(durationMinutes('30 min–1 hr')).toBe(45);    // (30 + 60) / 2
+    expect(durationMinutes('30–45 min')).toBe(38);      // both minutes → (30 + 45) / 2 = 37.5 → 38
+  });
+
+  it('never books more than 8h (incl. buffers) on any day', () => {
+    const cat = uniformCatalog('3 hrs'); // 3h items: two fit (7h), a third would be 11h
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 7 }, cat, { seed: 3 });
+    plan.forEach((d) => expect(dayMinutes(d, cat)).toBeLessThanOrEqual(DAY_CAP));
+  });
+
+  it('a >window activity occupies its slot alone and spreads into the next', () => {
+    // 6h items overrun every slot window: morning fills, afternoon is blocked by
+    // the spread, and evening can’t fit under the 8h cap — one activity per day.
+    const cat = uniformCatalog('6 hrs');
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 5 }, cat, { seed: 1 });
+    plan.forEach((d) => {
+      const filled = d.morning.length + d.afternoon.length + d.evening.length;
+      expect(filled).toBeLessThanOrEqual(1);
+      expect(dayMinutes(d, cat)).toBeLessThanOrEqual(DAY_CAP);
+    });
+  });
+});
+
+describe('generatePlan — theme matches the anchor (longest) activity', () => {
+  it('every day title equals its longest activity’s category', () => {
+    const cat = getCatalog();
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 6 }, cat, { seed: 2 });
+    for (const d of plan) {
+      const entries: SlotEntry[] = [...d.morning, ...d.afternoon, ...d.evening];
+      if (entries.length === 0) continue;
+      const withMeta = entries.map((e) => e.kind === 'group'
+        ? { min: durationMinutes(cat.items.find((i) => i.id === e.bestSellerId)?.duration), cat: cat.groups.find((g) => g.id === e.groupId)?.name }
+        : { min: durationMinutes(cat.activities.find((a) => a.id === e.id)?.duration), cat: cat.activities.find((a) => a.id === e.id)?.category });
+      const anchor = withMeta.reduce((best, x) => x.min > best.min ? x : best, withMeta[0]);
+      expect(d.title).toBe(anchor.cat);
     }
   });
 });

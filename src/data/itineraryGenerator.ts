@@ -117,6 +117,82 @@ function toSlotEntry(e: CardEntry): SlotEntry {
     : { kind: 'group', groupId: e.group.id, bestSellerId: e.bestSeller.id };
 }
 
+// ---------- Feasibility (day-scheduling) constraints -------------------------
+// A day is a real calendar day, not an unbounded bucket. These bound it so the
+// generator can't produce a physically impossible plan (the old loop filled every
+// slot independently with no notion of time).
+const DAY_CAP_MIN = 480;   // 8h of activity is the most we book in one day
+const BUFFER_MIN  = 60;    // travel/rest gap counted between consecutive activities
+// Wall-clock length of each slot. An activity longer than its slot "spreads"
+// into the next slot (which is then left free) — see the day loop.
+const SLOT_WINDOW_MIN: Record<Slot, number> = { morning: 240, afternoon: 240, evening: 180 };
+
+// Parse a human duration string into minutes for the maths above. Ranges
+// collapse to their midpoint; "Full day" is treated as 7h; an unparseable value
+// falls back to 180 (a middling default, so an unknown never silently defeats
+// the cap). Each number is read with its OWN trailing unit, so mixed-unit ranges
+// the live feed emits ("45 min–1.5 hrs") parse correctly; a number with no unit
+// (the low end of "2–3 hrs", whose unit is dropped) inherits the string's unit.
+export function durationMinutes(raw: string | undefined): number {
+  if (!raw) return 180;
+  const s = raw.toLowerCase();
+  if (/full[\s-]?day/.test(s)) return 420;
+  // Whole-string default unit for unitless numbers: minutes only if the string
+  // mentions "min" and no "hr" (e.g. "30–45 min"); otherwise hours.
+  const defaultIsMinutes = /\bmin/.test(s) && !/h(?:ou)?r/.test(s);
+  const parts = [...s.matchAll(/(\d+(?:\.\d+)?)\s*(min(?:ute)?s?|h(?:ou)?rs?)?/g)].map((m) => {
+    const n = Number(m[1]);
+    const unit = m[2] ?? '';
+    const isMinutes = /min/.test(unit) || (!/h/.test(unit) && defaultIsMinutes);
+    return isMinutes ? n : n * 60;
+  });
+  if (parts.length === 0) return 180;
+  return Math.round(parts.length >= 2 ? (parts[0] + parts[1]) / 2 : parts[0]);
+}
+
+function entryDurationMin(e: CardEntry): number {
+  return durationMinutes(e.kind === 'group' ? e.bestSeller.duration : e.activity.duration);
+}
+
+// The day's "anchor": its longest activity. The day theme (title) is named after
+// it, so the label can never contradict the day's headline experience — the bug
+// where a day of history/horseback/stargazing was titled "Sailing & Cruises"
+// because a sailing pick merely happened to land in slot 0.
+function anchorPick(picks: CardEntry[]): CardEntry | undefined {
+  let best: CardEntry | undefined;
+  for (const e of picks) if (!best || entryDurationMin(e) > entryDurationMin(best)) best = e;
+  return best;
+}
+
+// The category/theme name an entry belongs to (Viator group name, or a local
+// activity's category). This is what a day title must match.
+function entryCategory(e: CardEntry): string {
+  return e.kind === 'group' ? e.group.name : e.activity.category;
+}
+
+// Ordered theme candidates for the trip: Viator groups whose editorial audience
+// (matched_by) overlaps the answers, most-relevant first, then the rest. The day
+// loop rotates through these so each day gets a distinct headline theme and biases
+// its anchor slot toward it.
+function themeGroupsFor(catalog: Catalog, tags: Set<MatchTag>): ViatorGroup[] {
+  const overlap = (g: ViatorGroup) => g.matched_by.reduce((n, t) => n + (tags.has(t) ? 1 : 0), 0);
+  return [...catalog.groups].sort((a, b) => overlap(b) - overlap(a));
+}
+
+// Dev-only invariant guard: the day's anchor (longest activity) must belong to
+// the day's theme. Logged loudly so a regression in titling/selection is caught
+// in development. No-op in production builds.
+function validateDayTheme(day: number, title: string, picks: CardEntry[]): void {
+  if (!import.meta.env?.DEV) return;
+  const a = anchorPick(picks);
+  if (!a || entryCategory(a) === title) return;
+  const name = a.kind === 'group' ? a.bestSeller.title : a.activity.title;
+  console.warn(
+    `[itinerary] Day ${day}: theme "${title}" does not match anchor activity "${name}" (${entryCategory(a)}). ` +
+    `The anchor (longest) activity must define the theme.`,
+  );
+}
+
 function scoreEntry(e: CardEntry, tags: Set<MatchTag>, prefSections: Set<Section>): number {
   if (e.kind === 'group') {
     // Per-item fit of the candidate item (interests + adventure + budget + popularity,
@@ -259,8 +335,13 @@ function geoPenalty(e: CardEntry, anchorCoord: Coord | undefined): number {
   return Math.max(0, distanceKm(anchorCoord, c) - NEAR_KM) * GEO_PENALTY_PER_KM;
 }
 
-function ranked(ctx: Ctx, cands: CardEntry[], anchor: Region | undefined, anchorCoord: Coord | undefined): CardEntry[] {
-  const scored = cands.map((e) => ({ e, s: scoreEntry(e, ctx.tags, ctx.prefSections) - geoPenalty(e, anchorCoord) }));
+// A day's anchor slot nudges toward the day theme. Kept at BAND so an on-theme
+// pick and a comparably-scored off-theme pick stay in the same shuffle band —
+// coherence without killing regenerate variety.
+const THEME_BONUS = BAND;
+function ranked(ctx: Ctx, cands: CardEntry[], anchor: Region | undefined, anchorCoord: Coord | undefined, themeGroupId?: string): CardEntry[] {
+  const themeBonus = (e: CardEntry) => themeGroupId && e.kind === 'group' && e.group.id === themeGroupId ? THEME_BONUS : 0;
+  const scored = cands.map((e) => ({ e, s: scoreEntry(e, ctx.tags, ctx.prefSections) - geoPenalty(e, anchorCoord) + themeBonus(e) }));
   const maxS = scored.reduce((m, x) => Math.max(m, x.s), -Infinity);
   // Shuffle the within-BAND top band (variety on regen), then stably partition
   // by anchor-region so clustering only breaks ties — the shuffle order survives
@@ -286,6 +367,13 @@ function ranked(ctx: Ctx, cands: CardEntry[], anchor: Region | undefined, anchor
 function pickForSlot(
   ctx: Ctx, slot: Slot, anchor: Region | undefined, anchorCoord: Coord | undefined,
   maxPrice: number, usedKinds: Set<string>,
+  // Feasibility gate: rejects a candidate that would overrun the day's time
+  // budget (see the day loop). Default true keeps standalone callers unchanged.
+  feasible: (e: CardEntry) => boolean = () => true,
+  // Theme bias: when set, candidates from this Viator group get a small score
+  // boost (used for a day's anchor slot) — a nudge, not a filter, so regenerate
+  // variety survives and the slot never blanks for lack of an on-theme option.
+  themeGroupId?: string,
 ): CardEntry | null {
   const affordable = (e: CardEntry) => entryPrice(e) <= maxPrice;
   // `unused` is trip-wide: lastUsedDay holds every id placed on any prior day,
@@ -325,17 +413,17 @@ function pickForSlot(
     return !ctx.usedTagSets.some((used) => tagJaccard(tags, used) >= TAG_SIMILARITY_THRESHOLD);
   };
 
-  const matchedAll = ranked(ctx, candidatesFor(ctx, slot, ctx.tags), anchor, anchorCoord);
-  const widenedAll = ranked(ctx, candidatesFor(ctx, slot, null), anchor, anchorCoord);
+  const matchedAll = ranked(ctx, candidatesFor(ctx, slot, ctx.tags), anchor, anchorCoord, themeGroupId);
+  const widenedAll = ranked(ctx, candidatesFor(ctx, slot, null), anchor, anchorCoord, themeGroupId);
   const matched = matchedAll.filter(affordable);
   const widened = widenedAll.filter(affordable);
 
-  // Fill ladder, best → worst, every tier restricted to UNUSED + NOT-SIMILAR
-  // picks: affordable on-theme → affordable widened → over-budget on-theme →
-  // over-budget widened. `kindOk` gates every tier by same-day kind variety.
-  // When nothing remains, we return null and the slot stays open.
+  // Fill ladder, best → worst, every tier restricted to UNUSED + NOT-SIMILAR +
+  // FEASIBLE picks: affordable on-theme → affordable widened → over-budget
+  // on-theme → over-budget widened. `kindOk` gates every tier by same-day kind
+  // variety. When nothing remains, we return null and the slot stays open.
   const runLadder = (kindOk: (e: CardEntry) => boolean): CardEntry | null => {
-    const ok = (list: CardEntry[]) => list.filter(kindOk).filter(notSimilar);
+    const ok = (list: CardEntry[]) => list.filter(kindOk).filter(notSimilar).filter(feasible);
     const firstTwo = ok(matched).find(unused) ?? ok(widened).find(unused) ?? null;
     // When maxPrice === 0 (arrival-day free-only rule), never fall through to the
     // over-budget tiers — leave the slot open rather than place a paid item.
@@ -406,10 +494,12 @@ function hashAnswers(a: Answers): number {
   return h >>> 0;
 }
 
+// The day's theme is the category of its ANCHOR (longest) activity — never
+// picks[0], which merely reflected fill order and let a stray slot-0 sailing
+// pick title a day of history/horseback/stargazing "Sailing & Cruises".
 function titleFor(picks: CardEntry[], day: number): string {
-  const first = picks[0];
-  if (!first) return `Day ${day}`;
-  return first.kind === 'group' ? first.group.name : first.activity.category;
+  const a = anchorPick(picks);
+  return a ? entryCategory(a) : `Day ${day}`;
 }
 
 // ---------- Pin-placement helpers (exported for unit tests) ------------------
@@ -620,6 +710,10 @@ export function generatePlan(
   }
   // ---------------------------------------------------------------------------
 
+  // Theme rotation: each day gets a distinct headline theme (most trip-relevant
+  // groups first), and its anchor slot is biased toward that theme.
+  const themeGroups = themeGroupsFor(fillCatalog, tags);
+
   const days: Day[] = [];
   for (let d = 1; d <= nDays; d += 1) {
     const slots: Record<Slot, SlotEntry[]> = { morning: [], afternoon: [], evening: [] };
@@ -627,6 +721,24 @@ export function generatePlan(
     const usedKinds = new Set<string>(); // activity-kinds placed today (variety)
     let anchor: Region | undefined;
     let anchorCoord: Coord | undefined; // day's geographic centre (first coord-bearing pick)
+
+    // Feasibility bookkeeping for a real calendar day (issue: 11h days). dayMin
+    // accumulates activity time + inter-activity buffers; blocked holds slots a
+    // long "spread" activity has swallowed. dayTheme is this day's headline group.
+    let dayMin = 0;
+    const blocked = new Set<Slot>();
+    const dayTheme = themeGroups.length ? themeGroups[(d - 1) % themeGroups.length] : undefined;
+    // Book a pick's time and, if it overruns its slot window, spread it into the
+    // next slot (left free). Call BEFORE picks.push so the buffer counts only
+    // between consecutive activities (none before the day's first).
+    const commit = (pick: CardEntry, slot: Slot) => {
+      const dur = entryDurationMin(pick);
+      dayMin += (picks.length > 0 ? BUFFER_MIN : 0) + dur;
+      if (dur > SLOT_WINDOW_MIN[slot]) {
+        const next = SECTIONS[SECTIONS.indexOf(slot) + 1];
+        if (next) blocked.add(next);
+      }
+    };
 
     // Arrival (first) and departure (last) days keep an open afternoon — a
     // lighter pace, and it surfaces the "Drop an activity here" zone between the
@@ -654,6 +766,7 @@ export function generatePlan(
         usedKinds.add(entryKind(pick));
         if (!anchor) anchor = entryRegion(pick);
         if (!anchorCoord) anchorCoord = entryCoord(pick);
+        commit(pick, slot);
         picks.push(pick);
         slots[slot].push(slotEntry);
         continue;
@@ -679,16 +792,28 @@ export function generatePlan(
         usedKinds.add(entryKind(pick));
         if (!anchor) anchor = entryRegion(pick);
         if (!anchorCoord) anchorCoord = entryCoord(pick);
+        commit(pick, slot);
         picks.push(pick);
         slots[slot].push(slotEntry);
         continue;
       }
 
+      // A prior long activity spread into this slot — leave it free (issue:
+      // don't overbook). Pins/premium above are explicit and still place.
+      if (blocked.has(slot)) continue;
+
       // Arrival day (day 1) is a free/chill settle-in day — no paid tours.
       // Single-day trips are exempted (the traveller has no other day).
       const freeOnly = nDays > 1 && d === 1;
       const maxP = freeOnly ? 0 : Math.max(0, budgetLeft);
-      const pick = pickForSlot(ctx, slot, anchor, anchorCoord, maxP, usedKinds);
+      // Reject any candidate that would push the day past its 8h activity budget
+      // (buffer counted only when something is already booked today).
+      const feasible = (e: CardEntry) =>
+        dayMin + (picks.length > 0 ? BUFFER_MIN : 0) + entryDurationMin(e) <= DAY_CAP_MIN;
+      // Theme-first: the day's anchor (first placed) slot is biased toward the
+      // day theme; later slots fill freely (variety).
+      const themeId = picks.length === 0 ? dayTheme?.id : undefined;
+      const pick = pickForSlot(ctx, slot, anchor, anchorCoord, maxP, usedKinds, feasible, themeId);
       if (!pick) continue;
       budgetLeft -= entryPrice(pick);
       ctx.lastUsedDay.set(entryId(pick), d);
@@ -703,13 +828,16 @@ export function generatePlan(
       usedKinds.add(entryKind(pick));
       if (!anchor) anchor = entryRegion(pick);
       if (!anchorCoord) anchorCoord = entryCoord(pick);
+      commit(pick, slot);
       picks.push(pick);
       slots[slot].push(toSlotEntry(pick));
     }
 
+    const title = titleFor(picks, d);
+    validateDayTheme(d, title, picks); // dev-only: warns if the anchor conflicts
     days.push({
       day: d,
-      title: titleFor(picks, d),
+      title,
       color: DAY_COLORS[(d - 1) % DAY_COLORS.length],
       morning: slots.morning, afternoon: slots.afternoon, evening: slots.evening,
     });
