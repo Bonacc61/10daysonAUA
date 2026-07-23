@@ -609,7 +609,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
               </DndContext>
 
               {!readOnly && (
-                <div style={{ position: 'sticky', bottom: 16, marginTop: 32, display: 'flex', justifyContent: 'center', zIndex: 5 }}>
+                <div style={{ position: 'sticky', bottom: 16, marginTop: 32, display: 'flex', justifyContent: 'center', zIndex: 12 }}>
                   <div style={{ position: 'relative' }}>
                     {sharePopoverOpen && shareUrl && (
                       <SharePopover url={shareUrl} onClose={() => setSharePopoverOpen(false)} />
