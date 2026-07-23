@@ -243,6 +243,49 @@ describe('generatePlan — pacing + no unintended empty slots', () => {
     expect(hasA && hasB).toBe(false);
   });
 
+  it('places two different items from the SAME group (dedup is per-cluster, not per-group)', () => {
+    // A private charter and a Jolly Pirates cruise are both in the "sailing" group
+    // but are distinct experiences (different cluster ids, no shared tags). The old
+    // per-group dedup (usedGroupIds) let only one land; item-level planning places both.
+    const sailing: ViatorGroup = {
+      id: 'sailing', name: 'Sailing & Cruises', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 0, matched_by: ['watersports'] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    };
+    const charter: ViatorItem = {
+      id: 'charter', group_id: 'sailing', title: 'Private Catamaran Charter',
+      image_url: '', price_usd: 1450, duration: '', rating: 4.9, review_count: 40,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      tags: [11888],                        // 11888 = sailing -> 'sail' kind (crowd-pleaser)
+      experience_cluster_id: 'cluster-charter',
+    };
+    const jolly: ViatorItem = {
+      id: 'jolly', group_id: 'sailing', title: 'Jolly Pirates Snorkel Cruise',
+      image_url: '', price_usd: 65, duration: '', rating: 4.7, review_count: 900,
+      viator_item_url: '', is_best_seller: false, display_order: 1,
+      tags: [11912],                        // 11912 = snorkel -> 'snorkel' kind (crowd-pleaser)
+      experience_cluster_id: 'cluster-jolly',
+    };
+    // Both are placeable crowd-pleasers; different kinds + tag-Jaccard 0 (no shared
+    // tags) + different clusters => notSimilar allows BOTH. is_best_seller:false on
+    // jolly proves a non-face item still surfaces.
+    const padGroups: ViatorGroup[] = Array.from({ length: 12 }, (_, n) => ({
+      id: `pad-${n}`, name: `pad-${n}`, tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: n + 1, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    }));
+    const padItems: ViatorItem[] = padGroups.map((g, n) => ({
+      id: `pad-item-${n}`, group_id: g.id, title: `Beach Day ${n}`,
+      image_url: '', price_usd: 0, duration: '', rating: 4.0, review_count: 10,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      sections: ['beaches' as const], experience_cluster_id: `pad-cluster-${n}`,
+    }));
+    const cat: Catalog = { activities: [], groups: [sailing, ...padGroups], items: [charter, jolly, ...padItems] };
+    // 5 days keeps the money-no-object premium pre-pass OUT of it (needs >= 7 days),
+    // so this exercises normal item-level fill only.
+    const ids = entryIds(generatePlan({ ...ADVENTURER, days: 5 }, cat));
+    expect(ids.includes('charter')).toBe(true);
+    expect(ids.includes('jolly')).toBe(true);
+  });
+
   it('dedups high-tag-overlap items even when they carry DIFFERENT cluster ids', () => {
     // The live regression: without an embedding provider, the feed assigns a
     // per-product cluster code (6841ISLAND vs 6841POOL) to two near-identical
@@ -290,6 +333,84 @@ describe('generatePlan — pacing + no unintended empty slots', () => {
     expect(d.morning.length).toBeGreaterThanOrEqual(1);
     expect(d.afternoon.length).toBeGreaterThanOrEqual(1);
     expect(d.evening.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('never places two items in one group that share a cluster id', () => {
+    // Same group, same cluster (e.g. an adult and a child booking option of one
+    // snorkel product). Both carry the snorkel tag so they are high-scoring, placeable
+    // crowd-pleasers; the shared cluster id must still keep them from both landing now
+    // that whole-group retirement is gone.
+    const grp: ViatorGroup = {
+      id: 'snorkel', name: 'Snorkel Trips', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 0, matched_by: ['watersports'] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    };
+    const adult: ViatorItem = {
+      id: 'snork-adult', group_id: 'snorkel', title: 'Catalina Bay Snorkel Trip (Adult)',
+      image_url: '', price_usd: 0, duration: '', rating: 4.7, review_count: 200,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      tags: [11912],                        // 11912 = snorkel
+      experience_cluster_id: 'cluster-snorkel',
+    };
+    const child: ViatorItem = {
+      id: 'snork-child', group_id: 'snorkel', title: 'Catalina Bay Snorkel Trip (Child)',
+      image_url: '', price_usd: 0, duration: '', rating: 4.7, review_count: 190,
+      viator_item_url: '', is_best_seller: false, display_order: 1,
+      tags: [11912],                        // 11912 = snorkel (same product, other booking option)
+      experience_cluster_id: 'cluster-snorkel',
+    };
+    const padGroups: ViatorGroup[] = Array.from({ length: 12 }, (_, n) => ({
+      id: `pad-${n}`, name: `pad-${n}`, tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: n + 1, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    }));
+    const padItems: ViatorItem[] = padGroups.map((g, n) => ({
+      id: `pad-item-${n}`, group_id: g.id, title: `Beach Day ${n}`,
+      image_url: '', price_usd: 0, duration: '', rating: 4.0, review_count: 10,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      sections: ['beaches' as const], experience_cluster_id: `pad-cluster-${n}`,
+    }));
+    const cat: Catalog = { activities: [], groups: [grp, ...padGroups], items: [adult, child, ...padItems] };
+    const ids = entryIds(generatePlan({ ...ADVENTURER, days: 5 }, cat));
+    expect(ids.includes('snork-adult') && ids.includes('snork-child')).toBe(false);
+  });
+
+  it('places at most one off-road tour per trip (route-family net)', () => {
+    // Two off-road tours in different groups, different clusters, and NON-overlapping
+    // tags (4WD tag vs ATV tag) so neither cluster-dedup nor tag-Jaccard fires — only
+    // the route-family net keeps the trip to a single off-road experience.
+    const groupA: ViatorGroup = {
+      id: 'offroad-a', name: 'Jeep Co', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 0, matched_by: ['adventure'] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    };
+    const groupB: ViatorGroup = {
+      id: 'offroad-b', name: 'ATV Co', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 1, matched_by: ['adventure'] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    };
+    const jeep: ViatorItem = {
+      id: 'jeep-tour', group_id: 'offroad-a', title: 'Guided Jeep Tour',
+      image_url: '', price_usd: 0, duration: '', rating: 4.6, review_count: 100,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      tags: [12035], experience_cluster_id: 'cluster-a',   // 12035 = 4WD (offroad kind)
+    };
+    const atv: ViatorItem = {
+      id: 'atv-tour', group_id: 'offroad-b', title: 'Self-drive ATV Adventure',
+      image_url: '', price_usd: 0, duration: '', rating: 4.6, review_count: 100,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      tags: [21421], experience_cluster_id: 'cluster-b',   // 21421 = ATV (offroad kind)
+    };
+    const padGroups: ViatorGroup[] = Array.from({ length: 12 }, (_, n) => ({
+      id: `pad-${n}`, name: `pad-${n}`, tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: n + 2, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    }));
+    const padItems: ViatorItem[] = padGroups.map((g, n) => ({
+      id: `pad-item-${n}`, group_id: g.id, title: `Beach Day ${n}`,
+      image_url: '', price_usd: 0, duration: '', rating: 4.0, review_count: 10,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      sections: ['beaches' as const], experience_cluster_id: `pad-cluster-${n}`,
+    }));
+    const cat: Catalog = { activities: [], groups: [groupA, groupB, ...padGroups], items: [jeep, atv, ...padItems] };
+    const ids = entryIds(generatePlan({ ...ADVENTURER, days: 5 }, cat));
+    const offroadPlaced = [ids.includes('jeep-tour'), ids.includes('atv-tour')].filter(Boolean).length;
+    expect(offroadPlaced).toBeLessThanOrEqual(1);
   });
 });
 
@@ -470,7 +591,34 @@ describe('generatePlan — one off-road tour per trip (shared route family)', ()
 });
 
 describe('generatePlan — day-level geographic clustering', () => {
-  const cat = getCatalog();
+  // Two Viator groups ~15 km apart (Palm Beach watersports vs Arikok adventure-tours),
+  // each with many distinct-cluster, tag-less, single-section items. coordOf resolves
+  // each item to its GROUP_COORDS point, so a day that stays in one group has intra-day
+  // spread 0 and a day that mixes groups spreads ~15 km. All items share one Explore
+  // section, so same-day kind-variety never forces a cross-region pick, and distinct
+  // cluster ids let item-level fill place several per group across the trip. The geo
+  // penalty (~4.5 pts here, above the score BAND) should keep every day single-region →
+  // tight average; remove it and each anchor's far twin scatters picks past the guard.
+  // (The old getCatalog() stub was too thin/homogeneous to measure this once planning
+  // went item-level; production geo is guarded live in e2e-engine.test.ts.)
+  const mkItems = (groupId: string, prefix: string): ViatorItem[] =>
+    Array.from({ length: 25 }, (_, n) => ({
+      id: `${prefix}-${n}`, group_id: groupId, title: `${prefix} ${n}`,
+      image_url: '', price_usd: 0, duration: '', rating: 4.5, review_count: 50,
+      viator_item_url: '', is_best_seller: n === 0, display_order: n,
+      sections: ['beaches' as const], experience_cluster_id: `${prefix}-cluster-${n}`,
+    }));
+  const groups: ViatorGroup[] = [
+    { id: 'watersports', name: 'watersports', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 0, matched_by: [] as MatchTag[], region: 'palm-beach' as const, allowed_slots: [] as const },
+    { id: 'adventure-tours', name: 'adventure-tours', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 1, matched_by: [] as MatchTag[], region: 'arikok' as const, allowed_slots: [] as const },
+  ];
+  const cat: Catalog = {
+    activities: [],
+    groups,
+    items: [...mkItems('watersports', 'west'), ...mkItems('adventure-tours', 'far')],
+  };
   const coordOf = (e: SlotEntry): Coord | undefined =>
     e.kind === 'activity' ? ACTIVITY_COORDS[e.id] : (VIATOR_ITEM_COORDS[e.bestSellerId] ?? GROUP_COORDS[e.groupId]);
 
@@ -490,9 +638,10 @@ describe('generatePlan — day-level geographic clustering', () => {
         cnt += 1;
       }
     }
-    // With the geo penalty the average intra-day spread is ~9.6km; without it
-    // ~12.3km. 11km is a stable guard that fails if clustering is removed/broken.
-    expect(sum / cnt).toBeLessThan(11);
+    // The two groups sit ~15 km apart; a day that mixes them spreads ~15 km. With the
+    // geo penalty every day stays single-region (spread ≈ 0). Guard at 5 km fails loudly
+    // if the penalty is removed (mixing pushes the average toward ~7 km).
+    expect(sum / cnt).toBeLessThan(5);
   });
 });
 

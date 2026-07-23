@@ -17,8 +17,8 @@ import { otherItemsInGroup } from './activitySource';
 import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry, ViatorItem, ViatorGroup } from '../types';
 import { SECTIONS } from './itineraryPlan';
-import { matchPool, blendPools, entryPrice } from './matcher';
-import { fitItem, refaceForAnswers, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, offroadAdrenalineBonus } from './itemFit';
+import { matchPool, entryPrice } from './matcher';
+import { fitItem, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, offroadAdrenalineBonus, itemSlotOk } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 import { effectiveFlags } from './notesFlags';
@@ -52,8 +52,6 @@ const TAG_SIMILARITY_THRESHOLD = 0.35;
 const SLOT_TOD: Record<Slot, Activity['timeOfDay']> = {
   morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening',
 };
-
-const NO_FILTER = { rejectedIds: new Set<string>(), rejectedGroupIds: new Set<string>() };
 
 // interest tag → Explore sections it favours. This is what tailors the
 // wildcard-tagged local picks (groups already differentiate via matched_by).
@@ -121,10 +119,10 @@ function toSlotEntry(e: CardEntry): SlotEntry {
 
 function scoreEntry(e: CardEntry, tags: Set<MatchTag>, prefSections: Set<Section>): number {
   if (e.kind === 'group') {
-    // Per-item fit of the *shown* card (interests + adventure + budget + popularity,
-    // from classify.ts) plus the group's editorial signal (group type, lodging,
-    // theme). The face was already chosen by refaceForAnswers, so it's never an
-    // over-budget reject here.
+    // Per-item fit of the candidate item (interests + adventure + budget + popularity,
+    // from classify.ts) plus the group's editorial signal (group type, lodging, theme),
+    // read via the item's group. candidatesFor already dropped over-budget items
+    // (fitItem(...).rejected), so this is never an over-budget reject here.
     let score = fitItem(e.bestSeller, tags).score;
     for (const t of e.group.matched_by) if (tags.has(t)) score += 2;
     score += offroadAdrenalineBonus(e.bestSeller, tags);
@@ -146,9 +144,17 @@ type Ctx = {
   prefSections: Set<Section>;
   rand: () => number;
   lastUsedDay: Map<string, number>;
-  // Once any item from a group is placed, the whole group is retired for the
-  // rest of the trip. Prevents booking-option variants (adult/child/45-min)
-  // of the same product from each claiming a separate day.
+  // groupId → group, built once. Each per-item candidate resolves its group
+  // through this (for scoring via group.matched_by and for the stored
+  // {groupId, bestSellerId} SlotEntry) without a per-item linear scan. Booking-
+  // option variants of one product are now handled by cluster/tag dedup in
+  // notSimilar, not by whole-group retirement.
+  groupById: Map<string, ViatorGroup>;
+  // Last-resort dedup signal: consulted in notSimilar ONLY for an item that has
+  // neither a cluster id nor tags (hand-written stub / thin offline catalog, which
+  // give item-level dedup nothing to compare). Populated by the pin and normal-fill
+  // placements below — NOT by the premium pre-pass, so a splurge and a crowd-pleaser
+  // from one group still both land.
   usedGroupIds: Set<string>;
   // Cluster IDs (from embedding-based clustering at ingest) of placed Viator
   // items. When an item is placed its cluster is retired for the rest of the
@@ -174,27 +180,42 @@ function routeFamilyOf(e: CardEntry): string | undefined {
   return LOCAL_OFFROAD.test(e.activity.title) ? 'offroad' : undefined;
 }
 
-// Candidates for a slot. useTags=null widens which GROUPS are eligible (time-of-
-// day only), but the card face + over-budget guard always use the real answers
-// (ctx.tags) via refaceForAnswers — widening relevance must never resurface an
-// item the traveller can't afford or wouldn't want.
+// Candidates for a slot — ONE CardEntry per Viator item (no group face-collapse),
+// plus local activities. useTags=null widens which items are eligible (drops the
+// group-relevance narrowing), but the slot + budget guards ALWAYS use the real
+// answers (ctx.tags): widening relevance must never resurface an item the traveller
+// can't afford or that doesn't belong in this slot.
 //
-// usedGroupIds excludes entire Viator groups once any of their items has been
-// placed, so the same experience never repeats (e.g. "Atlantis Submarine Tour"
-// across 5 days). Local activities are excluded by lastUsedDay (item-level).
+// Dedup is NOT done here — pickForSlot's `unused` (lastUsedDay, item-level) and
+// `notSimilar` (cluster → tag-Jaccard → route-family) handle it, so the same
+// experience never repeats while one group can still fill many days with its
+// different items.
 function candidatesFor(ctx: Ctx, slot: Slot, useTags: Set<MatchTag> | null): CardEntry[] {
-  const usedIds = new Set(ctx.lastUsedDay.keys());
-  if (useTags === null) {
-    const activities = ctx.catalog.activities.filter((a) => a.timeOfDay === SLOT_TOD[slot]);
-    const groups = ctx.catalog.groups.filter(
-      (g) => (g.allowed_slots.length === 0 || g.allowed_slots.includes(slot))
-           && !ctx.usedGroupIds.has(g.id),
-    );
-    return refaceForAnswers(blendPools(activities, groups, ctx.catalog.items, NO_FILTER), ctx.tags, slot, usedIds);
+  // Local activities: matched pool via matchPool (tag overlap + time-of-day);
+  // widened pool is time-of-day only. (Empty groups arg — items handled below.)
+  const activities = useTags === null
+    ? ctx.catalog.activities.filter((a) => a.timeOfDay === SLOT_TOD[slot])
+    : matchPool(ctx.catalog.activities, [], useTags, slot).activities;
+
+  // One candidate per item. Hard filters (both pools): slot-appropriate + fits the
+  // real answers (the hard budget guard). Relevance narrowing (matched pool only)
+  // uses the item's GROUP matched_by — the same signal matchPool applied at group
+  // level, now per item. Empty matched_by = wildcard (matches everyone), as before.
+  const itemEntries: CardEntry[] = [];
+  for (const item of ctx.catalog.items) {
+    if (!itemSlotOk(item, slot)) continue;
+    if (fitItem(item, ctx.tags).rejected) continue;
+    const group = ctx.groupById.get(item.group_id);
+    if (!group) continue; // data-integrity guard (mirrors blendPools' best-seller guard)
+    if (useTags !== null && group.matched_by.length > 0
+        && !group.matched_by.some((t) => useTags.has(t))) continue;
+    // others:[] — the generator never reads it; display rebuilds it in resolveSlotEntry.
+    itemEntries.push({ kind: 'group', group, bestSeller: item, others: [] });
   }
-  const { activities, groups: matchedGroups } = matchPool(ctx.catalog.activities, ctx.catalog.groups, useTags, slot);
-  const groups = matchedGroups.filter((g) => !ctx.usedGroupIds.has(g.id));
-  return refaceForAnswers(blendPools(activities, groups, ctx.catalog.items, NO_FILTER), ctx.tags, slot, usedIds);
+
+  const activityEntries: CardEntry[] = activities.map((a) => ({ kind: 'activity', activity: a }));
+  // Items first (mirrors blendPools' groups-first commercial tie-break on equal fit).
+  return [...itemEntries, ...activityEntries];
 }
 
 // A coarse "kind" for an entry, used to keep a single day varied (no two near-
@@ -295,7 +316,12 @@ function pickForSlot(
     // actually recognises them as the same real-world experience. (Previously this
     // fallback was skipped whenever a cluster ID existed, i.e. almost always.)
     const tags = e.bestSeller.tags ?? [];
-    if (tags.length === 0) return true;
+    if (tags.length === 0) {
+      // No tags: with no cluster id either, the Viator group is the only "same
+      // experience" signal left (hand-written stub / thin offline catalog) — dedup
+      // by it. With a cluster id present, cluster dedup above already covers it.
+      return cid ? true : !ctx.usedGroupIds.has(e.group.id);
+    }
     return !ctx.usedTagSets.some((used) => tagJaccard(tags, used) >= TAG_SIMILARITY_THRESHOLD);
   };
 
@@ -480,7 +506,7 @@ export function generatePlan(
     // random food day on the opposite coast by normal fill.
     activities: filteredCatalog.activities.filter((a) => !dupedLocal(a) && !foodPlaceKey(a.id)),
   };
-  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], usedRouteFamilies: new Set() };
+  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], usedRouteFamilies: new Set() };
 
   // Trip-wide budget pool: keeps the AVERAGE daily activity spend within the
   // tier cap (budget-conscious ≈ $110/day on average), letting days vary while
@@ -526,15 +552,14 @@ export function generatePlan(
   // ---------------------------------------------------------------------------
 
   // --- Premium splurge pre-pass ---------------------------------------------
-  // A money-no-object traveller on a week-plus trip should get aspirational
-  // premium experiences (a private charter) IN ADDITION to the universal crowd-
-  // pleasers, not instead of them — they're distinct enough to do both. But such
-  // items share a Viator group with the group's crowd-pleaser (a private charter
-  // and a party cruise are both "sailing-cruises"), so normal group-dedup would
-  // surface only one. We place the top premium pick(s) here, exempt from group-
-  // dedup and marked used at the ITEM level only — so the group stays open for
-  // its crowd-pleaser via normal fill, and both land on different days. Shorter
-  // trips skip this (one cruise is plenty); non-splurge budgets never trigger it.
+  // A money-no-object traveller on a week-plus trip should get an aspirational
+  // premium experience (a private charter) IN ADDITION to the universal crowd-
+  // pleasers, not instead of them. Item-level fill alone won't guarantee it: a $65
+  // crowd-pleaser often out-scores a $1,450 charter on within-tier popularity, so the
+  // cheap pick wins every slot. We place the top premium pick(s) here and badge them.
+  // Because dedup is by cluster (not group), the group's crowd-pleaser still lands on
+  // another day — a charter and a party cruise are different clusters. Shorter trips
+  // skip this (one cruise is plenty); non-splurge budgets never trigger it.
   const premiumSlots = new Map<number, Map<Slot, PinPlacement>>();
   if (tags.has('money-no-object') && nDays >= PREMIUM_MIN_DAYS) {
     const maxPremium = Math.floor(nDays / DAYS_PER_PREMIUM); // 1 for a week, 2 for a fortnight
