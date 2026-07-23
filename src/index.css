@@ -283,7 +283,18 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
 .day-badge { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Caprasimo', Georgia, serif; font-size: 18px; color: white; border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); flex-shrink: 0; }
 
 /* Editable day title + collapsible day --------------------------------- */
-.itin-day-head { display: flex; align-items: center; gap: 10px; margin: 6px 0 20px; }
+/* Each day's header sticks to the top while that day's cards scroll under it, then the
+   next day's wrapper scrolls up and its header takes over the pin (classic sticky
+   section headers). It sticks within its own .itin-day-wrapper, so the hand-off is
+   automatic. Opaque page-bg (cream) so scrolling cards don't show through; z-index
+   above the cards. No clipping ancestors on this page, so no JS needed. */
+.itin-day-head {
+  display: flex; align-items: center; gap: 10px; margin: 0 0 20px;
+  position: sticky; top: 0; z-index: 9; /* above .itin-card-controls (z-index 7) so
+     card grip/remove buttons don't poke through the pinned header */
+  background: var(--cream);
+  padding: 10px 0;
+}
 .itin-day-head h2 { flex: 1; min-width: 0; }
 /* The renamable theme — dotted hover hint that it's editable. */
 .itin-day-title { cursor: text; border-radius: 4px; padding: 0 2px; transition: background 0.12s, box-shadow 0.12s; }
