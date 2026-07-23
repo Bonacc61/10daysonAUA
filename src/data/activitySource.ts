@@ -11,6 +11,24 @@ export type Catalog = {
   items: ViatorItem[];
 };
 
+// Transportation-only Viator products (airport transfers, shuttles, private
+// car service) aren't experiences a traveller plans a day around, so they don't
+// belong in Explore or in generated itineraries. Viator files them under the
+// same broad Sightseeing/Adventure anchors viator-cards searches, so they leak
+// into the live catalog. Drop them at ingest — one chokepoint covers both
+// Explore and the generator, since both read catalog.items.
+//
+// A product is transport-only when its title names a transfer/shuttle AND names
+// no actual experience. The experience guard keeps hybrids where the trip (not
+// the ride) is the point — a sunset cruise "with hotel pickup", a "Jeep Safari
+// (Natural Pool Transfer)". Jeep tours and the party bus are always kept.
+const TRANSPORT_RE = /\b(airport|transfers?|shuttle|pick[\s-]?up|drop[\s-]?off|taxi|limo(?:usine)?|car service|transport(?:ation)?)\b/i;
+const EXPERIENCE_RE = /\b(tour|cruise|sail|snorkel|div(?:e|ing)|safari|adventure|dinner|lunch|breakfast|brunch|tasting|class|ride|hik(?:e|ing)|kayak|paddle|zipline|atv|utv|quad|horseback|sightseeing|excursion|jeep|party bus|catamaran|fishing|spa|show|sunset)\b/i;
+
+export function isTransportOnly(item: ViatorItem): boolean {
+  return TRANSPORT_RE.test(item.title) && !EXPERIENCE_RE.test(item.title);
+}
+
 // Rank items by review_count within their budget tier and attach a
 // popularity_score (0–1 percentile). Ranking within tier (not globally) fixes
 // a systematic bias: expensive items always have fewer reviews than cheap ones
@@ -45,7 +63,7 @@ function normalizePopularity(items: ViatorItem[]): ViatorItem[] {
 let stubCatalog: Catalog | null = null;
 export function getCatalog(): Catalog {
   if (!stubCatalog) {
-    stubCatalog = { activities: ACTIVITIES, groups: VIATOR_GROUPS, items: normalizePopularity(VIATOR_ITEMS) };
+    stubCatalog = { activities: ACTIVITIES, groups: VIATOR_GROUPS, items: normalizePopularity(VIATOR_ITEMS.filter((i) => !isTransportOnly(i))) };
   }
   return stubCatalog;
 }
@@ -99,7 +117,7 @@ export function loadCatalog(): Promise<Catalog> {
           viator_item_url: m.viator_item_url,
         };
       });
-      liveCatalog = { activities, groups, items: normalizePopularity(items) };
+      liveCatalog = { activities, groups, items: normalizePopularity(items.filter((i) => !isTransportOnly(i))) };
       return liveCatalog;
     } catch {
       return getCatalog(); // stub fallback
