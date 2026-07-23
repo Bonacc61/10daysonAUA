@@ -261,10 +261,10 @@ const GTK_SECTION_META = [
   { key: 'throughout', label: 'Throughout your stay' },
 ] as const;
 
-function GtkTimelineCard({ card }: { card: typeof GTK_CARDS[number] }) {
+function GtkTimelineCard({ card, index }: { card: typeof GTK_CARDS[number]; index: number }) {
   const IconCmp = iconFor(card.icon);
   return (
-    <div className="tlc" style={{ '--accent': card.accent } as CSSProperties}>
+    <div className="tlc" style={{ '--accent': card.accent, '--i': index } as CSSProperties}>
       <div className="tlc-head">
         <span className="tlc-stamp"><IconCmp size={17} /></span>
         <h4 className="tlc-title font-display">{card.title}</h4>
@@ -279,6 +279,9 @@ function GtkTimelineCard({ card }: { card: typeof GTK_CARDS[number] }) {
 function GoodToKnowSection() {
   const [active, setActive] = useState(0);
   const [open, setOpen] = useState(false);
+  // Which phase has finished expanding (so it may drop its overflow clip and let the
+  // sticky card headers pin). -1 = none un-clipped (during a switch / expand animation).
+  const [openIdx, setOpenIdx] = useState(-1);
   // Static (all phases expanded, no scroll-driven collapse) only for
   // prefers-reduced-motion. The scroll accordion itself works fine on mobile —
   // it's natural-height with no pin, so there's nothing for a small viewport to
@@ -364,6 +367,17 @@ function GoodToKnowSection() {
     };
   }, [open, staticMode, n]);
 
+  // A phase drops its overflow clip only AFTER it finishes expanding, so the sticky
+  // card headers can pin without the collapse-clip erasing them. On every phase switch
+  // we re-clip (outgoing collapses cleanly, incoming clips while it expands), then
+  // un-clip once the .3s grid-rows transition has settled.
+  useEffect(() => {
+    if (staticMode) return;
+    setOpenIdx(-1);
+    const t = window.setTimeout(() => setOpenIdx(activeRef.current), 350);
+    return () => window.clearTimeout(t);
+  }, [active, staticMode]);
+
   const goPhase = (i: number) => {
     if (staticMode) { setActive(i); return; }
     const w = phaseWindow();
@@ -376,7 +390,7 @@ function GoodToKnowSection() {
   const tl = (
     <div className="gtk-tl" ref={tlRef}>
       {phases.map((p, i) => (
-        <div className="gtk-phase" data-active={staticMode || i === active ? '' : undefined} key={p.key}>
+        <div className="gtk-phase" data-active={staticMode || i === active ? '' : undefined} data-open={staticMode || i === openIdx ? '' : undefined} key={p.key}>
           <button
             type="button"
             className="gtk-phase-head"
@@ -389,7 +403,7 @@ function GoodToKnowSection() {
           <div className="gtk-phase-wrap">
             <div className="gtk-phase-inner">
               <div className="gtk-phase-cards">
-                {p.cards.map((c) => <GtkTimelineCard key={c.title} card={c} />)}
+                {p.cards.map((c, ci) => <GtkTimelineCard key={c.title} card={c} index={ci} />)}
               </div>
             </div>
           </div>

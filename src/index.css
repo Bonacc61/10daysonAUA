@@ -663,7 +663,7 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   font-style: italic; font-size: 15px; line-height: 1.5;
   color: rgba(0,0,0,0.85); margin: 0 0 26px; max-width: 620px;
 }
-.gtk-tl { position: relative; padding-left: 6px; }
+.gtk-tl { position: relative; padding-left: 6px; --phh: 50px; --chh: 60px; }
 /* the vertical spine */
 .gtk-tl::before {
   content: ''; position: absolute; left: 16px; top: 10px; bottom: 10px;
@@ -673,8 +673,11 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 .gtk-phase + .gtk-phase { margin-top: 6px; }
 .gtk-phase-head {
   display: flex; align-items: center; gap: 13px; width: 100%;
-  padding: 12px 0; background: none; border: 0; cursor: pointer;
-  text-align: left; font: inherit; color: var(--ink); position: relative;
+  padding: 12px 0; border: 0; cursor: pointer;
+  text-align: left; font: inherit; color: var(--ink);
+  /* Sticky section header: pins the active phase's label to the top as its cards
+     scroll. Opaque section bg so scrolled content doesn't show through. */
+  position: sticky; top: 0; z-index: 4; background: var(--yellow-bg);
 }
 .gtk-phase-head:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; border-radius: 8px; }
 /* node sits on the spine (spine at left:16px; node is 24px, centred there) */
@@ -689,15 +692,32 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 /* collapse the phase's cards to nothing when inactive (0fr → 1fr) */
 .gtk-phase-wrap { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s ease; }
 .gtk-phase[data-active] .gtk-phase-wrap { grid-template-rows: 1fr; }
-.gtk-phase-inner { overflow: hidden; min-height: 0; }
+/* overflow: clip (not hidden) clips the collapse identically but does NOT create a
+   scroll container, so the sticky card headers below stick to the viewport rather
+   than to this clipped box. Keep `hidden` first as the fallback for pre-Safari-16. */
+.gtk-phase-inner { overflow: hidden; overflow: clip; min-height: 0; }
+/* Once a phase has finished expanding it drops the clip (JS sets data-open after the
+   grid-rows transition settles), so its sticky card headers can escape upward and
+   pin. Collapsing/animating phases keep the clip above, so the accordion animation
+   is unaffected. */
+.gtk-phase[data-open] .gtk-phase-inner { overflow: visible; }
+/* Single column so each card's sticky header stacks under the previous one and its
+   opaque body covers the card above it (the stack effect needs a vertical column). */
 .gtk-phase-cards {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  display: grid; grid-template-columns: 1fr; gap: 0;
   padding: 6px 0 22px;
 }
+/* The whole card is sticky, pinned under the phase header and offset by its index so
+   the cards fan-stack. Opaque cream bg means the next card (later in flow) slides up
+   and covers everything of the previous card except its top --chh strip — the header
+   row (icon + title) — leaving a stack of subheaders above the fully-shown last card. */
 .tlc {
+  position: sticky;
+  top: calc(var(--phh) + var(--i) * var(--chh));
   background: var(--cream); border: 2px solid var(--ink); border-radius: 14px;
   box-shadow: 4px 5px 0 0 var(--accent); padding: 15px 17px;
 }
+.tlc + .tlc { margin-top: 10px; }
 .tlc-head { display: flex; align-items: center; gap: 11px; margin-bottom: 9px; }
 .tlc-stamp {
   width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
