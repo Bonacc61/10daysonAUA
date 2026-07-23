@@ -295,6 +295,12 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
   background: var(--cream);
   padding: 10px 0;
 }
+/* Badge lives inside the sticky header and is pulled left onto the timeline rail, so
+   the numbered day marker travels with the pinned header. left offset = the wrapper's
+   padding-left (64 desktop / 48 mobile). */
+.itin-day-head .day-badge {
+  position: absolute; left: -64px; top: 50%; transform: translateY(-50%);
+}
 .itin-day-head h2 { flex: 1; min-width: 0; }
 /* The renamable theme — dotted hover hint that it's editable. */
 .itin-day-title { cursor: text; border-radius: 4px; padding: 0 2px; transition: background 0.12s, box-shadow 0.12s; }
@@ -609,6 +615,7 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   /* Day-block heading + badge */
   .itin-day-wrapper { padding-left: 48px !important; }
   .itin-day-wrapper .day-badge { width: 36px !important; height: 36px !important; font-size: 15px !important; }
+  .itin-day-head .day-badge { left: -48px; }
   .itin-day-wrapper h2 { font-size: 24px !important; margin-top: 0 !important; }
   /* No hover on touch — keep the rename pencil always visible. */
   .itin-day-edit { opacity: 1 !important; }

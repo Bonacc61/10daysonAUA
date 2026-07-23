@@ -756,8 +756,8 @@ function ItineraryDay({
   return (
     <div className="itin-day-wrapper" style={{ position: 'relative', paddingLeft: 64, paddingBottom: isLast ? 0 : 40 }}>
       {!isLast && <div className="timeline-rail" />}
-      <div className="day-badge" style={{ position: 'absolute', left: 0, top: 4, background: d.color, width: 44, height: 44, fontSize: 18 }}>{d.day}</div>
       <div className="itin-day-head">
+        <div className="day-badge" style={{ background: d.color }}>{d.day}</div>
         <h2 className="font-display" style={{ fontSize: 30, lineHeight: 1, margin: 0, color: 'var(--ink)' }}>
           Day {d.day} <span style={{ color: 'var(--sand-500)', fontSize: 22, margin: '0 6px' }}>—</span>
           {editing ? (
