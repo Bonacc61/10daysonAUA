@@ -756,7 +756,6 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   font-style: italic; font-size: 12px; color: var(--sand-700);
 }
 @media (max-width: 720px) {
-  .gtk-phase-cards { grid-template-columns: 1fr; }
   .gtk-phase-label { font-size: 21px; }
   .tlc-flag { display: none; }
 }
