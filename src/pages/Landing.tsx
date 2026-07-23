@@ -277,125 +277,28 @@ function GtkTimelineCard({ card, index }: { card: typeof GTK_CARDS[number]; inde
 }
 
 function GoodToKnowSection() {
-  const [active, setActive] = useState(0);
-  const [open, setOpen] = useState(false);
-  // Which phase has finished expanding (so it may drop its overflow clip and let the
-  // sticky card headers pin). -1 = none un-clipped (during a switch / expand animation).
-  const [openIdx, setOpenIdx] = useState(-1);
-  // Static (all phases expanded, no scroll-driven collapse) only for
-  // prefers-reduced-motion. The scroll accordion itself works fine on mobile —
-  // it's natural-height with no pin, so there's nothing for a small viewport to
-  // clip; touch scrolling drives the phases the same as on desktop.
-  const [staticMode] = useState(
-    () => typeof window !== 'undefined'
-      && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-  );
-  const activeRef = useRef(0);
-  const tlRef = useRef<HTMLDivElement>(null);
-
   const phases = GTK_SECTION_META.map((s) => ({
     ...s,
     cards: GTK_CARDS.filter((c) => c.section === s.key),
   }));
-  const n = phases.length;
 
-  // Trigger line (where the timeline top starts yielding) and the desired scroll
-  // distance per phase, both as fractions of viewport height.
-  const LINE = 0.28;
-  const BAND_VH = 0.32;
-
-  useEffect(() => { activeRef.current = active; }, [active]);
-
-  // Snapshotted page metrics. The scroll→phase mapping must NOT depend on the
-  // live page height: only one phase is expanded at a time, so the page height
-  // changes as the active phase changes, which would feed back into the mapping
-  // and make the active index flicker at a boundary. We measure once the section
-  // is open (and on resize) and map against that stable snapshot instead.
-  const metricsRef = useRef<{ tlDocTop: number; maxScroll: number } | null>(null);
-
-  const measure = () => {
-    const el = tlRef.current;
-    if (!el) return;
-    metricsRef.current = {
-      tlDocTop: el.getBoundingClientRect().top + window.scrollY,
-      maxScroll: Math.max(1, document.documentElement.scrollHeight - window.innerHeight),
-    };
-  };
-
-  // The scroll runway for the phases: an equal `band` of scroll per phase,
-  // starting where the timeline top reaches the trigger line. The band shrinks
-  // so all n phases fit inside the page's remaining scroll — on tall viewports /
-  // short pages there isn't room for a fixed per-phase distance, and the last
-  // phase's threshold used to fall past the page bottom, collapsing everything
-  // onto the last phase (the middle got skipped). Equal bands can't skip a phase.
-  const phaseWindow = () => {
-    const m = metricsRef.current;
-    if (!m) return null;
-    const band = Math.min(BAND_VH * window.innerHeight, m.maxScroll / (n + 0.5));
-    const startS = Math.max(0, Math.min(m.tlDocTop - LINE * window.innerHeight, m.maxScroll - n * band));
-    return { startS, band, maxScroll: m.maxScroll };
-  };
-
-  // Compact natural-height timeline (no pin → no whitespace, natural cards).
-  useEffect(() => {
-    if (!open || staticMode) return;
-    let raf = 0;
-    const recalc = () => {
-      const w = phaseWindow();
-      if (!w) return;
-      // Continuous phase position, then a small dead-zone (H of a band) so a
-      // pixel of jitter at a boundary can't bounce the active index.
-      const p = (window.scrollY - w.startS) / w.band;
-      const H = 0.18;
-      let idx = activeRef.current;
-      while (idx < n - 1 && p >= idx + 1 + H) idx++;
-      while (idx > 0 && p < idx - H) idx--;
-      if (idx !== activeRef.current) setActive(idx);
-    };
-    const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(recalc); };
-    const onResize = () => { measure(); recalc(); };
-    // Measure once now (rough) and again after the open animation settles.
-    measure(); recalc();
-    const t = window.setTimeout(() => { measure(); recalc(); }, 400);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onResize);
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onResize);
-      window.clearTimeout(t);
-      cancelAnimationFrame(raf);
-    };
-  }, [open, staticMode, n]);
-
-  // A phase drops its overflow clip only AFTER it finishes expanding, so the sticky
-  // card headers can pin without the collapse-clip erasing them. On every phase switch
-  // we re-clip (outgoing collapses cleanly, incoming clips while it expands), then
-  // un-clip once the .3s grid-rows transition has settled.
-  useEffect(() => {
-    if (staticMode) return;
-    setOpenIdx(-1);
-    const t = window.setTimeout(() => setOpenIdx(activeRef.current), 350);
-    return () => window.clearTimeout(t);
-  }, [active, staticMode]);
-
-  const goPhase = (i: number) => {
-    if (staticMode) { setActive(i); return; }
-    const w = phaseWindow();
-    if (!w) { setActive(i); return; }
-    // Aim for the centre of phase i's band, never past the page bottom.
-    const y = Math.min(w.maxScroll, Math.round(w.startS + (i + 0.5) * w.band));
-    window.scrollTo({ top: y, behavior: 'smooth' });
-  };
+  // All three subsections stay expanded; the sticky phase headers + sticky-stacking
+  // cards do the sequencing — you scroll through one subsection's cards (they stack
+  // up) before the next subsection's header takes over and its cards start stacking.
+  // This replaces the old scroll-spy one-at-a-time collapse, which switched
+  // subsections before their cards could finish stacking (so the stacking only ever
+  // showed on the last of the three). Clicking a header jumps to that subsection.
+  const jumpTo = (el: Element | null) =>
+    (el as HTMLElement | null)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   const tl = (
-    <div className="gtk-tl" ref={tlRef}>
-      {phases.map((p, i) => (
-        <div className="gtk-phase" data-active={staticMode || i === active ? '' : undefined} data-open={staticMode || i === openIdx ? '' : undefined} key={p.key}>
+    <div className="gtk-tl">
+      {phases.map((p) => (
+        <div className="gtk-phase" data-active="" data-open="" key={p.key}>
           <button
             type="button"
             className="gtk-phase-head"
-            aria-expanded={staticMode || i === active}
-            onClick={() => goPhase(i)}
+            onClick={(e) => jumpTo(e.currentTarget.closest('.gtk-phase'))}
           >
             <span className="gtk-node" aria-hidden />
             <span className="gtk-phase-label font-display">{p.label}</span>
@@ -416,7 +319,6 @@ function GoodToKnowSection() {
     <details
       className="aruba-section bleed"
       style={{ background: 'var(--yellow-bg)', borderTop: '2px solid var(--ink)' }}
-      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
     >
       <summary style={{ padding: '24px 36px' }}>
         <div className="container-1280" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, padding: 0 }}>
