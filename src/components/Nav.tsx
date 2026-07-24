@@ -72,7 +72,9 @@ export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) 
 
   // Mobile page-nav dropdown: current page for the trigger label.
   const mobileIdx = MOBILE_NAV.findIndex(n => n.id === page);
-  const activeMobile = mobileIdx >= 0 ? mobileIdx : 1; // default to Explore
+  // On the homepage (landing) the collapsed trigger should read "Explore", not
+  // "How it works" — so treat landing like an unknown page and fall back to Explore.
+  const activeMobile = mobileIdx >= 0 && page !== 'landing' ? mobileIdx : 1;
 
   return (
     <div className="bleed" style={{ background: 'var(--cream)', borderBottom: '2px solid var(--ink)' }}>
