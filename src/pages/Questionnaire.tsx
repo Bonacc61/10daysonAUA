@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Chev } from '../components/Icons';
+import { flagAppliesTo } from '../data/notesFlags';
 import type { PageId, Answers } from '../App';
 
 type Props = {
@@ -111,7 +112,7 @@ export default function Questionnaire({ setPage, answers, setAnswers, onComplete
             {q.id === 'q5' && <Adventure value={answers.adventureLevel} onChange={(v) => update('adventureLevel', v)} />}
             {q.id === 'q6' && <When    value={answers.startOffset}    onChange={(v) => update('startOffset', v)} />}
             {q.id === 'q7' && <Pills   options={LODGING_OPTS}         value={answers.lodging}       onChange={(v) => update('lodging', v)} />}
-            {q.id === 'q8' && <FlagsQ8 flags={answers.flags} notes={answers.specialNotes} onFlags={(v) => update('flags', v)} onNotes={(v) => update('specialNotes', v)} />}
+            {q.id === 'q8' && <FlagsQ8 flags={answers.flags} notes={answers.specialNotes} groupType={answers.groupType} onFlags={(v) => update('flags', v)} onNotes={(v) => update('specialNotes', v)} />}
           </div>
         </div>
       </div>
@@ -293,26 +294,28 @@ function When({ value, onChange }: { value: number; onChange: (v: number) => voi
   );
 }
 
-const OCCASION_FLAGS = [
+type FlagItem = { flag: string; label: string };
+
+const OCCASION_FLAGS: FlagItem[] = [
   { flag: 'honeymoon', label: 'Honeymoon / anniversary' },
   { flag: 'birthday',  label: 'Birthday' },
   { flag: 'work-trip', label: 'Work trip' },
 ];
-const SKIP_FLAGS = [
+const SKIP_FLAGS: FlagItem[] = [
   { flag: 'no-boats',         label: 'Boats & water tours' },
   { flag: 'intense-hikes',    label: 'Intense hikes' },
   { flag: 'no-early-mornings',label: 'Early mornings' },
   { flag: 'avoid-crowds',     label: 'Crowded spots' },
 ];
-const CONSTRAINT_FLAGS = [
+const CONSTRAINT_FLAGS: FlagItem[] = [
   { flag: 'mobility',  label: 'Mobility considerations' },
   { flag: 'no-car',    label: 'No rental car' },
   { flag: 'with-baby', label: 'Travelling with a baby' },
 ];
 const OCCASION_SET = new Set(OCCASION_FLAGS.map(f => f.flag));
 
-function FlagsQ8({ flags, notes, onFlags, onNotes }: {
-  flags: string[]; notes: string;
+function FlagsQ8({ flags, notes, groupType, onFlags, onNotes }: {
+  flags: string[]; notes: string; groupType: string;
   onFlags: (v: string[]) => void; onNotes: (v: string) => void;
 }) {
   const toggle = (flag: string, exclusive: boolean) => {
@@ -328,9 +331,9 @@ function FlagsQ8({ flags, notes, onFlags, onNotes }: {
 
   return (
     <div style={{ width: '100%', maxWidth: 600, display: 'flex', flexDirection: 'column', gap: 28 }}>
-      <FlagGroup label="Celebrating something?" items={OCCASION_FLAGS} flags={flags} exclusive onToggle={toggle} />
-      <FlagGroup label="Prefer to skip" items={SKIP_FLAGS} flags={flags} onToggle={toggle} />
-      <FlagGroup label="Good to know" items={CONSTRAINT_FLAGS} flags={flags} onToggle={toggle} />
+      <FlagGroup label="Celebrating something?" items={OCCASION_FLAGS} flags={flags} groupType={groupType} exclusive onToggle={toggle} />
+      <FlagGroup label="Prefer to skip" items={SKIP_FLAGS} flags={flags} groupType={groupType} onToggle={toggle} />
+      <FlagGroup label="Good to know" items={CONSTRAINT_FLAGS} flags={flags} groupType={groupType} onToggle={toggle} />
       <div>
         <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--sand-600)', marginBottom: 10 }}>Anything else?</div>
         <textarea
@@ -346,18 +349,23 @@ function FlagsQ8({ flags, notes, onFlags, onNotes }: {
   );
 }
 
-function FlagGroup({ label, items, flags, exclusive = false, onToggle }: {
+function FlagGroup({ label, items, flags, exclusive = false, groupType, onToggle }: {
   label: string;
-  items: { flag: string; label: string }[];
+  items: FlagItem[];
   flags: string[];
   exclusive?: boolean;
+  groupType: string;
   onToggle: (flag: string, exclusive: boolean) => void;
 }) {
+  // Hide pills that don't apply to the traveller's group. effectiveFlags() applies
+  // the same rule when the engine reads flags, so a hidden pill is inert even if an
+  // older saved answer still has it ticked.
+  const visible = items.filter((i) => flagAppliesTo(i.flag, groupType));
   return (
     <div>
       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--sand-600)', marginBottom: 10 }}>{label}</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        {items.map(({ flag, label: lbl }) => (
+        {visible.map(({ flag, label: lbl }) => (
           <button
             key={flag}
             type="button"

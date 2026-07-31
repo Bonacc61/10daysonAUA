@@ -32,7 +32,7 @@ export type Answers = {
 };
 
 export const DEFAULT_ANSWERS: Answers = {
-  days: 9,
+  days: 10,
   groupType: '',
   budget: '',
   interests: [],

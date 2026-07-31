@@ -82,15 +82,21 @@ const BASE: Parameters<typeof generatePlan>[0] = { ...DEFAULT_ANSWERS, days: 5 }
 // ---------------------------------------------------------------------------
 
 describe('answersToTags — flag effects', () => {
-  it('honeymoon adds couple tag regardless of groupType', () => {
-    const tags = answersToTags({ ...DEFAULT_ANSWERS, flags: ['honeymoon'], groupType: 'Solo' });
+  it('honeymoon adds the couple tag for a couple', () => {
+    const tags = answersToTags({ ...DEFAULT_ANSWERS, flags: ['honeymoon'], groupType: 'Couple' });
     expect(tags.has('couple')).toBe(true);
   });
 
-  it('honeymoon does not overwrite an existing groupType tag', () => {
-    const tags = answersToTags({ ...DEFAULT_ANSWERS, flags: ['honeymoon'], groupType: 'Friends' });
-    expect(tags.has('couple')).toBe(true);
-    expect(tags.has('friends')).toBe(true);
+  // honeymoon is offered to couples only, so the flag stored against any other group
+  // is stale — effectiveFlags() drops it before tag derivation, and it must not
+  // retag the trip as a couple's.
+  it('a stale honeymoon flag does not retag a non-couple trip', () => {
+    const solo = answersToTags({ ...DEFAULT_ANSWERS, flags: ['honeymoon'], groupType: 'Solo' });
+    expect(solo.has('couple')).toBe(false);
+
+    const friends = answersToTags({ ...DEFAULT_ANSWERS, flags: ['honeymoon'], groupType: 'Friends' });
+    expect(friends.has('couple')).toBe(false);
+    expect(friends.has('friends')).toBe(true);
   });
 
   it('mobility forces low-adventure even at the highest adventureLevel', () => {

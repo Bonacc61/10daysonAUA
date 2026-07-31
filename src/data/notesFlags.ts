@@ -27,10 +27,42 @@ export function flagsFromNotes(notes?: string): string[] {
   return out;
 }
 
+// === Group-type applicability ================================================
+// Some Q8 flags only make sense for certain Q2 group types — a solo traveller
+// isn't on a honeymoon. Flags absent from this table apply to every group.
+// Questionnaire.tsx reads the same table to decide which pills to render, so
+// what the traveller can see and what the engine acts on cannot drift apart.
+// A Map, not an object literal: `flags` reaches here from localStorage and from the
+// `answers` jsonb of a public shared itinerary, so the key is untrusted. A plain
+// object would resolve `flags: ['toString']` to Object.prototype and throw on the
+// lookup, blanking the page for anyone opening that share link.
+const FLAG_APPLIES_TO = new Map<string, readonly string[]>([
+  ['honeymoon',  ['Couple']],
+  ['with-baby',  ['Couple', 'Family with young kids', 'Multi-gen']],
+]);
+
+// Is this flag meaningful for this group? Unrestricted flags are always true.
+export function flagAppliesTo(flag: string, groupType: string): boolean {
+  const groups = FLAG_APPLIES_TO.get(flag);
+  return !groups || groups.includes(groupType);
+}
+
 // The effective flag set the engine acts on: the traveller's ticked Q8 pills
-// UNION the contraindications parsed from their free-text notes. Single chokepoint
-// so tag derivation (answersToTags) and catalog filtering (applyCatalogFlags) stay
-// consistent — a notes-derived flag behaves identically to a ticked pill.
+// (minus any that don't apply to their group) UNION the contraindications parsed
+// from their free-text notes. Single chokepoint so tag derivation (answersToTags)
+// and catalog filtering (applyCatalogFlags) stay consistent — a notes-derived flag
+// behaves identically to a ticked pill.
+//
+// Filtering here rather than at the point of selection is what makes an
+// inapplicable flag harmless: saved answers from before a flag was restricted
+// (localStorage `10doa:answers` outlives any UI change) can hold combinations the
+// questionnaire no longer offers, and a pill the traveller cannot see must not
+// shape their plan. Caveat: hashAnswers() still seeds the RNG from the raw
+// a.flags, so a dropped flag can still change *which* equally-valid plan comes
+// back — it just no longer applies its constraint.
+// Notes-derived flags are never filtered — those come from what the traveller
+// actually wrote, so they stand regardless of group.
 export function effectiveFlags(a: Answers): Set<string> {
-  return new Set([...(a.flags ?? []), ...flagsFromNotes(a.specialNotes)]);
+  const ticked = (a.flags ?? []).filter((f) => flagAppliesTo(f, a.groupType));
+  return new Set([...ticked, ...flagsFromNotes(a.specialNotes)]);
 }
