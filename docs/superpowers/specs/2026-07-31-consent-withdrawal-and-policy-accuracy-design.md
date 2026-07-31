@@ -55,7 +55,13 @@ collection continued.
   `main.tsx:10`, private `readConsent`/`writeConsent` in `CookieBanner.tsx:6-12`, and
   nowhere else can ask. A footer control would be a fourth reader.
 - **`Footer` is rendered by 7 pages** — `Landing`, `Explore`, `Itinerary`, `Dashboard`,
-  `Privacy`, `Terms`, `SurpriseMe` — none of which care about consent.
+  `Privacy`, `Terms`, `SurpriseMe` — none of which care about consent. `App` does not
+  render `Footer` itself, so anything `App` owns reaches the footer only through those
+  pages.
+- **React Context is already the house pattern for this.** `lib/auth.tsx` defines
+  `AuthProvider` + `useAuth()` (`createContext` at `:17`, provider at `:24`, the
+  outside-provider throw at `:71-72`), mounted at `App.tsx:87`. Consent has the same
+  shape of problem, so it should have the same shape of solution.
 - **No DOM test stack.** No `jsdom`, no testing-library; the 10 existing suites are
   pure-logic node tests. Component tests would mean adding a test stack.
 - **`opt_out_capturing()` does not delete existing cookies.** It stops capture and
@@ -72,10 +78,15 @@ collection continued.
   toggle on the Privacy page (asymmetric — granted by banner, withdrawn via a buried
   page; needs new toggle UI), and doing both (two entry points over one `localStorage`
   key, more to keep in sync for little gain).
-- **Reach the banner by CustomEvent, not prop-drilling.** Threading an
-  `onCookieSettings` prop through 7 uninterested pages to deliver one button is worse
-  than a small window event. Footer's signature stays unchanged; the 7 call sites are
-  untouched.
+- **Reach the banner by React Context, not prop-drilling.** `App` owns the banner
+  state but does not render `Footer` — each of the 7 pages does — so a callback would
+  have to thread through 7 pages that have nothing to do with consent (9 files, every
+  page gaining a prop it only forwards). A `ConsentProvider` mirrors `lib/auth.tsx`,
+  which already solves exactly this problem for auth state via `AuthProvider` /
+  `useAuth()` (`App.tsx:87`). Rejected: a `window` CustomEvent — it works, but the
+  event name is untyped, so a typo fails silently at runtime (the button simply does
+  nothing), it needs manual listener add/remove, and it would introduce a second
+  cross-tree communication idiom alongside the existing context one.
 - **Retention: 12 months.** GDPR names no period — Art. 5(1)(e) requires only that data
   be kept no longer than necessary for the stated purpose. 12 months covers exactly one
   seasonal cycle, which is the minimum that lets high season be compared to high season
@@ -113,28 +124,41 @@ reachable, and `posthog.init()` must not run twice. So `optIn()` calls
 `initAnalytics()` when `initialised` is `false`, and `posthog.opt_in_capturing()` when
 it is `true` — the latter reverses the `opt_out_capturing()` that `optOut()` applied.
 
-Also add `requestConsentReopen()`, which dispatches a `window` CustomEvent
-(`10doa:consent-reopen`). It lives here because this module already owns consent.
+This module stays pure and non-React, so it remains unit-testable in the node
+environment the existing suites use.
 
 `main.tsx:10` switches from raw `localStorage` to `hasConsent()`. Behaviour unchanged.
 
-### `src/components/CookieBanner.tsx` — controlled
+### `src/lib/consent.tsx` — new, the React-facing layer
 
-Visibility moves up to `App.tsx`. The component takes `open` / `onClose` alongside the
-existing `onPrivacy`, drops its private `readConsent`/`writeConsent`, and its handlers
-call `optIn()` / `optOut()`. When reopened by someone who already accepted, both
-buttons stay live so either choice is one click.
+Deliberately modelled on `lib/auth.tsx` so the two read the same way. Exports
+`ConsentProvider` and `useConsent()`, the latter throwing outside its provider exactly
+as `useAuth()` does (`auth.tsx:71-72`).
 
-### `src/App.tsx` — owns banner state
+The provider owns banner visibility — `useState(() => !hasDecided())`, identical
+first-visit behaviour to today — and exposes `{ isOpen, open, accept, decline }`.
+`accept()` calls `optIn()` then closes; `decline()` calls `optOut()` then closes. It
+holds no consent value of its own: `analytics.ts` remains the single owner of the key,
+and this layer only wraps it for React.
 
-`const [consentOpen, setConsentOpen] = useState(() => !hasDecided())` — identical
-first-visit behaviour to today. An effect subscribes to `10doa:consent-reopen` and
-opens the banner; it must remove the listener on unmount.
+### `src/App.tsx` — mounts the provider
+
+Wrap the tree in `<ConsentProvider>` alongside the existing `<AuthProvider>`
+(`App.tsx:87-89`). `<CookieBanner>` continues to render where it does today
+(`App.tsx:164`), inside the provider.
+
+### `src/components/CookieBanner.tsx` — reads context
+
+Drops its private `readConsent`/`writeConsent` and its own `visible` state; calls
+`useConsent()`, returns `null` when `!isOpen`, and wires its two buttons to `accept` /
+`decline`. Keeps its existing `onPrivacy` prop. When reopened by someone who already
+accepted, both buttons stay live so either choice is one click.
 
 ### `src/components/Footer.tsx` — the control
 
 A third button beside Privacy Policy / Terms (`:80-92`), matching their existing style,
-calling `requestConsentReopen()`. No prop changes.
+calling `useConsent().open()`. No prop changes, so the 7 pages rendering `Footer` are
+untouched.
 
 ### `src/pages/Privacy.tsx` — stop contradicting the app
 
