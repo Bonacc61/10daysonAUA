@@ -167,7 +167,7 @@ function AppShell() {
       <Nav page={page} setPage={setPage} onLogin={() => setLoginOpen(true)} canSeeItinerary={canSeeItinerary} />
       {page === 'landing'       && <Landing       setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onPlanClick={() => { setQInitialStep(2); setPage('questionnaire'); }} />}
       {page === 'questionnaire' && <Questionnaire setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onComplete={markQuestionnaireDone} initialStep={qInitialStep} />}
-      {page === 'explore'       && <Explore       setPage={setPage} answers={answers} onLogin={() => setLoginOpen(true)} canSeeItinerary={canSeeItinerary} initialSection={initialExploreSection ?? undefined} shortlist={shortlist} setShortlist={setShortlist} />}
+      {page === 'explore'       && <Explore       setPage={setPage} answers={answers} canSeeItinerary={canSeeItinerary} initialSection={initialExploreSection ?? undefined} shortlist={shortlist} setShortlist={setShortlist} />}
       {page === 'itinerary'     && (canSeeItinerary || shareId) && <Itinerary setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onLogin={() => setLoginOpen(true)} shareId={shareId} onNavigateToExplore={navigateToExplore} shortlist={shortlist} />}
       {page === 'map'           && <TripMap setPage={setPage} answers={answers} canSeeItinerary={canSeeItinerary} />}
       {page === 'privacy'       && <Privacy       setPage={setPage} />}
