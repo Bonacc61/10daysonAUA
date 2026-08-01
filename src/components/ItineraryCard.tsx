@@ -15,6 +15,7 @@ type Props = {
   swapping: boolean;
   pinned?: boolean;
   splurge?: boolean;
+  staple?: boolean;
   onFlip: () => void;
   onSwap?: () => void;
   showReasons?: boolean;
@@ -32,7 +33,7 @@ const BASE_HEIGHT = 284;
 const REASONS_EXTRA = SWAP_REASONS_OPEN_PX;
 
 export default function ItineraryCard({
-  entry, flipped, swapping, pinned, splurge, onFlip, onSwap,
+  entry, flipped, swapping, pinned, splurge, staple, onFlip, onSwap,
   showReasons = false, onPickReason, onAddItem, onNavigateToSection,
 }: Props) {
   // Per-card state for the group's "Other suggestions" expand/collapse.
@@ -60,12 +61,12 @@ export default function ItineraryCard({
     : <CardBack kind="group"    bestSeller={entry.bestSeller}  onFlip={onFlip} />;
 
   const front = entry.kind === 'activity'
-    ? <ActivityCardFront a={entry.activity} bookUrl={bookUrl} pinned={pinned}
+    ? <ActivityCardFront a={entry.activity} bookUrl={bookUrl} pinned={pinned} staple={staple}
                          onFlip={onFlip} onSwap={onSwap}
                          showReasons={showReasons} onPickReason={onPickReason}
                          onNavigateToSection={onNavigateToSection} />
     : <GroupCard group={entry.group} bestSeller={entry.bestSeller}
-                 others={entry.others} bookUrl={bookUrl} pinned={pinned} splurge={splurge}
+                 others={entry.others} bookUrl={bookUrl} pinned={pinned} splurge={splurge} staple={staple}
                  onSwap={onSwap} onFlip={onFlip}
                  showReasons={showReasons} onPickReason={onPickReason}
                  suggestionsOpen={suggestionsOpen}
@@ -86,11 +87,12 @@ export default function ItineraryCard({
 // Local activity (non-Viator) card front face — preserved from the original
 // inline CardFront in Itinerary.tsx, with the same look and behavior.
 function ActivityCardFront({
-  a, bookUrl, pinned, onFlip, onSwap, showReasons, onPickReason, onNavigateToSection,
+  a, bookUrl, pinned, staple, onFlip, onSwap, showReasons, onPickReason, onNavigateToSection,
 }: {
   a: Activity;
   bookUrl: string | null;
   pinned?: boolean;
+  staple?: boolean;
   onFlip: () => void;
   onSwap?: () => void;
   showReasons?: boolean;
@@ -174,6 +176,7 @@ function ActivityCardFront({
               {a.fitReason}
             </span>
             {pinned && <span className="itin-pinned-badge">★ Your pick</span>}
+            {staple && !pinned && <span className="itin-staple-badge">◑ Island classic</span>}
           </div>
           <div style={{ marginTop: 'auto' }}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

@@ -1,9 +1,9 @@
 import { ACTIVITIES, type Activity } from './activities';
 import { VIATOR_GROUPS, VIATOR_ITEMS } from './viator-stub';
 import { LUNCHSPOTS } from './lunchspots';
-import { fitItem, bestItemForAnswers, itemSlotOk } from './itemFit';
+import { fitItem, bestItemForAnswers, itemSlotOk, matchingSection } from './itemFit';
 import { budgetTag } from './classify';
-import type { ViatorGroup, ViatorItem, SlotEntry, CardEntry, MatchTag, Slot } from '../types';
+import type { ViatorGroup, ViatorItem, SlotEntry, CardEntry, MatchTag, Slot, Section } from '../types';
 
 export type Catalog = {
   activities: Activity[];
@@ -27,6 +27,69 @@ const EXPERIENCE_RE = /\b(tour|cruise|sail|snorkel|div(?:e|ing)|safari|adventure
 
 export function isTransportOnly(item: ViatorItem): boolean {
   return TRANSPORT_RE.test(item.title) && !EXPERIENCE_RE.test(item.title);
+}
+
+// --- Group reassignment (the live feed's group_id is not trustworthy) -------
+// viator-cards fetches products by searching a handful of broad Viator anchors
+// and files each result under the anchor it came back from. Products surface
+// under anchors they only loosely belong to, so on the live Aruba catalog:
+// 68 of the island's 85 off-road tours sit in "Sailing & Cruises" (232 of 361
+// items land in that one group), the submarine tour sits in "Watersports", and
+// the nightlife party bus sits in "Food & Drink Experiences".
+//
+// That misfiling is not cosmetic. group_id drives:
+//   • the generator's relevance gate (candidatesFor filters on group.matched_by,
+//     and sailing-cruises is tagged beach-chill/couple/cruise-day — so an
+//     adventure traveller never sees the island's most-booked UTV tours in the
+//     matched pool);
+//   • the day theme and card header (a catamaran day titled "Food & Drink");
+//   • a card's "Other suggestions" (a sunset sail offering UTV tours);
+//   • Explore's section buckets.
+//
+// A product's own Viator TAGS are reliable, so we re-file every item by the
+// section its tags imply. One chokepoint at ingest fixes every consumer at once.
+//
+// Which section each group represents. Keyed on the group ID, which is OURS —
+// viator-cards names the anchors — not Viator's. Deriving it from the group's
+// viator_taxonomy tag looks tidier but is not safe: the offline stub carries
+// placeholder taxonomy values (21911–21914) that collide with real Viator tag
+// ids, which filed every stub dinner cruise under "Adventure Tours". An
+// unrecognised group resolves to undefined and its items are left alone.
+const GROUP_SECTION: Record<string, Section> = {
+  'adventure-tours':        'adventures-outdoor',
+  'watersports':            'cruises-water',
+  'sailing-cruises':        'cruises-water',
+  'food-drink-experiences': 'food-drink',
+  'sightseeing-tours':      'tours-sightseeing',
+  'art-culture-history':    'culture-history',
+};
+function groupSection(g: ViatorGroup): Section | undefined {
+  return GROUP_SECTION[g.id];
+}
+
+export function regroupItems(groups: ViatorGroup[], items: ViatorItem[]): ViatorItem[] {
+  // Canonical group per section; lowest display_order wins when two anchors
+  // share one (Aruba ships both "Sailing & Cruises" and "Watersports" under
+  // cruises-water).
+  const canonical = new Map<Section, ViatorGroup>();
+  for (const g of [...groups].sort((a, b) => a.display_order - b.display_order)) {
+    const sec = groupSection(g);
+    if (sec && !canonical.has(sec)) canonical.set(sec, g);
+  }
+  const sectionOfGroupId = new Map(groups.map((g) => [g.id, groupSection(g)]));
+
+  return items.map((item) => {
+    const sec = matchingSection(item);
+    // Only CROSS-SECTION misfiling is corrected. If the item already sits in a
+    // group belonging to its own section, leave it — the feed's choice between
+    // two same-section anchors ("Sailing & Cruises" vs "Watersports" for a
+    // snorkel trip) is a judgement call, not an error, and re-deciding it would
+    // need per-item data the offline stub doesn't carry (its items have no
+    // Viator tags, so every watersport would collapse into the sailing group).
+    if (sectionOfGroupId.get(item.group_id) === sec) return item;
+    const target = canonical.get(sec);
+    return target && target.id !== item.group_id ? { ...item, group_id: target.id } : item;
+  });
 }
 
 // Rank items by review_count within their budget tier and attach a
@@ -63,7 +126,11 @@ function normalizePopularity(items: ViatorItem[]): ViatorItem[] {
 let stubCatalog: Catalog | null = null;
 export function getCatalog(): Catalog {
   if (!stubCatalog) {
-    stubCatalog = { activities: ACTIVITIES, groups: VIATOR_GROUPS, items: normalizePopularity(VIATOR_ITEMS.filter((i) => !isTransportOnly(i))) };
+    stubCatalog = {
+      activities: ACTIVITIES,
+      groups: VIATOR_GROUPS,
+      items: normalizePopularity(regroupItems(VIATOR_GROUPS, VIATOR_ITEMS.filter((i) => !isTransportOnly(i)))),
+    };
   }
   return stubCatalog;
 }
@@ -117,7 +184,10 @@ export function loadCatalog(): Promise<Catalog> {
           viator_item_url: m.viator_item_url,
         };
       });
-      liveCatalog = { activities, groups, items: normalizePopularity(items.filter((i) => !isTransportOnly(i))) };
+      liveCatalog = {
+        activities, groups,
+        items: normalizePopularity(regroupItems(groups, items.filter((i) => !isTransportOnly(i)))),
+      };
       return liveCatalog;
     } catch {
       return getCatalog(); // stub fallback
@@ -160,17 +230,30 @@ export function resolveSlotEntry(
       ?? LUNCHSPOTS.find((x) => x.id === slotEntry.id);
     return a ? { kind: 'activity', activity: a } : null;
   }
-  const g = catalog.groups.find((x) => x.id === slotEntry.groupId);
+  // Resolve by ITEM id first — the stored groupId is advisory, not authoritative.
+  // What the traveller chose is the product (bestSellerId); which bucket it sat
+  // in at the time is incidental, and it moves: regroupItems re-files mis-grouped
+  // products at ingest, and the live feed's own grouping shifts between refreshes.
+  // Trusting the stored groupId meant a regroup silently re-faced every saved trip
+  // and every shared link to a DIFFERENT product — pinned "★ Your pick" included,
+  // badge and all (measured: 195 of 333 stored entries). Falling back to the
+  // stored groupId keeps a genuinely stale item id self-healing as before.
+  const storedItem = catalog.items.find((x) => x.id === slotEntry.bestSellerId);
+  const g = (storedItem && catalog.groups.find((x) => x.id === storedItem.group_id))
+    ?? catalog.groups.find((x) => x.id === slotEntry.groupId);
   if (!g) return null;
 
   const all = itemsInGroup(g.id, catalog);
   if (all.length === 0) return null;
 
-  // Pinned short-circuit: the user explicitly picked this item, so return it
-  // verbatim without any fit/budget/slot re-facing. If the stored id has gone
-  // stale (live catalog refresh changed product codes), fall through to normal
-  // self-healing so the card never blanks.
-  if (slotEntry.pinned) {
+  // Pinned/staple short-circuit: return the stored item verbatim without any
+  // fit/budget/slot re-facing — the user explicitly picked it (pinned), or it is
+  // a curated island default chosen for being the most-booked option of its kind
+  // (staple). Re-facing a staple would defeat the point, and on live data whose
+  // group ids are unreliable it could swap the sunset sail for a UTV tour. If
+  // the stored id has gone stale (live catalog refresh changed product codes),
+  // fall through to normal self-healing so the card never blanks.
+  if (slotEntry.pinned || slotEntry.staple) {
     const exact = all.find((x) => x.id === slotEntry.bestSellerId);
     if (exact) {
       return { kind: 'group', group: g, bestSeller: exact, others: all.filter((i) => i.id !== exact.id) };

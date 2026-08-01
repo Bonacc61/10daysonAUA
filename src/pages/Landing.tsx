@@ -2,7 +2,7 @@ import React, { type CSSProperties, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { capture } from '../lib/analytics';
 import {
-  Clock, Users, Sparkle, Chev, iconFor, Share, Calendar, Mail,
+  Clock, Users, Sparkle, Chev, iconFor, Share, Calendar, Mail, Heart,
 } from '../components/Icons';
 import Footer from '../components/Footer';
 import {
@@ -108,7 +108,7 @@ export default function Landing({ setPage, answers, setAnswers, onPlanClick }: P
         </div>
       </div>
 
-      <SampleSection days={label} goPlan={goPlan} />
+      <SampleSection days={label} goPlan={goPlan} goExplore={() => setPage('explore')} />
       <GoodToKnowSection />
       <FAQSection />
       <ContactSection setPage={setPage} />
@@ -193,7 +193,7 @@ function DayBlock({ d, isLast }: { d: Day; isLast: boolean }) {
   );
 }
 
-function SampleSection({ days, goPlan }: { days: string; goPlan: () => void }) {
+function SampleSection({ days, goPlan, goExplore }: { days: string; goPlan: () => void; goExplore: () => void }) {
   // "An" before day counts whose spoken form starts with a vowel sound: 8 (eight) and 11 (eleven).
   const article = days === '8' || days === '11' ? 'An' : 'A';
   return (
@@ -209,12 +209,16 @@ function SampleSection({ days, goPlan }: { days: string; goPlan: () => void }) {
           <div className="sample-grid">
             <div className="sample-left">
               <h3 style={{ fontFamily: 'Inter, sans-serif', fontSize: 26, lineHeight: 1.2, fontWeight: 500, letterSpacing: '-0.3px', margin: '0 0 14px', color: 'var(--cream)' }}>{article} {days}-day plan that actually makes sense.</h3>
-              <p style={{ fontStyle: 'italic', fontSize: 15, lineHeight: 1.5, color: 'rgba(255,255,255,0.85)', margin: '0 0 22px', maxWidth: 520 }}>
+              <p style={{ fontStyle: 'italic', fontSize: 15, lineHeight: 1.5, color: 'rgba(255,255,255,0.85)', margin: '0 0 16px', maxWidth: 520 }}>
                 Our AI sequences activities intelligently — beach in the morning before the crowds, nature at golden hour, dinner spots that aren't tourist traps.
+              </p>
+              <p style={{ fontSize: 14.5, lineHeight: 1.55, color: 'rgba(255,255,255,0.9)', margin: '0 0 20px', maxWidth: 520 }}>
+                Every plan starts with the island classics a local would put in front of anyone — a beach at sunrise, a catamaran sail, a sunset, dinner by the water. Whatever you answered. From there it's yours: <strong style={{ fontWeight: 700 }}>heart anything in Explore and drop it straight into a day</strong>, swap what doesn't fit, drag days around, delete the rest.
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, margin: '0 0 18px' }}>
                 <span className="chip-outline" style={{ border: '2px solid rgba(255,255,255,0.9)', color: 'var(--cream)', background: 'transparent' }}><Clock size={13} /> Optimized by time of day</span>
                 <span className="chip-outline" style={{ border: '2px solid rgba(255,255,255,0.9)', color: 'var(--cream)', background: 'transparent' }}><Users size={13} /> Personalized to your group</span>
+                <span className="chip-outline" style={{ border: '2px solid rgba(255,255,255,0.9)', color: 'var(--cream)', background: 'transparent' }}><Heart size={13} /> Yours to customize</span>
               </div>
               <button className="btn-coral" onClick={goPlan}>build my plan →</button>
               <img
@@ -235,6 +239,13 @@ function SampleSection({ days, goPlan }: { days: string; goPlan: () => void }) {
                 <DayBlock key={d.day} d={d} isLast={i === 1} />
               ))}
               <div style={{ marginTop: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {/* Live control, unlike the three illustrative buttons beside it:
+                    this is the one action that explains the page's point — the
+                    plan is a starting draft you edit. Sends you to Explore to
+                    heart things, which is where the real picker draws from. */}
+                <button type="button" className="btn-coral" onClick={goExplore} style={{ fontSize: 13, padding: '9px 16px', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  <Heart size={14} /> Add from favourites
+                </button>
                 <button type="button" disabled className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'rgba(255,255,255,0.7)', fontSize: 13, padding: '9px 16px', display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'default', opacity: 0.85 }}>
                   <Calendar size={14} /> Export calendar
                 </button>

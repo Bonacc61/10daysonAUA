@@ -51,6 +51,36 @@ export function itemSections(item: ViatorItem): Section[] {
   return item.sections ?? sectionsForTags(item.tags);
 }
 
+// Adventure value per activity KIND (0 chill … 100 adrenaline). Preferred over
+// the section average because a section is far too blunt to gate a
+// contraindication on: everything on the water shares 'cruises-water' (45), so a
+// section-only cap threw out a gentle sunset catamaran for a `with-baby` (25) or
+// `mobility` (30) traveller alongside the kitesurfing it was aimed at — the
+// catamaran staple included. Kind comes from the item's own Viator tags.
+// Values are chosen against the caps that read them (see applyCatalogFlags):
+// with-baby 25, mobility 30, intense-hikes 52. Anything a cap must exclude has
+// to sit strictly ABOVE it — `hike: 50` let every Viator hiking product through
+// the intense-hikes cap while the equivalent curated local (arikok-hiking, 55)
+// was correctly dropped, and `snorkel: 30` tied the mobility cap exactly.
+const KIND_ADVENTURE: Record<string, number> = {
+  sail: 15, kayak: 35, sup: 35, horseback: 40,
+  snorkel: 32,   // > mobility 30: open-water entry off a boat
+  hike: 55,      // > intense-hikes 52; matches the curated arikok-hiking local
+  dive: 58, parasail: 60, jetski: 70, surf: 75, offroad: 80, zipline: 85,
+};
+
+// An item's adventure value (0 chill … 100 adrenaline). Derived from the item's
+// OWN Viator tags, which the live feed gets right — unlike group_id, which it
+// does not (80% of Aruba's off-road products are filed under "Sailing &
+// Cruises"). Exported so the contraindication caps can filter per item instead
+// of per group; a group-level cap let a 4x4 Natural Pool jeep tour through to a
+// traveller who told us they have mobility limits.
+export function itemAdventure(item: ViatorItem): number {
+  if (item.adventure !== undefined) return item.adventure;
+  const byKind = KIND_ADVENTURE[activityKind(item)];
+  return byKind ?? adventureFromSections(itemSections(item));
+}
+
 // --- Slot suitability -------------------------------------------------------
 // Live Viator items carry no time-of-day, only their group's allowed_slots — so
 // an off-road tour mis-grouped into an evening-allowed group can land at night.
@@ -98,15 +128,41 @@ export function activityKind(item: ViatorItem): string {
   return `sec:${primarySection(itemSections(item))}`;
 }
 
+// The section an item belongs to for MATCHING/grouping purposes. Prefers the
+// item's activity kind over primarySection, because primarySection resolves ties
+// by Explore's tab order — and 'cruises-water' sits first. A jeep safari that
+// also carries a boat tag (Aruba's #1 product, "Island Jeep Safari with Natural
+// Pool, Baby Beach and Lunch", does) therefore resolved to cruises-water and got
+// filed as a watersport. Kind comes from the item's own tags and puts off-road
+// ahead of sail, which is the answer a traveller would give.
+const KIND_SECTION: Record<string, Section> = {
+  offroad: 'adventures-outdoor', hike: 'adventures-outdoor',
+  horseback: 'adventures-outdoor', zipline: 'adventures-outdoor',
+  sail: 'cruises-water', snorkel: 'cruises-water', dive: 'cruises-water',
+  jetski: 'cruises-water', kayak: 'cruises-water', sup: 'cruises-water',
+  parasail: 'cruises-water', surf: 'cruises-water',
+};
+export function matchingSection(item: ViatorItem): Section {
+  return KIND_SECTION[activityKind(item)] ?? primarySection(itemSections(item));
+}
+
 // Water/boat experiences — used by the no-boats (seasick) filter. Any item whose
 // Explore section is cruises-water, or whose Viator tag-kind is a water sport,
 // counts. Catches sunset sails, dinner cruises and snorkel trips that live in
 // non-"watersports" groups (e.g. sailing-cruises), which the old group-level
 // filter missed — the exact items a seasick traveller must never be shown.
 const WATER_KINDS = new Set(['sail', 'snorkel', 'dive', 'jetski', 'kayak', 'sup', 'parasail', 'surf']);
+// Last-resort title net. Both signals above are metadata, and the live feed's
+// metadata is not reliable enough to stake a medical constraint on: the "Luxury
+// Four-Course Caribbean Dinner Cruise" is filed under food-drink-experiences
+// with no sailing tag, so it passed both tests and reached seasick travellers.
+// A title that says cruise/sail/catamaran IS a boat, whatever the feed claims.
+// "Sail" needs a word boundary so "sailfish" / "Sailors' Museum" don't match.
+const WATER_TITLE_RE = /\b(cruise|cruises|sail|sails|sailing|catamaran|boat|yacht|kayak|snorkel(?:ing)?|submarine|ferry)\b/i;
 export function isWaterBased(item: ViatorItem): boolean {
   if (itemSections(item).includes('cruises-water')) return true;
-  return WATER_KINDS.has(activityKind(item));
+  if (WATER_KINDS.has(activityKind(item))) return true;
+  return WATER_TITLE_RE.test(item.title);
 }
 
 // --- Crowd-pleasers (universal high-bookability picks) ----------------------
@@ -125,12 +181,19 @@ const CROWD_PLEASER_DEST = /natural pool|arikok|conchi/i;
 // "sunset" (sails/cruises) and "dinner cruise" specifically — NOT any title with
 // "dinner", so a landlocked farmhouse or steakhouse dinner isn't boosted for
 // every persona. Land dinners still surface via normal food-drink interest fit.
-const CROWD_PLEASER_EVENING = /sunset|dinner cruise/i;
+const CROWD_PLEASER_EVENING = /sunset|dinner/i;
+// ...and it must actually BE a sail or cruise. "sunset" alone over-matched badly
+// on live data: a 6-review sunset photoshoot, a 39-review sip-and-paint class and
+// a 12-review Hooiberg hike all counted as crowd-pleasers, which both exempted
+// them from the popularity floor and handed them the +3 boost — letting exactly
+// the niche listings this lever exists to suppress lead the plan instead.
+const EVENING_VESSEL_RE = /\b(sail|sails|sailing|cruise|cruises|catamaran|boat|yacht)\b/i;
 export function isCrowdPleaser(item: ViatorItem): boolean {
   const kind = activityKind(item);
   if (kind === 'sail' || kind === 'snorkel') return true;          // catamarans, snorkel + Jolly Pirates
   if (kind === 'offroad' && CROWD_PLEASER_DEST.test(item.title)) return true; // Natural Pool / Arikok jeep tours
-  if (CROWD_PLEASER_EVENING.test(item.title)) return true;         // sunset sails, dinner cruises
+  // sunset sails, dinner cruises — the evening word AND a vessel word.
+  if (CROWD_PLEASER_EVENING.test(item.title) && EVENING_VESSEL_RE.test(item.title)) return true;
   return false;
 }
 
@@ -169,9 +232,15 @@ const CROWD_PLEASER_BOOST = 3;
 
 // The questionnaire MatchTags a live item satisfies (budget + interests + adventure band).
 export function itemTags(item: ViatorItem): MatchTag[] {
-  const sections = itemSections(item);
-  const adventure = item.adventure ?? adventureFromSections(sections);
-  return classifyTags({ priceUsd: item.price_usd, sections, adventure });
+  // itemAdventure, not adventureFromSections: the contraindication caps and the
+  // Q5 adventure band must read the SAME number. Deriving them separately had a
+  // sunset catamaran counted as 15 by the cap and 45 (med-adventure) by the
+  // scorer for every kind in KIND_ADVENTURE.
+  return classifyTags({
+    priceUsd: item.price_usd,
+    sections: itemSections(item),
+    adventure: itemAdventure(item),
+  });
 }
 
 const userBudget = (tags: Set<MatchTag>) => BUDGET_ORDER.find((b) => tags.has(b));

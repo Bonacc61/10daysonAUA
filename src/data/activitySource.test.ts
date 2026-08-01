@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveSlotEntry, isTransportOnly, type Catalog } from './activitySource';
+import { resolveSlotEntry, isTransportOnly, regroupItems, type Catalog } from './activitySource';
 import type { ViatorGroup, ViatorItem } from '../types';
 import type { Activity } from './activities';
 
@@ -102,5 +102,109 @@ describe('resolveSlotEntry — robust to catalog item-id drift (stub → live sw
     const catalog: Catalog = { activities: [eagle], groups: [], items: [] };
     const resolved = resolveSlotEntry({ kind: 'activity', id: 'eagle' }, catalog);
     expect(resolved?.kind === 'activity' ? resolved.activity.id : null).toBe('eagle');
+  });
+});
+
+// The six anchors the live feed ships, with their real viator_taxonomy tags —
+// the map regroupItems derives section membership from.
+const TAXO_GROUPS: ViatorGroup[] = [
+  ['adventure-tours', 'Adventure Tours', '22046', 1],
+  ['watersports', 'Watersports', '20255', 2],
+  ['sailing-cruises', 'Sailing & Cruises', '21701', 3],
+  ['food-drink-experiences', 'Food & Drink Experiences', '21911', 4],
+  ['sightseeing-tours', 'Sightseeing Tours', '21725', 5],
+  ['art-culture-history', 'Culture & History', '21910', 6],
+].map(([id, name, viator_taxonomy, display_order]) => ({
+  id, name, viator_taxonomy, display_order,
+  tagline: '', viator_group_url: '', matched_by: [], region: 'islandwide', allowed_slots: [],
+} as ViatorGroup));
+
+const taggedItem = (id: string, title: string, group_id: string, tags: number[]): ViatorItem => ({
+  id, title, group_id, tags, image_url: '', price_usd: 100, duration: '3 hrs',
+  rating: 4.5, review_count: 100, viator_item_url: '', is_best_seller: false, display_order: 0,
+});
+
+const groupOf = (items: ViatorItem[], id: string) => items.find((i) => i.id === id)!.group_id;
+
+describe('regroupItems — re-files items the feed put in the wrong bucket', () => {
+  it('moves an off-road tour out of Sailing & Cruises', () => {
+    // 12035 = 4WD/Jeep. This is the live catalog's actual shape: 68 of Aruba's
+    // 85 off-road products arrive filed under sailing-cruises.
+    const out = regroupItems(TAXO_GROUPS, [taggedItem('utv', 'Aruba UTV & ATV Adventure', 'sailing-cruises', [12035])]);
+    expect(groupOf(out, 'utv')).toBe('adventure-tours');
+  });
+
+  it('leaves within-section placement alone (only cross-section misfiling moves)', () => {
+    // The feed's choice between two cruises-water anchors is a judgement call,
+    // not an error — and the offline stub's items carry no Viator tags, so
+    // re-deciding it would collapse every watersport into the sailing group.
+    const out = regroupItems(TAXO_GROUPS, [
+      taggedItem('sub', 'Aruba Atlantis Submarine Tour', 'watersports', [21701]),
+      taggedItem('cat', 'Catamaran Snorkel Sail', 'sailing-cruises', [11912]),
+    ]);
+    expect(groupOf(out, 'sub')).toBe('watersports');
+    expect(groupOf(out, 'cat')).toBe('sailing-cruises');
+  });
+
+  it('moves a food item out of a watersports group into food & drink', () => {
+    const out = regroupItems(TAXO_GROUPS, [
+      taggedItem('rum2', 'Rum Distillery Tasting', 'watersports', [21911]),
+    ]);
+    expect(groupOf(out, 'rum2')).toBe('food-drink-experiences');
+  });
+
+  it('leaves a correctly-filed item alone', () => {
+    const out = regroupItems(TAXO_GROUPS, [taggedItem('rum', 'Rum Distillery Tasting', 'food-drink-experiences', [21911])]);
+    expect(groupOf(out, 'rum')).toBe('food-drink-experiences');
+  });
+
+  it('keeps the original group when nothing resolves', () => {
+    // No groups to map into → every item must survive untouched rather than
+    // losing its group_id and vanishing from itemsInGroup lookups.
+    const out = regroupItems([], [taggedItem('x', 'Something', 'mystery-group', [12035])]);
+    expect(groupOf(out, 'x')).toBe('mystery-group');
+  });
+
+  it('never drops or duplicates an item', () => {
+    const input = [
+      taggedItem('a', 'UTV Adventure', 'sailing-cruises', [12035]),
+      taggedItem('b', 'Sunset Sail', 'food-drink-experiences', [11888]),
+      taggedItem('c', 'Walking Tour', 'watersports', [21910]),
+    ];
+    const out = regroupItems(TAXO_GROUPS, input);
+    expect(out).toHaveLength(input.length);
+    expect(new Set(out.map((i) => i.id))).toEqual(new Set(input.map((i) => i.id)));
+  });
+});
+
+describe('resolveSlotEntry — a regrouped item does not re-face a stored plan', () => {
+  // regroupItems rewrites group_id at ingest, which orphans the groupId stored in
+  // every saved trip and shared link. Before resolveSlotEntry resolved by item id
+  // first, 195 of 333 live entries re-faced to a DIFFERENT product on the upgrade
+  // — pinned "★ Your pick" cards included, badge intact.
+  const groups = [group('sailing-cruises'), group('adventure-tours')];
+  const jeep = { ...item('jeep', 'adventure-tours', false, 0), title: 'Jeep Safari' };
+  const sail = { ...item('sail', 'sailing-cruises', true, 0), title: 'Sunset Sail' };
+  const catalog: Catalog = { activities: [], groups, items: [jeep, sail] };
+
+  it('keeps the stored product when its group changed underneath the plan', () => {
+    // Plan was saved when 'jeep' was (wrongly) filed under sailing-cruises.
+    const stored = { kind: 'group' as const, groupId: 'sailing-cruises', bestSellerId: 'jeep' };
+    const r = resolveSlotEntry(stored, catalog);
+    expect(r?.kind === 'group' ? r.bestSeller.id : null).toBe('jeep');
+    expect(r?.kind === 'group' ? r.group.id : null).toBe('adventure-tours');
+  });
+
+  it('keeps a PINNED stored product across a regroup', () => {
+    const stored = { kind: 'group' as const, groupId: 'sailing-cruises', bestSellerId: 'jeep', pinned: true };
+    const r = resolveSlotEntry(stored, catalog);
+    expect(r?.kind === 'group' ? r.bestSeller.id : null).toBe('jeep');
+  });
+
+  it('still self-heals when the stored item id is genuinely gone', () => {
+    // Live refresh changed product codes: fall back to the stored group.
+    const stored = { kind: 'group' as const, groupId: 'sailing-cruises', bestSellerId: 'vanished' };
+    const r = resolveSlotEntry(stored, catalog);
+    expect(r?.kind === 'group' ? r.bestSeller.id : null).toBe('sail');
   });
 });

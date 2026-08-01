@@ -170,6 +170,19 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
   padding: 2px 8px; border-radius: 999px; flex-shrink: 0; white-space: nowrap;
 }
 
+/* "◑ Island classic" — a beach staple we place for every traveller regardless
+   of their answers. Green reads as ours-and-editorial, sitting between the
+   yellow user pin and the ink premium splurge. Ink text, not cream: cream on
+   this green is 2.20:1, well under AA, and at 10px/800 it gets no large-text
+   exemption. Ink gives 7.64:1 and keeps the green identity. This is the most
+   frequently rendered badge — every plan, every persona — so it is the one
+   that has to survive a phone screen in bright sun. */
+.itin-staple-badge {
+  background: var(--green); color: var(--ink);
+  font-size: 10px; font-weight: 800; font-style: normal;
+  padding: 2px 8px; border-radius: 999px; flex-shrink: 0; white-space: nowrap;
+}
+
 /* Per-card drag handle + remove control cluster (top-right of each card). */
 .itin-sortable { position: relative; }
 .itin-card-controls { position: absolute; top: 8px; right: 8px; z-index: 7; display: flex; gap: 4px; }

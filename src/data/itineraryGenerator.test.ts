@@ -8,6 +8,8 @@ import type { Catalog } from './activitySource';
 import type { MatchTag, ViatorGroup, ViatorItem, SlotEntry } from '../types';
 import { ACTIVITY_COORDS, VIATOR_ITEM_COORDS, GROUP_COORDS, type Coord } from './coords';
 import { distanceKm } from './enRoute';
+import { isWaterBased } from './itemFit';
+import { parseActivityCost } from './matcher';
 
 const catalog = getCatalog();
 
@@ -737,6 +739,179 @@ describe('generatePlan — theme matches the anchor (longest) activity', () => {
         : { min: durationMinutes(cat.activities.find((a) => a.id === e.id)?.duration), cat: cat.activities.find((a) => a.id === e.id)?.category });
       const anchor = withMeta.reduce((best, x) => x.min > best.min ? x : best, withMeta[0]);
       expect(d.title).toBe(anchor.cat);
+    }
+  });
+});
+
+describe('generatePlan — beach staples are placed for everyone', () => {
+  const cat = getCatalog();
+  const BEACH_SUNRISE = ['eagle-beach-morning', 'malmok-beach', 'tres-trapi'];
+  const SUNSET = ['california-lighthouse-sunset', 'manchebo-beach'];
+
+  const staples = (plan: Day[]): SlotEntry[] =>
+    plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening])
+        .filter((e) => e.staple);
+  const stapleIds = (plan: Day[]): string[] =>
+    staples(plan).map((e) => (e.kind === 'activity' ? e.id : e.bestSellerId));
+
+  // The whole point of the feature: opposite personas still get the classics.
+  it('gives a sunrise beach and a sunset to opposite personas alike', () => {
+    for (const persona of [FOODIE, ADVENTURER]) {
+      const ids = stapleIds(generatePlan(persona, cat, { seed: 1 }));
+      expect(ids.some((id) => BEACH_SUNRISE.includes(id))).toBe(true);
+      expect(ids.some((id) => SUNSET.includes(id))).toBe(true);
+    }
+  });
+
+  it('places staples even for a 1-day cruise-call trip', () => {
+    const ids = stapleIds(generatePlan({ ...DEFAULT_ANSWERS, days: 1 }, cat, { seed: 1 }));
+    expect(ids.some((id) => BEACH_SUNRISE.includes(id))).toBe(true);
+    expect(ids.some((id) => SUNSET.includes(id))).toBe(true);
+  });
+
+  it('marks staples with staple=true and never with pinned', () => {
+    const found = staples(generatePlan({ ...DEFAULT_ANSWERS, days: 7 }, cat, { seed: 1 }));
+    expect(found.length).toBeGreaterThan(0);
+    for (const e of found) {
+      expect(e.staple).toBe(true);
+      expect(e.pinned).toBeFalsy();
+    }
+  });
+
+  // Regression: the day loop runs day 1 → N, so a staple sitting on a later day
+  // used to be invisible to the dedup while day 1 filled — the sunset beach was
+  // placed twice. Staples must be retired trip-wide in the pre-pass.
+  it('never lets normal fill duplicate a staple placed on a later day', () => {
+    for (const seed of [1, 2, 3, 4]) {
+      const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, cat, { seed }));
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+
+  // Day 1 is the free/chill settle-in day; only free staples may sit there.
+  it('keeps paid staples off the arrival day', () => {
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 7 }, cat, { seed: 1 });
+    const dayOne = [...plan[0].morning, ...plan[0].afternoon, ...plan[0].evening]
+      .filter((e) => e.staple);
+    for (const e of dayOne) {
+      const price = e.kind === 'group'
+        ? cat.items.find((i) => i.id === e.bestSellerId)!.price_usd
+        : parseActivityCost(cat.activities.find((a) => a.id === e.id)!.cost);
+      expect(price).toBe(0);
+    }
+  });
+
+  // Safety flags outrank the default: a seasick traveller is never handed a sail.
+  it('drops the water staples entirely for a seasick traveller', () => {
+    const plan = generatePlan(
+      { ...DEFAULT_ANSWERS, days: 7, specialNotes: 'I get seasick easily' }, cat, { seed: 1 },
+    );
+    const ids = stapleIds(plan);
+    // The land-based classics survive...
+    expect(ids.some((id) => BEACH_SUNRISE.includes(id))).toBe(true);
+    // ...and nothing water-based was placed anywhere in the plan.
+    const all = plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening]);
+    for (const e of all) {
+      if (e.kind !== 'group') continue;
+      expect(isWaterBased(cat.items.find((i) => i.id === e.bestSellerId)!)).toBe(false);
+    }
+  });
+
+  // Staples are fixed by category but not by product, so "regenerate" still moves.
+  it('varies which staple fills a category across reseeds', () => {
+    const bySeed = [1, 2, 3, 4, 5, 6].map((seed) =>
+      stapleIds(generatePlan({ ...DEFAULT_ANSWERS, days: 5 }, cat, { seed })).join(','));
+    expect(new Set(bySeed).size).toBeGreaterThan(1);
+  });
+});
+
+describe('generatePlan — contraindication caps apply per item, not per group', () => {
+  // Regression: the live feed files most off-road products under a group whose
+  // matched_by is beach-chill/couple/cruise-day, so the group-level exclude list
+  // never touched them and a mobility-limited traveller got a 4x4 jeep tour.
+  // A synthetic catalog reproduces exactly that shape.
+  function misfiledCatalog(): Catalog {
+    const groups: ViatorGroup[] = [{
+      id: 'sailing-cruises', name: 'Sailing & Cruises', tagline: '', viator_taxonomy: '',
+      viator_group_url: '', display_order: 1,
+      matched_by: ['beach-chill', 'couple'] as MatchTag[],
+      region: 'palm-beach', allowed_slots: [],
+    }];
+    const items: ViatorItem[] = [
+      // An off-road tour hiding in the sailing group (Viator tag 12035 = 4WD).
+      { id: 'misfiled-jeep', group_id: 'sailing-cruises', title: 'Natural Pool 4x4 Jeep Safari',
+        image_url: '', price_usd: 99, duration: '4 hrs', rating: 4.9, review_count: 5000,
+        viator_item_url: '', is_best_seller: true, display_order: 0, tags: [12035] },
+      // A gentle land option so the plan has something legal to place.
+      { id: 'gentle-tour', group_id: 'sailing-cruises', title: 'Downtown Walking Tour',
+        image_url: '', price_usd: 39, duration: '2 hrs', rating: 4.6, review_count: 400,
+        viator_item_url: '', is_best_seller: false, display_order: 1, tags: [21910] },
+    ];
+    return { activities: [], groups, items };
+  }
+
+  // `with-baby` only applies to family-ish group types (see flagAppliesTo), so
+  // each flag is tested with a group type that actually carries it.
+  const CAPPED: [string, string][] = [
+    ['mobility', 'Couple'], ['with-baby', 'Family with young kids'], ['intense-hikes', 'Couple'],
+  ];
+
+  it('keeps an off-road tour out of a mobility-limited plan even when mis-grouped', () => {
+    const cat = misfiledCatalog();
+    for (const [flag, groupType] of CAPPED) {
+      const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 7, groupType, flags: [flag] }, cat, { seed: 1 });
+      expect(entryIds(plan), `flag ${flag}`).not.toContain('misfiled-jeep');
+    }
+  });
+
+  it('still places the mis-grouped off-road tour for an unflagged traveller', () => {
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 7, flags: [] }, misfiledCatalog(), { seed: 1 });
+    expect(entryIds(plan)).toContain('misfiled-jeep');
+  });
+});
+
+describe('generatePlan — a pin placed on a later day is not also auto-filled', () => {
+  const cat = getCatalog();
+
+  // Regression: the day loop runs day 1 → N and only registered a pin as "used"
+  // when it reached that pin's day, so normal fill on an earlier day could place
+  // the same shortlisted item again — it showed up twice in the plan.
+  //
+  // LOCAL picks are the ones this actually bites. A Viator pin is caught anyway
+  // by notSimilar's tag-Jaccard (an item is 1.0 similar to itself), but a local
+  // activity carries no Viator tags and no cluster id, so notSimilar returns
+  // early for it and lastUsedDay was the only thing standing in the way.
+  // Verified: with the pre-registration removed, eagle-beach-morning is placed
+  // twice on every seed below.
+  it('places each pinned local pick exactly once across a long trip', () => {
+    const pins = ['california-lighthouse-sunset', 'manchebo-beach', 'eagle-beach-morning',
+                  'malmok-beach', 'tres-trapi'];
+    for (const seed of [1, 2, 3]) {
+      const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, cat, { seed, pinned: pins });
+      const ids = entryIds(plan);
+      for (const id of pins) {
+        const count = ids.filter((x) => x === id).length;
+        expect(count, `${id} @ seed ${seed}`).toBeLessThanOrEqual(1);
+      }
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+});
+
+describe('generatePlan — premium splurge never re-places a staple', () => {
+  // Regression: the premium pre-pass derived its "already claimed" set from
+  // pinnedSlots only, so a staple that was also the best premium-tier pick for
+  // its group was placed twice — once badged "Island classic", once "Signature
+  // splurge". Both pre-passes register in ctx.lastUsedDay, which is now the set.
+  it('places no item twice for a money-no-object traveller on a long trip', () => {
+    const cat = getCatalog();
+    for (const days of [7, 9, 14]) {
+      for (const seed of [1, 2, 3]) {
+        const ids = entryIds(generatePlan(
+          { ...DEFAULT_ANSWERS, days, budget: 'Money no object' }, cat, { seed },
+        ));
+        expect(new Set(ids).size, `days=${days} seed=${seed}`).toBe(ids.length);
+      }
     }
   });
 });

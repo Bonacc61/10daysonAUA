@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fitItem, bestItemForAnswers, itemTags, refaceForAnswers, isEveningItem, itemSlotOk, activityKind, isCrowdPleaser } from './itemFit';
+import { fitItem, bestItemForAnswers, itemTags, refaceForAnswers, isEveningItem, itemSlotOk, activityKind, isCrowdPleaser, isWaterBased, itemAdventure, matchingSection } from './itemFit';
 import type { CardEntry, MatchTag, Section, ViatorItem } from '../types';
 
 function item(over: Partial<ViatorItem>): ViatorItem {
@@ -200,5 +200,80 @@ describe('refaceForAnswers', () => {
   it('drops the whole group when nothing fits the budget', () => {
     const onlyYacht: CardEntry = { kind: 'group', group: group as never, bestSeller: YACHT, others: [] };
     expect(refaceForAnswers([onlyYacht], tags('budget')).length).toBe(0);
+  });
+});
+
+describe('isWaterBased — the no-boats (seasick) net', () => {
+  // Regression: the live feed files this one under food-drink-experiences with
+  // no sailing tag, so section- and tag-based detection both missed it and a
+  // seasick traveller was handed a dinner cruise.
+  it('catches a boat the feed metadata mislabels, on the title alone', () => {
+    const mislabelled = item({
+      title: 'Luxury Four-Course Caribbean Dinner Cruise Experience',
+      group_id: 'food-drink-experiences', sections: ['food-drink'] as Section[], tags: [],
+    });
+    expect(isWaterBased(mislabelled)).toBe(true);
+  });
+
+  it('still catches boats via section and tag metadata', () => {
+    expect(isWaterBased(item({ title: 'Anything', sections: ['cruises-water'] as Section[] }))).toBe(true);
+    expect(isWaterBased(item({ title: 'Anything', sections: ['food-drink'] as Section[], tags: [11888] }))).toBe(true);
+  });
+
+  it('does not flag land experiences', () => {
+    for (const title of ['Aruba Nightlife Party Bus Tour', 'Arikok National Park 4x4 Jeep Safari',
+                         'Downtown Historic and Cultural Walking Tour', 'Aruba Rum Distillery & Tasting']) {
+      expect(isWaterBased(item({ title, sections: ['food-drink'] as Section[], tags: [] }))).toBe(false);
+    }
+  });
+});
+
+describe('matchingSection — kind beats Explore tab order', () => {
+  // Regression: primarySection resolves ties by tab order and 'cruises-water' is
+  // first, so Aruba's #1 product ("Island Jeep Safari with Natural Pool, Baby
+  // Beach and Lunch" — 9,885 reviews) carries both a 4WD tag and a boat tag and
+  // was being filed as a watersport.
+  it('files a jeep safari that also carries a boat tag as adventures-outdoor', () => {
+    const jeep = item({ title: 'Island Jeep Safari with Natural Pool and Baby Beach', tags: [12035, 21701], sections: undefined });
+    expect(activityKind(jeep)).toBe('offroad');
+    expect(matchingSection(jeep)).toBe('adventures-outdoor');
+  });
+
+  it('still files a plain catamaran sail as cruises-water', () => {
+    expect(matchingSection(item({ title: 'Catamaran Sail', tags: [11888], sections: undefined }))).toBe('cruises-water');
+  });
+});
+
+describe('itemAdventure — kind, not section', () => {
+  // Regression: every water product shares 'cruises-water' (45), so a
+  // section-only value threw a gentle sunset catamaran out of a with-baby (25)
+  // or mobility (30) plan alongside the kitesurfing it was meant to exclude.
+  it('rates a gentle sail below the with-baby and mobility caps', () => {
+    const sail = item({ title: 'Sunset Catamaran Sail', tags: [11888], sections: undefined });
+    expect(itemAdventure(sail)).toBeLessThanOrEqual(25);
+  });
+
+  it('rates adrenaline kinds above every contraindication cap', () => {
+    for (const [title, tag] of [['UTV Off-Road', 12035], ['Jet Ski Rental', 12062], ['Zipline', 13143]] as const) {
+      expect(itemAdventure(item({ title, tags: [tag], sections: undefined })), title).toBeGreaterThan(52);
+    }
+  });
+
+  // Every value must sit STRICTLY above the cap meant to exclude it — an
+  // equality or a near-miss silently disables the flag. hike:50 let every Viator
+  // hiking product through intense-hikes (52) while the curated local
+  // arikok-hiking (55) was dropped; snorkel:30 tied mobility (30) exactly.
+  it('keeps each kind clear of the cap that must exclude it', () => {
+    const MOBILITY = 30, INTENSE_HIKES = 52, WITH_BABY = 25;
+    const adv = (tag: number) => itemAdventure(item({ title: 't', tags: [tag], sections: undefined }));
+    expect(adv(11902), 'hike vs intense-hikes').toBeGreaterThan(INTENSE_HIKES);
+    expect(adv(11912), 'snorkel vs mobility').toBeGreaterThan(MOBILITY);
+    expect(adv(12021), 'dive vs intense-hikes').toBeGreaterThan(INTENSE_HIKES);
+    // ...and a gentle sail stays under the strictest cap so the staple survives.
+    expect(adv(11888), 'sail vs with-baby').toBeLessThanOrEqual(WITH_BABY);
+  });
+
+  it('honours an explicit curated adventure number over the kind default', () => {
+    expect(itemAdventure(item({ title: 'Sail', tags: [11888], adventure: 90, sections: undefined }))).toBe(90);
   });
 });

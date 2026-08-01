@@ -42,12 +42,13 @@ type Props = {
   onNavigateToSection?: (section: Section) => void;
   pinned?: boolean;
   splurge?: boolean;
+  staple?: boolean;
 };
 
 export default function GroupCard({
   group, bestSeller, others, approved, onApprove, onSwap, onFlip,
   variant = 'itinerary', showReasons, onPickReason,
-  suggestionsOpen, onToggleSuggestions, onAddItem, bookUrl, onNavigateToSection, pinned, splurge,
+  suggestionsOpen, onToggleSuggestions, onAddItem, bookUrl, onNavigateToSection, pinned, splurge, staple,
 }: Props) {
   const tourUrl = productUrlFor(bestSeller);
   const headerSection = primarySection(itemSections(bestSeller));
@@ -80,6 +81,7 @@ export default function GroupCard({
             bookUrl={bookUrl ?? null}
             pinned={pinned}
             splurge={splurge}
+            staple={staple}
             location={REGION_LABELS[bestSeller.region ?? group.region]}
             onSwap={onSwap}
             onFlip={onFlip}
@@ -220,7 +222,7 @@ function ExploreBody({
 // activity card (ActivityCardFront), with the group-specific SUGGESTED label.
 // The flip-to-back face is wired by the parent (ItineraryCard).
 function ItineraryBody({
-  bestSeller, tourUrl, bookUrl, location, onSwap, onFlip, showReasons, onPickReason, pinned, splurge,
+  bestSeller, tourUrl, bookUrl, location, onSwap, onFlip, showReasons, onPickReason, pinned, splurge, staple,
 }: {
   bestSeller: ViatorItem;
   tourUrl: string | null;
@@ -232,6 +234,7 @@ function ItineraryBody({
   onPickReason?: (reason: SwapReason) => void;
   pinned?: boolean;
   splurge?: boolean;
+  staple?: boolean;
 }) {
   return (
     <div className="itin-card-split" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
@@ -311,6 +314,7 @@ function ItineraryBody({
           )}
           {pinned && <span className="itin-pinned-badge">★ Your pick</span>}
           {splurge && !pinned && <span className="itin-splurge-badge">✨ Signature splurge</span>}
+          {staple && !pinned && !splurge && <span className="itin-staple-badge">◑ Island classic</span>}
         </div>
 
         <div style={{ marginTop: 'auto' }}>

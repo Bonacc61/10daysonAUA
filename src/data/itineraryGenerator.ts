@@ -18,7 +18,7 @@ import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry, ViatorItem, ViatorGroup } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, entryPrice } from './matcher';
-import { fitItem, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, offroadAdrenalineBonus, itemSlotOk } from './itemFit';
+import { fitItem, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, offroadAdrenalineBonus, itemSlotOk, itemAdventure } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 import { effectiveFlags } from './notesFlags';
@@ -26,6 +26,7 @@ import { LUNCHSPOTS } from './lunchspots';
 import { coordForEntry, ACTIVITY_COORDS, VIATOR_ITEM_COORDS, GROUP_COORDS, type Coord } from './coords';
 import { pickEnRouteStop, foodPlaceKey, distanceKm } from './enRoute';
 import { budgetTag, adventureBandTag } from './classify';
+import { resolveStaples } from './staples';
 
 const DAY_COLORS = ['#FF6B47', '#3B82F6', '#22C55E', '#EAB308', '#E63946', '#8B5CF6', '#0EA5E9'];
 
@@ -73,7 +74,19 @@ const INTEREST_SECTIONS: Partial<Record<MatchTag, Section[]>> = {
 // highly-booked activities rather than fill every slot with niche products.
 // Percentile-based, so the floor rescales automatically with the live catalog.
 // Items without a score (raw test fixtures) pass — only a known-low rank drops.
-const MIN_FILL_POPULARITY = 0.25;
+//
+// Set to keep roughly the top 40% of each budget tier. The live Aruba catalog
+// runs to 361 products with a very long tail — 59% of it has under 50 reviews —
+// so the old 0.25 floor (top 75%) still let three-review private charters and
+// one-off kayak shoots auto-fill slots. Explore continues to list everything;
+// this floor only governs what the generator places unasked.
+const MIN_FILL_POPULARITY = 0.6;
+// The floor only applies to a catalog big enough to HAVE a long tail. Live is
+// 361 products; the offline stub is 20 hand-curated ones and the test fixtures
+// are smaller still — none has a tail to cut, and flooring them just starves the
+// plan (a lone item in a budget tier scores 0.5 from normalizePopularity as a
+// "cannot rank" sentinel, so a floor above 0.5 would delete it outright).
+const MIN_CATALOG_TO_FLOOR = 60;
 
 // Premium splurge rule: money-no-object travellers on a trip of at least
 // PREMIUM_MIN_DAYS get one aspirational premium pick per DAYS_PER_PREMIUM days
@@ -475,6 +488,13 @@ function applyCatalogFlags(catalog: Catalog, flags: Set<string>): Catalog {
       ? ['adventure', 'nature-hiking', 'watersports']
       : ['adventure'];
     groups = groups.filter(g => !g.matched_by.some(t => excludeTags.includes(t)));
+    // Per-ITEM cap as well as the per-group one above. The group filter alone is
+    // not safe on live data: the feed files 68 of Aruba's 85 off-road products
+    // under "Sailing & Cruises", whose matched_by is beach-chill/couple/
+    // cruise-day — so it survives every exclude list, and a traveller who told
+    // us about mobility limits was being handed a 4x4 Natural Pool jeep tour.
+    // itemAdventure reads the item's own Viator tags, which the feed gets right.
+    items = items.filter(i => itemAdventure(i) <= adventureCap);
   }
 
   const groupIds = new Set(groups.map(g => g.id));
@@ -582,8 +602,11 @@ export function generatePlan(
   // always beats this heuristic. Crowd-pleasers are exempt from the floor: they
   // are curated as universally bookable, so a lightly-reviewed catamaran or
   // Natural Pool tour must not be filtered out before its boost can apply.
-  const flooredItems = filteredCatalog.items.filter(
-    (i) => i.popularity_score === undefined || i.popularity_score >= MIN_FILL_POPULARITY || isCrowdPleaser(i),
+  const floorApplies = filteredCatalog.items.length >= MIN_CATALOG_TO_FLOOR;
+  const flooredItems = !floorApplies ? filteredCatalog.items : filteredCatalog.items.filter(
+    (i) => i.popularity_score === undefined
+      || i.popularity_score >= MIN_FILL_POPULARITY
+      || isCrowdPleaser(i),
   );
   // Prefer the bookable Viator experience over a hand-written local pick that
   // duplicates it: if the live catalog actually has a matching guided tour, drop
@@ -637,12 +660,89 @@ export function generatePlan(
     if (!pinClaimed.has(day)) pinClaimed.set(day, new Set());
     pinClaimed.get(day)!.add(slot);
 
+    // Retire the pin trip-wide NOW rather than when the day loop reaches its
+    // day. The loop runs day 1 → N, so a pin sitting on day 5 was invisible to
+    // `unused`/`notSimilar` while days 1–4 filled — normal fill could place the
+    // very same shortlisted item earlier and the card then appeared twice.
+    // (`usedGroupIds` stays out of this: the day-loop pin branch adds it when it
+    // gets there, and doing it here would retire the group for the whole trip.)
+    ctx.lastUsedDay.set(entryId(resolved), day);
+    { const rf = routeFamilyOf(resolved); if (rf) ctx.usedRouteFamilies.add(rf); }
+    if (resolved.kind === 'group') {
+      const cid = resolved.bestSeller.experience_cluster_id;
+      if (cid) ctx.usedClusterIds.add(cid);
+    }
+
     const slotEntry: SlotEntry = { ...toSlotEntry(resolved), pinned: true };
     if (!pinnedSlots.has(day)) pinnedSlots.set(day, new Map());
     pinnedSlots.get(day)!.set(slot, { cardEntry: resolved, slotEntry });
 
     // Advance cursor so pins spread across the trip.
     dayCursor = (day % nDays) + 1;
+  }
+  // ---------------------------------------------------------------------------
+
+  // --- Beach-staple pre-pass -------------------------------------------------
+  // Reserve a slot for each of Aruba's four universal experiences (sunrise
+  // beach, catamaran sail, sunset, dinner by the water) BEFORE persona fill, so
+  // every plan leads with them regardless of the answers. See staples.ts for
+  // the curation rules; resolveStaples reads the flag-filtered catalog, so a
+  // no-boats traveller finds no sail to place and the staple silently drops.
+  //
+  // Runs AFTER pins (an explicit shortlist choice outranks a default) and
+  // BEFORE the premium pass, so a splurge never squeezes out a staple.
+  //
+  // Placement uses the premium branch in the day loop, NOT the pin branch:
+  // a staple must not retire its whole group. On live Viator data 64% of the
+  // catalog is filed under `sailing-cruises` (their group ids are unreliable —
+  // UTV tours land there too), so retiring it after placing the sail would
+  // starve every remaining slot in the trip.
+  const stapleSlots = new Map<number, Map<Slot, PinPlacement>>();
+  let stapleCursor = 1;
+  // Own PRNG stream (seed + 2) rather than ctx.rand, so varying the staples
+  // doesn't shift the draw sequence normal fill sees.
+  const stapleRand = rng(seed + 2);
+  // Whatever the pin pre-pass already claimed is off-limits to the staples —
+  // lastUsedDay is the authoritative record of that (pins register there above).
+  const takenByPins = new Set(ctx.lastUsedDay.keys());
+  for (const { entry, preferred, fallback, free } of
+       resolveStaples(filteredCatalog, tags, nDays, stapleRand, takenByPins)) {
+    // Paid staples skip the arrival day — day 1 is the free/chill settle-in day
+    // normal fill also honours (see `freeOnly` below).
+    const stapleAvail = (day: number, slot: Slot): boolean =>
+      slotAvail(day, slot) && (free || nDays === 1 || day !== 1);
+    const placement = findPinSlot(preferred, fallback, nDays, stapleCursor, stapleAvail);
+    if (!placement) continue;
+
+    const { day, slot } = placement;
+    if (!pinClaimed.has(day)) pinClaimed.set(day, new Set());
+    pinClaimed.get(day)!.add(slot);
+
+    // Retire the staple trip-wide NOW, not when the day loop reaches its day.
+    // The loop runs day 1 → N, so a staple sitting on day 2 is still invisible
+    // to `unused`/`notSimilar` while day 1 fills — which put the sunset beach in
+    // day 1's evening AND kept it as day 2's staple. Registering the id, its
+    // experience cluster and its route family up front closes that window (and
+    // stops a day-1 catamaran preceding the day-2 catamaran staple).
+    ctx.lastUsedDay.set(entryId(entry), day);
+    { const rf = routeFamilyOf(entry); if (rf) ctx.usedRouteFamilies.add(rf); }
+    if (entry.kind === 'group') {
+      const cid = entry.bestSeller.experience_cluster_id;
+      if (cid) ctx.usedClusterIds.add(cid);
+    }
+
+    if (!stapleSlots.has(day)) stapleSlots.set(day, new Map());
+    // `staple: true` (not `pinned`) — an island default we chose, so it gets its
+    // own badge rather than the "★ Your pick" pin badge. The flag also stops
+    // resolveSlotEntry re-facing the card to another item in the group, which
+    // on live data could quietly turn the sunset sail into a UTV tour.
+    stapleSlots.get(day)!.set(slot, { cardEntry: entry, slotEntry: { ...toSlotEntry(entry), staple: true } });
+    // Only PAID staples advance the cursor. The free pair (sunrise beach,
+    // sunset) are two halves of one day and should share it — spreading them
+    // the way pins spread would push the sunset onto day 2 and leave the
+    // arrival evening empty. Paid staples still spread, so the sail and the
+    // dinner cruise never stack two long boat trips onto the same day.
+    if (!free) stapleCursor = (day % nDays) + 1;
   }
   // ---------------------------------------------------------------------------
 
@@ -658,18 +758,19 @@ export function generatePlan(
   const premiumSlots = new Map<number, Map<Slot, PinPlacement>>();
   if (tags.has('money-no-object') && nDays >= PREMIUM_MIN_DAYS) {
     const maxPremium = Math.floor(nDays / DAYS_PER_PREMIUM); // 1 for a week, 2 for a fortnight
-    // Items already claimed by a pin — pins live in pinnedSlots, NOT lastUsedDay
-    // (which the day loop fills later), so we derive the id set explicitly to
-    // avoid placing a pinned item a second time as a premium pick.
-    const pinnedItemIds = new Set<string>();
-    for (const daySlots of pinnedSlots.values())
-      for (const { cardEntry } of daySlots.values()) pinnedItemIds.add(entryId(cardEntry));
+    // Everything already claimed by the pin OR staple pre-pass. Both register
+    // their entry id in lastUsedDay up front (the day loop would be too late —
+    // it runs after this), so it is the single authoritative set. Deriving this
+    // from pinnedSlots alone missed staples, and a staple that was also the best
+    // premium-tier pick for its group got placed twice: once badged "◑ Island
+    // classic", once "✨ Signature splurge".
+    const claimedItemIds = new Set<string>(ctx.lastUsedDay.keys());
 
     // Best premium-tier item per group (one splurge per group), highest fit first.
     const bestPerGroup = new Map<string, { item: ViatorItem; group: ViatorGroup; score: number }>();
     for (const item of fillCatalog.items) {
       if (budgetTag(item.price_usd) !== 'money-no-object') continue; // premium tier only
-      if (pinnedItemIds.has(item.id)) continue;                      // already pinned
+      if (claimedItemIds.has(item.id)) continue;                     // already pinned or a staple
       // Off-road is a single-per-trip route family, not a "splurge in addition"
       // experience — a money-no-object traveller gets ONE off-road tour (chosen by
       // adrenaline × budget in normal fill), never a premium jeep plus a
@@ -777,16 +878,19 @@ export function generatePlan(
         continue;
       }
 
-      // Premium splurge (money-no-object, long trip): placed like a pin but the
-      // group is NOT retired — its crowd-pleaser should still surface elsewhere.
-      // We mark the item id (lastUsedDay) and its experience CLUSTER, but NOT its
-      // tags: cluster id means "the same real-world experience," so normal fill
-      // won't place an identical one, while the coarser tag-Jaccard fallback
-      // would wrongly suppress a distinct-but-related crowd-pleaser (a charter
-      // and a party cruise share sail tags) — exactly the second pick we want.
-      const premium = premiumSlots.get(d)?.get(slot);
-      if (premium) {
-        const { cardEntry: pick, slotEntry } = premium;
+      // Auto-placed picks — a premium splurge (money-no-object, long trip) or a
+      // beach staple. Both are placed like a pin but their group is NOT retired:
+      // the group's crowd-pleaser should still surface elsewhere, and for a
+      // staple, retiring `sailing-cruises` would take most of the live catalog
+      // with it. We mark the item id (lastUsedDay) and its experience CLUSTER,
+      // but NOT its tags: cluster id means "the same real-world experience," so
+      // normal fill won't place an identical one, while the coarser tag-Jaccard
+      // fallback would wrongly suppress a distinct-but-related crowd-pleaser (a
+      // charter and a party cruise share sail tags) — exactly the second pick
+      // we want.
+      const autoPlaced = premiumSlots.get(d)?.get(slot) ?? stapleSlots.get(d)?.get(slot);
+      if (autoPlaced) {
+        const { cardEntry: pick, slotEntry } = autoPlaced;
         budgetLeft -= entryPrice(pick);
         ctx.lastUsedDay.set(entryId(pick), d);
         { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
@@ -804,7 +908,7 @@ export function generatePlan(
       }
 
       // A prior long activity spread into this slot — leave it free (issue:
-      // don't overbook). Pins/premium above are explicit and still place.
+      // don't overbook). Pins/premium/staples above are explicit and still place.
       if (blocked.has(slot)) continue;
 
       // Arrival day (day 1) is a free/chill settle-in day — no paid tours.

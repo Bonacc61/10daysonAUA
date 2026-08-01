@@ -17,6 +17,7 @@ import { matchPool, blendPools, constrainBySwapReason, entryPrice, parseActivity
 import { fitItem, refaceForAnswers, itemSlotOk } from '../data/itemFit';
 import { answersToTags } from '../data/answerTags';
 import { generatePlan, resolvePinId } from '../data/itineraryGenerator';
+import { useStarred } from '../lib/starred';
 import { logEvent } from '../data/feedback';
 import { useAuth } from '../lib/auth';
 import { useBooked } from '../lib/booked';
@@ -324,15 +325,26 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
     onMove(activeUid, toDayIdx, toSection, toIndex);
   };
 
-  // Resolved shortlist entries for the empty-slot picker.
+  // Resolved entries for the empty-slot picker: everything the traveller saved
+  // for themselves. Two sources, same id format ('item:<viatorId>' | activityId)
+  // so both resolve through resolvePinId:
+  //   • shortlist — Explore's "+ Add", in-memory for this session; these are
+  //     also pinned into the generated plan up front.
+  //   • starred  — Explore's ♥ favourites, persisted to '10doa:starred' and
+  //     surviving reloads. Favourites are NOT auto-pinned: hearting something is
+  //     "keep this in mind", not "put it in my trip", so they wait here until
+  //     the traveller drops one into a slot.
+  // Read once on mount (localStorage) — Explore and Itinerary are separate
+  // pages, so there is no live cross-page sync to maintain.
+  const { starred } = useStarred();
   const shortlistEntries = useMemo((): { rawId: string; entry: CardEntry }[] => {
-    return [...shortlist]
+    return [...new Set([...shortlist, ...starred])]
       .map((rawId) => {
         const entry = resolvePinId(rawId, catalog);
         return entry ? { rawId, entry } : null;
       })
       .filter((x): x is { rawId: string; entry: CardEntry } => x !== null);
-  }, [shortlist, catalog]);
+  }, [shortlist, starred, catalog]);
 
   // Add a shortlist entry to a specific day+section (used from the empty-slot picker).
   const onAddSlotEntry = (dayNum: number, section: Slot, entry: CardEntry) => {
@@ -844,8 +856,8 @@ function Section({
                   onClick={() => setShortlistOpen((v) => !v)}
                   aria-expanded={shortlistOpen}
                 >
-                  <span style={{ fontSize: 13 }}>★</span>
-                  Add activity from hand-picked shortlist
+                  <span style={{ fontSize: 13 }}>♥</span>
+                  Add from favourites
                   <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.7 }}>{shortlistOpen ? '▲' : '▼'}</span>
                 </button>
                 {shortlistOpen && (
@@ -877,7 +889,7 @@ function Section({
               </div>
             ) : (
               <div className="itin-section-empty">
-                {h.readOnly ? 'Nothing planned.' : `Drop an activity here, or add one from a card's "Other suggestions".`}
+                {h.readOnly ? 'Nothing planned.' : `Drop an activity here, add one from a card's "Other suggestions", or ♥ a few in Explore and pick from your favourites.`}
               </div>
             )
           )}
@@ -953,6 +965,9 @@ function SortableCard({
           : false}
         splurge={card.entry.kind === 'group' && !!card.entry.splurge
           && entry.kind === 'group' && entry.bestSeller.id === card.entry.bestSellerId}
+        staple={!!card.entry.staple
+          && (card.entry.kind === 'activity'
+              || (entry.kind === 'group' && entry.bestSeller.id === card.entry.bestSellerId))}
         onFlip={() => onFlip(card.uid)}
         onSwap={readOnly ? undefined : () => onOpenSwap(card.uid)}
         showReasons={!readOnly && reasonOpen.has(card.uid)}
