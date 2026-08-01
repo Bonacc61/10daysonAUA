@@ -25,7 +25,7 @@ import { effectiveFlags } from './notesFlags';
 import { LUNCHSPOTS } from './lunchspots';
 import { coordForEntry, ACTIVITY_COORDS, VIATOR_ITEM_COORDS, GROUP_COORDS, type Coord } from './coords';
 import { pickEnRouteStop, foodPlaceKey, distanceKm } from './enRoute';
-import { budgetTag } from './classify';
+import { budgetTag, adventureBandTag } from './classify';
 
 const DAY_COLORS = ['#FF6B47', '#3B82F6', '#22C55E', '#EAB308', '#E63946', '#8B5CF6', '#0EA5E9'];
 
@@ -208,6 +208,11 @@ function scoreEntry(e: CardEntry, tags: Set<MatchTag>, prefSections: Set<Section
   let score = 0;
   for (const t of e.activity.matched_by) if (tags.has(t)) score += 2;
   if ((e.activity.sections ?? []).some((s) => prefSections.has(s))) score += 3;
+  // Intensity affinity, weighted like the interest hit above. Viator items get
+  // this via itemTags/fitItem; locals carry the same signal in their curated
+  // `adventure` number, but nothing read it during scoring — so the Q5 slider
+  // moved only the ~20% of slots Viator fills.
+  if (tags.has(adventureBandTag(e.activity.adventure ?? 20))) score += 3;
   const price = entryPrice(e);
   if (tags.has('budget')) score += price === 0 ? 2 : price < 50 ? 1 : price > 100 ? -1 : 0;
   if (tags.has('money-no-object') || tags.has('treat-yourself')) score += price > 100 ? 1 : 0;
