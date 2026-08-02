@@ -213,7 +213,7 @@ function SampleSection({ days, goPlan, goExplore }: { days: string; goPlan: () =
                 Our AI sequences activities intelligently — beach in the morning before the crowds, nature at golden hour, dinner spots that aren't tourist traps.
               </p>
               <p style={{ fontSize: 14.5, lineHeight: 1.55, color: 'rgba(255,255,255,0.9)', margin: '0 0 20px', maxWidth: 520 }}>
-                Every plan starts with the island classics a local would put in front of anyone — a beach at sunrise, a catamaran sail, a sunset, dinner by the water. Whatever you answered. From there it's yours: <strong style={{ fontWeight: 700 }}>heart anything in Explore and drop it straight into a day</strong>, swap what doesn't fit, drag days around, delete the rest.
+                Every plan starts with the island classics a local would put in front of anyone — a beach at sunrise, a catamaran sail, a beach at sunset, dinner by the water. Whatever you answered. From there it's yours: <strong style={{ fontWeight: 700 }}>heart anything in Explore and drop it straight into a day</strong>, swap what doesn't fit, drag days around, delete the rest.
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, margin: '0 0 18px' }}>
                 <span className="chip-outline" style={{ border: '2px solid rgba(255,255,255,0.9)', color: 'var(--cream)', background: 'transparent' }}><Clock size={13} /> Optimized by time of day</span>

@@ -887,7 +887,7 @@ export function generatePlan(
 
   // --- Beach-staple pre-pass -------------------------------------------------
   // Reserve a slot for each of Aruba's four universal experiences (sunrise
-  // beach, catamaran sail, sunset, dinner by the water) BEFORE persona fill, so
+  // beach, catamaran sail, beach at sunset, dinner by the water) BEFORE persona fill, so
   // every plan leads with them regardless of the answers. See staples.ts for
   // the curation rules; resolveStaples reads the flag-filtered catalog, so a
   // no-boats traveller finds no sail to place and the staple silently drops.
