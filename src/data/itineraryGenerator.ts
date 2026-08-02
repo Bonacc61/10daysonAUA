@@ -189,7 +189,11 @@ function toSlotEntry(e: CardEntry): SlotEntry {
 // A day is a real calendar day, not an unbounded bucket. These bound it so the
 // generator can't produce a physically impossible plan (the old loop filled every
 // slot independently with no notion of time).
-const DAY_CAP_MIN = 480;   // 8h of activity is the most we book in one day
+const DAY_CAP_MIN = 480;   // 8h of DAYTIME activity is the most we book in one day
+// The evening is budgeted separately from the day (see the day loop). 4h covers
+// a sunset and a dinner cruise back to back; it still stops the generator
+// stacking a third touring block onto the night.
+const EVENING_CAP_MIN = 240;
 const BUFFER_MIN  = 60;    // travel/rest gap counted between consecutive activities
 // Wall-clock length of each slot. An activity longer than its slot "spreads"
 // into the next slot (which is then left free) — see the day loop.
@@ -548,21 +552,34 @@ function pickForSlot(
     const fam = routeFamilyOf(e);
     if (fam && ctx.usedRouteFamilies.has(fam)) return `route family "${fam}" already placed this trip`;
     if (e.kind !== 'group') return null;
-    // Same embedding cluster → definitely the same experience.
+    // Embeddings are AUTHORITATIVE when present: same cluster means the same
+    // real-world experience, and a different cluster means a genuinely different
+    // one — even for two items from the same Viator group.
+    //
+    // Tag Jaccard used to run as well, on the grounds that the live feed's
+    // cluster ids were "just per-product codes". That is no longer true: an
+    // embedding provider is configured and clustering runs on every ingest (all
+    // 361 live items carry a cluster id). Measured against the live catalog, of
+    // the 9,674 item pairs tag Jaccard would block, embeddings agree with only
+    // 18.2% — it was rejecting things like "Discovery Papiamento Distillery" vs
+    // "Luxury Four-Course Caribbean Dinner Cruise" for sharing generic food and
+    // evening tags. Wrong four times out of five is worse than not running.
     const cid = e.bestSeller.experience_cluster_id;
     if (cid && ctx.usedClusterIds.has(cid)) return `experience cluster "${cid}" already placed`;
-    // ALSO apply the tag-Jaccard net even when a cluster ID is present. Without an
-    // embedding provider the live feed's "cluster_id" is just a per-product code
+    // No cluster id: the embedding provider is unset or the run failed, so fall
+    // back to the coarse nets. This is the path the offline stub and the test
+    // fixtures take, and the path production would take if the secret were ever
+    // removed — tag Jaccard is imprecise but it is better than nothing when the
+    // precise signal is absent. Historical note on why it used to run always:
+    // without a provider the feed's "cluster_id" was just a per-product code
     // (e.g. 6841ISLAND vs 6841POOL for two near-identical Natural-Pool jeep
-    // safaris), so distinct codes slip past cluster-dedup — tag Jaccard is what
-    // actually recognises them as the same real-world experience. (Previously this
-    // fallback was skipped whenever a cluster ID existed, i.e. almost always.)
+    // safaris), so distinct codes slipped past cluster-dedup and tag Jaccard was
+    // the only thing recognising them as one experience.
     const tags = e.bestSeller.tags ?? [];
     if (tags.length === 0) {
-      // No tags: with no cluster id either, the Viator group is the only "same
-      // experience" signal left (hand-written stub / thin offline catalog) — dedup
-      // by it. With a cluster id present, cluster dedup above already covers it.
-      if (cid || !ctx.usedGroupIds.has(e.group.id)) return null;
+      // Neither cluster id nor tags: the Viator group is the only "same
+      // experience" signal left (hand-written stub / thin offline catalog).
+      if (!ctx.usedGroupIds.has(e.group.id)) return null;
       return `group "${e.group.id}" already placed (item has neither tags nor a cluster id)`;
     }
     const hit = ctx.usedTagSets.find((used) => tagJaccard(tags, used) >= TAG_SIMILARITY_THRESHOLD);
@@ -1046,9 +1063,19 @@ export function generatePlan(
     let anchorCoord: Coord | undefined; // day's geographic centre (first coord-bearing pick)
 
     // Feasibility bookkeeping for a real calendar day (issue: 11h days). dayMin
-    // accumulates activity time + inter-activity buffers; blocked holds slots a
-    // long "spread" activity has swallowed. dayTheme is this day's headline group.
+    // accumulates DAYTIME activity time + inter-activity buffers; blocked holds
+    // slots a long "spread" activity has swallowed. dayTheme is this day's
+    // headline group.
+    //
+    // The evening keeps its OWN budget. Sharing one 8h pool meant two daytime
+    // activities (3-5h each, plus a 60min buffer) exhausted the cap before the
+    // evening slot was ever considered, so dinner competed with a jeep safari
+    // for the same hours and lost. Measured on the live catalog: the day cap
+    // produced 97 evening rejections across a 10-day plan — more than four times
+    // every dedup rule combined — and left evenings 46.5% filled against 91.8%
+    // for daytime. A day out and a dinner are not the same budget.
     let dayMin = 0;
+    let eveMin = 0;
     const blocked = new Set<Slot>();
     const dayTheme = themeGroups.length ? themeGroups[(d - 1) % themeGroups.length] : undefined;
     // Book a pick's time and, if it overruns its slot window, spread it into the
@@ -1056,7 +1083,13 @@ export function generatePlan(
     // between consecutive activities (none before the day's first).
     const commit = (pick: CardEntry, slot: Slot) => {
       const dur = entryDurationMin(pick);
-      dayMin += (picks.length > 0 ? BUFFER_MIN : 0) + dur;
+      if (slot === 'evening') {
+        eveMin += (eveMin > 0 ? BUFFER_MIN : 0) + dur;
+      } else {
+        dayMin += (picks.length > 0 ? BUFFER_MIN : 0) + dur;
+      }
+      // Spread still applies across the boundary: a 5h afternoon tour really
+      // does eat the evening, and that is a physical fact rather than a budget.
       if (dur > SLOT_WINDOW_MIN[slot]) {
         const next = SECTIONS[SECTIONS.indexOf(slot) + 1];
         if (next) blocked.add(next);
@@ -1150,8 +1183,9 @@ export function generatePlan(
       const maxP = freeOnly ? 0 : Math.max(0, budgetLeft);
       // Reject any candidate that would push the day past its 8h activity budget
       // (buffer counted only when something is already booked today).
-      const feasible = (e: CardEntry) =>
-        dayMin + (picks.length > 0 ? BUFFER_MIN : 0) + entryDurationMin(e) <= DAY_CAP_MIN;
+      const feasible = (e: CardEntry) => (slot === 'evening'
+        ? eveMin + (eveMin > 0 ? BUFFER_MIN : 0) + entryDurationMin(e) <= EVENING_CAP_MIN
+        : dayMin + (picks.length > 0 ? BUFFER_MIN : 0) + entryDurationMin(e) <= DAY_CAP_MIN);
       // Theme-first: the day's anchor (first placed) slot is biased toward the
       // day theme; later slots fill freely (variety).
       const themeId = picks.length === 0 ? dayTheme?.id : undefined;
