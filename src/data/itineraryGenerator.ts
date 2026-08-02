@@ -190,9 +190,14 @@ function toSlotEntry(e: CardEntry): SlotEntry {
 // generator can't produce a physically impossible plan (the old loop filled every
 // slot independently with no notion of time).
 const DAY_CAP_MIN = 480;   // 8h of DAYTIME activity is the most we book in one day
-// The evening is budgeted separately from the day (see the day loop). 4h covers
-// a sunset and a dinner cruise back to back; it still stops the generator
-// stacking a third touring block onto the night.
+// The evening is capped separately from the day. 4h fits a dinner cruise; with
+// the crossover buffer charged, a day that already has picks fits at most 3h.
+//
+// This DOES make the worst-case day longer than the 8h DAY_CAP_MIN alone: 8h of
+// touring + 1h to get changed and travel + a 3h dinner cruise = 12h. That is
+// deliberate and it is what a real holiday day looks like — 9am to 9pm with
+// dinner at the end. What it is not is 12h of TOURING, which is what a single
+// shared cap was there to prevent.
 const EVENING_CAP_MIN = 240;
 const BUFFER_MIN  = 60;    // travel/rest gap counted between consecutive activities
 // Wall-clock length of each slot. An activity longer than its slot "spreads"
@@ -552,36 +557,34 @@ function pickForSlot(
     const fam = routeFamilyOf(e);
     if (fam && ctx.usedRouteFamilies.has(fam)) return `route family "${fam}" already placed this trip`;
     if (e.kind !== 'group') return null;
-    // Embeddings are AUTHORITATIVE when present: same cluster means the same
-    // real-world experience, and a different cluster means a genuinely different
-    // one — even for two items from the same Viator group.
+    // LAYERED, not alternatives. A cluster hit is conclusive; a cluster MISS is
+    // not, so we fall through to tag Jaccard rather than returning null.
     //
-    // Tag Jaccard used to run as well, on the grounds that the live feed's
-    // cluster ids were "just per-product codes". That is no longer true: an
-    // embedding provider is configured and clustering runs on every ingest (all
-    // 361 live items carry a cluster id). Measured against the live catalog, of
-    // the 9,674 item pairs tag Jaccard would block, embeddings agree with only
-    // 18.2% — it was rejecting things like "Discovery Papiamento Distillery" vs
-    // "Luxury Four-Course Caribbean Dinner Cruise" for sharing generic food and
-    // evening tags. Wrong four times out of five is worse than not running.
+    // This was briefly changed to make the cluster authoritative either way, on
+    // the reasoning that of the 9,674 pairs tag Jaccard blocks, embeddings agree
+    // with only 18.2%. That inference was wrong: disagreement says nothing about
+    // which signal is correct, and on the pairs that matter the embedding is the
+    // one at fault. Different option codes of one base product get different
+    // cluster ids — 2455SUB vs 2455SEMI (Atlantis Submarine vs Semi-Submarine),
+    // 122173P3 vs 122173P1 (two party-bus pub crawls) — so cluster dedup waves
+    // them through. Measured over 54 plans with the cluster treated as
+    // authoritative, the submarine pair co-occurred in 9 trips and the party-bus
+    // pair in 35; with Jaccard restored as the second net, both go to zero and
+    // total fill drops only 1284 -> 1249 slots.
+    //
+    // Note championsByExperience already allows at most one item per cluster
+    // into the fill pool, so usedClusterIds rarely fires there at all — Jaccard
+    // is doing nearly all the real work on live data.
     const cid = e.bestSeller.experience_cluster_id;
-    if (cid) {
-      return ctx.usedClusterIds.has(cid) ? `experience cluster "${cid}" already placed` : null;
-    }
-    // No cluster id: the embedding provider is unset or the run failed, so fall
-    // back to the coarse nets. This is the path the offline stub and the test
-    // fixtures take, and the path production would take if the secret were ever
-    // removed — tag Jaccard is imprecise but it is better than nothing when the
-    // precise signal is absent. Historical note on why it used to run always:
-    // without a provider the feed's "cluster_id" was just a per-product code
-    // (e.g. 6841ISLAND vs 6841POOL for two near-identical Natural-Pool jeep
-    // safaris), so distinct codes slipped past cluster-dedup and tag Jaccard was
-    // the only thing recognising them as one experience.
+    if (cid && ctx.usedClusterIds.has(cid)) return `experience cluster "${cid}" already placed`;
+    // Second net, for everything the cluster missed — which is most things,
+    // since the champion pool has already thinned each cluster to one item.
     const tags = e.bestSeller.tags ?? [];
     if (tags.length === 0) {
       // Neither cluster id nor tags: the Viator group is the only "same
       // experience" signal left (hand-written stub / thin offline catalog).
-      if (!ctx.usedGroupIds.has(e.group.id)) return null;
+      // Unreachable on live data — every live item carries both.
+      if (cid || !ctx.usedGroupIds.has(e.group.id)) return null;
       return `group "${e.group.id}" already placed (item has neither tags nor a cluster id)`;
     }
     const hit = ctx.usedTagSets.find((used) => tagJaccard(tags, used) >= TAG_SIMILARITY_THRESHOLD);
@@ -832,7 +835,10 @@ export function generatePlan(
   // catalog where nothing clears 25 reviews would otherwise blank every slot.
   // Unreachable on today's live data (83 champions), but the cliff is one line
   // to remove and a blank itinerary is the worst output this app can produce.
-  const flooredItems = champions.length > 0 ? champions : filteredCatalog.items;
+  // Falls back to `eligible`, NOT filteredCatalog.items — the retail/service
+  // rule is a quality floor that must survive the fallback, or an exhausted
+  // pool would quietly start suggesting jewellery showrooms.
+  const flooredItems = champions.length > 0 ? champions : eligible;
   // Prefer the bookable Viator experience over a hand-written local pick that
   // duplicates it: if the live catalog actually has a matching guided tour, drop
   // the self-guided local from the auto-fill pool so the slot goes to the
@@ -1001,6 +1007,11 @@ export function generatePlan(
     // fit, capped by trip length.
     const bestPerGroup = new Map<string, { item: ViatorItem; group: ViatorGroup; score: number }>();
     for (const item of filteredCatalog.items) {
+      // Sourcing from filteredCatalog deliberately skips the champion narrowing
+      // (see above), but must NOT skip the retail/service rule — this is an
+      // auto-suggestion path like any other. Latent today (no retail product is
+      // >= $500) and closed before it isn't.
+      if (isRetailOrService(item)) continue;
       if (budgetTag(item.price_usd) !== 'money-no-object') continue; // premium tier only
       if (claimedItemIds.has(item.id)) continue;                     // already pinned or a staple
       // Off-road is a single-per-trip route family, not a "splurge in addition"
@@ -1080,7 +1091,6 @@ export function generatePlan(
     // every dedup rule combined — and left evenings 46.5% filled against 91.8%
     // for daytime. A day out and a dinner are not the same budget.
     let dayMin = 0;
-    let eveMin = 0;
     const blocked = new Set<Slot>();
     const dayTheme = themeGroups.length ? themeGroups[(d - 1) % themeGroups.length] : undefined;
     // Book a pick's time and, if it overruns its slot window, spread it into the
@@ -1088,11 +1098,11 @@ export function generatePlan(
     // between consecutive activities (none before the day's first).
     const commit = (pick: CardEntry, slot: Slot) => {
       const dur = entryDurationMin(pick);
-      if (slot === 'evening') {
-        eveMin += (eveMin > 0 ? BUFFER_MIN : 0) + dur;
-      } else {
-        dayMin += (picks.length > 0 ? BUFFER_MIN : 0) + dur;
-      }
+      // Only DAYTIME time accrues to dayMin; the evening is capped per-item
+      // instead (see `feasible`), because a slot holds exactly one pick and a
+      // pre-placed evening skips the ladder entirely — an evening accumulator
+      // would never be read.
+      if (slot !== 'evening') dayMin += (picks.length > 0 ? BUFFER_MIN : 0) + dur;
       // Spread still applies across the boundary: a 5h afternoon tour really
       // does eat the evening, and that is a physical fact rather than a budget.
       if (dur > SLOT_WINDOW_MIN[slot]) {
@@ -1188,8 +1198,11 @@ export function generatePlan(
       const maxP = freeOnly ? 0 : Math.max(0, budgetLeft);
       // Reject any candidate that would push the day past its 8h activity budget
       // (buffer counted only when something is already booked today).
+      // The evening is capped on its own, but the crossover buffer IS charged:
+      // getting from an afternoon tour to dinner costs the same hour as any
+      // other hop, so after a busy day only a <=3h evening fits.
       const feasible = (e: CardEntry) => (slot === 'evening'
-        ? eveMin + (eveMin > 0 ? BUFFER_MIN : 0) + entryDurationMin(e) <= EVENING_CAP_MIN
+        ? (picks.length > 0 ? BUFFER_MIN : 0) + entryDurationMin(e) <= EVENING_CAP_MIN
         : dayMin + (picks.length > 0 ? BUFFER_MIN : 0) + entryDurationMin(e) <= DAY_CAP_MIN);
       // Theme-first: the day's anchor (first placed) slot is biased toward the
       // day theme; later slots fill freely (variety).

@@ -224,9 +224,13 @@ where they disagree with this section, this section wins.
   (highest rating) stays root. Greedy single-pass was the failure mode it
   replaced — two jeep safaris at 0.83 could attach to different founders and both
   survive.
-- **Cluster dedup and tag Jaccard both run.** `similarReason` checks
-  `usedClusterIds` first, then applies tag Jaccard regardless. They are layered
-  nets, not alternatives.
+- **Cluster dedup and tag Jaccard are layered nets.** `similarReason` checks
+  `usedClusterIds` first; a hit is conclusive, a MISS falls through to tag
+  Jaccard. Making the cluster authoritative either way was tried and reverted —
+  `championsByExperience` already allows one item per cluster into the pool, so
+  `usedClusterIds` almost never fires there, and different option codes of one
+  base product get different cluster ids (2455SUB vs 2455SEMI). Jaccard does
+  nearly all the real work on live data.
 
 ### What actually limits plan variety (measured 2026-08-02)
 
@@ -240,9 +244,8 @@ entirely recovers only ~16 slots and 14 products. Ranked by actual cost:
    redundant variants of popular experiences while deleting whole experiences
    whose members were all modestly reviewed. It wiped **96 of 161 distinct
    experiences entirely**. Replaced by `championsByExperience` (below).
-2. **Catalog size** — the real ceiling. **74 of 161** experiences have a member
-   with 25+ reviews, giving a champion pool of ~83 (74 gated plus crowd-pleaser
-   exemptions). A 14-day trip needs ~36 picks and no-repeat dedup retires a
+2. **Catalog size** — the real ceiling. **72 of 155** eligible experiences (retail and photo services excluded) have a member
+   with 25+ reviews, giving a champion pool of ~81. A 14-day trip needs ~36 picks and no-repeat dedup retires a
    cluster on first use, so once slot, section, budget and geo constraints
    narrow those 74 per persona, long trips still cannot fill. An ingestion
    problem; no constant fixes it. (An earlier draft of this section said "~50",
@@ -279,15 +282,20 @@ and mutating `popularity_score` to disable it also zeroes the ranking bonus at
 ### Cluster sizes (context, not the headline)
 
 Union-find is transitive, so A~B and B~C merge A and C even when A and C are far
-apart. Post-transport-filter the catalog is 333 items in 161 clusters, sizes
+apart. Post-transport-filter the catalog is ~334 items in 161 clusters, sizes
 73, 23, 15, 12, 9, 7, 7, 6 … 136 singletons. The 73-item cluster mixes
 small-group UTV, private jeep and 4x4 Natural-Pool tours. Worth revisiting
 `EMBEDDING_CLUSTER_THRESHOLD` eventually, but it ranks behind the two above.
 
 To inspect: `npm run trace -- --persona adventurer --days 14 --verbose`, then grep
-`experience cluster`. Note that rejection *counts* (~1240 tag Jaccard / 680 route
-family / 661 cluster on a 14-day plan) measure how often a rule fires, not what it
-costs — a rule can fire constantly and cost nothing while alternatives remain.
+`experience cluster`. On a 14-day adventurer plan the rules now fire roughly
+640 (tag Jaccard) / 112 (route family) / 33 (cluster). Cluster fires rarely BY
+DESIGN: `championsByExperience` has already admitted only one item per cluster
+to the pool, so tag Jaccard is the net actually catching duplicates — which is
+why making the cluster authoritative removed dedup almost entirely.
+
+Note that rejection *counts* measure how often a rule fires, not what it costs —
+a rule can fire constantly and cost nothing while alternatives remain.
 
 ## Known limitations / open items
 

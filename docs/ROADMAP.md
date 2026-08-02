@@ -20,8 +20,8 @@ Tracked in detail in `docs/matching-engine/development-log.md`:
   `experience_cluster_id`). Over-clustering was investigated and ranks third
   behind the pool rule and catalog size — see "What actually limits plan variety"
   in the dev log.
-- **Catalog size is the real variety ceiling.** 74 of 161 distinct experiences
-  have a member with 25+ reviews (champion pool ~83), so a 14-day trip (~36
+- **Catalog size is the real variety ceiling.** 72 of 155 eligible experiences (after retail/photo-service exclusion)
+  have a member with 25+ reviews (champion pool ~81), so a 14-day trip (~36
   picks, cluster retired on first use, further narrowed per persona by slot,
   section, budget and geo) still cannot fill. Broader Viator taxonomy ingestion
   is the fix; no constant will do it.

@@ -526,6 +526,51 @@ describe('generatePlan — champion-per-experience fill pool', () => {
       .not.toEqual(placedIds(cat, { ...DEFAULT_ANSWERS, days: 10 }, 1));
   });
 
+  // Regression cover for the three engine rules that shipped without any, and
+  // for the bug that produced: making the embedding cluster authoritative
+  // removed the only semantic net that fires, because championsByExperience has
+  // already thinned each cluster to one item. Near-identical products with
+  // DIFFERENT cluster ids (2455SUB vs 2455SEMI on the live feed) then co-occur.
+  it('blocks a near-duplicate that has a different cluster id but overlapping tags', () => {
+    const cat = clusteredCatalog({ clusters: 30, reviews: () => 400 });
+    // Two "same experience, different option code" items: distinct clusters,
+    // heavily overlapping Viator tags. Only one may land across the trip.
+    const shared = [101, 102, 103, 104, 105, 106, 107, 108];
+    cat.items[0] = { ...cat.items[0], id: 'sub-full', title: 'Atlantis Submarine Expedition', experience_cluster_id: 'X-SUB', tags: shared };
+    cat.items[1] = { ...cat.items[1], id: 'sub-semi', title: 'Atlantis Semi-Submarine Cruise', experience_cluster_id: 'X-SEMI', tags: shared };
+    const placed = placedIds(cat, { ...DEFAULT_ANSWERS, days: 14 }, 3);
+    const both = placed.includes('sub-full') && placed.includes('sub-semi');
+    expect(both).toBe(false);
+  });
+
+  it('never auto-fills a retail or photo-service product', () => {
+    const cat = clusteredCatalog({ clusters: 30, reviews: () => 500 });
+    cat.items[0] = { ...cat.items[0], id: 'retail-1', title: 'Diamond Shopping Experience with Champagne' };
+    cat.items[1] = { ...cat.items[1], id: 'photo-1', title: 'Professional Sunset Photoshoot in Aruba' };
+    const placed = placedIds(cat, { ...DEFAULT_ANSWERS, days: 14 }, 1);
+    expect(placed).not.toContain('retail-1');
+    expect(placed).not.toContain('photo-1');
+  });
+
+  it('still places a retail product when the traveller pins it', () => {
+    const cat = clusteredCatalog({ clusters: 30, reviews: () => 500 });
+    cat.items[0] = { ...cat.items[0], id: 'retail-1', title: 'Diamond Shopping Experience with Champagne' };
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 7 }, cat, { pinned: ['item:retail-1'] });
+    const landed = plan.some((d) => [...d.morning, ...d.afternoon, ...d.evening].some(
+      (e) => e.kind === 'group' && e.bestSellerId === 'retail-1'));
+    expect(landed).toBe(true);
+  });
+
+  it('caps the evening on its own budget, crossover buffer included', () => {
+    // An 8h evening item can never fit EVENING_CAP_MIN (240) however empty the
+    // day is; a 2h one can. Both are evening-titled so itemSlotOk admits them.
+    const cat = clusteredCatalog({ clusters: 30, reviews: () => 400 });
+    cat.items[0] = { ...cat.items[0], id: 'eve-long', title: 'Sunset Dinner Marathon', duration: '8 hrs' };
+    cat.items[1] = { ...cat.items[1], id: 'eve-short', title: 'Sunset Dinner Sail', duration: '2 hrs' };
+    const placed = placedIds(cat, { ...DEFAULT_ANSWERS, days: 14 }, 5);
+    expect(placed).not.toContain('eve-long');
+  });
+
   it('a pinned thin item still lands (explicit choice beats the pool rule)', () => {
     const cat = clusteredCatalog({ clusters: 30, reviews: (i) => (i === 0 ? 1 : 400) });
     const niche = cat.items[0];
