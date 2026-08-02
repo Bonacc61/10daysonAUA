@@ -871,8 +871,11 @@ function Section({
                 onClick={() => setShortlistOpen((v) => !v)}
                 aria-expanded={shortlistOpen}
               >
-                <span className="itin-shortlist-toggle-icon" aria-hidden>♥</span>
-                <span className="itin-shortlist-toggle-label">Add from favourites</span>
+                <span className="itin-shortlist-toggle-spacer" aria-hidden />
+                <span className="itin-shortlist-toggle-label">
+                  <span className="itin-shortlist-heart" aria-hidden>♥</span>
+                  Add from favourites
+                </span>
                 <span className="itin-shortlist-toggle-icon end" aria-hidden>{shortlistOpen ? '▲' : '▼'}</span>
               </button>
               {shortlistOpen && (
