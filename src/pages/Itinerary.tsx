@@ -847,51 +847,10 @@ function Section({
       )}
       <SortableContext items={cards.map((c) => c.uid)} strategy={verticalListSortingStrategy}>
         <div ref={setNodeRef} className={`itin-section-zone${isOver ? ' over' : ''}${cards.length === 0 ? ' empty' : ''}`}>
-          {cards.length === 0 && (
-            hasShortlist ? (
-              <div className="itin-section-empty has-shortlist">
-                <button
-                  type="button"
-                  className="itin-shortlist-toggle"
-                  onClick={() => setShortlistOpen((v) => !v)}
-                  aria-expanded={shortlistOpen}
-                >
-                  <span style={{ fontSize: 13 }}>♥</span>
-                  Add from favourites
-                  <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.7 }}>{shortlistOpen ? '▲' : '▼'}</span>
-                </button>
-                {shortlistOpen && (
-                  <div className="itin-shortlist-picker">
-                    {h.shortlistEntries.map(({ rawId, entry }) => {
-                      const name     = entry.kind === 'activity' ? entry.activity.title        : entry.bestSeller.title;
-                      const duration = entry.kind === 'activity' ? entry.activity.duration     : entry.bestSeller.duration;
-                      const isFree   = entry.kind === 'activity' ? parseActivityCost(entry.activity.cost) === 0 : entry.bestSeller.price_usd === 0;
-                      const price    = entry.kind === 'activity' ? entry.activity.cost         : `$${entry.bestSeller.price_usd}`;
-                      return (
-                        <button
-                          key={rawId}
-                          type="button"
-                          className="itin-shortlist-item"
-                          onClick={() => { h.onAddSlotEntry(dayNum, section, entry); setShortlistOpen(false); }}
-                        >
-                          <span style={{ display: 'block', marginBottom: 4 }}>{name}</span>
-                          <span style={{ display: 'flex', gap: 8, fontSize: 11, fontWeight: 600, opacity: 0.9 }}>
-                            {duration && <span>⏱ {duration}</span>}
-                            {isFree
-                              ? <span style={{ background: 'var(--green)', color: 'var(--cream)', borderRadius: 999, padding: '1px 7px' }}>Free</span>
-                              : <span>{price}</span>}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="itin-section-empty">
-                {h.readOnly ? 'Nothing planned.' : `Drop an activity here, add one from a card's "Other suggestions", or ♥ a few in Explore and pick from your favourites.`}
-              </div>
-            )
+          {cards.length === 0 && !hasShortlist && (
+            <div className="itin-section-empty">
+              {h.readOnly ? 'Nothing planned.' : `Drop an activity here, add one from a card's "Other suggestions", or ♥ a few in Explore and pick from your favourites.`}
+            </div>
           )}
           {cards.map((card) => {
             const entry = h.resolveEntry(card.entry, section);
@@ -900,6 +859,65 @@ function Section({
               <SortableCard key={card.uid} card={card} entry={entry} section={section} dayNum={dayNum} {...h} />
             );
           })}
+          {/* Sits AFTER the cards and is gated only on having favourites — never
+              on the section being empty. Gating it on empty meant "Suggest lunch
+              spot" filled the slot and took the picker with it, removing the only
+              way to add a second activity to that section. */}
+          {hasShortlist && (
+            <div className="itin-section-empty has-shortlist">
+              <button
+                type="button"
+                className="itin-shortlist-toggle"
+                onClick={() => setShortlistOpen((v) => !v)}
+                aria-expanded={shortlistOpen}
+              >
+                <span className="itin-shortlist-toggle-icon" aria-hidden>♥</span>
+                <span className="itin-shortlist-toggle-label">Add from favourites</span>
+                <span className="itin-shortlist-toggle-icon end" aria-hidden>{shortlistOpen ? '▲' : '▼'}</span>
+              </button>
+              {shortlistOpen && (
+                <div className="itin-shortlist-picker">
+                  <div className="itin-shortlist-track">
+                    {h.shortlistEntries.map(({ rawId, entry }) => {
+                      const name     = entry.kind === 'activity' ? entry.activity.title        : entry.bestSeller.title;
+                      const duration = entry.kind === 'activity' ? entry.activity.duration     : entry.bestSeller.duration;
+                      const isFree   = entry.kind === 'activity' ? parseActivityCost(entry.activity.cost) === 0 : entry.bestSeller.price_usd === 0;
+                      const price    = entry.kind === 'activity' ? entry.activity.cost         : `$${entry.bestSeller.price_usd}`;
+                      const image    = entry.kind === 'activity' ? entry.activity.image        : entry.bestSeller.image_url;
+                      return (
+                        <button
+                          key={rawId}
+                          type="button"
+                          className="itin-shortlist-item"
+                          onClick={() => { h.onAddSlotEntry(dayNum, section, entry); setShortlistOpen(false); }}
+                        >
+                          <span className="itin-shortlist-item-media">
+                            {image && (
+                              /* Same failure handling as the map strip: a dead
+                                 Viator image collapses to the sand placeholder
+                                 rather than showing a broken-image glyph. */
+                              <img
+                                src={image}
+                                alt=""
+                                onError={(ev) => { (ev.target as HTMLImageElement).style.display = 'none'; }}
+                              />
+                            )}
+                          </span>
+                          <span className="itin-shortlist-item-title">{name}</span>
+                          <span className="itin-shortlist-item-meta">
+                            {duration && <span>⏱ {duration}</span>}
+                            {isFree
+                              ? <span className="itin-shortlist-free">Free</span>
+                              : <span>{price}</span>}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </SortableContext>
     </div>
