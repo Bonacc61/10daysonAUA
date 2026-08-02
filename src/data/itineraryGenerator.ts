@@ -69,9 +69,9 @@ const INTEREST_SECTIONS: Partial<Record<MatchTag, Section[]>> = {
 };
 
 // Popularity floor for the auto-generated plan: items in the bottom quartile of
-// their budget tier (popularity_score < 0.25, set by normalizePopularity at
-// catalog load) never enter the fill pool. Bookability philosophy: suggest few,
-// highly-booked activities rather than fill every slot with niche products.
+// their budget tier (popularity_score, set by normalizePopularity at catalog
+// load) never enter the fill pool. Bookability philosophy: suggest few, highly-
+// booked activities rather than fill every slot with niche products.
 // Percentile-based, so the floor rescales automatically with the live catalog.
 // Items without a score (raw test fixtures) pass — only a known-low rank drops.
 //
@@ -232,12 +232,89 @@ function scoreEntry(e: CardEntry, tags: Set<MatchTag>, prefSections: Set<Section
   return score;
 }
 
+// --- Trace instrumentation (opt-in, off in the app) -------------------------
+// The engine discards candidates for five reported reasons and, once a plan is
+// returned, every one of those decisions is gone — leaving "why did two jeep
+// safaris land on consecutive days?" to be answered by reading the source.
+// Passing `onTrace` to generatePlan makes it narrate instead. Nothing is
+// computed unless a callback is supplied; the diagnostic runs AFTER the pick is
+// made, over the same ctx state, so it reports the real decision rather than a
+// re-simulation of it.
+
+export type TraceRejectReason =
+  | 'already-placed'      // lastUsedDay — this exact id is elsewhere in the trip
+  | 'similar-to-placed'   // notSimilar — cluster / tag-Jaccard / route family
+  | 'day-time-budget'     // would push the day past DAY_CAP_MIN
+  | 'same-kind-today'     // variety pass only; relaxed on the second run
+  | 'over-budget';        // price > maxPrice for this slot
+
+export type TraceRejection = {
+  id: string;
+  title: string;
+  reason: TraceRejectReason;
+  detail?: string;
+};
+
+/** Which rung of the fill ladder produced the pick. */
+export type TraceTier =
+  | 'affordable+on-theme'
+  | 'affordable+widened'
+  | 'over-budget+on-theme'
+  | 'over-budget+widened';
+
+export type TraceEvent =
+  | {
+      type: 'slot';
+      day: number;
+      slot: Slot;
+      maxPrice: number;
+      /** Candidate pool sizes before any dedup/feasibility filtering. */
+      matched: number;
+      widened: number;
+      tier: TraceTier | null;
+      /** True when the variety gate (newKind) had to be dropped to fill the slot. */
+      relaxedKind: boolean;
+      picked: { id: string; title: string; price: number } | null;
+      rejections: TraceRejection[];
+      /**
+       * Candidates that cleared every gate but were out-ranked by the pick. These
+       * are NOT rejections — `ranked` put the pick first — so they are counted,
+       * not listed. A slot with survivors > 0 and picked === null cannot happen.
+       */
+      survivors: number;
+    }
+  | {
+      type: 'preplaced';
+      day: number;
+      slot: Slot;
+      source: 'pin' | 'premium' | 'staple';
+      id: string;
+      title: string;
+    }
+  | {
+      type: 'skipped';
+      day: number;
+      slot: Slot;
+      reason: 'open-afternoon' | 'no-early-mornings' | 'blocked-by-overrun';
+    };
+
+/** Event as emitted from pickForSlot, before generatePlan stamps the day. */
+type SlotTrace = Omit<Extract<TraceEvent, { type: 'slot' }>, 'day' | 'type'>;
+
+function entryTitle(e: CardEntry): string {
+  return e.kind === 'group' ? e.bestSeller.title : e.activity.title;
+}
+// ---------------------------------------------------------------------------
+
 type Ctx = {
   catalog: Catalog;
   tags: Set<MatchTag>;
   prefSections: Set<Section>;
   rand: () => number;
   lastUsedDay: Map<string, number>;
+  // Set only when generatePlan was given an onTrace callback. Undefined in the
+  // app, which is what keeps this whole mechanism zero-cost in production.
+  trace?: (ev: SlotTrace) => void;
   // groupId → group, built once. Each per-item candidate resolves its group
   // through this (for scoring via group.matched_by and for the stored
   // {groupId, bestSellerId} SlotEntry) without a per-item linear scan. Booking-
@@ -406,15 +483,19 @@ function pickForSlot(
   // Fallback: Viator tag-ID Jaccard (used when no embedding provider was set).
   // Local activities (no Viator tags, no cluster ID) bypass both — they dedupe
   // by item ID via lastUsedDay only.
-  const notSimilar = (e: CardEntry): boolean => {
+  // Returns WHY this candidate duplicates something already placed, or null if it
+  // doesn't. `notSimilar` below is the boolean the ladder actually uses — the two
+  // must never diverge, which is why the reason string is the primary form: the
+  // trace and the decision read from the same code.
+  const similarReason = (e: CardEntry): string | null => {
     // Route family: one off-road tour per trip (they share the same circuit),
     // applies to Viator groups and local picks alike.
     const fam = routeFamilyOf(e);
-    if (fam && ctx.usedRouteFamilies.has(fam)) return false;
-    if (e.kind !== 'group') return true;
+    if (fam && ctx.usedRouteFamilies.has(fam)) return `route family "${fam}" already placed this trip`;
+    if (e.kind !== 'group') return null;
     // Same embedding cluster → definitely the same experience.
     const cid = e.bestSeller.experience_cluster_id;
-    if (cid && ctx.usedClusterIds.has(cid)) return false;
+    if (cid && ctx.usedClusterIds.has(cid)) return `experience cluster "${cid}" already placed`;
     // ALSO apply the tag-Jaccard net even when a cluster ID is present. Without an
     // embedding provider the live feed's "cluster_id" is just a per-product code
     // (e.g. 6841ISLAND vs 6841POOL for two near-identical Natural-Pool jeep
@@ -426,10 +507,15 @@ function pickForSlot(
       // No tags: with no cluster id either, the Viator group is the only "same
       // experience" signal left (hand-written stub / thin offline catalog) — dedup
       // by it. With a cluster id present, cluster dedup above already covers it.
-      return cid ? true : !ctx.usedGroupIds.has(e.group.id);
+      if (cid || !ctx.usedGroupIds.has(e.group.id)) return null;
+      return `group "${e.group.id}" already placed (item has neither tags nor a cluster id)`;
     }
-    return !ctx.usedTagSets.some((used) => tagJaccard(tags, used) >= TAG_SIMILARITY_THRESHOLD);
+    const hit = ctx.usedTagSets.find((used) => tagJaccard(tags, used) >= TAG_SIMILARITY_THRESHOLD);
+    return hit
+      ? `tag Jaccard ${tagJaccard(tags, hit).toFixed(2)} >= ${TAG_SIMILARITY_THRESHOLD} vs an already-placed item`
+      : null;
   };
+  const notSimilar = (e: CardEntry): boolean => similarReason(e) === null;
 
   const matchedAll = ranked(ctx, candidatesFor(ctx, slot, ctx.tags), anchor, anchorCoord, themeGroupId);
   const widenedAll = ranked(ctx, candidatesFor(ctx, slot, null), anchor, anchorCoord, themeGroupId);
@@ -440,16 +526,78 @@ function pickForSlot(
   // FEASIBLE picks: affordable on-theme → affordable widened → over-budget
   // on-theme → over-budget widened. `kindOk` gates every tier by same-day kind
   // variety. When nothing remains, we return null and the slot stays open.
-  const runLadder = (kindOk: (e: CardEntry) => boolean): CardEntry | null => {
+  const runLadder = (kindOk: (e: CardEntry) => boolean): { pick: CardEntry; tier: TraceTier } | null => {
     const ok = (list: CardEntry[]) => list.filter(kindOk).filter(notSimilar).filter(feasible);
-    const firstTwo = ok(matched).find(unused) ?? ok(widened).find(unused) ?? null;
+    const t1 = ok(matched).find(unused);
+    if (t1) return { pick: t1, tier: 'affordable+on-theme' };
+    const t2 = ok(widened).find(unused);
+    if (t2) return { pick: t2, tier: 'affordable+widened' };
     // When maxPrice === 0 (arrival-day free-only rule), never fall through to the
     // over-budget tiers — leave the slot open rather than place a paid item.
-    if (firstTwo !== null || maxPrice === 0) return firstTwo;
-    return ok(matchedAll).find(unused) ?? ok(widenedAll).find(unused) ?? null;
+    if (maxPrice === 0) return null;
+    const t3 = ok(matchedAll).find(unused);
+    if (t3) return { pick: t3, tier: 'over-budget+on-theme' };
+    const t4 = ok(widenedAll).find(unused);
+    if (t4) return { pick: t4, tier: 'over-budget+widened' };
+    return null;
   };
 
-  return runLadder(newKind) ?? runLadder(() => true);
+  const strict = runLadder(newKind);
+  const result = strict ?? runLadder(() => true);
+
+  if (ctx.trace) {
+    // Runs over the same ctx state the ladder just used, so what it reports is
+    // the decision that was actually made. `kindOk` mirrors whichever pass won.
+    const kindOk: (e: CardEntry) => boolean = strict ? newKind : () => true;
+    const pickedId = result ? entryId(result.pick) : null;
+    const seen = new Set<string>();
+    const rejections: TraceRejection[] = [];
+    let survivors = 0;
+    for (const e of [...matchedAll, ...widenedAll]) {
+      const id = entryId(e);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      if (id === pickedId) continue;
+      const title = entryTitle(e);
+      const sim = similarReason(e);
+      // Most-decisive-first, which is deliberately NOT the ladder's filter order
+      // (the ladder applies kindOk → notSimilar → feasible, then find(unused)).
+      // A candidate can fail several gates; it is reported under the first that
+      // applies here, because "already placed on day 3" explains more than
+      // "same kind today" does.
+      if (!unused(e)) {
+        rejections.push({ id, title, reason: 'already-placed', detail: `placed on day ${ctx.lastUsedDay.get(id)}` });
+      } else if (sim) {
+        rejections.push({ id, title, reason: 'similar-to-placed', detail: sim });
+      } else if (!feasible(e)) {
+        rejections.push({ id, title, reason: 'day-time-budget' });
+      } else if (!kindOk(e)) {
+        rejections.push({ id, title, reason: 'same-kind-today', detail: `kind "${entryKind(e)}" already placed today` });
+      } else if (maxPrice === 0 && !affordable(e)) {
+        // Price is only ever DECISIVE on a free-only arrival day. Everywhere else
+        // the over-budget tiers still run, so an unaffordable item that got this
+        // far was out-ranked, not rejected — it counts as a survivor.
+        rejections.push({ id, title, reason: 'over-budget', detail: `$${entryPrice(e)} on a free-only arrival day` });
+      } else {
+        survivors += 1;
+      }
+    }
+    ctx.trace({
+      slot,
+      maxPrice,
+      matched: matchedAll.length,
+      widened: widenedAll.length,
+      tier: result?.tier ?? null,
+      relaxedKind: strict === null && result !== null,
+      picked: result
+        ? { id: entryId(result.pick), title: entryTitle(result.pick), price: entryPrice(result.pick) }
+        : null,
+      rejections,
+      survivors,
+    });
+  }
+
+  return result?.pick ?? null;
 }
 
 // FNV-1a hash of the tailoring-relevant answers, so the default seed (and thus
@@ -584,7 +732,7 @@ export function findPinSlot(
 export function generatePlan(
   answers: Answers,
   catalog: Catalog,
-  opts: { seed?: number; pinned?: string[] } = {},
+  opts: { seed?: number; pinned?: string[]; onTrace?: (ev: TraceEvent) => void } = {},
 ): Day[] {
   const tags = answersToTags(answers);
   const prefSections = new Set<Section>();
@@ -595,13 +743,10 @@ export function generatePlan(
   // Ticked Q8 pills UNION free-text contraindications ("seasick" → no-boats).
   const flags = effectiveFlags(answers);
   const filteredCatalog = applyCatalogFlags(catalog, flags);
-  // The auto-fill pool excludes low-bookability items (bottom of their budget
-  // tier by popularity) — we'd rather leave a slot open than suggest a niche
-  // product few travellers actually book. Explore still shows everything, and
-  // pins resolve against the unfloored catalog: an explicit shortlist choice
-  // always beats this heuristic. Crowd-pleasers are exempt from the floor: they
-  // are curated as universally bookable, so a lightly-reviewed catamaran or
-  // Natural Pool tour must not be filtered out before its boost can apply.
+  // Narrow to one well-reviewed champion per experience — see
+  // championsByExperience. We'd rather leave a slot open than suggest a niche
+  // product few travellers actually book, but we would also rather show fifty
+  // distinct experiences than forty-four with duplicates.
   const floorApplies = filteredCatalog.items.length >= MIN_CATALOG_TO_FLOOR;
   const flooredItems = !floorApplies ? filteredCatalog.items : filteredCatalog.items.filter(
     (i) => i.popularity_score === undefined
@@ -820,8 +965,15 @@ export function generatePlan(
   // groups first), and its anchor slot is biased toward that theme.
   const themeGroups = themeGroupsFor(fillCatalog, tags);
 
+  // Trace wiring: pickForSlot doesn't know which day it's filling, so the day is
+  // stamped on here. Left undefined (and therefore free) when no callback given.
+  const emit = opts.onTrace;
+  let traceDay = 0;
+  if (emit) ctx.trace = (ev) => emit({ type: 'slot', day: traceDay, ...ev });
+
   const days: Day[] = [];
   for (let d = 1; d <= nDays; d += 1) {
+    traceDay = d;
     const slots: Record<Slot, SlotEntry[]> = { morning: [], afternoon: [], evening: [] };
     const picks: CardEntry[] = [];
     const usedKinds = new Set<string>(); // activity-kinds placed today (variety)
@@ -853,12 +1005,19 @@ export function generatePlan(
     const openAfternoon = nDays > 1 && (d === 1 || d === nDays);
 
     for (const slot of SECTIONS) {
-      if (slot === 'afternoon' && openAfternoon) continue;
-      if (slot === 'morning' && flags.has('no-early-mornings')) continue;
+      if (slot === 'afternoon' && openAfternoon) {
+        emit?.({ type: 'skipped', day: d, slot, reason: 'open-afternoon' });
+        continue;
+      }
+      if (slot === 'morning' && flags.has('no-early-mornings')) {
+        emit?.({ type: 'skipped', day: d, slot, reason: 'no-early-mornings' });
+        continue;
+      }
 
       const pin = pinnedSlots.get(d)?.get(slot);
       if (pin) {
         const { cardEntry: pick, slotEntry } = pin;
+        emit?.({ type: 'preplaced', day: d, slot, source: 'pin', id: entryId(pick), title: entryTitle(pick) });
         budgetLeft -= entryPrice(pick);
         ctx.lastUsedDay.set(entryId(pick), d);
         { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
@@ -888,9 +1047,15 @@ export function generatePlan(
       // fallback would wrongly suppress a distinct-but-related crowd-pleaser (a
       // charter and a party cruise share sail tags) — exactly the second pick
       // we want.
-      const autoPlaced = premiumSlots.get(d)?.get(slot) ?? stapleSlots.get(d)?.get(slot);
+      const premium = premiumSlots.get(d)?.get(slot);
+      const autoPlaced = premium ?? stapleSlots.get(d)?.get(slot);
       if (autoPlaced) {
         const { cardEntry: pick, slotEntry } = autoPlaced;
+        emit?.({
+          type: 'preplaced', day: d, slot,
+          source: premium ? 'premium' : 'staple',
+          id: entryId(pick), title: entryTitle(pick),
+        });
         budgetLeft -= entryPrice(pick);
         ctx.lastUsedDay.set(entryId(pick), d);
         { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
@@ -909,7 +1074,10 @@ export function generatePlan(
 
       // A prior long activity spread into this slot — leave it free (issue:
       // don't overbook). Pins/premium/staples above are explicit and still place.
-      if (blocked.has(slot)) continue;
+      if (blocked.has(slot)) {
+        emit?.({ type: 'skipped', day: d, slot, reason: 'blocked-by-overrun' });
+        continue;
+      }
 
       // Arrival day (day 1) is a free/chill settle-in day — no paid tours.
       // Single-day trips are exempted (the traveller has no other day).
