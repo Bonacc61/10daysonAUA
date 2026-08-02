@@ -80,7 +80,7 @@ export type ViatorItem = {
 
 // === Slot pointers + card entries ===
 // `staple`: an island default the generator places for every traveller (sunrise
-// beach, catamaran sail, sunset, dinner by the water) rather than something the
+// beach, catamaran sail, beach at sunset, dinner by the water) rather than something the
 // answers produced. Like `pinned` it fixes the card's face; unlike `pinned` it
 // is ours, not the user's, so it carries its own badge. Additive and optional —
 // older stored plans and shared snapshots deserialise unchanged.

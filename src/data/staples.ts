@@ -7,9 +7,9 @@ import type { CardEntry, MatchTag, Slot, ViatorItem } from '../types';
  * Beach staples — the things every visitor does, answers or not.      *
  * ------------------------------------------------------------------ *
  * Four experiences a local would put in front of anyone who lands on   *
- * Aruba: a beach at sunrise, a catamaran sail, a sunset, and — on a    *
- * long enough trip — dinner by the water. The generator reserves a     *
- * slot for each BEFORE persona fill, so a plan never comes back        *
+ * Aruba: a beach at sunrise, a catamaran sail, a beach at sunset, and  *
+ * — on a long enough trip — dinner by the water. The generator reserves *
+ * a slot for each BEFORE persona fill, so a plan never comes back      *
  * without them just because the questionnaire skewed hard toward       *
  * off-road or culture.                                                 *
  *
@@ -38,6 +38,11 @@ export type StapleSpec = {
   // Local picks to use, best first. These are the free, editorial ones —
   // preferred for sunrise/sunset so we never charge for a sunset.
   localIds: string[];
+  // By default a local pick is chosen at random from whatever is still
+  // available, so regenerating rotates the sunrise beach. Set this when the
+  // FIRST entry is a promise rather than a preference — the later ids then
+  // serve only as fallbacks for when it is already pinned or shortlisted.
+  preferInOrder?: boolean;
   // Bookable Viator match. When present it wins over localIds: the sail and
   // the water dinner ARE the bookable experiences, and the local entry is
   // only a fallback for when the live catalog is unavailable.
@@ -59,13 +64,21 @@ export const STAPLE_SPECS: StapleSpec[] = [
     minDays: 1,
     localIds: ['eagle-beach-morning', 'malmok-beach', 'tres-trapi'],
   },
-  // Sunset. Local and free by design: the paid sunset sail is already
-  // covered by the water-dinner staple on longer trips.
+  // A beach at sunset. Local and free by design: the paid sunset sail is
+  // already covered by the water-dinner staple on longer trips.
+  //
+  // Manchebo leads deliberately, and preferInOrder makes that binding: the
+  // landing page promises "a beach at sunset", and Manchebo IS a beach, where
+  // the California Lighthouse is a cliffside lookout. Left to the default
+  // random pick the lighthouse would fill this staple about half the time and
+  // quietly break that promise. The lighthouse stays as the fallback for when
+  // Manchebo is already pinned or shortlisted.
   {
     key: 'sunset',
     preferred: ['evening'], fallback: [],
     minDays: 1,
-    localIds: ['california-lighthouse-sunset', 'manchebo-beach'],
+    localIds: ['manchebo-beach', 'california-lighthouse-sunset'],
+    preferInOrder: true,
   },
   // The catamaran sail. Daytime only — an evening title belongs to the
   // dinner staple below, not here.
@@ -158,7 +171,11 @@ export function resolveStaples(
         .filter((id) => !usedActivityIds.has(id))
         .map((id) => catalog.activities.find((a) => a.id === id))
         .filter((a): a is Activity => !!a);
-      const activity = available[Math.floor(rand() * available.length)];
+      // preferInOrder specs take the first available (the id IS the promise);
+      // everything else rotates so a regenerate visibly changes.
+      const activity = spec.preferInOrder
+        ? available[0]
+        : available[Math.floor(rand() * available.length)];
       if (activity) {
         entry = { kind: 'activity', activity };
         free = /^free/i.test(activity.cost.trim());
