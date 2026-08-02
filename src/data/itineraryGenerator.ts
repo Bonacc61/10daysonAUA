@@ -565,7 +565,9 @@ function pickForSlot(
     // "Luxury Four-Course Caribbean Dinner Cruise" for sharing generic food and
     // evening tags. Wrong four times out of five is worse than not running.
     const cid = e.bestSeller.experience_cluster_id;
-    if (cid && ctx.usedClusterIds.has(cid)) return `experience cluster "${cid}" already placed`;
+    if (cid) {
+      return ctx.usedClusterIds.has(cid) ? `experience cluster "${cid}" already placed` : null;
+    }
     // No cluster id: the embedding provider is unset or the run failed, so fall
     // back to the coarse nets. This is the path the offline stub and the test
     // fixtures take, and the path production would take if the secret were ever
