@@ -68,25 +68,80 @@ const INTEREST_SECTIONS: Partial<Record<MatchTag, Section[]>> = {
   'wellness-spa':    ['beaches'],
 };
 
-// Popularity floor for the auto-generated plan: items in the bottom quartile of
-// their budget tier (popularity_score, set by normalizePopularity at catalog
-// load) never enter the fill pool. Bookability philosophy: suggest few, highly-
-// booked activities rather than fill every slot with niche products.
-// Percentile-based, so the floor rescales automatically with the live catalog.
-// Items without a score (raw test fixtures) pass — only a known-low rank drops.
+// Auto-fill pool: ONE champion per experience cluster, gated on an absolute
+// review count. Explore still lists everything, and pins resolve against the
+// un-narrowed catalog — an explicit shortlist choice always beats this heuristic.
 //
-// Set to keep roughly the top 40% of each budget tier. The live Aruba catalog
-// runs to 361 products with a very long tail — 59% of it has under 50 reviews —
-// so the old 0.25 floor (top 75%) still let three-review private charters and
-// one-off kayak shoots auto-fill slots. Explore continues to list everything;
-// this floor only governs what the generator places unasked.
-const MIN_FILL_POPULARITY = 0.6;
-// The floor only applies to a catalog big enough to HAVE a long tail. Live is
-// 361 products; the offline stub is 20 hand-curated ones and the test fixtures
-// are smaller still — none has a tail to cut, and flooring them just starves the
-// plan (a lone item in a budget tier scores 0.5 from normalizePopularity as a
-// "cannot rank" sentinel, so a floor above 0.5 would delete it outright).
+// This replaced a within-budget-tier popularity percentile (MIN_FILL_POPULARITY
+// = 0.6). That floor ranked ITEMS and was blind to experience structure, so it
+// kept many redundant variants of a popular experience while deleting whole
+// experiences whose members were all modestly reviewed: measured on the live
+// catalog, it wiped 96 of 161 distinct experiences entirely.
+//
+// Measured over 45 plans (5 personas x 7/10/14 days x 3 seeds):
+//
+//   rule                        open   experiences   mean rating   <25 reviews
+//   percentile floor 0.6         343            44          4.69     10 of 59
+//   champion + 25-review gate    327            57          4.63      8 of 61
+//
+// A clear win on variety (+13 experiences, -16 open slots) and on thin products
+// (10 -> 8), with mean rating slipping 0.06. Both the slip and the 8 remaining
+// thin products come from the two deliberate bypasses of this rule: curated
+// crowd-pleasers, and the premium splurge pre-pass (which selects from
+// filteredCatalog — see the comment there for why a review gate is wrong for
+// $500+ products). Gating those too would measure ~324 open / 50 experiences /
+// 4.78 mean / 0 thin, at the cost of silently overriding curation and gutting
+// the splurge feature.
+//
+// See docs/matching-engine/development-log.md for the full sweep, including why
+// the raw top rating is the wrong champion rule (it admits 44% thinly-reviewed
+// products — 5.0-from-2-reviews beats 4.7-from-900).
+const MIN_CHAMPION_REVIEWS = 25;
+// Shrinkage prior for the champion score: a rating is pulled toward the catalog
+// mean until the product has roughly this many reviews to speak for itself.
+const CHAMPION_REVIEW_PRIOR = 50;
+// Pool narrowing only applies to a catalog big enough to HAVE a long tail. Live
+// is ~333 products after transport filtering; the offline stub is 20 hand-curated
+// ones and the test fixtures are smaller still — none has a tail to cut, and
+// narrowing them just starves the plan.
 const MIN_CATALOG_TO_FLOOR = 60;
+
+// Best item per experience cluster, then drop champions too thinly reviewed to
+// recommend unasked. Items with no cluster id (embedding provider down) each
+// form their own cluster, so this degrades safely to a plain review gate.
+// Crowd-pleasers are curated as universally bookable: they win their cluster
+// outright and bypass the review gate, so a lightly-reviewed catamaran or
+// Natural Pool tour still reaches the plan.
+function championsByExperience(items: ViatorItem[]): ViatorItem[] {
+  const meanRating = items.reduce((a, i) => a + i.rating, 0) / Math.max(1, items.length);
+  const score = (i: ViatorItem): number => {
+    const v = i.review_count ?? 0;
+    return (v / (v + CHAMPION_REVIEW_PRIOR)) * i.rating
+      + (CHAMPION_REVIEW_PRIOR / (v + CHAMPION_REVIEW_PRIOR)) * meanRating;
+  };
+  const best = new Map<string, ViatorItem>();
+  for (const item of items) {
+    const key = item.experience_cluster_id ?? item.id;
+    const cur = best.get(key);
+    if (!cur) { best.set(key, item); continue; }
+    const itemCP = isCrowdPleaser(item);
+    if (itemCP !== isCrowdPleaser(cur)) {
+      if (itemCP) best.set(key, item); // curated pick outranks a scored one
+      continue;
+    }
+    const si = score(item), sc = score(cur);
+    // Tiebreak on review count then id, so the pool is stable across catalog
+    // orderings (the generator is deterministic given a seed).
+    if (si > sc
+      || (si === sc && (item.review_count ?? 0) > (cur.review_count ?? 0))
+      || (si === sc && (item.review_count ?? 0) === (cur.review_count ?? 0) && item.id < cur.id)) {
+      best.set(key, item);
+    }
+  }
+  return [...best.values()].filter(
+    (i) => isCrowdPleaser(i) || (i.review_count ?? 0) >= MIN_CHAMPION_REVIEWS,
+  );
+}
 
 // Premium splurge rule: money-no-object travellers on a trip of at least
 // PREMIUM_MIN_DAYS get one aspirational premium pick per DAYS_PER_PREMIUM days
@@ -748,11 +803,14 @@ export function generatePlan(
   // product few travellers actually book, but we would also rather show fifty
   // distinct experiences than forty-four with duplicates.
   const floorApplies = filteredCatalog.items.length >= MIN_CATALOG_TO_FLOOR;
-  const flooredItems = !floorApplies ? filteredCatalog.items : filteredCatalog.items.filter(
-    (i) => i.popularity_score === undefined
-      || i.popularity_score >= MIN_FILL_POPULARITY
-      || isCrowdPleaser(i),
-  );
+  const champions = !floorApplies
+    ? filteredCatalog.items
+    : championsByExperience(filteredCatalog.items);
+  // Absolute gate, unlike the percentile it replaced, CAN empty the pool — a
+  // catalog where nothing clears 25 reviews would otherwise blank every slot.
+  // Unreachable on today's live data (83 champions), but the cliff is one line
+  // to remove and a blank itinerary is the worst output this app can produce.
+  const flooredItems = champions.length > 0 ? champions : filteredCatalog.items;
   // Prefer the bookable Viator experience over a hand-written local pick that
   // duplicates it: if the live catalog actually has a matching guided tour, drop
   // the self-guided local from the auto-fill pool so the slot goes to the
@@ -912,8 +970,15 @@ export function generatePlan(
     const claimedItemIds = new Set<string>(ctx.lastUsedDay.keys());
 
     // Best premium-tier item per group (one splurge per group), highest fit first.
+    // Sourced from filteredCatalog, NOT the champion-narrowed fill pool: premium
+    // products are structurally thin on reviews (median 8 for items >= $500 on the
+    // live catalog, and a $1,450 private charter can never out-review the $65 group
+    // cruise it shares a cluster with), so the 25-review gate and the shrunk-rating
+    // champion score both select against exactly what this pass exists to surface.
+    // It has its own narrowing already: premium tier only, one per group, top N by
+    // fit, capped by trip length.
     const bestPerGroup = new Map<string, { item: ViatorItem; group: ViatorGroup; score: number }>();
-    for (const item of fillCatalog.items) {
+    for (const item of filteredCatalog.items) {
       if (budgetTag(item.price_usd) !== 'money-no-object') continue; // premium tier only
       if (claimedItemIds.has(item.id)) continue;                     // already pinned or a staple
       // Off-road is a single-per-trip route family, not a "splurge in addition"

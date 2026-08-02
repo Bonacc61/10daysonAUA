@@ -455,29 +455,80 @@ describe('generatePlan — tailoring scales with a rich Viator catalog', () => {
   });
 });
 
-describe('generatePlan — popularity floor (bookability)', () => {
-  const cat = getCatalog(); // normalizePopularity ran — every item has a score
+// The auto-fill pool: one champion per experience cluster, gated on 25 reviews.
+// These fixtures deliberately exceed MIN_CATALOG_TO_FLOOR (60) — below it the
+// generator skips narrowing entirely, which is why every other fixture in this
+// file leaves championsByExperience untested.
+describe('generatePlan — champion-per-experience fill pool', () => {
+  const NARROWING_MIN = 60;
 
-  it('never auto-fills an item from the bottom quartile of its budget tier', () => {
+  // n items spread over `clusters` experience clusters. Reviews ascend with the
+  // index, so the highest-index member of a cluster is its rightful champion.
+  function clusteredCatalog(opts: {
+    n?: number; clusters: number; reviews: (i: number) => number;
+  }): Catalog {
+    const n = opts.n ?? 90;
+    const groups: ViatorGroup[] = [{
+      id: 'g', name: 'g', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 0, matched_by: [], region: 'islandwide', allowed_slots: [],
+    }];
+    const items: ViatorItem[] = Array.from({ length: n }, (_, i) => ({
+      id: `it-${String(i).padStart(3, '0')}`, group_id: 'g', title: `item ${i}`,
+      image_url: '', price_usd: 50, duration: '2 hrs', rating: 4.5,
+      review_count: opts.reviews(i), viator_item_url: '',
+      is_best_seller: false, display_order: i,
+      experience_cluster_id: `c-${i % opts.clusters}`,
+    }));
+    return { activities: [], groups, items };
+  }
+
+  const placedIds = (cat: Catalog, answers = { ...DEFAULT_ANSWERS, days: 10 }, seed = 1) =>
+    generatePlan(answers, cat, { seed })
+      .flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening])
+      .filter((e) => e.kind === 'group')
+      .map((e) => (e as { bestSellerId: string }).bestSellerId);
+
+  it('places at most one item per experience cluster across the trip', () => {
+    const cat = clusteredCatalog({ clusters: 30, reviews: () => 500 });
+    expect(cat.items.length).toBeGreaterThanOrEqual(NARROWING_MIN);
+    const ids = placedIds(cat);
     const byId = new Map(cat.items.map((i) => [i.id, i]));
-    for (const seed of [1, 2, 3]) {
-      const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, cat, { seed });
-      for (const day of plan) {
-        for (const e of [...day.morning, ...day.afternoon, ...day.evening]) {
-          if (e.kind !== 'group' || e.pinned) continue;
-          const item = byId.get(e.bestSellerId);
-          if (!item) continue;
-          expect(item.popularity_score ?? 1).toBeGreaterThanOrEqual(0.25);
-        }
-      }
+    const clusters = ids.map((id) => byId.get(id)!.experience_cluster_id);
+    expect(new Set(clusters).size).toBe(clusters.length);
+  });
+
+  it('never auto-fills a champion with fewer than 25 reviews', () => {
+    // Half the clusters are entirely thin; they must not reach the plan.
+    const cat = clusteredCatalog({ clusters: 30, reviews: (i) => (i % 2 === 0 ? 2 : 400) });
+    const byId = new Map(cat.items.map((i) => [i.id, i]));
+    for (const id of placedIds(cat)) {
+      expect(byId.get(id)!.review_count).toBeGreaterThanOrEqual(25);
     }
   });
 
-  it('a pinned niche item still lands (explicit choice beats the floor)', () => {
-    const niche = cat.items
-      .filter((i) => (i.popularity_score ?? 1) < 0.25)
-      .sort((a, b) => (a.popularity_score ?? 0) - (b.popularity_score ?? 0))[0];
-    expect(niche).toBeDefined(); // stub catalog has bottom-quartile items
+  it('falls back to the full catalog rather than blanking the plan', () => {
+    // Nothing clears the gate. An absolute gate (unlike the percentile it
+    // replaced) can empty the pool, and a blank itinerary is the worst output
+    // this app can produce.
+    const cat = clusteredCatalog({ clusters: 30, reviews: () => 3 });
+    expect(placedIds(cat).length).toBeGreaterThan(0);
+  });
+
+  it('is deterministic for a given catalog and seed', () => {
+    // NOTE: the guarantee is per-catalog, not per-catalog-CONTENT. The champion
+    // set is order-independent (the tiebreak is a strict tuple), but the returned
+    // array is in first-seen-cluster order, and ranked() shuffles the top score
+    // band in pool order — so a reordered catalog legitimately yields a different
+    // plan. That was equally true of the percentile filter this replaced.
+    const cat = clusteredCatalog({ clusters: 30, reviews: (i) => 30 + i });
+    expect(placedIds(cat)).toEqual(placedIds(cat));
+    expect(placedIds(cat, { ...DEFAULT_ANSWERS, days: 10 }, 7))
+      .not.toEqual(placedIds(cat, { ...DEFAULT_ANSWERS, days: 10 }, 1));
+  });
+
+  it('a pinned thin item still lands (explicit choice beats the pool rule)', () => {
+    const cat = clusteredCatalog({ clusters: 30, reviews: (i) => (i === 0 ? 1 : 400) });
+    const niche = cat.items[0];
     const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 5 }, cat, { pinned: [`item:${niche.id}`] });
     const placed = plan.some((d) =>
       [...d.morning, ...d.afternoon, ...d.evening].some(

@@ -205,12 +205,98 @@ response automatically.
 
 ---
 
+## Current state — embedding clustering
+
+Present-tense. The dated entries above are records of what was built on the day;
+where they disagree with this section, this section wins.
+
+- **It is live.** Verified 2026-08-02 against the live `viator-cards` payload:
+  all 361 items carry an `experience_cluster_id` (172 clusters). `index.ts:199`
+  sets that field only inside `if (provider)`, so a provider secret is set and
+  clustering runs on every ingest. The activation checklist in the 2026-07-08
+  entry is done.
+- **Threshold is `EMBEDDING_CLUSTER_THRESHOLD = 0.82`** (`index.ts:181`), not the
+  0.88 quoted in the July entry. Rationale is in the code comment: two
+  Natural-Pool jeep safaris embed at ~0.83, two sunset dinner cruises at ~0.89,
+  while genuinely distinct pairs sit at ~0.56–0.60.
+- **The algorithm is union-find, not greedy founder-based.** `clusterByEmbedding`
+  builds a parent array and unions any pair over threshold; the lowest index
+  (highest rating) stays root. Greedy single-pass was the failure mode it
+  replaced — two jeep safaris at 0.83 could attach to different founders and both
+  survive.
+- **Cluster dedup and tag Jaccard both run.** `similarReason` checks
+  `usedClusterIds` first, then applies tag Jaccard regardless. They are layered
+  nets, not alternatives.
+
+### What actually limits plan variety (measured 2026-08-02)
+
+Over-clustering was the first suspect and it is **not** the main constraint.
+Measured over 45 plans (5 personas × 7/10/14 days × 3 seeds) against the live
+catalog through the real `loadCatalog()` pipeline, disabling cluster dedup
+entirely recovers only ~16 slots and 14 products. Ranked by actual cost:
+
+1. **The auto-fill pool rule** — dominant. The old within-budget-tier popularity
+   percentile ranked *items* and was blind to experience structure: it kept many
+   redundant variants of popular experiences while deleting whole experiences
+   whose members were all modestly reviewed. It wiped **96 of 161 distinct
+   experiences entirely**. Replaced by `championsByExperience` (below).
+2. **Catalog size** — the real ceiling. **74 of 161** experiences have a member
+   with 25+ reviews, giving a champion pool of ~83 (74 gated plus crowd-pleaser
+   exemptions). A 14-day trip needs ~36 picks and no-repeat dedup retires a
+   cluster on first use, so once slot, section, budget and geo constraints
+   narrow those 74 per persona, long trips still cannot fill. An ingestion
+   problem; no constant fixes it. (An earlier draft of this section said "~50",
+   which conflated experiences *surfaced in plans* with experiences *available
+   in the pool* — the pool figure is 74.)
+3. **Cluster dedup** — third. Real but modest.
+
+The pool sweep, same 45 plans:
+
+| pool rule | open | experiences | mean rating | <25 reviews |
+|---|---:|---:|---:|---:|
+| percentile floor 0.6 (was live) | 343 | 44 | 4.69 | 10 of 59 |
+| champion by raw rating | 207 | 89 | 4.35 | 41 of 93 |
+| champion by shrunk rating, no gate | 244 | 83 | 4.40 | 38 of 87 |
+| **champion + 25-review gate (shipped)** | **327** | **57** | 4.63 | 8 of 61 |
+| champion + 50-review gate | 328 | 40 | 4.75 | 0 of 44 |
+
+Two results worth keeping:
+
+- **Bayesian shrinkage barely helps on its own** (row 2 → row 3). The problem is
+  not picking the wrong member of a cluster; most clusters contain no
+  well-reviewed member at all, so any champion of a thin cluster is thin. The
+  absolute review gate is what does the work.
+- **The big variety numbers are unreachable at acceptable quality.** 89
+  experiences requires accepting 44% thinly-reviewed products. Of the 96
+  experiences the old floor wiped, only ~6 clear a 25-review bar.
+
+Method note: measure through `loadCatalog()`, not the raw edge-function payload —
+the app filters transport-only items, regroups, and runs `normalizePopularity` at
+load. Probing the raw payload makes the popularity floor look inert (it is not)
+and mutating `popularity_score` to disable it also zeroes the ranking bonus at
+`itemFit.ts:289`. The only clean lever is the pool rule itself.
+
+### Cluster sizes (context, not the headline)
+
+Union-find is transitive, so A~B and B~C merge A and C even when A and C are far
+apart. Post-transport-filter the catalog is 333 items in 161 clusters, sizes
+73, 23, 15, 12, 9, 7, 7, 6 … 136 singletons. The 73-item cluster mixes
+small-group UTV, private jeep and 4x4 Natural-Pool tours. Worth revisiting
+`EMBEDDING_CLUSTER_THRESHOLD` eventually, but it ranks behind the two above.
+
+To inspect: `npm run trace -- --persona adventurer --days 14 --verbose`, then grep
+`experience cluster`. Note that rejection *counts* (~1240 tag Jaccard / 680 route
+family / 661 cluster on a 14-day plan) measure how often a rule fires, not what it
+costs — a rule can fire constantly and cost nothing while alternatives remain.
+
 ## Known limitations / open items
 
-- **Same-day cross-slot**: `usedGroupIds` is updated after each slot pick, so
-  a group could theoretically appear in morning AND afternoon of the same day
-  (both picks are evaluated before either is recorded). Observed as low-risk
-  with current catalog size.
+- **Same-day cross-slot**: two items from one Viator group can land on the same
+  day. Not a recording-order problem — the day loop records each pick's group,
+  cluster and tags immediately, before the next slot is filled. The gap is that
+  `similarReason` consults `usedGroupIds` ONLY for items with neither tags nor a
+  cluster id, so two tagged items from one group are caught only if tag Jaccard
+  clears `TAG_SIMILARITY_THRESHOLD`. Observed as low-risk at current catalog size.
 
 - **Tag sparsity**: items with `tags: []` (e.g. stub local activities, or live
   products where Viator returned no tags) bypass semantic dedup entirely and
