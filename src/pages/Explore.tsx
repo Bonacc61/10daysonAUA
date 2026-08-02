@@ -94,7 +94,12 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
 
   const [section, setSection] = useState<string>(initialSection ?? 'All');
   const [search, setSearch] = useState('');
-  const [vibe, setVibe] = useState<number>(answers.adventureLevel ?? 50);
+  // Both filters open BALANCED (50), not seeded from the questionnaire. Seeding
+  // vibe from answers.adventureLevel meant a traveller who answered "chill"
+  // arrived at Explore with the catalog already narrowed to 🌴 Chill and no
+  // indication that anything had been filtered out — Explore is the browse-
+  // everything surface, and the plan is where answers are meant to bite.
+  const [vibe, setVibe] = useState<number>(50);
   const [price, setPrice] = useState<number>(50);
   // Favourites are deliberately NOT login-gated. `10doa:starred` is pure
   // localStorage — signing in syncs nothing — so the gate cost a first-time

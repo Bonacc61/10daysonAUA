@@ -134,13 +134,32 @@ function ActivityMini({ a }: { a: Activity }) {
 
 function EmptySlot() {
   return (
-    <button
-      type="button"
-      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, border: '2px dashed rgba(255,255,255,0.7)', borderRadius: 12, padding: 22, color: 'var(--cream)', fontStyle: 'italic', background: 'transparent', cursor: 'pointer', width: '100%', fontFamily: 'inherit' }}
-    >
-      <Sparkle size={16} />
-      <span style={{ fontSize: 13 }}>suggest lunchspot</span>
-    </button>
+    <>
+      <button
+        type="button"
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, border: '2px dashed rgba(255,255,255,0.7)', borderRadius: 12, padding: 22, color: 'var(--cream)', fontStyle: 'italic', background: 'transparent', cursor: 'pointer', width: '100%', fontFamily: 'inherit' }}
+      >
+        <Sparkle size={16} />
+        <span style={{ fontSize: 13 }}>suggest lunchspot</span>
+      </button>
+      {/* The real itinerary shows this picker in every section once you have
+          favourites, so the preview showed a slot the actual page never
+          renders. Deliberately reuses the production classes rather than
+          restyling inline — the whole point of a sample is that it cannot
+          drift from the thing it samples. Illustrative only (the live control
+          is the coral button below the preview), hence aria-hidden and a
+          default cursor. */}
+      <div className="itin-section-empty has-shortlist" style={{ marginTop: 8 }} aria-hidden>
+        <div className="itin-shortlist-toggle" style={{ cursor: 'default' }}>
+          <span className="itin-shortlist-toggle-spacer" />
+          <span className="itin-shortlist-toggle-label">
+            <span className="itin-shortlist-heart">♥</span>
+            Add from favourites
+          </span>
+          <span className="itin-shortlist-toggle-icon end">▼</span>
+        </div>
+      </div>
+    </>
   );
 }
 
