@@ -543,13 +543,37 @@ describe('generatePlan — champion-per-experience fill pool', () => {
     expect(both).toBe(false);
   });
 
+  // NOTE the "aaa-" ids. championsByExperience breaks a rating/review tie on
+  // `item.id < cur.id`, so a fixture named `retail-1` loses cluster c-0 to
+  // `it-030` and never enters the pool at all — the test would then pass with
+  // the retail filter deleted. Sorting first forces the retail item to WIN its
+  // cluster, so the filter is the only thing that can keep it out.
   it('never auto-fills a retail or photo-service product', () => {
     const cat = clusteredCatalog({ clusters: 30, reviews: () => 500 });
-    cat.items[0] = { ...cat.items[0], id: 'retail-1', title: 'Diamond Shopping Experience with Champagne' };
-    cat.items[1] = { ...cat.items[1], id: 'photo-1', title: 'Professional Sunset Photoshoot in Aruba' };
+    cat.items[0] = { ...cat.items[0], id: 'aaa-retail', title: 'Diamond Shopping Experience with Champagne' };
+    cat.items[1] = { ...cat.items[1], id: 'aaa-photo', title: 'Professional Sunset Photoshoot in Aruba' };
     const placed = placedIds(cat, { ...DEFAULT_ANSWERS, days: 14 }, 1);
-    expect(placed).not.toContain('retail-1');
-    expect(placed).not.toContain('photo-1');
+    expect(placed).not.toContain('aaa-retail');
+    expect(placed).not.toContain('aaa-photo');
+  });
+
+  it('keeps retail out even when the pool empties and the fallback fires', () => {
+    // Nothing clears the 25-review gate, so championsByExperience returns [] and
+    // flooredItems falls back. The fallback must be `eligible` (retail already
+    // removed), not the raw catalog — otherwise a thin pool quietly re-admits a
+    // jewellery showroom.
+    // The retail item is the ONLY evening-eligible product in the fixture (its
+    // title carries "Sunset"), so if it reaches the pool it necessarily fills
+    // evenings. That makes the filter — not ranking luck — the only thing that
+    // can keep it out of the plan.
+    const cat = clusteredCatalog({ n: 64, clusters: 32, reviews: () => 3 });
+    cat.items[0] = {
+      ...cat.items[0], id: 'aaa-retail', rating: 5,
+      title: 'Diamond Shopping at Sunset with Champagne',
+    };
+    const placed = placedIds(cat, { ...DEFAULT_ANSWERS, days: 14 }, 2);
+    expect(placed.length).toBeGreaterThan(0);       // fallback fired at all
+    expect(placed).not.toContain('aaa-retail');     // and kept the quality floor
   });
 
   it('still places a retail product when the traveller pins it', () => {
@@ -561,14 +585,29 @@ describe('generatePlan — champion-per-experience fill pool', () => {
     expect(landed).toBe(true);
   });
 
-  it('caps the evening on its own budget, crossover buffer included', () => {
-    // An 8h evening item can never fit EVENING_CAP_MIN (240) however empty the
-    // day is; a 2h one can. Both are evening-titled so itemSlotOk admits them.
+  it('caps the evening on its own budget', () => {
+    // 8h fails EVENING_CAP_MIN (240) however empty the day is. Title must be
+    // evening-eligible WITHOUT matching the beach-dinner staple (dinner + a
+    // seaside word), or it is pre-placed as a staple and never sees `feasible`.
     const cat = clusteredCatalog({ clusters: 30, reviews: () => 400 });
-    cat.items[0] = { ...cat.items[0], id: 'eve-long', title: 'Sunset Dinner Marathon', duration: '8 hrs' };
-    cat.items[1] = { ...cat.items[1], id: 'eve-short', title: 'Sunset Dinner Sail', duration: '2 hrs' };
+    cat.items[0] = { ...cat.items[0], id: 'aaa-eve-long', title: 'Late Night Party Marathon', duration: '8 hrs' };
     const placed = placedIds(cat, { ...DEFAULT_ANSWERS, days: 14 }, 5);
-    expect(placed).not.toContain('eve-long');
+    expect(placed).not.toContain('aaa-eve-long');
+  });
+
+  it('charges the afternoon-to-evening crossover buffer', () => {
+    // 210min fits the 240min cap on its own but NOT once the 60min crossover
+    // buffer is charged against a day that already has picks. Deleting the
+    // buffer term from `feasible` makes this pass, which is the point.
+    const cat = clusteredCatalog({ clusters: 30, reviews: () => 400 });
+    cat.items[0] = { ...cat.items[0], id: 'aaa-eve-210', title: 'Aruba Nightlife Session', duration: '3.5 hrs' };
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, cat, { seed: 5 });
+    // Every day that placed it must have had an empty daytime, or the buffer
+    // was not charged.
+    for (const d of plan) {
+      const inEvening = d.evening.some((e) => e.kind === 'group' && e.bestSellerId === 'aaa-eve-210');
+      if (inEvening) expect(d.morning.length + d.afternoon.length).toBe(0);
+    }
   });
 
   it('a pinned thin item still lands (explicit choice beats the pool rule)', () => {

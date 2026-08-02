@@ -247,10 +247,10 @@ entirely recovers only ~16 slots and 14 products. Ranked by actual cost:
 2. **Catalog size** — the real ceiling. **72 of 155** eligible experiences (retail and photo services excluded) have a member
    with 25+ reviews, giving a champion pool of ~81. A 14-day trip needs ~36 picks and no-repeat dedup retires a
    cluster on first use, so once slot, section, budget and geo constraints
-   narrow those 74 per persona, long trips still cannot fill. An ingestion
+   narrow those 72 per persona, long trips still cannot fill. An ingestion
    problem; no constant fixes it. (An earlier draft of this section said "~50",
    which conflated experiences *surfaced in plans* with experiences *available
-   in the pool* — the pool figure is 74.)
+   in the pool* — the pool figure is 81.)
 3. **Cluster dedup** — third. Real but modest.
 
 The pool sweep, same 45 plans:

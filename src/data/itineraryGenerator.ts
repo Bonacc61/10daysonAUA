@@ -193,11 +193,17 @@ const DAY_CAP_MIN = 480;   // 8h of DAYTIME activity is the most we book in one 
 // The evening is capped separately from the day. 4h fits a dinner cruise; with
 // the crossover buffer charged, a day that already has picks fits at most 3h.
 //
-// This DOES make the worst-case day longer than the 8h DAY_CAP_MIN alone: 8h of
-// touring + 1h to get changed and travel + a 3h dinner cruise = 12h. That is
-// deliberate and it is what a real holiday day looks like — 9am to 9pm with
-// dinner at the end. What it is not is 12h of TOURING, which is what a single
-// shared cap was there to prevent.
+// This DOES make the day longer than the 8h DAY_CAP_MIN alone: 8h of touring
+// + 1h to change and travel + a 3h dinner cruise = 12h. Deliberate — that is
+// what a real holiday day looks like, 9am to 9pm with dinner at the end. What
+// it is not is 12h of TOURING, which is what a single shared cap prevented.
+//
+// 12h is NOT a hard ceiling, and the gap is not this cap. The en-route food
+// post-pass (see the bottom of generatePlan) appends a second afternoon card
+// with no feasibility accounting at all, so days of 13-15h exist: measured on
+// the live catalog, 26 of 558 days exceed 12h and the worst is 15h. That hole
+// pre-dates the evening budget — but filling evenings makes it visible, taking
+// >12h days from 5 to 26. Tracked in docs/ROADMAP.md.
 const EVENING_CAP_MIN = 240;
 const BUFFER_MIN  = 60;    // travel/rest gap counted between consecutive activities
 // Wall-clock length of each slot. An activity longer than its slot "spreads"
@@ -833,7 +839,7 @@ export function generatePlan(
   const champions = !floorApplies ? eligible : championsByExperience(eligible);
   // Absolute gate, unlike the percentile it replaced, CAN empty the pool — a
   // catalog where nothing clears 25 reviews would otherwise blank every slot.
-  // Unreachable on today's live data (83 champions), but the cliff is one line
+  // Unreachable on today's live data (81 champions), but the cliff is one line
   // to remove and a blank itinerary is the worst output this app can produce.
   // Falls back to `eligible`, NOT filteredCatalog.items — the retail/service
   // rule is a quality floor that must survive the fallback, or an exhausted

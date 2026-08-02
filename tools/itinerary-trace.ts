@@ -11,13 +11,11 @@
  *   npx esbuild tools/itinerary-trace.ts --bundle --platform=node --format=esm \
  *     --define:import.meta.env='{}' --outfile=/tmp/trace.mjs && node /tmp/trace.mjs
  */
-import { readFileSync } from 'node:fs';
 import { generatePlan, type TraceEvent } from '../src/data/itineraryGenerator';
-import { getCatalog } from '../src/data/activitySource';
+import { getCatalog, loadCatalog } from '../src/data/activitySource';
 import type { Catalog } from '../src/data/activitySource';
-import { ACTIVITIES } from '../src/data/activities';
 import type { Answers } from '../src/App';
-import type { ViatorGroup, ViatorItem, Slot } from '../src/types';
+import type { Slot } from '../src/types';
 
 const SLOTS: Slot[] = ['morning', 'afternoon', 'evening'];
 
@@ -60,32 +58,17 @@ const onlyOpen = has('only-open');          // just the slots that ended empty
 const verbose = has('verbose');             // list every rejection, not the top 3 per reason
 
 // ---- catalog --------------------------------------------------------------
-// Live is the default: dedup bugs live in the real Viator feed, not the stub.
-// Resolved from cwd, NOT import.meta.url — the bundle runs from a temp dir, so
-// a URL-relative path silently misses the env file and the trace quietly runs
-// against the stub instead of live data. Falling back without saying so is the
-// one failure this tool must not have.
-function loadEnv(key: string): string | undefined {
-  try {
-    const raw = readFileSync(`${process.cwd()}/.env.production`, 'utf8');
-    return raw.match(new RegExp(`^${key}=(.+)$`, 'm'))?.[1]?.trim();
-  } catch { return undefined; }
-}
-
-async function liveCatalog(): Promise<Catalog | { error: string }> {
-  const anon = loadEnv('VITE_SUPABASE_ANON_KEY');
-  const url = loadEnv('VITE_VIATOR_FN_URL')
-    ?? 'https://mrfblzsihpecockhsnqe.supabase.co/functions/v1/viator-cards';
-  if (!anon) return { error: 'no VITE_SUPABASE_ANON_KEY in ./.env.production (run from the repo root)' };
-  try {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${anon}`, apikey: anon } });
-    if (!res.ok) return { error: `viator-cards returned ${res.status}` };
-    const data = await res.json() as { groups: ViatorGroup[]; items: ViatorItem[] };
-    if (!data.groups?.length) return { error: 'viator-cards returned no groups' };
-    return { activities: ACTIVITIES, groups: data.groups, items: data.items };
-  } catch (e) {
-    return { error: `fetch failed: ${(e as Error).message}` };
-  }
+// Goes through the app's real loadCatalog(), NOT a hand-rolled fetch of the
+// edge function. The raw payload is ~362 items; the app's catalog is ~334 after
+// isTransportOnly, regroupItems and normalizePopularity. Tracing the raw payload
+// would rank differently from the app this tool exists to explain — and the
+// popularity bonus in itemFit would be inert because popularity_score is only
+// assigned at load. Run via `npm run trace` so the env is baked in.
+async function resolveCatalog(): Promise<{ catalog: Catalog; live: boolean }> {
+  if (has('offline')) return { catalog: getCatalog(), live: false };
+  const cat = await loadCatalog();          // silently returns the stub on failure
+  const stub = getCatalog();
+  return { catalog: cat, live: cat.items.length !== stub.items.length };
 }
 
 // ---- formatting -----------------------------------------------------------
@@ -100,16 +83,14 @@ const REASON_LABEL: Record<string, string> = {
 };
 
 async function main() {
-  const live = has('offline') ? { error: '--offline requested' } : await liveCatalog();
-  const isLive = !('error' in live);
-  const catalog = isLive ? live : getCatalog();
+  const { catalog, live: isLive } = await resolveCatalog();
   const size = `${catalog.groups.length} groups, ${catalog.items.length} items`;
   // The stub carries no Viator tags and no cluster ids, so cluster dedup, tag
   // Jaccard and route-family retirement are all inert on it. Say so — a trace
   // read as "live" when it is not will send you chasing the wrong rule.
   const source = isLive
     ? `live (${size})`
-    : `offline stub (${size}) — fell back: ${(live as { error: string }).error}\n`
+    : `offline stub (${size}) — no live catalog\n`
       + `         NOTE: the stub has no tags or cluster ids, so cluster dedup, tag\n`
       + `         Jaccard and route-family retirement do not fire in this trace.`;
 

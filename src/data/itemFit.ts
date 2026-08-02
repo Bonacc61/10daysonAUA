@@ -200,7 +200,9 @@ const EVENING_VESSEL_RE = /\b(sail|sails|sailing|cruise|cruises|catamaran|boat|y
 // Review count cannot catch these — they are well-reviewed, they are simply not
 // an outing.
 const RETAIL_RE = /\b(shopping|diamonds?|jewel\w*|duty[- ]free|timeshare)\b/i;
-const PHOTO_SERVICE_RE = /\b(photoshoot|photographer|photography)\b|\bphoto shoot\b/i;
+// Anchored on the SHOOT, not on the word 'photographer': a dive listed as
+// "Private Dive + videographer/Photographer" is a dive, not a photo service.
+const PHOTO_SERVICE_RE = /\b(photoshoot|photography)\b|\bphoto shoot\b/i;
 export function isRetailOrService(item: ViatorItem): boolean {
   return RETAIL_RE.test(item.title) || PHOTO_SERVICE_RE.test(item.title);
 }
