@@ -18,7 +18,7 @@ import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry, ViatorItem, ViatorGroup } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, entryPrice } from './matcher';
-import { fitItem, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, offroadAdrenalineBonus, itemSlotOk, itemAdventure } from './itemFit';
+import { fitItem, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, isRetailOrService, offroadAdrenalineBonus, itemSlotOk, itemAdventure } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 import { effectiveFlags } from './notesFlags';
@@ -821,10 +821,13 @@ export function generatePlan(
   // championsByExperience. We'd rather leave a slot open than suggest a niche
   // product few travellers actually book, but we would also rather show fifty
   // distinct experiences than forty-four with duplicates.
-  const floorApplies = filteredCatalog.items.length >= MIN_CATALOG_TO_FLOOR;
-  const champions = !floorApplies
-    ? filteredCatalog.items
-    : championsByExperience(filteredCatalog.items);
+  // Drop retail/service products BEFORE choosing champions, not after: a
+  // photoshoot that won its cluster would otherwise take the whole experience
+  // out of the pool with it. Applies at every catalog size — this is a quality
+  // rule, not a long-tail one.
+  const eligible = filteredCatalog.items.filter((i) => !isRetailOrService(i));
+  const floorApplies = eligible.length >= MIN_CATALOG_TO_FLOOR;
+  const champions = !floorApplies ? eligible : championsByExperience(eligible);
   // Absolute gate, unlike the percentile it replaced, CAN empty the pool — a
   // catalog where nothing clears 25 reviews would otherwise blank every slot.
   // Unreachable on today's live data (83 champions), but the cliff is one line

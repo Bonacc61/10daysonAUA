@@ -188,6 +188,23 @@ const CROWD_PLEASER_EVENING = /sunset|dinner/i;
 // them from the popularity floor and handed them the +3 boost — letting exactly
 // the niche listings this lever exists to suppress lead the plan instead.
 const EVENING_VESSEL_RE = /\b(sail|sails|sailing|cruise|cruises|catamaran|boat|yacht)\b/i;
+// Products that are a purchase or a service rather than a thing you do with a
+// slot in your day. These are excluded from AUTO-FILL only: they stay in
+// Explore, stay searchable, and still land in the plan if the traveller hearts
+// one, because a pin resolves against the un-narrowed catalog. The rule is
+// "we won't suggest this unasked", not "you can't have it".
+//
+// Measured on the live catalog before this existed: "Diamond Shopping
+// Experience with Champagne" (216 reviews, so the review gate waves it through)
+// was auto-placed in 15 of 45 generated plans, and photography sessions in 16.
+// Review count cannot catch these — they are well-reviewed, they are simply not
+// an outing.
+const RETAIL_RE = /\b(shopping|diamonds?|jewel\w*|duty[- ]free|timeshare)\b/i;
+const PHOTO_SERVICE_RE = /\b(photoshoot|photographer|photography)\b|\bphoto shoot\b/i;
+export function isRetailOrService(item: ViatorItem): boolean {
+  return RETAIL_RE.test(item.title) || PHOTO_SERVICE_RE.test(item.title);
+}
+
 export function isCrowdPleaser(item: ViatorItem): boolean {
   const kind = activityKind(item);
   if (kind === 'sail' || kind === 'snorkel') return true;          // catamarans, snorkel + Jolly Pirates
