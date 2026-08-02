@@ -147,12 +147,18 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
   font-style: normal; font-family: inherit; padding: 0;
 }
 .itin-shortlist-toggle:hover { opacity: 0.85; }
-/* The label centres on the BUTTON, not on whatever space the chevron leaves:
-   both icon slots are the same fixed width and the gap is symmetric, so the
-   label's midpoint is the button's midpoint. */
-.itin-shortlist-toggle-icon { flex: 0 0 16px; font-size: 13px; }
+/* The heart travels WITH the label, the way .itin-lunch-spark sits against
+   "Suggest lunch spot" — not pinned to the far left edge. The empty spacer
+   mirrors the chevron's width and the row's gap is symmetric, so the label
+   group still centres on the BUTTON rather than on whatever space the chevron
+   happens to leave. */
+.itin-shortlist-toggle-spacer,
+.itin-shortlist-toggle-icon.end { flex: 0 0 16px; }
 .itin-shortlist-toggle-icon.end { font-size: 11px; opacity: 0.7; text-align: right; }
-.itin-shortlist-toggle-label { flex: 1; text-align: center; }
+.itin-shortlist-toggle-label {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.itin-shortlist-heart { font-size: 13px; line-height: 1; }
 /* Favourites picker: a horizontal strip of activity cards, same idiom as the map
    strip (.map-strip-outer/-inner). Favourites are scanned by picture, and the old
    stacked red summary rows pushed the day's real cards far down the page once you
