@@ -2,10 +2,10 @@
 
 **Date:** 2026-08-03
 **Status:** Draft — awaiting approval
-**Scope:** Coordinate sourcing, validation, and marker rendering for the Map page.
-Touches `src/data/coords.ts`, `src/pages/Map.tsx`, the `viator-cards` edge function,
-and adds a gazetteer + audit script. No change to the matching engine, storage, or
-the `SlotEntry` contract.
+**Scope:** Where map pins are sourced from, how they are verified, and the activity card's
+pickup block. Touches `src/data/coords.ts`, `src/pages/Map.tsx`, and adds a resolution
+tool + audit script under `tools/`. No change to the matching engine, storage, or the
+`SlotEntry` contract.
 
 ## Problem
 
@@ -13,184 +13,134 @@ A pin on the Map page asserts "this activity happens here". Today most pins cann
 support that claim.
 
 Coordinates resolve through three tiers in `src/data/coords.ts` (`coordForEntry`,
-mirrored by `coordFor` in `Map.tsx:29-32`):
+duplicated as `coordFor` in `Map.tsx:29-32`, which is the one actually used to render):
 
 | Tier | Entries | Provenance |
 |---|---|---|
 | `ACTIVITY_COORDS` | 29 | Hand-curated; comments cite Wikipedia / PADI / latitude.to |
-| `VIATOR_ITEM_COORDS` | 22 | Hand-curated per product code; 18 of them point at Natural Pool, 4 at Palm Beach |
+| `VIATOR_ITEM_COORDS` | 22 | Hand-curated per product code; 18 point at Natural Pool, 4 at Palm Beach |
 | `GROUP_COORDS` | 6 | **Invented centroids** — one representative point per Viator group |
 
-The live catalog carries ~361 Viator items. Roughly **340 of them fall through to one
-of six invented points.** A pin at `GROUP_COORDS['sailing-cruises']`
-(`-70.0476, 12.5662`) is not a claim about where a catamaran sails from — it is a
-placeholder rendered with the same visual authority as a verified coordinate.
+The live catalog carries ~361 Viator items. Roughly **340 of them fall through to one of
+six invented points.** A pin at `GROUP_COORDS['sailing-cruises']` (`-70.0476, 12.5662`)
+is not a claim about where a catamaran sails from — it is a placeholder rendered with the
+same visual authority as a verified coordinate.
 
 This is worse than it looks, because `activitySource.ts` deliberately **re-files every
-item by its Viator tags** — the ingest comment documents that 68 of 85 off-road tours
-arrive filed under "Sailing & Cruises". So `group_id` is known-untrustworthy for
-planning, yet `GROUP_COORDS` still keys the map fallback off it.
+item by its Viator tags** — its own comment documents that 68 of 85 off-road tours arrive
+filed under "Sailing & Cruises". `group_id` is known-untrustworthy for planning, yet
+`GROUP_COORDS` still keys the map fallback off it.
 
-Three further defects:
+Two further defects:
 
-1. **Deliberate displacement.** `Map.tsx:180-192` fans co-located pins onto a circle of
-   radius `0.0016°` (~180 m) so they don't stack. Every pin in a collision is drawn
-   ~180 m from the coordinate the data claims.
-2. **A phantom route leg.** Because displacement moves the anchors,
-   `straightCoords` (`Map.tsx:196-199`) feeds the Directions API two distinct points for
-   two stops at one place, drawing a ~180 m zigzag between things that are co-located.
-3. **No validation anywhere.** No bounds check, no land/sea check, no test. A
-   transposed digit (`12.5` → `12.6`) ships silently and looks plausible on a
-   small-scale map.
+1. **A phantom route leg.** The ~180 m marker fan-out (`Map.tsx:180-192`) moves anchors,
+   so `straightCoords` (`Map.tsx:196-199`) feeds the Directions API two distinct points
+   for two stops at one place, drawing a zigzag between things that are co-located.
+2. **No validation anywhere.** No bounds check, no land/sea check, no test. A transposed
+   digit (`12.5` → `12.6`) ships silently and looks plausible at map scale.
 
 ## Goal
 
-Every pin the map draws is either (a) traceable to a cited source, or (b) not drawn.
-No coordinate changes without showing up in a diff.
+Every pin sits on the real-world spot the activity takes place, traceable to a cited
+source. Anything that cannot meet that bar draws no pin. No coordinate ever changes
+without appearing in a reviewed diff.
 
-## Confirmed facts (from code)
+## Approach — resolve once, register, verify forever
 
-- `coordForEntry` (`coords.ts:86-89`) and `coordFor` (`Map.tsx:29-32`) are duplicate
-  implementations of the same precedence chain. Only `Map.tsx` is used for rendering.
-- `normalize.ts:4-25` declares `ViatorProduct` with **no** location fields. Whatever
-  location data Viator returns is discarded at ingest today.
-- `Map.tsx:172-173` already filters coordless entries out of the map while keeping them
-  in the photo strip. **"No pin" is an existing, working behaviour** — it needs no new
-  UI, it just needs to stop being pre-empted by `GROUP_COORDS`.
-- The lunch-spot block in `coords.ts:41-51` is self-described as "Town-level
-  approximations" — admitted guesses, currently indistinguishable from verified points.
-- `catalog_cache` + a TTL already exist in the edge function (`index.ts:25-37`), so
-  there is a caching pattern to extend.
+Coordinates are researched **once**, per item, offline, and written to a committed
+registry. The app reads static data. Nothing resolves at runtime.
 
-## Unverified assumption — probe before building
+This is chosen over runtime resolution (gazetteer matching in the browser) because
+per-item research is more accurate than pattern-matching, and because a committed file is
+reviewable. It is chosen over automated live enrichment because a coordinate that ships
+unreviewed is exactly the failure mode being eliminated.
 
-Viator Partner API v2 `/products/{code}` is expected to return:
+The tool proposes. A human accepts. Only accepted coordinates ship.
 
-- `logistics.start[].location.ref` — the meeting / pickup point
-- `logistics.travelerPickup` — pickup arrangements
-- `itinerary.items[].pointOfInterestLocation.location.ref` — **the places the tour
-  actually visits**
+### The registry — `src/data/itemCoords.ts`
 
-and `/locations/bulk` is expected to resolve those refs to
+The single source the app reads. One entry per item that earns a pin:
+
+```ts
+export type PinSource =
+  | 'viator-poi'      // Viator itinerary point-of-interest
+  | 'known-place'     // named Aruba place, cited
+  | 'departure'       // no fixed destination; this is where it departs from
+  | 'curated';        // hand-verified editorial activity
+
+export type Pin = {
+  coord: Coord;
+  source: PinSource;
+  cite: string;        // REQUIRED — URL or reference a human can check
+  place?: string;      // human-readable place name, for the card
+  pickup?: { coord: Coord; name: string; time?: string };
+};
+
+export const ITEM_PINS: Record<string, Pin> = { /* … */ };
+```
+
+`cite` is mandatory and enforced by test. It is the veracity chain: every coordinate in
+the app traces to something checkable. The 29 existing `ACTIVITY_COORDS` migrate into
+this shape, keeping the citations already in their comments.
+
+**Items absent from the registry render no pin.** That is a supported state, not a gap —
+`Map.tsx:172-173` already filters coordless entries off the map while keeping them in the
+photo strip. It just needs to stop being pre-empted by `GROUP_COORDS`.
+
+`GROUP_COORDS` is deleted. The duplicate `coordFor` in `Map.tsx` is deleted; `Map.tsx`
+imports the one implementation.
+
+### The one-off pass — `tools/resolve-coords.ts`
+
+Run manually, never in CI, never at runtime. For each catalog item it reads title,
+description, tags, and (if the probe below confirms it) Viator location data, then
+proposes a pin:
+
+1. **Viator itinerary POI**, if available → `viator-poi`. Authoritative.
+2. **Named place in the title**, resolved against an Aruba place table maintained
+   alongside the tool → `known-place`.
+3. **Named place in the description** → `known-place`, lower confidence.
+4. **No destination exists** (sunset cruise, cooking class, spa, bar crawl) → the
+   departure point, tagged `departure`. For these the departure point *is* where the
+   activity takes place; it is not a fallback.
+5. **Nothing resolvable** → proposed as `no-pin`.
+
+Output is a review table — item, title, proposed coordinate, source, citation, and a
+map link — plus a patch to `ITEM_PINS`. **Low-confidence proposals default to `no-pin`.**
+A guess is never the default; a human must promote it and supply a citation.
+
+The Aruba place table (~80 beaches, dive sites, landmarks, parks, towns, marinas) lives
+under `tools/`, not `src/`. It is authoring input. It does not ship — the registry holds
+literal coordinates, so the browser needs no matching logic at all.
+
+### Ongoing churn
+
+The catalog changes; a static registry goes stale. The audit script reports both
+directions:
+
+- **In catalog, unregistered** → renders no pin until someone runs the pass. Honest by
+  construction.
+- **Registered, no longer in catalog** → prune.
+
+Steady state is a short delta, not a re-run of the whole catalog.
+
+## Unverified assumption — probe first
+
+Viator Partner API v2 `/products/{code}` is expected to return
+`itinerary.items[].pointOfInterestLocation.location.ref` (places the tour visits) and
+`logistics.start[].location.ref` (meeting point), with `/locations/bulk` resolving refs to
 `{ center: { latitude, longitude }, address, name }`.
 
-**None of this is verified.** The API key lives in Supabase env, not locally. Products
-typed `ACTIVITY` rather than `ITINERARY` may carry no POI list at all.
+**None of this is verified.** The API key lives in Supabase env, not locally, and
+`normalize.ts:4-25` declares no location fields — whatever Viator returns is discarded at
+ingest today. Products typed `ACTIVITY` rather than `ITINERARY` may carry no POI list.
 
-**Task 1 of implementation is a read-only probe** against ~20 real Aruba product codes
-that dumps the raw `logistics` and `itinerary` blocks, so the design is confirmed
-against reality before any code depends on it. If POI data turns out to be absent or
-sparse, the gazetteer (below) absorbs the difference and the design still stands — only
-the coverage mix changes.
+**Task 1 is a read-only probe** against ~20 real Aruba product codes, dumping raw
+`logistics` and `itinerary` blocks. If POI data is sparse, steps 2-4 of the pass absorb
+the difference and the design stands — only the source mix changes.
 
-## Decision: what a pin means
-
-For a tour that collects you at a Palm Beach hotel and drives you to Conchi, the pin
-goes on **Conchi**. The meeting point is real, useful, logistical data — it belongs in
-the popup, not on the pin.
-
-Consequence: Viator's meeting point is *not* the primary source. It is one input among
-several, and it is the pin only for products that genuinely have no destination.
-
-## Architecture
-
-Four units, each independently testable.
-
-### 1. Gazetteer — `src/data/places.ts`
-
-A static, verified place table. ~70-90 entries covering Aruba beaches, dive sites,
-landmarks, parks, towns, marinas, and the curated restaurants.
-
-```ts
-export type Place = {
-  id: string;
-  name: string;          // canonical display name
-  aliases: string[];     // matched case- and diacritic-insensitively
-  coord: Coord;
-  kind: 'beach' | 'dive' | 'landmark' | 'town' | 'park' | 'marina' | 'restaurant';
-  terrain: 'land' | 'water';   // drives the land/sea validator
-  source: string;              // REQUIRED — citation URL or reference
-  precision_m: number;         // how tightly this point represents the place
-};
-```
-
-`source` is mandatory and enforced by test. It is the veracity chain: every coordinate
-in the app traces to something a human can check. `precision_m` makes the
-lunch-spot-style approximation explicit instead of implied.
-
-The 29 existing `ACTIVITY_COORDS` migrate into this shape, keeping the citations already
-present in their comments.
-
-### 2. Resolver — `src/data/resolvePlace.ts`
-
-Pure function, no I/O:
-
-```ts
-resolvePlace(text: string): { place: Place; alias: string } | null
-```
-
-- Normalises: lowercase, strip diacritics, collapse whitespace.
-- Matches aliases on **word boundaries** (so "palm trees" never matches "Palm Beach").
-- **Longest alias wins** ("Baby Beach Snorkel" beats "Beach").
-- **Ambiguity returns `null`.** If two *different* places match, it does not guess.
-
-That last rule is the accuracy-first choice: a null costs one pin, a wrong guess costs
-the credibility of every pin.
-
-### 3. Precedence chain — `src/data/coords.ts`
-
-`coordForEntry` returns provenance, not a bare coordinate:
-
-```ts
-type ResolvedCoord = {
-  coord: Coord;
-  confidence: 'curated' | 'viator-poi' | 'gazetteer-title' | 'gazetteer-desc' | 'meeting-point';
-  source: string;
-};
-```
-
-| # | Source | Confidence |
-|---|---|---|
-| 1 | Curated override for this id | `curated` |
-| 2 | Viator itinerary POI (from ingest) | `viator-poi` |
-| 3 | Gazetteer match on item **title** | `gazetteer-title` |
-| 4 | Gazetteer match on item **description** | `gazetteer-desc` |
-| 5 | Viator meeting point (from ingest) | `meeting-point` |
-| 6 | — | **no pin** |
-
-**`GROUP_COORDS` is deleted.** Every case it currently absorbs is better served by rows
-2-6. The duplicate `coordFor` in `Map.tsx` is deleted too; `Map.tsx` imports the one
-implementation.
-
-Row 5 is not a fallback in disguise — for a sunset catamaran cruise, a cooking class, or
-a spa treatment, the departure point *is* where the activity takes place. It is labelled
-in the UI because for a tour it would mean something different.
-
-### 4. Ingest enrichment — `viator-cards` edge function
-
-Extend `ViatorProduct` with `logistics` and `itinerary`, extract location refs,
-batch-resolve them via `/locations/bulk`, and write `dest_coord` / `meet_coord` /
-`meet_address` onto each item.
-
-**Cost control.** `/products/{code}` is one call per product; a naive implementation adds
-~361 calls to every catalog refresh, against today's paged search only. Locations are
-near-static, so: a `product_locations` table keyed by `product_code`, populated on first
-sight and read from cache thereafter. Steady-state cost is only newly-appeared products.
-This table holds no personal data — no GDPR retention obligation, no Privacy Policy
-change.
-
-### Where each step runs
-
-| Step | Runs | Why |
-|---|---|---|
-| Viator location fetch | Ingest (edge fn) | Needs the API key |
-| Gazetteer resolution | **Browser, from static data** | Deterministic; audit script imports the identical module |
-| Validation | **Build / CI only** | Coastline polygon must not ship to the client |
-
-Resolving the gazetteer client-side rather than at ingest is deliberate: the audit script
-imports `resolvePlace` directly, so what CI validates is byte-for-byte what the browser
-computes. No parity drift between two implementations. Cost is ~10 KB of static place
-data in the bundle and string matching over ~80 entries per render — negligible.
+Because resolution is one-off, this probe is also the *only* Viator API work needed. No
+ingest change, no `product_locations` table, no added per-refresh API cost.
 
 ## Validation — `src/data/coordValidate.ts`
 
@@ -199,12 +149,13 @@ Pure predicates, unit-tested, run at build/CI time.
 | # | Rule | Catches |
 |---|---|---|
 | 1 | **Bounds** — inside Aruba's bbox (approx. lng `[-70.08, -69.86]`, lat `[12.40, 12.64]`; exact extents confirmed during implementation) | Transposed lat/lng, sign flips, digit typos |
-| 2 | **Land/sea** — point-in-polygon against a simplified Aruba coastline. `terrain:'land'` must be on land; `terrain:'water'` must be in water **and** within 3 km of shore | Beaches in the sea, dive sites inland, mid-Caribbean coordinates |
+| 2 | **Land/sea** — point-in-polygon against a simplified Aruba coastline. Land places on land; dive/snorkel sites in water **and** within 3 km of shore | Beaches in the sea, dive sites inland, mid-Caribbean coordinates |
 | 3 | **Precision** — at least 3 decimal places (~110 m) | Coarse rounded guesses presented as fact |
-| 4 | **Collision report** — flag any coordinate shared by more than 3 distinct products | A re-introduced centroid, silently |
-| 5 | **Meet-vs-dest delta** — both known and >25 km apart | Bad location-ref resolution |
+| 4 | **Citation present** — non-empty `cite` on every entry | Coordinates entering without provenance |
+| 5 | **Collision report** — flag any coordinate shared by more than 3 distinct items | A re-introduced centroid, silently |
+| 6 | **Pickup-vs-pin delta** — both known and >25 km apart | Bad location-ref resolution |
 
-Rules 1-3 are hard failures. Rules 4-5 are warnings requiring human sign-off.
+Rules 1-4 are hard failures. Rules 5-6 are warnings requiring human sign-off.
 
 The coastline polygon (~200 vertices, from OSM / Natural Earth) lives in `tools/`, is
 imported only by the audit script, and never enters the client bundle.
@@ -213,123 +164,101 @@ imported only by the audit script, and never enters the client bundle.
 
 `npm run audit:coords`. Sits alongside the existing `tools/itinerary-trace.ts`.
 
-- Resolves every catalog item and every curated activity through the real precedence
-  chain, importing the same modules the app imports.
-- Runs every validator.
-- Reports: coverage by confidence tier, all violations, and the 20 most-reused
-  coordinates.
+- Validates every registry entry against all six rules.
+- Reports coverage by source tier, all violations, the 20 most-reused coordinates, and
+  the churn delta in both directions.
 - **Exits 1 on any hard violation.**
 
-Flags: `--json` for machine output; `--live` to hit the live catalog (manual);
-default runs against a committed catalog fixture so CI is deterministic and offline.
+Flags: `--json` for machine output; `--live` to diff the registry against the live
+catalog (manual). Default runs against the committed registry plus a catalog fixture, so
+CI is deterministic and offline.
 
-**The snapshot is the actual assurance mechanism.** `docs/map/coord-audit-baseline.json`
-records the resolved coordinate for every id. The script diffs against it and fails on
-unexplained drift. A coordinate can then never change without a human seeing the change
-in a reviewed diff — which is the property being asked for. `/code-review` before any
-push to `main` is already mandatory, so this lands in an existing gate.
+**The registry is itself the assurance mechanism.** Because coordinates are static and
+committed, any change to one appears in a normal diff and goes through review. There is no
+separate baseline file to maintain — the data *is* the baseline. `/code-review` before any
+push to `main` is already mandatory, so this lands inside an existing gate.
 
 ### Test suite — `src/data/coords.test.ts`
 
-- Every curated coordinate passes bounds + land/sea + precision.
-- Every gazetteer entry has a non-empty `source`.
-- No two gazetteer places share a coordinate.
-- Resolver fixture table: known titles → expected place.
-- Resolver returns `null` for a curated list of ambiguous and place-free titles.
+- Every registry entry passes bounds + land/sea + precision + citation.
+- No entry carries an empty or placeholder `cite`.
+- Coordinates shared by >3 items are listed in an explicit allowlist, so a new collision
+  fails the build until acknowledged.
 - Regression fixtures pinning all 29 existing activity coordinates.
+- `coordForEntry` returns `undefined` — not a fallback — for unregistered ids.
 
 ## Rendering — displacement retained (decided)
 
 **Decision: keep the fan-out in `Map.tsx:180-192` as it stands.** Clustering was
-prototyped and reviewed interactively against three scenarios; displacement was chosen
-for legibility. Every stop keeps its own visible, individually-clickable pin.
+prototyped and reviewed interactively across three scenarios; displacement was chosen for
+legibility. Every stop keeps its own visible, individually-clickable pin.
 
-This is a deliberate, scoped trade and it needs recording accurately: in a collision, a
-pin is drawn **~175 m** from the coordinate its data claims (measured across all three
-demo scenarios: 176 m / 174 m / 174 m at `R = 0.0016°`). That displacement is a
-*presentation* offset applied after resolution — it never mutates stored or resolved
-coordinates, and it never feeds the validators.
+Recorded accurately: in a collision a pin is drawn **~175 m** from the coordinate its data
+claims (measured 176 m / 174 m / 174 m at `R = 0.0016°`). That is a *presentation* offset
+applied after resolution.
 
-Consequences this design must therefore honour:
+Constraints this places on the rest of the design:
 
-- **The route line uses true coordinates, not displaced ones.** `straightCoords`
-  (`Map.tsx:196-199`) is built from resolved coordinates with consecutive duplicates
-  dropped, before displacement is applied. This removes the phantom ~175 m zigzag leg
-  between co-located stops without touching the pins. Pins stay legible; the route stays
-  honest. This is the one rendering change in scope.
-- **Displacement is applied last**, in the marker render path only, so the audit script
-  and every validator see the true coordinate.
-- **Collisions will become more frequent, not less**, once `GROUP_COORDS` is deleted —
+- **Displacement is applied last**, in the marker render path only. The registry, the
+  validators, and the audit script always see the true coordinate.
+- **The route line uses true coordinates**, with consecutive duplicates dropped before
+  the Directions API call. This removes the phantom ~175 m zigzag between co-located
+  stops without touching the pins. Pins stay legible; the route stays honest. This is the
+  one rendering change in scope.
+- **Collisions will become more frequent**, not less, once `GROUP_COORDS` is deleted —
   genuinely co-located tours will start sharing real marina and trailhead coordinates
-  rather than fake centroids. Displacement will fire on correctly-sourced points. This
-  is understood and accepted.
-- Validator rule 4 (collision report) becomes more valuable under this choice, since a
-  re-introduced centroid is now visually indistinguishable from a legitimate shared
-  point. It stays a warning requiring human sign-off.
+  rather than fake centroids. Understood and accepted.
+- Rule 5 (collision report) therefore matters more under this choice, since a
+  re-introduced centroid is visually indistinguishable from a legitimate shared point.
 
-Clustering is recorded in Non-goals as considered and declined.
-
-## UI honesty
-
-### Pickup point in the activity card (required)
+## Activity card — pickup block (required)
 
 The card that opens on pin click gains a **pickup block**, below price/duration:
 
 | Case | Renders |
 |---|---|
-| Pickup known, differs from pin | Pickup name + address, pickup time when available, and the distance from the pin, with the note that the tour travels to the activity |
-| Pickup known, same as pin | Pickup name + time only — no distance line, since there is nothing to reconcile |
+| Pickup known, differs from pin | Pickup name + address, time when available, and distance from the pin, noting the tour travels to the activity |
+| Pickup known, same as pin | Pickup name + time only — no distance line, nothing to reconcile |
 | No pickup offered | "No pickup — make your own way there" |
-| Pickup unknown (no Viator data) | Block omitted entirely — never guessed, never blank |
+| Pickup unknown | Block omitted entirely — never guessed, never blank |
 
-The distance line is what makes the split pin/pickup model legible: it tells the reader
-*why* the pin is somewhere they are not being collected. Without it, a Palm Beach pickup
-on a Conchi pin reads as a data error.
+The distance line is what makes the split legible: it tells the reader *why* the pin is
+somewhere they are not being collected. Without it, a Palm Beach pickup on a Conchi pin
+reads as a data error.
 
-Because displacement is retained, every stop keeps its own pin and its own card, so the
-block always renders in full — there is no condensed multi-stop list variant.
+Because displacement is retained, every stop keeps its own pin and card, so the block
+always renders in full — no condensed multi-stop variant.
 
-This block is the reason the destination-vs-meeting-point decision is safe to make: the
-logistics data is not discarded, it is relocated to where it is actually useful.
-
-### Rest
-
-- A pin resolved at `confidence: 'meeting-point'` is labelled as a departure point, so it
-  is never mistaken for a destination.
-- No badge on curated / POI / gazetteer pins — an accuracy indicator on a pin that is
-  accurate is noise.
-- Coordless items render no pin and stay in the photo strip. Existing behaviour, now
-  reached honestly.
+A pin with `source: 'departure'` is labelled as a departure point, so it is never mistaken
+for a destination. No badge on `viator-poi` / `known-place` / `curated` pins — an accuracy
+indicator on an accurate pin is noise.
 
 ## Non-goals
 
-- **Marker clustering of any kind.** Prototyped and reviewed side-by-side against
-  displacement across three scenarios; displacement was chosen for legibility. Not
-  revisited in this piece of work.
-- Zoom-aware proximity clustering.
+- **Marker clustering of any kind.** Prototyped, reviewed side-by-side, declined.
+- Runtime or ingest-time coordinate resolution. Resolution is one-off and offline.
 - Geocoding street addresses for restaurants beyond the curated set.
 - Changing the matching engine, `SlotEntry`, or any localStorage contract.
-- Backfilling coordinates for products Viator has no location data for — those correctly
+- Backfilling coordinates for items with no determinable location — those correctly
   render no pin.
 
 ## Risks
 
 | Risk | Mitigation |
 |---|---|
-| Viator POI data absent or sparse | Probe first (Task 1). Gazetteer absorbs the difference; only the coverage mix changes |
-| Ingest API call volume | `product_locations` cache table; steady state is new products only |
-| Gazetteer maintenance burden | ~80 entries, static, source-cited. Audit script reports coverage so gaps are visible |
-| Pin coverage drops visibly on launch | Expected and correct — the current coverage is partly false. Audit report quantifies it before/after so the trade is a decision, not a surprise |
+| Viator POI data absent or sparse | Probe first. Place-name resolution and departure points absorb the difference; only the source mix changes |
+| Registry goes stale as catalog churns | Audit reports the delta both ways; unregistered items render no pin rather than a wrong one |
+| Manual review effort across ~361 items | Tool proposes with citations, human accepts; most items resolve to a small set of repeated places (18 already map to Natural Pool alone) |
+| Pin coverage drops visibly | Expected and correct — current coverage is substantially false. Audit quantifies before/after so the trade is a decision, not a surprise |
 
 ## Success criteria
 
-1. `npm run audit:coords` exits 0, with zero hard violations.
+1. `npm run audit:coords` exits 0 with zero hard violations.
 2. `GROUP_COORDS` no longer exists in the codebase.
-3. Every coordinate the app can render traces to a `source` string or a Viator location
-   ref.
-4. Displacement is presentation-only — verified by a test asserting that the resolved
-   coordinate, the route-line vertex, and the audited coordinate for a stop are
-   identical, and that the marker offset is applied solely in the render path. (Marker
-   anchors deliberately differ from resolved coordinates in collisions; that is the
-   accepted trade recorded above, not a defect.)
-5. The audit baseline is committed, and CI fails on undiffed coordinate drift.
+3. Every coordinate the app can render carries a non-empty `cite`.
+4. `coordForEntry` returns `undefined` for unregistered items — no fallback coordinate
+   exists anywhere in the resolution path.
+5. Displacement is presentation-only — verified by a test asserting the registry
+   coordinate, the route-line vertex, and the audited coordinate are identical, and that
+   the offset is applied solely in the render path.
+6. The audit's churn report is clean, or every outstanding item is explicitly accepted.
