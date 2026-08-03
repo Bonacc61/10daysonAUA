@@ -8,6 +8,7 @@ import { ACTIVITY_COORDS, GROUP_COORDS, VIATOR_ITEM_COORDS } from '../data/coord
 import { LUNCHSPOTS } from '../data/lunchspots';
 import { viatorLink } from '../data/exploreItems';
 import type { Answers, PageId } from '../App';
+import { dayHues } from '../data/dayHues';
 import type { SlotEntry } from '../types';
 import type { Catalog } from '../data/activitySource';
 
@@ -61,21 +62,48 @@ function urlFor(entry: SlotEntry, catalog: Catalog): string | null {
   return raw ? viatorLink(raw) : null;
 }
 
-// The light base style still renders highway route shields (1, 2, 1A, 8A) as
+// The base style still renders highway route shields (1, 2, 1A, 8A) as
 // numbered badges that read almost identically to our numbered stop markers.
 // After style load we hide every shield / road-number / exit / junction layer,
 // keeping road lines, place names, and the coastline. Minimal structural type so
 // we don't need mapbox-gl's types here; the real map satisfies it.
-type ShieldMap = {
+type StyleMap = {
   getStyle: () => { layers?: { id: string }[] } | undefined;
   setLayoutProperty: (id: string, name: string, value: unknown) => void;
+  getPaintProperty: (id: string, name: string) => unknown;
+  setPaintProperty: (id: string, name: string, value: unknown) => void;
 };
 const SHIELD_LAYER_RE = /shield|road-number|road-exit|motorway-junction/i;
-function hideRoadShields(map: ShieldMap): void {
+function hideRoadShields(map: StyleMap): void {
   for (const layer of map.getStyle()?.layers ?? []) {
     if (SHIELD_LAYER_RE.test(layer.id)) {
       try { map.setLayoutProperty(layer.id, 'visibility', 'none'); } catch { /* layer already absent */ }
     }
+  }
+}
+
+// navigation-day-v1 paints live traffic congestion onto the road network, and its
+// free-flowing green — hsl(120, 70%, 60%) on the surface, hsl(120, 65%, 75%) in
+// tunnels — is saturated enough to compete with the day's route line, which runs
+// along those same roads. We soften only the green to a pastel; moderate, heavy
+// and severe keep their colours, so the route stays the loudest thing on the map.
+// The colours live inside a ["match", ["get","congestion"], …] expression, so we
+// walk the expression tree rather than assuming its shape.
+const HSL_HUE_RE = /^hsla?\(\s*(\d+(?:\.\d+)?)\s*,/;
+const PASTEL_TRAFFIC_GREEN = 'hsl(120, 45%, 84%)';
+function pastelGreens(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(pastelGreens);
+  if (typeof value !== 'string') return value;
+  const hue = Number(HSL_HUE_RE.exec(value)?.[1]);
+  return hue >= 90 && hue <= 150 ? PASTEL_TRAFFIC_GREEN : value;
+}
+function softenTrafficGreen(map: StyleMap): void {
+  for (const layer of map.getStyle()?.layers ?? []) {
+    if (!layer.id.startsWith('traffic')) continue;
+    try {
+      const color = map.getPaintProperty(layer.id, 'line-color');
+      if (color !== undefined) map.setPaintProperty(layer.id, 'line-color', pastelGreens(color));
+    } catch { /* layer carries no line-color */ }
   }
 }
 
@@ -250,6 +278,11 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
 
   const routeCoords = roadCoords ?? straightCoords;
   const dayColor = planDay?.color ?? '#E63946';
+  // One shade per stop, darkest first, so a day's markers are individually
+  // legible and their order reads off the map — while still being obviously the
+  // same day. See src/data/dayHues.ts.
+  const stopHues = dayHues(dayColor, locatedEntries.length);
+  const hueAt = (i: number) => stopHues[i] ?? dayColor;
 
   return (
     <div style={{ height: 'calc(100vh - 70px)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -260,10 +293,13 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
           mapboxAccessToken={TOKEN}
           initialViewState={ARUBA_CENTER}
           style={{ width: '100%', height: '100%' }}
-          mapStyle="mapbox://styles/mapbox/light-v11"
+          mapStyle="mapbox://styles/mapbox/navigation-day-v1"
           onLoad={() => {
             const m = mapRef.current?.getMap();
-            if (m) hideRoadShields(m as unknown as ShieldMap);
+            if (m) {
+              hideRoadShields(m as unknown as StyleMap);
+              softenTrafficGreen(m as unknown as StyleMap);
+            }
             setMapReady(true);
           }}
           onClick={() => setPopup(null)}
@@ -272,17 +308,36 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
 
           {/* Road-snapped route for the active day */}
           {planDay && routeCoords.length >= 2 && (
-            <Source type="geojson" data={{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: routeCoords } }}>
-              <Layer id="route-line" type="line" paint={{ 'line-color': dayColor, 'line-width': 4, 'line-opacity': 0.9 }} />
+            <Source type="geojson" lineMetrics data={{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: routeCoords } }}>
+              {/* line-gradient needs lineMetrics on the source. The stops run
+                  first-darkest to last-lightest, so the route shades the same way
+                  and the day reads in order rather than as one flat colour. */}
+              <Layer
+                id="route-line"
+                type="line"
+                paint={stopHues.length >= 2 ? {
+                  'line-width': 4,
+                  'line-opacity': 0.9,
+                  'line-gradient': [
+                    'interpolate', ['linear'], ['line-progress'],
+                    ...stopHues.flatMap((hex, i) => [i / (stopHues.length - 1), hex]),
+                  ],
+                } : {
+                  // An interpolate needs two ascending stops; with 0 or 1 located
+                  // entries there is no progression to show, so use the flat day
+                  // colour rather than emit a malformed expression.
+                  'line-width': 4, 'line-opacity': 0.9, 'line-color': dayColor,
+                }}
+              />
             </Source>
           )}
 
           {/* Photo pin markers for active day — every located stop, numbered to
               match the card order, de-stacked so shared coordinates stay visible */}
-          {planDay && locatedEntries.map(e => (
+          {planDay && locatedEntries.map((e, i) => (
             <Marker key={e.key} longitude={e.coord.lng} latitude={e.coord.lat} anchor="bottom"
               onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url }); }}>
-              <PhotoPin image={e.image} color={dayColor} label={String(e.num)} />
+              <PhotoPin image={e.image} color={hueAt(i)} label={String(e.num)} />
             </Marker>
           ))}
 
