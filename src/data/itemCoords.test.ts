@@ -26,7 +26,9 @@ describe('registry integrity', () => {
   });
 
   it('rejects placeholder citations', () => {
-    const placeholder = entries.filter(([, p]) => /^(tbd|todo|n\/a|\?+|-)$/i.test(p.cite.trim()));
+    // `places`, not `entries` — a secondary stop with a placeholder cite would
+    // otherwise pass, and every other integrity check here covers stops.
+    const placeholder = places.filter(([, p]) => /^(tbd|todo|n\/a|\?+|-)$/i.test((p.cite ?? '').trim()));
     expect(placeholder.map(([id]) => id)).toEqual([]);
   });
 
@@ -85,7 +87,10 @@ describe('registry integrity', () => {
     // onto the wrong entry.
     const water = places.filter(([, p]) => p.offshore);
     expect(water.length).toBeGreaterThan(0);
-    const bad = water.filter(([, p]) => kmToRing(p.coord, RING) > SEA_TOLERANCE_KM);
+    // Must actually BE offshore, not merely within the sea tolerance — an
+    // offshore flag copied onto an inland pin passed the distance check alone.
+    const bad = water.filter(([, p]) =>
+      pointInRing(p.coord, RING) || kmToRing(p.coord, RING) > SEA_TOLERANCE_KM);
     expect(bad.map(([id]) => id)).toEqual([]);
   });
 

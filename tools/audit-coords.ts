@@ -40,6 +40,7 @@ const ALLOWED_COLLISIONS: Record<string, string> = {
   '-69.96950,12.46430': 'Mangel Halto — the island\'s main mangrove snorkel and kayak spot',
   '-70.04470,12.57760': 'MooMba Beach — Jolly Pirates and others sail from here',
   '-70.04490,12.57590': 'Holiday Inn pier — several catamarans board here',
+  '-70.04300,12.56200': 'Palm Beach hotel strip — the four open-bus sightseeing tours all board here',
   '-70.05190,12.60490': 'Boca Catalina — the standard turtle-snorkel stop, mostly as a secondary stop on Antilla wreck trips',
 };
 

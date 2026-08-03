@@ -75,14 +75,28 @@ export function distanceKm(a: Coord, b: Coord): number {
 }
 
 /**
- * Shortest distance from a point to the coastline, measured to ring vertices.
- * Vertex-only is sufficient at ~200 vertices around a 30km island: segments are
- * short relative to the tolerances above.
+ * Shortest distance from a point to the coastline, measured to the nearest
+ * SEGMENT rather than the nearest vertex.
+ *
+ * Vertex-only was wrong in a way that mattered. The thinned ring has 203
+ * vertices with a mean spacing of 361m but a maximum of 1.38km on the west
+ * coast — the Eagle/Manchebo stretch where many pins sit. A point exactly on
+ * that shoreline measured up to 690m to the nearest vertex, above the 500m land
+ * tolerance, so a perfectly correct coordinate could hard-fail and invite
+ * someone to "fix" a good number. Measured overestimates before this change:
+ * Palm Beach 312m true / 439m reported, De Palm Pier 6m true / 207m reported.
  */
 export function kmToRing(c: Coord, ring: Ring): number {
+  const px = c.lng * LNG_KM, py = c.lat * LAT_KM;
   let best = Infinity;
-  for (const [lng, lat] of ring) {
-    const d = distanceKm(c, { lng, lat });
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const ax = ring[j][0] * LNG_KM, ay = ring[j][1] * LAT_KM;
+    const bx = ring[i][0] * LNG_KM, by = ring[i][1] * LAT_KM;
+    const dx = bx - ax, dy = by - ay;
+    const len2 = dx * dx + dy * dy;
+    // Project the point onto the segment, clamped to its ends.
+    const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2));
+    const d = Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
     if (d < best) best = d;
   }
   return best;
