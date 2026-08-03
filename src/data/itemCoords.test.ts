@@ -105,6 +105,21 @@ describe('registry integrity', () => {
     expect(tooFar.map(([id]) => id)).toEqual([]);
   });
 
+  it('only marks departure pins as approximate', () => {
+    // `approx` exists for departure points pinned on a hotel landmark. A curated
+    // or known-place pin has no business being approximate — if one is, either
+    // the flag was copied onto the wrong entry or a guess got in wearing it.
+    const wrong = entries.filter(([, p]) => p.approx && p.source !== 'departure');
+    expect(wrong.map(([id]) => id)).toEqual([]);
+  });
+
+  it('makes every approximate pin say so in its citation', () => {
+    // The flag is for machines, the citation is for people. Both must agree, so
+    // an auditor reading the file sees the caveat without consulting the schema.
+    const silent = entries.filter(([, p]) => p.approx && !/approx/i.test(p.cite));
+    expect(silent.map(([id]) => id)).toEqual([]);
+  });
+
   it('gives every pickup a coordinate inside Aruba', () => {
     const bad = entries.filter(([, p]) => p.pickup && !inBounds(p.pickup.coord));
     expect(bad.map(([id]) => id)).toEqual([]);

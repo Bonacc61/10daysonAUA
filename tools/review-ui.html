@@ -364,9 +364,12 @@ function render() {
         card.appendChild(el(`<div class="cite" style="white-space:normal">📍 ${esc(r.meeting).slice(0, 320)}</div>`));
       }
       if (r.proposed) {
+        const approxNote = r.proposed.role === 'landmark'
+          ? '<br><span class="co" style="color:#E63946">approximate — hotel landmark, actual pier ~150-200m seaward</span>'
+          : '<br><span class="co" style="color:#2e7d32">exact — a named pier or beach club</span>';
         const pr = el(`<div class="items"><div class="cand">
           <span class="nm">→ <b>${esc(r.proposed.name)}</b><br>
-          <span class="co">${r.proposed.coord.lng}, ${r.proposed.coord.lat} · matched "${esc(r.alias ?? '')}"</span></span></div></div>`);
+          <span class="co">${r.proposed.coord.lng}, ${r.proposed.coord.lat} · matched "${esc(r.alias ?? '')}"</span>${approxNote}</span></div></div>`);
         card.appendChild(pr);
       }
       const acts = el('<div class="acts"></div>');
@@ -374,9 +377,11 @@ function render() {
         const bA = el('<button class="a">Accept departure</button>');
         bA.onclick = () => {
           showPins([{ coord: r.proposed.coord, name: r.proposed.name, label: '⚓' }], true);
+          const isLandmark = r.proposed.role === 'landmark';
           setDec([r.id], { action: 'accept', placeId: r.proposed.id, coord: r.proposed.coord,
-            name: r.proposed.name, source: 'departure',
-            cite: `${r.proposed.cite} — meeting point per Viator: "${String(r.meeting ?? '').replace(/\s+/g, ' ').slice(0, 120)}"` });
+            name: r.proposed.name, source: 'departure', approx: isLandmark,
+            cite: `${isLandmark ? 'APPROX — pinned at the named hotel; the pier sits ~150-200m seaward. ' : ''}`
+              + `${r.proposed.cite} — meeting point per Viator: "${String(r.meeting ?? '').replace(/\s+/g, ' ').slice(0, 120)}"` });
         };
         acts.appendChild(bA);
       }
@@ -387,8 +392,10 @@ function render() {
           const p = P.places.find((x) => x.id === sel.value);
           if (!p) return setDec([r.id], null);
           showPins([{ coord: p.coord, name: p.name }], true);
-          setDec([r.id], { action: 'accept', placeId: p.id, coord: p.coord, name: p.name, source: 'departure',
-            cite: `${p.cite}${r.meeting ? ` — meeting point per Viator: "${String(r.meeting).replace(/\s+/g, ' ').slice(0, 120)}"` : ''}` });
+          const lm = p.role === 'landmark';
+          setDec([r.id], { action: 'accept', placeId: p.id, coord: p.coord, name: p.name, source: 'departure', approx: lm,
+            cite: `${lm ? 'APPROX — pinned at the named hotel; the pier sits ~150-200m seaward. ' : ''}${p.cite}`
+              + `${r.meeting ? ` — meeting point per Viator: "${String(r.meeting).replace(/\s+/g, ' ').slice(0, 120)}"` : ''}` });
         };
         acts.appendChild(sel);
       }

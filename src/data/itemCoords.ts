@@ -66,6 +66,20 @@ export type Pin = {
   stops?: Stop[];
   pickup?: Pickup;
   /**
+   * Set when the coordinate is a deliberate approximation rather than the exact
+   * spot — currently, departure pins placed on the hotel a Viator meeting-point
+   * description names, when the actual pier is on that hotel's beach.
+   *
+   * Measured example: "our pier located behind the Hyatt Regency" pins on the
+   * Hyatt, which sits 162m from the shoreline; the pier is past that, over the
+   * water. Right beach, right hotel, ~150-200m out.
+   *
+   * Kept as a flag rather than left implicit in the citation so the audit can
+   * count approximations without parsing prose, and so the card can label them
+   * if that is ever wanted. `cite` still carries the operator's exact wording.
+   */
+  approx?: true;
+  /**
    * Set for pins that legitimately sit away from the main island landmass:
    * wreck and reef dive sites, and offshore islets such as De Palm Island
    * (628m out) and Renaissance Island. Absent means "on the main island", which
