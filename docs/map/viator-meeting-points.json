@@ -85,7 +85,7 @@
  },
  "364486P1": {
   "pickupType": "MEET_EVERYONE_AT_START_POINT",
-  "meeting": "Directions using *Google Maps: Address 1. “Chef and Steward” on Google Maps 2. Bona Vista 36 Noord What to look out for It is a row of colorful Cunucu houses on Rte3 that tour buses usually stop"
+  "meeting": "Directions using *Google Maps: Address 1. “Chef and Steward” on Google Maps 2. Bona Vista 36 Noord What to look out for It is a row of colorful Cunucu houses on Rte3 that tour buses usually stop "
  },
  "292552P1": {
   "pickupType": "PICKUP_EVERYONE",
@@ -101,7 +101,7 @@
  },
  "459169P1": {
   "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
-  "meeting": "Near Ling&Songs supermarket ,once in the area we can come meet you"
+  "meeting": "Near Ling&Songs supermarket ,once in the area we can come meet you "
  },
  "459169P2": {
   "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
@@ -149,7 +149,7 @@
  },
  "137607P19": {
   "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
-  "meeting": "The starting point of the tour can be determined by the guests."
+  "meeting": "The starting point of the tour can be determined by the guests. "
  },
  "476164P3": {
   "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
@@ -193,7 +193,7 @@
  },
  "200215P1": {
   "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
-  "meeting": "We are located on the road to the natural bridge and Bushiribana Gold mill ruins. Our address is Matividiri 60. Please arrive at 8:30am for the mandatory instructions. We are the last stop on that road, next to the Ostrich farm."
+  "meeting": "We are located on the road to the natural bridge and Bushiribana Gold mill ruins. Our address is Matividiri 60. Please arrive at 8:30am for the mandatory instructions. We are the last stop on that road, next to the Ostrich farm. "
  },
  "6593P14": {
   "pickupType": "MEET_EVERYONE_AT_START_POINT",
@@ -337,7 +337,7 @@
  },
  "13835P1": {
   "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
-  "meeting": "We recommend navigating directly to \"Rancho Notorious\" using Google Maps or Waze."
+  "meeting": "We recommend navigating directly to \"Rancho Notorious\" using Google Maps or Waze. "
  },
  "137607P22": {
   "pickupType": "MEET_EVERYONE_AT_START_POINT",
@@ -349,15 +349,15 @@
  },
  "429943P1": {
   "pickupType": "MEET_EVERYONE_AT_START_POINT",
-  "meeting": "Our pontoon boat is located at Varadero Aruba Marina & Boatyard."
+  "meeting": "Our pontoon boat is located at Varadero Aruba Marina & Boatyard. "
  },
  "6841P6": {
   "pickupType": "MEET_EVERYONE_AT_START_POINT",
-  "meeting": "Cruise passengers are welcome to join the tour. Please check your ship’s arrival time to ensure you’ll have sufficient time to reach the meeting point before the tour begins. Meet us at our main office, which is ABC headquarters, at Schotlandstraat 61, we have limited parking, and suggest you take taxi to meeting at location. Meeting time for this excursion is 7:45 AM, Tour departs exactly at 8:30. We can provide drop off once the tour is finished."
+  "meeting": "Cruise passengers are welcome to join the tour. Please check your ship’s arrival time to ensure you’ll have sufficient time to reach the meeting point before the tour begins. Meet us at our main office, which is ABC headquarters, at Schotlandstraat 61, we have limited parking, and suggest you take taxi to meeting at location. Meeting time for this excursion is 7:45 AM, Tour departs exactly at 8:30. We can provide drop off once the tour is finished. "
  },
  "122173P3": {
   "pickupType": "MEET_EVERYONE_AT_START_POINT",
-  "meeting": "The meeting point is located at the small pier right next to Villa Rossana in Savaneta. It is very close to the Flying Fishbone Restaurant."
+  "meeting": "The meeting point is located at the small pier right next to Villa Rossana in Savaneta. It is very close to the Flying Fishbone Restaurant. "
  },
  "70453P2": {
   "pickupType": "MEET_EVERYONE_AT_START_POINT",
@@ -381,7 +381,7 @@
  },
  "283728P3": {
   "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
-  "meeting": "if you pass the Ritz Carlton on your left hand side, look out for the big BLUE building on your left hand. There we are to welcome you with the biggest smiles ;)"
+  "meeting": "if you pass the Ritz Carlton on your left hand side, look out for the big BLUE building on your left hand. There we are to welcome you with the biggest smiles ;) "
  },
  "404788P3": {
   "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
@@ -406,5 +406,9 @@
  "400174P2": {
   "pickupType": "MEET_EVERYONE_AT_START_POINT",
   "meeting": "We will meet at Signature Park Aruba in front of a Blue Building"
+ },
+ "367744P1": {
+  "pickupType": null,
+  "meeting": null
  }
 }

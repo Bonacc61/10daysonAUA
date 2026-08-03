@@ -33,6 +33,33 @@ const MEETING: Record<string, { start?: Array<{ description?: string | null }> }
     ? JSON.parse(readFileSync('/tmp/meeting-text.json', 'utf8'))
     : {};
 
+/** Full product descriptions, written by the op=meeting probe. */
+const DESCRIPTIONS: Record<string, { description?: string | null; itineraryText?: string[];
+  pickupInfo?: string | null; redemption?: string | null; pickupType?: string | null; additional?: string[] }> =
+  existsSync('/tmp/descriptions.json')
+    ? JSON.parse(readFileSync('/tmp/descriptions.json', 'utf8'))
+    : {};
+
+/**
+ * Why an item has no departure point, when it has none.
+ *
+ * "We pick up at all major hotels" is not a coordinate we failed to find — it is
+ * a product with no fixed departure point. Saying so lets the reviewer clear
+ * those in one pass instead of hunting for something that does not exist.
+ */
+const HOTEL_PICKUP_RE = /\b(pick[- ]?up (?:and drop[- ]?off )?(?:is |are )?(?:provided|included|available) (?:at|from) (?:all|most|major)|we pick[- ]?up at all|all major hotels|at all accommodations|hotel pick ?up and drop ?off|wherever you (?:are )?stay)/i;
+const DEFERRED_RE = /\b(exact (?:meeting|pickup|location)[^.]{0,40}(?:shared|provided|confirmed|sent)[^.]{0,20}booking|after (?:the )?booking we will contact|check the pickup instructions|(?:starting point|location)[^.]{0,30}determined by the guests)/i;
+
+function noFixedPointReason(id: string, meeting: string): 'hotel-pickup' | 'deferred' | null {
+  const p = DESCRIPTIONS[id];
+  if (!p) return null;
+  const blob = [meeting, p.description ?? '', ...(p.itineraryText ?? []),
+    p.pickupInfo ?? '', p.redemption ?? '', ...(p.additional ?? [])].join(' ');
+  if (DEFERRED_RE.test(blob)) return 'deferred';
+  if (HOTEL_PICKUP_RE.test(blob) || p.pickupType === 'PICKUP_EVERYONE') return 'hotel-pickup';
+  return null;
+}
+
 function meetingText(id: string): string {
   return (MEETING[id]?.start ?? []).map((s) => s.description ?? '').join(' ').trim();
 }
@@ -142,7 +169,11 @@ function matchMeeting(text: string): Match {
     }
     if (!hits.length) return null;
     hits.sort((a, b) => b.alias.length - a.alias.length);
-    const specific = hits.filter((h) => !hits.some((o) => o.alias !== h.alias && o.alias.includes(h.alias)));
+    let specific = hits.filter((h) => !hits.some((o) => o.alias !== h.alias && o.alias.includes(h.alias)));
+    // Precision wins. "Matividiri 60 ... next to the Ostrich farm" matches both a
+    // 1.5km road and a mapped farm; the farm is the meeting point, the road is
+    // how you get there. Drop approximate matches when an exact one is present.
+    if (specific.some((h) => !h.place.approx)) specific = specific.filter((h) => !h.place.approx);
     const distinct = [...new Map(specific.map((h) => [h.place.id, h.place])).values()];
     if (distinct.length > 1) return { kind: 'ambiguous' as const, places: distinct };
     return { kind: 'hit' as const, place: specific[0].place, alias: specific[0].alias };
@@ -186,7 +217,7 @@ async function main() {
   const SAIL_RE = /\b(sail|sailing|cruise|catamaran|yacht|schooner|boat charter)\b/i;
   const ROVING_RE = /\b(island tour|utv|atv|jeep|off[- ]road|scooter|harley|buggy|horseback|e-?bike|surron|sightseeing|countryside|trikes?)\b/i;
 
-  type Row = { id: string; title: string; place?: Place; alias?: string; via?: string; cands?: Place[]; meeting?: string; coarserThanText?: boolean };
+  type Row = { id: string; title: string; place?: Place; alias?: string; via?: string; cands?: Place[]; meeting?: string; coarserThanText?: boolean; noFixed?: string | null };
   const accept: Row[] = [], check: Row[] = [], pick: Row[] = [], departure: Row[] = [], leave: Row[] = [];
   const registryLine = (id: string, p: Place, title: string) =>
     `  '${id}': { coord: { lng: ${p.coord.lng}, lat: ${p.coord.lat} }, `
@@ -220,7 +251,9 @@ async function main() {
           coarserThanText,
         });
       } else {
-        (SAIL_RE.test(title) && !ROVING_RE.test(title) ? departure : leave).push({ ...row, meeting: mt || undefined });
+        (SAIL_RE.test(title) && !ROVING_RE.test(title) ? departure : leave).push({
+          ...row, meeting: mt || undefined, noFixed: noFixedPointReason(item.id, mt),
+        });
       }
     } else if (m.kind === 'ambiguous') {
       pick.push({ ...row, cands: m.places });
@@ -300,10 +333,10 @@ async function main() {
     groupC: pick.map((r) => ({ id: r.id, title: r.title, candidates: r.cands!.map(slim) })),
     groupD: departure.map((r) => ({ id: r.id, title: r.title, meeting: r.meeting ?? null,
       proposed: r.place ? slim(r.place) : null, alias: r.alias ?? null,
-      coarserThanText: !!r.coarserThanText })),
+      coarserThanText: !!r.coarserThanText, noFixed: r.noFixed ?? null })),
     groupE: leave.map((r) => ({ id: r.id, title: r.title, meeting: r.meeting ?? null,
       proposed: r.place ? slim(r.place) : null, alias: r.alias ?? null,
-      coarserThanText: !!r.coarserThanText })),
+      coarserThanText: !!r.coarserThanText, noFixed: r.noFixed ?? null })),
     places: PLACES.map(slim),
   }, null, 1));
 

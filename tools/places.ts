@@ -62,6 +62,35 @@ export type Place = {
 };
 
 export const PLACES: Place[] = [
+  // ── Operator bases named in product descriptions ──────────────────────────
+  // Pulled from the full Viator product description rather than
+  // logistics.start[].description, which many operators leave blank.
+  { id: 'rancho-notorious', role: 'venue', name: 'Rancho Notorious', terrain: 'land',
+    coord: { lng: -70.0320, lat: 12.5850 },
+    aliases: ['rancho notorious'],
+    cite: 'OpenStreetMap way/641456655, verified 2026-08-03' },
+  // The horseback ranch describes itself as "Matividiri 60 ... next to the
+  // Ostrich farm". The farm is a mapped point; the road is a 1.5km line, so the
+  // farm is much the better anchor.
+  { id: 'ostrich-farm', role: 'venue', name: 'Aruba Ostrich Farm', terrain: 'land',
+    coord: { lng: -69.9785, lat: 12.5466 },
+    aliases: ['ostrich farm', 'aruba ostrich farm'],
+    cite: 'OpenStreetMap way/377194991 (zoo), verified 2026-08-03' },
+  { id: 'yemanja', role: 'venue', name: 'Yemanja Woodfired Grill, Oranjestad', terrain: 'land',
+    coord: { lng: -70.0366, lat: 12.5189 },
+    aliases: ['yemanja'],
+    cite: 'OpenStreetMap node/4487848715, verified 2026-08-03' },
+  // "the Citgo gas station across the street from the cruise terminal" — OSM has
+  // no Citgo there, but the terminal itself is mapped and "across the street"
+  // puts the meeting point within ~100m of it.
+  { id: 'cruise-terminal', role: 'venue', name: 'Cruise Terminal, Oranjestad', terrain: 'land', approx: true,
+    coord: { lng: -70.0436, lat: 12.5212 },
+    aliases: ['cruise terminal', 'citgo gas station', 'citgo gasstation'],
+    cite: 'OpenStreetMap: Cruise Ship Dock, Oranjestad, verified 2026-08-03 (meeting point is across the street, so ~100m)' },
+  { id: 'de-palm-tours', role: 'venue', name: 'De Palm Tours office', terrain: 'land',
+    coord: { lng: -70.0496, lat: 12.5284 },
+    aliases: ['de palm tours'],
+    cite: 'OpenStreetMap way/369278715, verified 2026-08-03' },
   // Street named in a meeting-point address. Street level, not the doorway —
   // Nominatim carries no house numbers for Aruba at all (0 of 7 addresses
   // resolved), so "Schotlandstraat 46" can only ever land on Schotlandstraat.

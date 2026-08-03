@@ -363,6 +363,18 @@ function render() {
       if (r.meeting) {
         card.appendChild(el(`<div class="cite" style="white-space:normal">📍 ${esc(r.meeting).slice(0, 320)}</div>`));
       }
+      // Why there is no proposal, when there is none. "Hotel pickup" is not a
+      // coordinate we failed to find — it is a product with no fixed departure
+      // point, and no pin is the correct answer.
+      if (!r.proposed && r.noFixed) {
+        const msg = r.noFixed === 'hotel-pickup'
+          ? '🏨 Hotel pickup — the operator collects from your accommodation, so there is no fixed departure point. No pin is correct.'
+          : '⏳ Meeting point is only given after booking. Nothing to pin.';
+        card.appendChild(el(`<div class="cite" style="white-space:normal;color:#7a7268">${msg}</div>`));
+      }
+      if (!r.proposed && !r.noFixed && !r.meeting) {
+        card.appendChild(el(`<div class="cite" style="color:#7a7268">No meeting point stated anywhere in the product data.</div>`));
+      }
       if (r.proposed) {
         const approxNote = (r.proposed.role === 'landmark' || r.proposed.approx || r.coarserThanText)
           ? `<br><span class="co" style="color:#E63946">approximate — ${

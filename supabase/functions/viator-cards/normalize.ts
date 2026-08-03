@@ -42,7 +42,10 @@ export type ViatorProduct = {
   additionalInfo?: Array<{ description?: string }>;
   itinerary?: {
     itineraryType?: string;
-    items?: Array<{ pointOfInterestLocation?: { location?: { ref?: string } } }>;
+    items?: Array<{
+      pointOfInterestLocation?: { location?: { ref?: string } };
+      description?: string;
+    }>;
   };
 };
 

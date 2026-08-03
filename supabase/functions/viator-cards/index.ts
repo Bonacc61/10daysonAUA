@@ -89,6 +89,10 @@ serve(async (req) => {
           pickupInfo: lg.travelerPickup?.additionalInfo ?? null,
           pickupCount: (lg.travelerPickup?.locations ?? []).length,
           redemption: lg.redemption?.specialInstructions ?? null,
+          // Full marketing description and itinerary prose. Operators often name
+          // their meeting point here when logistics.start[].description is blank.
+          description: p.description ?? null,
+          itineraryText: (p.itinerary?.items ?? []).map((i) => i.description).filter(Boolean).slice(0, 8),
           inclusions: (p.inclusions ?? []).map((i) => i.otherDescription || i.description).filter(Boolean).slice(0, 6),
           additional: (p.additionalInfo ?? []).map((i) => i.description).filter(Boolean).slice(0, 8),
         };
