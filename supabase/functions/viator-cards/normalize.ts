@@ -22,31 +22,6 @@ export type ViatorProduct = {
   pricing?: { summary?: { fromPrice?: number }; currency?: string };
   productUrl?: string;
   tags?: number[];
-  // Location data. Only present on /products/{code} detail responses, never on
-  // search results. Declared so the pin-accuracy probe can read it; normalizeProduct
-  // deliberately ignores it — coordinates are resolved once, offline, into
-  // src/data/itemCoords.ts rather than carried through the catalog payload.
-  // See docs/map/viator-location-probe.md.
-  logistics?: {
-    start?: Array<{ location?: { ref?: string }; description?: string }>;
-    end?: Array<{ location?: { ref?: string }; description?: string }>;
-    travelerPickup?: {
-      allowCustomTravelerPickup?: boolean;
-      pickupOptionType?: string;
-      additionalInfo?: string;
-      locations?: Array<{ location?: { ref?: string }; pickupType?: string }>;
-    };
-    redemption?: { specialInstructions?: string };
-  };
-  inclusions?: Array<{ otherDescription?: string; description?: string }>;
-  additionalInfo?: Array<{ description?: string }>;
-  itinerary?: {
-    itineraryType?: string;
-    items?: Array<{
-      pointOfInterestLocation?: { location?: { ref?: string } };
-      description?: string;
-    }>;
-  };
 };
 
 export type NormalizedItem = {

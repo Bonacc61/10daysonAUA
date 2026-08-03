@@ -7,7 +7,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { GROUPS, ARUBA_DESTINATION_ID } from './groups.ts';
 import { normalizeProduct } from './normalize.ts';
-import { hasKey, ping, searchProducts, searchProductsPaged, freetextSearch, getProduct, getTags, getLocationsBulk } from './viator.ts';
+import { hasKey, ping, searchProducts, searchProductsPaged, freetextSearch, getProduct, getTags } from './viator.ts';
 import { embedBatch, clusterByEmbedding, activeProvider } from './embeddings.ts';
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
@@ -66,43 +66,6 @@ serve(async (req) => {
   if (!hasKey()) return json({ error: 'VIATOR_API_KEY_PRODUCTION not set' }, 500);
 
   const op = new URL(req.url).searchParams.get('op');
-  // TEMPORARY (pin-accuracy research): return the free-text meeting-point fields
-  // Viator carries for a batch of products. The product web pages sit behind
-  // DataDome and cannot be read, so this API path is the only licensed way to
-  // find where a sail or cruise actually departs from. Read-only.
-  // Remove once docs/map/departure-points.md records the findings.
-  if (op === 'meeting') {
-    const codes = (new URL(req.url).searchParams.get('codes') ?? '')
-      .split(',').map((c) => c.trim()).filter(Boolean).slice(0, 25);
-    const out: Record<string, unknown> = {};
-    const refs = new Set<string>();
-    for (const code of codes) {
-      try {
-        const p = await getProduct(code);
-        const lg = p.logistics ?? {};
-        (lg.start ?? []).forEach((x) => { if (x.location?.ref) refs.add(x.location.ref); });
-        out[code] = {
-          title: p.title,
-          start: (lg.start ?? []).map((x) => ({ ref: x.location?.ref ?? null, description: x.description ?? null })),
-          end: (lg.end ?? []).map((x) => ({ description: x.description ?? null })),
-          pickupType: lg.travelerPickup?.pickupOptionType ?? null,
-          pickupInfo: lg.travelerPickup?.additionalInfo ?? null,
-          pickupCount: (lg.travelerPickup?.locations ?? []).length,
-          redemption: lg.redemption?.specialInstructions ?? null,
-          // Full marketing description and itinerary prose. Operators often name
-          // their meeting point here when logistics.start[].description is blank.
-          description: p.description ?? null,
-          itineraryText: (p.itinerary?.items ?? []).map((i) => i.description).filter(Boolean).slice(0, 8),
-          inclusions: (p.inclusions ?? []).map((i) => i.otherDescription || i.description).filter(Boolean).slice(0, 6),
-          additional: (p.additionalInfo ?? []).map((i) => i.description).filter(Boolean).slice(0, 8),
-        };
-      } catch (e) { out[code] = { error: String(e) }; }
-    }
-    let resolved: unknown = null;
-    try { resolved = await getLocationsBulk([...refs]); } catch (e) { resolved = String(e); }
-    return json({ probed: codes.length, products: out, resolved });
-  }
-
   if (op === 'health') {
     try { return json(await ping()); }
     catch (e) { return json({ ok: false, error: String(e) }, 502); }
