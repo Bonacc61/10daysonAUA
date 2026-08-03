@@ -18,16 +18,33 @@ describe('enRoute geometry', () => {
 });
 
 describe('pickEnRouteStop', () => {
-  it('offers Zeerover for an Arikok + Boca Grandi day (drives through Savaneta)', () => {
+  // Was 'zeerovers-fresh-catch' until 2026-08-03. lunch-oniels used to sit at a
+  // town-level guess for San Nicolas (-69.9086, 12.4300); it is now the actual
+  // restaurant node (-69.9097, 12.4351), 570m away, and that makes it the
+  // shorter detour on this route: 1.18km against Zeerover's 1.45km.
+  //
+  // The picker takes the smallest detour, so it prefers O'Niel — correctly, on
+  // accurate data. If Zeerover should win here it is because it is editorially
+  // the better stop, not because it is nearer, and that belongs in the code as
+  // an explicit preference rather than as a side effect of a bad coordinate.
+  it('offers the nearest en-route stop for an Arikok + Boca Grandi day', () => {
     const pick = pickEnRouteStop([ARIKOK, BOCA_GRANDI], new Set());
+    expect(pick?.id).toBe('lunch-oniels');
+  });
+
+  it('still offers Zeerover when the nearer stop is already used', () => {
+    // Guards the real intent of the old test: a far-south drive passes food, and
+    // Zeerover is the next-best once O'Niel is taken.
+    const pick = pickEnRouteStop([ARIKOK, BOCA_GRANDI], new Set(['oniels']));
     expect(pick?.id).toBe('zeerovers-fresh-catch');
   });
 
   it('ignores near-home spots — a Boca Grandi day is not "served" by an Oranjestad snack bar', () => {
     // don-jacinto (Oranjestad) sits near the chord but only ~0.2 of the way out,
-    // so the route-fraction gate must exclude it in favour of Zeerover.
+    // so the route-fraction gate must exclude it. O'Niel wins on detour since
+    // its coordinate was corrected to the restaurant node — see the note above.
     const pick = pickEnRouteStop([BOCA_GRANDI], new Set());
-    expect(pick?.id).toBe('zeerovers-fresh-catch');
+    expect(pick?.id).toBe('lunch-oniels');
   });
 
   it('offers nothing on a stay-near-the-resort day', () => {

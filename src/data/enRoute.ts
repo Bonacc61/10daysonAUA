@@ -10,7 +10,8 @@
 // robust, and matches the intuition of "you drive past it" far better than the
 // old region-bucket match (Savaneta and Boca Grandi are different buckets).
 
-import { ACTIVITY_COORDS, type Coord } from './coords';
+import { type Coord } from './coords';
+import { pinFor } from './itemCoords';
 
 // Representative point for the west-coast resort strip (Eagle / Palm Beach),
 // where the large majority of hotels sit — the assumed start of each day's drive.
@@ -35,7 +36,7 @@ const MAX_ALONG = 1.1; // allow slightly past the destination, not a wild oversh
 // inserted into the plan; Zeerover uses the real `zeerovers-fresh-catch` activity
 // (rich card + coordinate, so it pins and shows a photo on the Map), the rest are
 // curated lunch spots (now given coords in coords.ts + resolved on the Map). The
-// coordinate comes from ACTIVITY_COORDS so there's one source of truth; `placeKey`
+// coordinate comes from the pin registry so there's one source of truth; `placeKey`
 // collapses a spot and any twin entry to one real-world place (see PLACE_KEY_BY_ID).
 type RouteStop = { id: string; coord: Coord; placeKey: string };
 const ROUTE_STOPS: RouteStop[] = [
@@ -45,7 +46,7 @@ const ROUTE_STOPS: RouteStop[] = [
   { id: 'lunch-pikas-corner',    placeKey: 'pikas' },        // Palm Beach
   { id: 'lunch-don-jacinto',     placeKey: 'don-jacinto' },  // Oranjestad
 ]
-  .map((s) => ({ ...s, coord: ACTIVITY_COORDS[s.id] }))
+  .map((s) => ({ ...s, coord: pinFor(s.id)?.coord }))
   .filter((s): s is RouteStop => !!s.coord);
 
 // Map any food-ish plan-card id to its real-world place, so a Zeerover already

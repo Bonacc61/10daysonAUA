@@ -23,7 +23,8 @@ import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 import { effectiveFlags } from './notesFlags';
 import { LUNCHSPOTS } from './lunchspots';
-import { coordForEntry, ACTIVITY_COORDS, VIATOR_ITEM_COORDS, GROUP_COORDS, type Coord } from './coords';
+import { coordForEntry, type Coord } from './coords';
+import { pinFor } from './itemCoords';
 import { pickEnRouteStop, foodPlaceKey, distanceKm } from './enRoute';
 import { budgetTag, adventureBandTag } from './classify';
 import { resolveStaples } from './staples';
@@ -580,9 +581,7 @@ const BAND = 1;
 // Coordinate of a candidate: the activity's own point, the shown Viator item's
 // point, or the item's group-area fallback. undefined when unmapped.
 function entryCoord(e: CardEntry): Coord | undefined {
-  return e.kind === 'activity'
-    ? ACTIVITY_COORDS[e.activity.id]
-    : VIATOR_ITEM_COORDS[e.bestSeller.id] ?? GROUP_COORDS[e.group.id];
+  return pinFor(e.kind === 'activity' ? e.activity.id : e.bestSeller.id)?.coord;
 }
 
 // Day-level geographic clustering. Once a day has an anchor point (its first

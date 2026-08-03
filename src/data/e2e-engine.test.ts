@@ -10,7 +10,8 @@ import { ACTIVITIES } from './activities';
 import type { Catalog } from './activitySource';
 import type { Answers } from '../App';
 import type { ViatorGroup, ViatorItem, SlotEntry } from '../types';
-import { ACTIVITY_COORDS, VIATOR_ITEM_COORDS, GROUP_COORDS, type Coord } from './coords';
+import { type Coord } from './coords';
+import { pinFor } from './itemCoords';
 import { distanceKm } from './enRoute';
 
 // Load from .env.production since vitest doesn't pick up VITE_ vars at runtime.
@@ -49,7 +50,7 @@ describe.skipIf(skip)('matching engine — live catalog', () => {
 
   it('keeps days geographically coherent (avg intra-day spread stays tight)', () => {
     const coordOf = (e: SlotEntry): Coord | undefined =>
-      e.kind === 'activity' ? ACTIVITY_COORDS[e.id] : (VIATOR_ITEM_COORDS[e.bestSellerId] ?? GROUP_COORDS[e.groupId]);
+      pinFor(e.kind === 'activity' ? e.id : e.bestSellerId)?.coord;
     const answers: Answers = { days: 7, groupType: 'Couple', budget: 'mid-range', interests: ['Beach & chill', 'Watersports'], adventureLevel: 40, startOffset: 7, lodging: 'Palm Beach', flags: [], specialNotes: '' };
     let sum = 0;
     let cnt = 0;

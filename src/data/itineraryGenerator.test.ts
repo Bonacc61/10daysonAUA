@@ -6,7 +6,8 @@ import type { Answers } from '../App';
 import type { Activity, Day } from './activities';
 import type { Catalog } from './activitySource';
 import type { MatchTag, ViatorGroup, ViatorItem, SlotEntry } from '../types';
-import { ACTIVITY_COORDS, VIATOR_ITEM_COORDS, GROUP_COORDS, type Coord } from './coords';
+import { type Coord } from './coords';
+import { pinFor } from './itemCoords';
 import { distanceKm } from './enRoute';
 import { isWaterBased, isAutoFillExcluded } from './itemFit';
 import { parseActivityCost } from './matcher';
@@ -865,19 +866,29 @@ describe('generatePlan — premium splurge (money-no-object, week-plus)', () => 
 describe('generatePlan — en-route food suggestion', () => {
   const cat = getCatalog();
 
-  it('offers Zeerover on a day that drives out to the far south (Boca Grandi pinned)', () => {
+  // Asserts the BEHAVIOUR — a far-south drive picks up a food stop on the way —
+  // rather than naming one stop. It named Zeerover until 2026-08-03, when
+  // lunch-oniels moved 570m from a town-level guess to the real restaurant node
+  // and became the shorter detour (1.18km against 1.45km). Which stop wins is a
+  // consequence of accurate coordinates and may change again; that a stop is
+  // offered at all is the contract worth holding.
+  const EN_ROUTE_FOOD = ['zeerovers-fresh-catch', 'lunch-oniels', 'lunch-hadicurari',
+    'lunch-pikas-corner', 'lunch-don-jacinto'];
+
+  it('offers an en-route food stop on a day that drives out to the far south (Boca Grandi pinned)', () => {
     const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 6 }, cat, { seed: 1, pinned: ['boca-grandi'] });
     const bocaDay = plan.find((d) => [...d.morning, ...d.afternoon, ...d.evening]
       .some((e) => e.kind === 'activity' && e.id === 'boca-grandi'));
     expect(bocaDay).toBeDefined();
     const dayIds = [...bocaDay!.morning, ...bocaDay!.afternoon, ...bocaDay!.evening]
       .flatMap((e) => (e.kind === 'activity' ? [e.id] : []));
-    expect(dayIds).toContain('zeerovers-fresh-catch');
+    expect(dayIds.some((id) => EN_ROUTE_FOOD.includes(id))).toBe(true);
   });
 
   it('never offers an en-route food stop to a no-car traveller', () => {
     const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 8, flags: ['no-car'] }, cat, { seed: 1, pinned: ['boca-grandi'] });
-    expect(entryIds(plan)).not.toContain('zeerovers-fresh-catch');
+    const ids = entryIds(plan);
+    expect(EN_ROUTE_FOOD.filter((id) => ids.includes(id))).toEqual([]);
   });
 
   it('never places the same food place twice on a trip', () => {
@@ -931,7 +942,7 @@ describe('generatePlan — one off-road tour per trip (shared route family)', ()
 describe('generatePlan — day-level geographic clustering', () => {
   // Two Viator groups ~15 km apart (Palm Beach watersports vs Arikok adventure-tours),
   // each with many distinct-cluster, tag-less, single-section items. coordOf resolves
-  // each item to its GROUP_COORDS point, so a day that stays in one group has intra-day
+  // each item to its own researched coordinate now, so intra-day distance reflects
   // spread 0 and a day that mixes groups spreads ~15 km. All items share one Explore
   // section, so same-day kind-variety never forces a cross-region pick, and distinct
   // cluster ids let item-level fill place several per group across the trip. The geo
@@ -958,7 +969,7 @@ describe('generatePlan — day-level geographic clustering', () => {
     items: [...mkItems('watersports', 'west'), ...mkItems('adventure-tours', 'far')],
   };
   const coordOf = (e: SlotEntry): Coord | undefined =>
-    e.kind === 'activity' ? ACTIVITY_COORDS[e.id] : (VIATOR_ITEM_COORDS[e.bestSellerId] ?? GROUP_COORDS[e.groupId]);
+    pinFor(e.kind === 'activity' ? e.id : e.bestSellerId)?.coord;
 
   it('keeps each day geographically coherent (average intra-day spread stays tight)', () => {
     let sum = 0;
