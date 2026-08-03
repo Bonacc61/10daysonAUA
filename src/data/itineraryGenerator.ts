@@ -18,7 +18,7 @@ import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry, ViatorItem, ViatorGroup } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, entryPrice } from './matcher';
-import { fitItem, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, isRetailOrService, offroadAdrenalineBonus, itemSlotOk, itemAdventure } from './itemFit';
+import { fitItem, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, isAutoFillExcluded, offroadAdrenalineBonus, itemSlotOk, itemAdventure } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 import { effectiveFlags } from './notesFlags';
@@ -834,7 +834,7 @@ export function generatePlan(
   // photoshoot that won its cluster would otherwise take the whole experience
   // out of the pool with it. Applies at every catalog size — this is a quality
   // rule, not a long-tail one.
-  const eligible = filteredCatalog.items.filter((i) => !isRetailOrService(i));
+  const eligible = filteredCatalog.items.filter((i) => !isAutoFillExcluded(i));
   const floorApplies = eligible.length >= MIN_CATALOG_TO_FLOOR;
   const champions = !floorApplies ? eligible : championsByExperience(eligible);
   // Absolute gate, unlike the percentile it replaced, CAN empty the pool — a
@@ -1017,7 +1017,7 @@ export function generatePlan(
       // (see above), but must NOT skip the retail/service rule — this is an
       // auto-suggestion path like any other. Latent today (no retail product is
       // >= $500) and closed before it isn't.
-      if (isRetailOrService(item)) continue;
+      if (isAutoFillExcluded(item)) continue;
       if (budgetTag(item.price_usd) !== 'money-no-object') continue; // premium tier only
       if (claimedItemIds.has(item.id)) continue;                     // already pinned or a staple
       // Off-road is a single-per-trip route family, not a "splurge in addition"

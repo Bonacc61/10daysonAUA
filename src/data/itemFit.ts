@@ -203,8 +203,35 @@ const RETAIL_RE = /\b(shopping|diamonds?|jewel\w*|duty[- ]free|timeshare)\b/i;
 // Anchored on the SHOOT, not on the word 'photographer': a dive listed as
 // "Private Dive + videographer/Photographer" is a dive, not a photo service.
 const PHOTO_SERVICE_RE = /\b(photoshoot|photography)\b|\bphoto shoot\b/i;
-export function isRetailOrService(item: ViatorItem): boolean {
-  return RETAIL_RE.test(item.title) || PHOTO_SERVICE_RE.test(item.title);
+
+// Self-drive vehicle hire: you are handed a vehicle for the day, with no guide,
+// no route and no content. "Harley-Davidson RENTALS ONLY 8 hrs" says so in its
+// own title, and at 8 hrs it equals DAY_CAP_MIN exactly — auto-placing it turns
+// a day of the itinerary into "here is a motorbike, good luck" and leaves no
+// room for anything else. It was the single most-placed rental (15 of 54 trips).
+//
+// The word "rental" alone is too blunt: it must pair with a VEHICLE or an
+// explicit self-drive phrase. That keeps the 30-minute Aruba Jet Ski Rental
+// (214 reviews) — a normal beach watersport — and keeps guided dives that
+// merely mention "rental equipment" in the title.
+//
+// Known gap: "Honda Talon 4 Seater Rental" is a UTV under a model name the
+// pattern does not know. Left alone rather than chasing model names — it has 4
+// reviews, so MIN_CHAMPION_REVIEWS already keeps it out of the fill pool.
+const HIRE_RE = /\b(rental|rentals|hire)\b/i;
+const VEHICLE_RE = /\b(harley|motorcycle|motorbike|utv|atv|quad|buggy|jeep|scooter|moped|golf cart|car)\b/i;
+const SELF_DRIVE_RE = /\brentals only\b|\bon your own\b|\bself[- ]drive\b/i;
+
+/**
+ * True for products the generator must never suggest unasked. Auto-fill only —
+ * Explore still lists them, search still finds them, and hearting one still
+ * places it, because pins resolve against the un-narrowed catalog.
+ */
+export function isAutoFillExcluded(item: ViatorItem): boolean {
+  const t = item.title;
+  return RETAIL_RE.test(t)
+    || PHOTO_SERVICE_RE.test(t)
+    || (HIRE_RE.test(t) && (VEHICLE_RE.test(t) || SELF_DRIVE_RE.test(t)));
 }
 
 export function isCrowdPleaser(item: ViatorItem): boolean {

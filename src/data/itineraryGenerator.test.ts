@@ -8,7 +8,7 @@ import type { Catalog } from './activitySource';
 import type { MatchTag, ViatorGroup, ViatorItem, SlotEntry } from '../types';
 import { ACTIVITY_COORDS, VIATOR_ITEM_COORDS, GROUP_COORDS, type Coord } from './coords';
 import { distanceKm } from './enRoute';
-import { isWaterBased } from './itemFit';
+import { isWaterBased, isAutoFillExcluded } from './itemFit';
 import { parseActivityCost } from './matcher';
 
 const catalog = getCatalog();
@@ -555,6 +555,37 @@ describe('generatePlan — champion-per-experience fill pool', () => {
     const placed = placedIds(cat, { ...DEFAULT_ANSWERS, days: 14 }, 1);
     expect(placed).not.toContain('aaa-retail');
     expect(placed).not.toContain('aaa-photo');
+  });
+
+  // The rule itself, asserted directly — deterministic, and the only honest way
+  // to state "the jet ski survives", since whether any given item wins a slot
+  // depends on ranking against the rest of the fixture.
+  it('classifies self-drive hire as excluded and watersport hire as an activity', () => {
+    const item = (title: string): ViatorItem => ({
+      id: 't', group_id: 'g', title, image_url: '', price_usd: 100, duration: '2 hrs',
+      rating: 4.5, review_count: 100, viator_item_url: '', is_best_seller: false, display_order: 0,
+    });
+    // Handed a vehicle for the day — no guide, no route, no content.
+    expect(isAutoFillExcluded(item('Harley-Davidson RENTALS ONLY 8 hrs'))).toBe(true);
+    expect(isAutoFillExcluded(item('Aruba UTV Rental: 4-Seater for Adventure Exploration'))).toBe(true);
+    expect(isAutoFillExcluded(item('Aruba Jeep Rental Adventure'))).toBe(true);
+    expect(isAutoFillExcluded(item('Aruba Rental Explore On Your Own'))).toBe(true);
+    // Real activities that merely carry the word.
+    expect(isAutoFillExcluded(item('Aruba Jet Ski Rental — Exciting Water Adventures Await'))).toBe(false);
+    expect(isAutoFillExcluded(item('Aruba 2-Tank Guided Dive for Certified Divers / rental equipment'))).toBe(false);
+    expect(isAutoFillExcluded(item('Catamaran Sail & Snorkel at Boca Catalina'))).toBe(false);
+  });
+
+  it('never auto-fills self-drive vehicle hire', () => {
+    // Every other item is evening-only, so the Harley is the ONLY product that
+    // can fill a daytime slot. If it reaches the pool it is placed; if the rule
+    // works, daytime stays empty. That makes the rule the only variable.
+    const cat = clusteredCatalog({ clusters: 30, reviews: () => 400 });
+    cat.items = cat.items.map((i, n) => (n === 0
+      ? { ...i, id: 'aaa-harley', title: 'Harley-Davidson RENTALS ONLY 8 hrs', duration: '3 hrs' }
+      : { ...i, title: `Sunset Nightlife Session ${n}` }));
+    const placed = placedIds(cat, { ...DEFAULT_ANSWERS, days: 14 }, 4);
+    expect(placed).not.toContain('aaa-harley');
   });
 
   it('keeps retail out even when the pool empties and the fallback fires', () => {
