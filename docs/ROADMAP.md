@@ -21,11 +21,15 @@ feeds the engine is in `docs/matching-engine/geography.md`:
   `experience_cluster_id`). Over-clustering was investigated and ranks third
   behind the pool rule and catalog size — see "What actually limits plan variety"
   in the dev log.
-- **Catalog size is the real variety ceiling.** 72 of 155 eligible experiences (after retail, photo-service and vehicle-hire exclusion)
-  have a member with 25+ reviews (champion pool ~81), so a 14-day trip (~36
-  picks, cluster retired on first use, further narrowed per persona by slot,
-  section, budget and geo) still cannot fill. Broader Viator taxonomy ingestion
-  is the fix; no constant will do it.
+- **Catalog size still bounds distinct Viator variety, but 14-day plans now
+  fill.** 72 of 155 eligible experiences (after retail, photo-service and
+  vehicle-hire exclusion) have a member with 25+ reviews (champion pool ~81),
+  which is why long trips used to run out of picks. Since free local beaches
+  became revisitable after a clear day (`REVISITABLE_MIN_DAY_GAP = 2`), a 14-day
+  trip fills every ladder slot on all five trace personas — 0 open, measured
+  2026-08-03; the same runs before that change left 5-9 open. Broader Viator
+  taxonomy ingestion is still the fix for *distinct-experience* variety; no
+  constant will do it.
 - **The en-route food post-pass has no time accounting.** It appends a second
   afternoon card (`day.afternoon.push`) after the day loop, outside `feasible`,
   so a day can exceed the 8h daytime cap: measured on the live catalog, 52 of

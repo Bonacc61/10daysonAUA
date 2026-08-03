@@ -36,7 +36,8 @@ Accumulates trip-wide state across the day loop:
 
 | Field | Purpose |
 |---|---|
-| `lastUsedDay` | item-id → day number; prevents any id repeating |
+| `lastUsedDay` | item-id → day number; no id repeats, except a free local `Beaches` activity, which may return after `REVISITABLE_MIN_DAY_GAP` (2) clear days — unless the traveller pinned it |
+| `pinnedIds` | ids the traveller pinned; exempt from the beach-revisit allowance, so a pinned pick is placed exactly once |
 | `usedClusterIds` | embedding clusters placed; a hit is conclusive, a miss falls through |
 | `usedTagSets` | tag arrays of placed items; trip-wide Jaccard at 0.35 |
 | `dayTagSets` | tag arrays placed TODAY, reset per day; stricter Jaccard at 0.08 |
@@ -50,7 +51,7 @@ Accumulates trip-wide state across the day loop:
 
 ### Fill ladder (`pickForSlot`)
 
-Four tiers, best → worst. Every tier is gated by `unused` (trip-wide no-repeat),
+Four tiers, best → worst. Every tier is gated by `unused` (no id repeats, except a free local beach after a 2-day gap),
 `notSimilar` (semantic dedup) and `feasible` (day/evening time budget); when
 `maxPrice === 0` (the free-only arrival day) it returns before tiers 3-4. `kindOk` runs the whole ladder for
 variety-introducing picks first, then relaxes for same-kind picks:
@@ -255,10 +256,15 @@ entirely recovers only ~16 slots and 14 products. Ranked by actual cost:
    redundant variants of popular experiences while deleting whole experiences
    whose members were all modestly reviewed. It wiped **96 of 161 distinct
    experiences entirely**. Replaced by `championsByExperience` (below).
-2. **Catalog size** — the real ceiling. **72 of 155** eligible experiences (retail, photo services and self-drive vehicle hire excluded) have a member
-   with 25+ reviews, giving a champion pool of ~81. A 14-day trip needs ~36 picks and no-repeat dedup retires a
-   cluster on first use, so once slot, section, budget and geo constraints
-   narrow those 72 per persona, long trips still cannot fill. An ingestion
+2. **Catalog size** — still the ceiling on *distinct* Viator experiences. 72 of
+   155 eligible experiences (retail, photo services and self-drive vehicle hire
+   excluded) have a member with 25+ reviews, giving a champion pool of ~81, and
+   no-repeat dedup retires a cluster on first use. Open slots are no longer the
+   symptom: since free local beaches became revisitable
+   (`REVISITABLE_MIN_DAY_GAP = 2`) a 14-day trip fills every ladder slot on all
+   five personas (measured 2026-08-03; the same runs before the change left 5-9
+   open). What stays thin is the number of distinct Viator experiences — an
+   ingestion problem; no constant fixes it.
    problem; no constant fixes it. (An earlier draft of this section said "~50",
    which conflated experiences *surfaced in plans* with experiences *available
    in the pool* — the pool figure is 81.)
