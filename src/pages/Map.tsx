@@ -249,7 +249,14 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   // cannot be split per activity. Falls back to straight legs on any failure.
   const [roadLegs, setRoadLegs] = useState<[number, number][][] | null>(null);
   useEffect(() => {
-    if (!TOKEN || straightCoords.length < 2) { setRoadLegs(null); return; }
+    // Clear FIRST, unconditionally. Without this the previous day's road geometry
+    // is rendered against the new day's legOwners for the length of the fetch —
+    // and forever if the fetch fails, since the catch below cannot distinguish a
+    // stale array from a fresh one. Drawing another day's roads is the worst
+    // failure available to a feature whose whole premise is not claiming
+    // unverified geography.
+    setRoadLegs(null);
+    if (!TOKEN || straightCoords.length < 2) return;
     let alive = true;
     const coordStr = straightCoords.map(([lng, lat]) => `${lng},${lat}`).join(';');
     fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coordStr}?geometries=geojson&overview=full&steps=true&access_token=${TOKEN}`)
@@ -261,7 +268,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
         setRoadLegs(legs.map(leg =>
           (leg.steps ?? []).flatMap(st => st.geometry?.coordinates ?? [])));
       })
-      .catch(() => { /* fall back to straight legs */ });
+      .catch(() => { if (alive) setRoadLegs(null); });  // straight legs
     return () => { alive = false; };
   }, [straightCoords, TOKEN]);
 

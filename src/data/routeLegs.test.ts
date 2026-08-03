@@ -101,8 +101,36 @@ describe('splitLeg', () => {
     }
   });
 
-  it('falls back to the whole line when it is too short to divide', () => {
+  // This test used to assert `splitLeg(tiny, 3) === [tiny]` — one slice for three
+  // owners — which blessed the exact defect the feature exists to prevent: the
+  // second and third activities got no segment and disappeared from the map
+  // entirely. A straight-line leg is only two points, so this fired whenever the
+  // Directions call failed or two coordless activities were adjacent.
+  it('gives every owner a slice even when the line is only two points', () => {
     const tiny: [number, number][] = [[0, 0], [1, 1]];
-    expect(splitLeg(tiny, 3)).toEqual([tiny]);
+    for (const parts of [2, 3, 5]) {
+      const out = splitLeg(tiny, parts);
+      expect(out).toHaveLength(parts);
+      out.forEach(p => expect(p.length).toBeGreaterThanOrEqual(2));
+    }
+  });
+
+  it('keeps densified slices on the original line', () => {
+    // Interpolation may add points, but never off the segment it subdivides.
+    const tiny: [number, number][] = [[0, 0], [10, 10]];
+    for (const seg of splitLeg(tiny, 4)) {
+      for (const [x, y] of seg) {
+        expect(x).toBeGreaterThanOrEqual(0);
+        expect(x).toBeLessThanOrEqual(10);
+        expect(Math.abs(x - y)).toBeLessThan(1e-9);   // stays on y = x
+      }
+    }
+  });
+
+  it('still starts at the origin and ends at the destination', () => {
+    const tiny: [number, number][] = [[0, 0], [10, 10]];
+    const out = splitLeg(tiny, 3);
+    expect(out[0][0]).toEqual([0, 0]);
+    expect(out[out.length - 1][out[out.length - 1].length - 1]).toEqual([10, 10]);
   });
 });

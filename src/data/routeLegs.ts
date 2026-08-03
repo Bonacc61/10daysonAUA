@@ -65,11 +65,38 @@ export function planLegs(entries: Array<{ coord: Coord | null }>): LegPlan {
  */
 export function splitLeg(line: [number, number][], parts: number): [number, number][][] {
   if (parts <= 1 || line.length < 2) return [line];
-  const per = Math.max(2, Math.ceil(line.length / parts));
+
+  // Every owner must get a drawable slice. A straight-line leg is only two
+  // points, so naive slicing produced ONE slice for two owners and the second
+  // activity vanished from the map entirely — exactly the disappearance this
+  // feature exists to prevent. Densify first so there is always enough to go
+  // round: linear interpolation adds no geographic claim, it just subdivides a
+  // line that is already being drawn.
+  let pts = line;
+  const needed = parts + 1;
+  if (pts.length < needed) {
+    const dense: [number, number][] = [];
+    const segs = pts.length - 1;
+    for (let i = 0; i < segs; i++) {
+      const [x0, y0] = pts[i];
+      const [x1, y1] = pts[i + 1];
+      const steps = Math.ceil((needed - 1) / segs);
+      for (let k = 0; k < steps; k++) {
+        const t = k / steps;
+        dense.push([x0 + (x1 - x0) * t, y0 + (y1 - y0) * t]);
+      }
+    }
+    dense.push(pts[pts.length - 1]);
+    pts = dense;
+  }
+
+  const per = Math.max(2, Math.ceil(pts.length / parts));
   const out: [number, number][][] = [];
   for (let i = 0; i < parts; i++) {
-    const slice = line.slice(i * (per - 1), i * (per - 1) + per);
+    const slice = pts.slice(i * (per - 1), i * (per - 1) + per);
     if (slice.length >= 2) out.push(slice);
   }
+  // Anything still short is padded from the tail so no owner is dropped.
+  while (out.length < parts && out.length > 0) out.push(out[out.length - 1]);
   return out.length ? out : [line];
 }

@@ -40,6 +40,7 @@ const ALLOWED_COLLISIONS: Record<string, string> = {
   '-69.96950,12.46430': 'Mangel Halto — the island\'s main mangrove snorkel and kayak spot',
   '-70.04470,12.57760': 'MooMba Beach — Jolly Pirates and others sail from here',
   '-70.04490,12.57590': 'Holiday Inn pier — several catamarans board here',
+  '-70.05190,12.60490': 'Boca Catalina — the standard turtle-snorkel stop, mostly as a secondary stop on Antilla wreck trips',
 };
 
 type Finding = { id: string; msg: string };
@@ -78,10 +79,15 @@ async function main() {
   }
 
   // ── collisions ────────────────────────────────────────────────────────────
+  // Counts secondary stops as well as primaries: a centroid re-introduced as a
+  // stop across many items is the same failure this rule exists to catch, and
+  // keying only on the primary would miss it entirely.
   const byCoord = new Map<string, string[]>();
   for (const [id, pin] of Object.entries(ITEM_PINS)) {
-    const k = `${pin.coord.lng.toFixed(5)},${pin.coord.lat.toFixed(5)}`;
-    byCoord.set(k, [...(byCoord.get(k) ?? []), id]);
+    for (const place of pinPlaces(pin)) {
+      const k = `${place.coord.lng.toFixed(5)},${place.coord.lat.toFixed(5)}`;
+      byCoord.set(k, [...(byCoord.get(k) ?? []), place.primary ? id : `${id}#stop`]);
+    }
   }
   for (const [k, ids] of byCoord) {
     if (ids.length <= MAX_SHARED_COORD) continue;
@@ -104,9 +110,19 @@ async function main() {
 
   const unpinned = plannable.filter((i) => !ITEM_PINS[i.id]);
   const declined = unpinned.filter((i) => decisions[i.id]?.action === 'reject');
-  const unreviewed = unpinned.filter((i) => !decisions[i.id]);
+  // Only an explicit REJECT excuses a missing pin. Treating any decision as
+  // sufficient would hide the one error this gate exists to catch: a reviewer
+  // accepts a pin in the UI and forgets to apply it to the registry. The item is
+  // then unpinned, has a decision, and would slip through both buckets silently.
+  const unreviewed = unpinned.filter((i) => decisions[i.id]?.action !== 'reject');
+  const acceptedButMissing = unreviewed.filter((i) => decisions[i.id]?.action === 'accept');
   for (const i of unreviewed) {
-    hard.push({ id: i.id, msg: `plannable, no pin, never reviewed — "${i.title.slice(0, 54)}"` });
+    hard.push({
+      id: i.id,
+      msg: decisions[i.id]
+        ? `ACCEPTED IN REVIEW BUT NOT IN THE REGISTRY — "${i.title.slice(0, 46)}"`
+        : `plannable, no pin, never reviewed — "${i.title.slice(0, 54)}"`,
+    });
   }
 
   // ── churn ─────────────────────────────────────────────────────────────────
@@ -124,7 +140,8 @@ async function main() {
   if (asJson) {
     console.log(JSON.stringify({ hard, warn, bySource, stops,
       plannable: plannable.length, pinned: Object.keys(ITEM_PINS).length,
-      declined: declined.length, unreviewed: unreviewed.length }, null, 2));
+      declined: declined.length, unreviewed: unreviewed.length,
+      acceptedButMissing: acceptedButMissing.length }, null, 2));
   } else {
     console.log(`\nRegistry      ${Object.keys(ITEM_PINS).length} pins + ${stops} secondary stops`);
     console.log(`By source     ${JSON.stringify(bySource)}`);
@@ -132,7 +149,8 @@ async function main() {
     console.log(`\nPlannable pool ${plannable.length}`);
     console.log(`  pinned              ${plannable.length - unpinned.length}`);
     console.log(`  reviewed, declined  ${declined.length}`);
-    console.log(`  NEVER REVIEWED      ${unreviewed.length}`);
+    console.log(`  never reviewed      ${unreviewed.length - acceptedButMissing.length}`);
+    console.log(`  ACCEPTED, NOT APPLIED ${acceptedButMissing.length}`);
     if (warn.length) {
       console.log(`\nWarnings (${warn.length}) — need sign-off, not a build failure:`);
       warn.forEach((w) => console.log(`  ! ${w.id}: ${w.msg}`));
