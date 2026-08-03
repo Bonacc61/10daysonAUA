@@ -45,6 +45,28 @@ function bigViatorCatalog(): Catalog {
 
 const themeOf = (bestSellerId: string) => bestSellerId.split('-')[0];
 
+// The no-repeat contract, post free-beach revisits: nothing repeats EXCEPT a
+// free local beach, and those only with a clear day between visits.
+function expectNoIllegalRepeats(plan: Day[], cat: Catalog) {
+  const byId = new Map(cat.activities.map((a) => [a.id, a]));
+  const seenOn = new Map<string, number[]>();
+  plan.forEach((d, i) => {
+    for (const e of [...d.morning, ...d.afternoon, ...d.evening]) {
+      const id = e.kind === 'activity' ? e.id : e.bestSellerId;
+      seenOn.set(id, [...(seenOn.get(id) ?? []), i + 1]);
+    }
+  });
+  for (const [id, days] of seenOn) {
+    if (days.length === 1) continue;
+    const a = byId.get(id);
+    const ok = !!a && a.category === 'Beaches' && parseActivityCost(a.cost) === 0;
+    expect(ok, `${id} repeated but is not a free beach`).toBe(true);
+    for (let k = 1; k < days.length; k += 1) {
+      expect(days[k] - days[k - 1], `${id} revisited too soon`).toBeGreaterThanOrEqual(2);
+    }
+  }
+}
+
 // Two deliberately opposite personas. Their plans must look materially different
 // — this is the assertion that locks in the Q2 fix (answers actually tailor the
 // itinerary) and stops regression to "the same 5 days for everyone".
@@ -126,12 +148,30 @@ describe('generatePlan — pacing + no unintended empty slots', () => {
     });
   });
 
-  // The no-repeat guarantee (an activity never appears twice across the trip) is
-  // deliberately preferred over a full evening: once the distinct evening pool is
-  // exhausted the slot stays open ("Drop an activity here") rather than repeating.
-  it('never repeats an activity across the whole trip, even on a long trip', () => {
-    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, catalog));
-    expect(new Set(ids).size).toBe(ids.length);
+  // The no-repeat guarantee is deliberately preferred over a full evening: once
+  // the distinct pool is exhausted the slot stays open ("Drop an activity here")
+  // rather than repeating. ONE exception: a free local beach may be revisited
+  // after a clear day, because that is what people actually do — you go back to
+  // Eagle Beach on Thursday, you do not do the submarine tour twice.
+  it('repeats nothing except free beaches, and those only after a clear day', () => {
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, catalog);
+    const byId = new Map(catalog.activities.map((a) => [a.id, a]));
+    const seenOn = new Map<string, number[]>();
+    plan.forEach((d, i) => {
+      for (const e of [...d.morning, ...d.afternoon, ...d.evening]) {
+        const id = e.kind === 'activity' ? e.id : e.bestSellerId;
+        seenOn.set(id, [...(seenOn.get(id) ?? []), i + 1]);
+      }
+    });
+    for (const [id, days] of seenOn) {
+      if (days.length === 1) continue;
+      const a = byId.get(id);
+      const revisitable = !!a && a.category === 'Beaches' && parseActivityCost(a.cost) === 0;
+      expect(revisitable, `${id} repeated but is not a free beach`).toBe(true);
+      for (let k = 1; k < days.length; k += 1) {
+        expect(days[k] - days[k - 1], `${id} revisited too soon`).toBeGreaterThanOrEqual(2);
+      }
+    }
   });
 
   it('fills evening every day when the evening pool is deep enough (no forced gaps)', () => {
@@ -1076,8 +1116,7 @@ describe('generatePlan — beach staples are placed for everyone', () => {
   // placed twice. Staples must be retired trip-wide in the pre-pass.
   it('never lets normal fill duplicate a staple placed on a later day', () => {
     for (const seed of [1, 2, 3, 4]) {
-      const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, cat, { seed }));
-      expect(new Set(ids).size).toBe(ids.length);
+      expectNoIllegalRepeats(generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, cat, { seed }), cat);
     }
   });
 
@@ -1186,7 +1225,7 @@ describe('generatePlan — a pin placed on a later day is not also auto-filled',
         const count = ids.filter((x) => x === id).length;
         expect(count, `${id} @ seed ${seed}`).toBeLessThanOrEqual(1);
       }
-      expect(new Set(ids).size).toBe(ids.length);
+      expectNoIllegalRepeats(plan, cat);
     }
   });
 });
@@ -1200,10 +1239,9 @@ describe('generatePlan — premium splurge never re-places a staple', () => {
     const cat = getCatalog();
     for (const days of [7, 9, 14]) {
       for (const seed of [1, 2, 3]) {
-        const ids = entryIds(generatePlan(
+        expectNoIllegalRepeats(generatePlan(
           { ...DEFAULT_ANSWERS, days, budget: 'Money no object' }, cat, { seed },
-        ));
-        expect(new Set(ids).size, `days=${days} seed=${seed}`).toBe(ids.length);
+        ), cat);
       }
     }
   });

@@ -103,7 +103,13 @@ describe.skipIf(skip)('matching engine — live catalog', () => {
       const plan = generatePlan(answers, catalog, { seed: 42 });
       const entries = allEntries(plan);
       // Never the same item twice (a group entry is identified by its shown item).
-      const itemIds = entries.map(e => e.kind === 'group' ? e.bestSellerId : e.id);
+      // A free local beach may be revisited after a clear day; nothing else may.
+      const revisitable = new Set(catalog.activities
+        .filter(a => a.category === 'Beaches' && /^free/i.test(a.cost.trim()))
+        .map(a => a.id));
+      const itemIds = entries
+        .map(e => e.kind === 'group' ? e.bestSellerId : e.id)
+        .filter(id => !revisitable.has(id));
       const seen = new Set<string>();
       const dupeItems: string[] = [];
       for (const id of itemIds) { if (seen.has(id)) dupeItems.push(id); seen.add(id); }

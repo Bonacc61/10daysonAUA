@@ -17,7 +17,7 @@ import { otherItemsInGroup } from './activitySource';
 import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry, ViatorItem, ViatorGroup } from '../types';
 import { SECTIONS } from './itineraryPlan';
-import { matchPool, entryPrice } from './matcher';
+import { matchPool, entryPrice, parseActivityCost } from './matcher';
 import { fitItem, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, isAutoFillExcluded, isNaturalPool, offroadAdrenalineBonus, itemSlotOk, itemAdventure } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
@@ -448,6 +448,9 @@ type Ctx = {
   lastFamilyDay: Map<string, number>;
   // Families already placed TODAY (reset per day). Hard cap: one per day.
   dayFamilies: Set<string>;
+  // Ids the traveller pinned. A pin is one explicit choice — re-adding it later
+  // by ourselves is presumptuous — so pinned beaches are exempt from revisiting.
+  pinnedIds: Set<string>;
   // Route families placed this trip. Off-road tours (jeep/UTV/ATV) all run the
   // same Aruba circuit, so once one is placed the whole family is retired for the
   // rest of the trip — regardless of trip length (see routeFamilyOf).
@@ -458,6 +461,18 @@ type Ctx = {
 // real-world circuit and so shouldn't both be recommended. Currently just Aruba's
 // off-road tours (Jeep / UTV / ATV / buggy — all the north-coast + Arikok +
 // Natural Pool run). undefined = no family (dedup by cluster/tag only).
+// A free, unbookable local beach. These are the only things a traveller
+// genuinely returns to — you go back to Eagle Beach on Thursday, you do not do
+// the submarine tour twice — so they are the one exception to the trip-wide
+// no-repeat rule. Everything else (any Viator product, anything with a price,
+// any tour) stays once-only.
+const REVISITABLE_MIN_DAY_GAP = 2;   // at least one clear day before returning
+function isRevisitableBeach(e: CardEntry): boolean {
+  return e.kind === 'activity'
+    && e.activity.category === 'Beaches'
+    && parseActivityCost(e.activity.cost) === 0;
+}
+
 const LOCAL_OFFROAD = /jeep|safari|4x4|4wd|off.?road|utv|atv|natural pool|conchi/i;
 function routeFamilyOf(e: CardEntry): string | undefined {
   const title = e.kind === 'group' ? e.bestSeller.title : e.activity.title;
@@ -633,7 +648,13 @@ function pickForSlot(
   // — the same activity showing up twice (and, with the small evening pool,
   // twice in the evening) is exactly the bug this fixes. An exhausted pool
   // leaves the slot open ("Drop an activity here") rather than repeating.
-  const unused = (e: CardEntry) => !ctx.lastUsedDay.has(entryId(e));
+  const unused = (e: CardEntry) => {
+    const last = ctx.lastUsedDay.get(entryId(e));
+    if (last === undefined) return true;
+    // A free local beach may come back after a clear day; nothing else may.
+    if (ctx.pinnedIds.has(entryId(e))) return false;   // an explicit choice, placed once
+    return isRevisitableBeach(e) && ctx.day - last >= REVISITABLE_MIN_DAY_GAP;
+  };
   const newKind = (e: CardEntry) => !usedKinds.has(entryKind(e));
   // Semantic dedup: skip candidates that represent an already-placed experience.
   // Primary signal: embedding-derived cluster ID (set at ingest by viator-cards).
@@ -973,7 +994,7 @@ export function generatePlan(
     // random food day on the opposite coast by normal fill.
     activities: filteredCatalog.activities.filter((a) => !dupedLocal(a) && !foodPlaceKey(a.id)),
   };
-  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], dayTagSets: [], day: 0, nDays, lastFamilyDay: new Map(), dayFamilies: new Set(), usedRouteFamilies: new Set() };
+  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], dayTagSets: [], day: 0, nDays, lastFamilyDay: new Map(), dayFamilies: new Set(), pinnedIds: new Set(), usedRouteFamilies: new Set() };
 
   // Trip-wide budget pool: keeps the AVERAGE daily activity spend within the
   // tier cap (budget-conscious ≈ $110/day on average), letting days vary while
@@ -1022,6 +1043,7 @@ export function generatePlan(
     // very same shortlisted item earlier and the card then appeared twice.
     // (`usedGroupIds` stays out of this: the day-loop pin branch adds it when it
     // gets there, and doing it here would retire the group for the whole trip.)
+    ctx.pinnedIds.add(entryId(resolved));
     ctx.lastUsedDay.set(entryId(resolved), day);
     { const rf = routeFamilyOf(resolved); if (rf) ctx.usedRouteFamilies.add(rf); }
     if (resolved.kind === 'group') {
