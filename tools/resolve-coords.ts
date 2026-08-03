@@ -67,9 +67,22 @@ function matchPlace(text: string): Match {
   if (hits.length === 0) return null;
   hits.sort((a, b) => b.alias.length - a.alias.length);
 
-  const distinct = [...new Map(hits.map((h) => [h.place.id, h.place])).values()];
+  // Drop hits whose alias is contained in another hit's alias. A more specific
+  // name for the same spot is not a second destination: "Hadicurari Pier" also
+  // matches "hadicurari" (the beach), and "California Lighthouse" also matches
+  // "california" (the wreck). Without this, every nested place name would be
+  // reported as an ambiguity the reviewer has to resolve by hand.
+  //
+  // Genuinely distinct places still survive, because their aliases do not
+  // contain one another — "arikok" and "baby beach" both remain, so a tour
+  // naming both is still flagged.
+  const specific = hits.filter(
+    (h) => !hits.some((o) => o.alias !== h.alias && o.alias.includes(h.alias)),
+  );
+
+  const distinct = [...new Map(specific.map((h) => [h.place.id, h.place])).values()];
   if (distinct.length > 1) return { kind: 'ambiguous', places: distinct };
-  return { kind: 'hit', place: hits[0].place, alias: hits[0].alias };
+  return { kind: 'hit', place: specific[0].place, alias: specific[0].alias };
 }
 
 async function main() {

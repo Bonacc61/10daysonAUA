@@ -37,6 +37,48 @@ export type Place = {
 };
 
 export const PLACES: Place[] = [
+  // ── Departure venues ──────────────────────────────────────────────────────
+  // Piers and beach clubs that sails, cruises and watersports actually leave
+  // from. Added because Viator cannot supply a departure point: its product
+  // `logistics.start[]` refs resolve to Google Place IDs carrying no name and no
+  // coordinates, and the product pages return 403 to any fetch. These make the
+  // reviewer's departure dropdown usable, so a human assigns them per product.
+  { id: 'moomba-beach', name: 'MooMba Beach', terrain: 'land',
+    coord: { lng: -70.0447, lat: 12.5776 },
+    aliases: ['moomba', 'moomba beach', 'jolly pirate', 'jolly pirates'],
+    cite: 'OpenStreetMap node/3809023231 (MooMba Beach bar). Jolly Pirates departure point confirmed by the product owner, 2026-08-03' },
+  { id: 'de-palm-pier', name: 'De Palm Pier', terrain: 'land',
+    coord: { lng: -70.0487, lat: 12.5682 },
+    aliases: ['de palm pier', 'bugaloe'],
+    cite: 'OpenStreetMap way/335257951 (De Palm Pier); Bugaloe sits on it' },
+  { id: 'pelican-pier', name: 'Pelican Pier', terrain: 'land',
+    coord: { lng: -70.0461, lat: 12.5744 },
+    aliases: ['pelican pier', 'pelican adventures'],
+    cite: 'OpenStreetMap way/555476889, verified 2026-08-03' },
+  { id: 'hadicurari-pier', name: 'Hadicurari Pier', terrain: 'land',
+    coord: { lng: -70.0455, lat: 12.5780 },
+    aliases: ['hadicurari pier'],
+    cite: 'OpenStreetMap way/371842506, verified 2026-08-03' },
+  { id: 'pier-di-rancho', name: 'Pier Di Rancho, Oranjestad', terrain: 'land',
+    coord: { lng: -70.0401, lat: 12.5192 },
+    aliases: ['pier di rancho', 'rancho pier'],
+    cite: 'OpenStreetMap way/367742288, verified 2026-08-03' },
+  { id: 'de-palm-ferry', name: 'De Palm Island Ferry Terminal', terrain: 'land',
+    coord: { lng: -69.9787, lat: 12.4723 },
+    aliases: ['de palm island ferry'],
+    cite: 'OpenStreetMap node/2682381431, verified 2026-08-03' },
+  { id: 'barefoot', name: 'Barefoot Restaurant, Oranjestad', terrain: 'land',
+    coord: { lng: -70.0294, lat: 12.5085 },
+    aliases: ['barefoot restaurant'],
+    cite: 'OpenStreetMap node/1814558239, verified 2026-08-03' },
+  { id: 'west-deck', name: 'The West Deck, Oranjestad', terrain: 'land',
+    coord: { lng: -70.0346, lat: 12.5154 },
+    aliases: ['west deck'],
+    cite: 'OpenStreetMap node/4256309544, verified 2026-08-03' },
+  { id: 'pelican-watersports', name: 'Pelican Tours & Watersports', terrain: 'land',
+    coord: { lng: -70.0570, lat: 12.5445 },
+    aliases: ['pelican tours', 'pelican watersports'],
+    cite: 'OpenStreetMap way/370524409, verified 2026-08-03' },
   // NOT in the Overpass export — the Conchi rock pool carries no queryable OSM
   // feature under either name. Coordinate is the Wikipedia one already verified in
   // src/data/itemCoords.ts ('natural-pool-jeep'). 7 plannable catalog titles say
