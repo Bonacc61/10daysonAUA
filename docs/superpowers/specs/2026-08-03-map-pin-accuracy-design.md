@@ -62,9 +62,11 @@ The tool proposes. A human accepts. Only accepted coordinates ship.
 The single source the app reads. One entry per item that earns a pin:
 
 ```ts
+// 'viator-poi' was specced as the authoritative tier and DELETED after the
+// 2026-08-03 probe: 0 of 20 Aruba products carry itinerary POI data.
+// See docs/map/viator-location-probe.md.
 export type PinSource =
-  | 'viator-poi'      // Viator itinerary point-of-interest
-  | 'known-place'     // named Aruba place, cited
+  | 'known-place'     // named Aruba place, cited — the primary mechanism
   | 'departure'       // no fixed destination; this is where it departs from
   | 'curated';        // hand-verified editorial activity
 
@@ -96,14 +98,14 @@ Run manually, never in CI, never at runtime. For each catalog item it reads titl
 description, tags, and (if the probe below confirms it) Viator location data, then
 proposes a pin:
 
-1. **Viator itinerary POI**, if available → `viator-poi`. Authoritative.
-2. **Named place in the title**, resolved against an Aruba place table maintained
-   alongside the tool → `known-place`.
-3. **Named place in the description** → `known-place`, lower confidence.
-4. **No destination exists** (sunset cruise, cooking class, spa, bar crawl) → the
-   departure point, tagged `departure`. For these the departure point *is* where the
-   activity takes place; it is not a fallback.
-5. **Nothing resolvable** → proposed as `no-pin`.
+1. **Named place in the title**, resolved against an Aruba place table maintained
+   alongside the tool → `known-place`. This is the primary mechanism; the probe
+   established there is no authoritative alternative.
+2. **Named place in the description** → `known-place`, lower confidence.
+3. **No destination exists** (sunset cruise, cooking class, spa, bar crawl) → the
+   departure point, tagged `departure`, where a real named marina or pier is known.
+   For these the departure point *is* where the activity takes place.
+4. **Nothing resolvable** → proposed as `no-pin`.
 
 Output is a review table — item, title, proposed coordinate, source, citation, and a
 map link — plus a patch to `ITEM_PINS`. **Low-confidence proposals default to `no-pin`.**
@@ -264,7 +266,20 @@ The card that opens on pin click gains a **pickup block**, below price/duration:
 | Pickup known, differs from pin | Pickup name + address, time when available, and distance from the pin, noting the tour travels to the activity |
 | Pickup known, same as pin | Pickup name + time only — no distance line, nothing to reconcile |
 | No pickup offered | "No pickup — make your own way there" |
-| Pickup unknown | Block omitted entirely — never guessed, never blank |
+| Unknown, but the card has a booking link | **"Pickup details on Viator →"**, linking to the product page |
+| Unknown, no booking link | Block omitted entirely — never guessed, never blank |
+
+**Pickup is curated, not fetched.** The 2026-08-03 probe
+(`docs/map/viator-location-probe.md`) established that Viator cannot supply this
+at usable quality: only 3 of 24 meeting-point refs resolved to coordinates, those
+were hotels on a pickup round rather than departure points, and two refs were
+booking-flow options (`"I will contact the supplier later"`) stored as locations.
+
+So a `pickup` is filled in only where a real, named, checkable departure point is
+known — researched exactly like any other coordinate. That will be a minority of
+cards. The unknown case is the common one, and it defers to the booking link,
+which is the authoritative source for what a traveller must actually do on the
+day. That is more useful than a blank and more honest than a guess.
 
 The distance line is what makes the split legible: it tells the reader *why* the pin is
 somewhere they are not being collected. Without it, a Palm Beach pickup on a Conchi pin
@@ -274,7 +289,7 @@ Because displacement is retained, every stop keeps its own pin and card, so the 
 always renders in full — no condensed multi-stop variant.
 
 A pin with `source: 'departure'` is labelled as a departure point, so it is never mistaken
-for a destination. No badge on `viator-poi` / `known-place` / `curated` pins — an accuracy
+for a destination. No badge on `known-place` / `curated` pins — an accuracy
 indicator on an accurate pin is noise.
 
 ### Pickup data is volatile — treat it differently from geography
@@ -311,7 +326,7 @@ lookup and a separate piece of work — explicitly out of scope here.
 
 | Risk | Mitigation |
 |---|---|
-| Viator POI data absent or sparse | Probe first. Place-name resolution and departure points absorb the difference; only the source mix changes |
+| ~~Viator POI data absent or sparse~~ | **Confirmed absent** (0 of 20 products, 2026-08-03). Place-name resolution is now the primary mechanism; no Viator dependency remains |
 | Registry goes stale as catalog churns | Audit reports the delta both ways; unregistered items render no pin rather than a wrong one |
 | Manual review effort across ~361 items | Tool proposes with citations, human accepts; most items resolve to a small set of repeated places (18 already map to Natural Pool alone) |
 | Pin coverage drops visibly | Expected and correct — current coverage is substantially false. Audit quantifies before/after so the trade is a decision, not a surprise |
