@@ -770,7 +770,10 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   font-style: italic; font-size: 15px; line-height: 1.5;
   color: rgba(0,0,0,0.85); margin: 0 0 26px; max-width: 620px;
 }
-.gtk-tl { position: relative; padding-left: 6px; --phh: 50px; --chh: 60px; }
+/* --gtk-surface is the page background the sticky phase headers pin against;
+   it defaults to the landing section's yellow and callers on another surface
+   (Practical Info sits on --cream) override it on .gtk-tl. */
+.gtk-tl { position: relative; padding-left: 6px; --phh: 50px; --chh: 60px; --gtk-surface: var(--yellow-bg); }
 /* the vertical spine */
 .gtk-tl::before {
   content: ''; position: absolute; left: 16px; top: 10px; bottom: 10px;
@@ -784,7 +787,7 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   text-align: left; font: inherit; color: var(--ink);
   /* Sticky section header: pins the active phase's label to the top as its cards
      scroll. Opaque section bg so scrolled content doesn't show through. */
-  position: sticky; top: 0; z-index: 4; background: var(--yellow-bg);
+  position: sticky; top: 0; z-index: 4; background: var(--gtk-surface);
 }
 .gtk-phase-head:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; border-radius: 8px; }
 /* node sits on the spine (spine at left:16px; node is 24px, centred there) */
@@ -848,12 +851,26 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   .gtk-phase-label { font-size: 21px; }
   .tlc-flag { display: none; }
 }
+/* Practical Info renders this timeline in a panel narrower than the landing
+   container (~58% of it at 800px, ~70% at 1280 — the sidebar takes the rest),
+   so titles wrap here where they never do on the landing page.
+   --chh is the strip a covered card keeps, sized for a one-line head (15 pad +
+   2 border + 34 stamp + 9 margin), and a title that outgrows it gets cut
+   mid-word once the card above covers it. The note pill is what squeezes the
+   title into a second and third line here, so drop it for the same reason the
+   rule above drops it below 720px — that alone keeps titles on one line down to
+   480px. Growing the strip instead was the other option and it is worse: sized
+   for the widest title it leaves a half-line of body text sticking out of every
+   one-line card, at every width, to fix a wrap that only happens at a few. */
+.dashboard-content .tlc-flag { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .gtk-phase-wrap, .gtk-node { transition: none; }
 }
 
-/* Dashboard "Good-to-knows" still uses the pinned-tag board (separate from the
-   landing timeline above). Kept here so the signed-in Dashboard stays styled. */
+/* The pinned-tag board: the Dashboard's old Good-to-knows presentation, until
+   Practical Info moved to the timeline above. Nothing renders these classes
+   now — kept in case the tag treatment is wanted somewhere again, not because
+   anything depends on them. */
 .gtk-board {
   background-image: radial-gradient(rgba(26,26,26,0.09) 1.5px, transparent 1.6px);
   background-size: 20px 20px; background-position: -4px -4px;
