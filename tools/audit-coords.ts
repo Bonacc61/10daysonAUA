@@ -40,6 +40,12 @@ const ALLOWED_COLLISIONS: Record<string, string> = {
   '-69.96950,12.46430': 'Mangel Halto — the island\'s main mangrove snorkel and kayak spot',
   '-70.04470,12.57760': 'MooMba Beach — Jolly Pirates and others sail from here',
   '-70.04490,12.57590': 'Holiday Inn pier — several catamarans board here',
+  // Each of these is a curated local pick agreeing with Viator items about where
+  // a place is — which is the point of one registry, not a re-introduced centroid.
+  '-69.90900,12.43640': 'San Nicolas — the mural walk plus tours that visit it',
+  '-70.04900,12.57480': 'Palm Beach — the local card plus operators based on the strip',
+  '-70.05360,12.60990': 'Arashi Beach — the local card plus snorkel trips that stop there',
+  '-69.97660,12.55370': 'Bushiribana Gold Mill Ruins — the local loop plus north-coast tours',
   '-70.04300,12.56200': 'Palm Beach hotel strip — the four open-bus sightseeing tours all board here',
   '-70.05190,12.60490': 'Boca Catalina — the standard turtle-snorkel stop, mostly as a secondary stop on Antilla wreck trips',
 };
@@ -126,6 +132,17 @@ async function main() {
     });
   }
 
+  // ── curated local picks ───────────────────────────────────────────────────
+  // These are ours, not Viator's — we control both the card and the coordinate,
+  // so there is no excuse for one to lack a pin. Seven shipped unpinned because
+  // this check did not exist: the coverage rule above only looks at the Viator
+  // pool, and curated cards postdating the original coordinate table fell
+  // straight through it.
+  const unpinnedLocal = catalog.activities.filter((a) => !ITEM_PINS[a.id]);
+  for (const a of unpinnedLocal) {
+    hard.push({ id: a.id, msg: `curated local pick with no pin — "${a.title.slice(0, 50)}"` });
+  }
+
   // ── churn ─────────────────────────────────────────────────────────────────
   const catalogIds = new Set(catalog.items.map((i) => i.id));
   for (const [id, pin] of Object.entries(ITEM_PINS)) {
@@ -147,6 +164,7 @@ async function main() {
     console.log(`\nRegistry      ${Object.keys(ITEM_PINS).length} pins + ${stops} secondary stops`);
     console.log(`By source     ${JSON.stringify(bySource)}`);
     console.log(`Approximate   ${Object.values(ITEM_PINS).filter((p) => p.approx).length}`);
+    console.log(`\nCurated local picks ${catalog.activities.length}  ·  unpinned ${unpinnedLocal.length}`);
     console.log(`\nPlannable pool ${plannable.length}`);
     console.log(`  pinned              ${plannable.length - unpinned.length}`);
     console.log(`  reviewed, declined  ${declined.length}`);

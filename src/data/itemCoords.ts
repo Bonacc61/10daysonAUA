@@ -275,6 +275,26 @@ export const ITEM_PINS: Record<string, Pin> = {
   '139296P3':      { coord: { lng: -70.0430, lat: 12.5620 }, source: 'departure', place: 'Palm Beach hotel strip', approx: true, cite: 'APPROX — departure point only, the tour roams the island. Palm Beach hotel strip; restored from VIATOR_ITEM_COORDS' },  // Aruba open bus Shore Excursion
   '6593P17':       { coord: { lng: -70.0430, lat: 12.5620 }, source: 'departure', place: 'Palm Beach hotel strip', approx: true, cite: 'APPROX — departure point only, the tour roams the island. Palm Beach hotel strip; restored from VIATOR_ITEM_COORDS' },  // Open Air Beach Bus Tour of Aruba
   '47774P1':       { coord: { lng: -70.0430, lat: 12.5620 }, source: 'departure', place: 'Palm Beach hotel strip', approx: true, cite: 'APPROX — departure point only, the tour roams the island. Palm Beach hotel strip; restored from VIATOR_ITEM_COORDS' },  // Colorful Beach Bus Sightseeing Tour
+
+  // ── Curated cards added for the Balanced template ───────────────────────────
+  // These seven shipped without coordinates: they postdate the ACTIVITY_COORDS
+  // table the migration copied, and the audit only checked the Viator pool, so
+  // nothing caught it. Coordinates are the same OSM features tools/places.ts
+  // uses, so the local picks and the Viator items that visit the same spot agree.
+  //
+  // NOTE the Boca Catalina pair. Two DIFFERENT cards share this cove and must
+  // stay distinct: 'boca-catalina-shore' is a free shore snorkel you walk into
+  // (category Beaches, revisitable), while 'boca-catalina-snorkel' is a paid
+  // catamaran trip (category Watersports, one boat per day, not revisitable).
+  // Same place, different activity, different rules — collapsing them would lose
+  // a free beach option AND double-count a boat.
+  'arashi-beach':            { coord: { lng: -70.0536, lat: 12.6099 }, source: 'curated', place: 'Arashi Beach',                cite: 'OpenStreetMap way/461766965, verified 2026-08-03' },
+  'palm-beach-strip':        { coord: { lng: -70.0490, lat: 12.5748 }, source: 'curated', place: 'Palm Beach',                  cite: 'OpenStreetMap way/23060047, verified 2026-08-03' },
+  'boca-catalina-shore':     { coord: { lng: -70.0519, lat: 12.6049 }, source: 'curated', place: 'Boca Catalina (shore entry)', cite: 'OpenStreetMap way/690840582, verified 2026-08-03' },
+  'alto-vista-chapel':       { coord: { lng: -70.0109, lat: 12.5760 }, source: 'curated', place: 'Alto Vista Chapel',           cite: 'OpenStreetMap node/540115823, verified 2026-08-03' },
+  'california-dunes-sunset': { coord: { lng: -70.0488, lat: 12.6205 }, source: 'curated', place: 'California Dunes',            cite: 'OpenStreetMap: Dunes Beach, north tip, verified 2026-08-03' },
+  'bushiribana-loop':        { coord: { lng: -69.9766, lat: 12.5537 }, source: 'curated', place: 'Bushiribana Gold Mill Ruins', cite: 'OpenStreetMap way/79210010, verified 2026-08-03' },
+  'san-nicolas-murals':      { coord: { lng: -69.9090, lat: 12.4364 }, source: 'curated', place: 'San Nicolas',                 cite: 'OpenStreetMap: San Nicolas town centre, verified 2026-08-03' },
 };
 
 /** Look up a pin. Returns undefined — never a fallback — for unregistered ids. */
