@@ -60,6 +60,33 @@ function noFixedPointReason(id: string, meeting: string): 'hotel-pickup' | 'defe
   return null;
 }
 
+/**
+ * Destinations named anywhere in a product's description.
+ *
+ * A hotel-pickup roving tour has no fixed departure point, but it still GOES
+ * somewhere — and the pin is meant to show where the activity happens, not where
+ * the van collects you. "Alto Vista, the Natural Bridge and Bushiribana" is
+ * three real stops, which the multi-stop pin model already supports.
+ *
+ * Only true destinations count: venues, hotel landmarks and towns are excluded,
+ * since naming Palm Beach in marketing copy is not a claim about where you go.
+ */
+function destinationsIn(id: string): Place[] {
+  const p = DESCRIPTIONS[id];
+  if (!p) return [];
+  const blob = norm([p.description ?? '', ...(p.itineraryText ?? [])].join(' '));
+  if (!blob) return [];
+  const out = new Map<string, Place>();
+  for (const place of PLACES) {
+    if (place.role || place.area) continue;
+    for (const alias of place.aliases) {
+      const a = norm(alias);
+      if (new RegExp(`\\b${escapeRe(a)}\\b`).test(blob)) { out.set(place.id, place); break; }
+    }
+  }
+  return [...out.values()];
+}
+
 function meetingText(id: string): string {
   return (MEETING[id]?.start ?? []).map((s) => s.description ?? '').join(' ').trim();
 }
@@ -217,7 +244,7 @@ async function main() {
   const SAIL_RE = /\b(sail|sailing|cruise|catamaran|yacht|schooner|boat charter)\b/i;
   const ROVING_RE = /\b(island tour|utv|atv|jeep|off[- ]road|scooter|harley|buggy|horseback|e-?bike|surron|sightseeing|countryside|trikes?)\b/i;
 
-  type Row = { id: string; title: string; place?: Place; alias?: string; via?: string; cands?: Place[]; meeting?: string; coarserThanText?: boolean; noFixed?: string | null };
+  type Row = { id: string; title: string; place?: Place; alias?: string; via?: string; cands?: Place[]; meeting?: string; coarserThanText?: boolean; noFixed?: string | null; dests?: Place[] };
   const accept: Row[] = [], check: Row[] = [], pick: Row[] = [], departure: Row[] = [], leave: Row[] = [];
   const registryLine = (id: string, p: Place, title: string) =>
     `  '${id}': { coord: { lng: ${p.coord.lng}, lat: ${p.coord.lat} }, `
@@ -253,6 +280,7 @@ async function main() {
       } else {
         (SAIL_RE.test(title) && !ROVING_RE.test(title) ? departure : leave).push({
           ...row, meeting: mt || undefined, noFixed: noFixedPointReason(item.id, mt),
+          dests: destinationsIn(item.id),
         });
       }
     } else if (m.kind === 'ambiguous') {
@@ -333,10 +361,12 @@ async function main() {
     groupC: pick.map((r) => ({ id: r.id, title: r.title, candidates: r.cands!.map(slim) })),
     groupD: departure.map((r) => ({ id: r.id, title: r.title, meeting: r.meeting ?? null,
       proposed: r.place ? slim(r.place) : null, alias: r.alias ?? null,
-      coarserThanText: !!r.coarserThanText, noFixed: r.noFixed ?? null })),
+      coarserThanText: !!r.coarserThanText, noFixed: r.noFixed ?? null,
+      dests: (r.dests ?? []).map(slim) })),
     groupE: leave.map((r) => ({ id: r.id, title: r.title, meeting: r.meeting ?? null,
       proposed: r.place ? slim(r.place) : null, alias: r.alias ?? null,
-      coarserThanText: !!r.coarserThanText, noFixed: r.noFixed ?? null })),
+      coarserThanText: !!r.coarserThanText, noFixed: r.noFixed ?? null,
+      dests: (r.dests ?? []).map(slim) })),
     places: PLACES.map(slim),
   }, null, 1));
 

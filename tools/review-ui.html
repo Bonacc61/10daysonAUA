@@ -372,8 +372,55 @@ function render() {
           : '⏳ Meeting point is only given after booking. Nothing to pin.';
         card.appendChild(el(`<div class="cite" style="white-space:normal;color:#7a7268">${msg}</div>`));
       }
-      if (!r.proposed && !r.noFixed && !r.meeting) {
+      if (!r.proposed && !r.noFixed && !r.meeting && !(r.dests || []).length) {
         card.appendChild(el(`<div class="cite" style="color:#7a7268">No meeting point stated anywhere in the product data.</div>`));
+      }
+
+      // Destinations named in the product description. For a hotel-pickup roving
+      // tour there is no departure point to pin, but the tour still GOES
+      // somewhere — and the pin is meant to show where the activity happens.
+      // Same multi-select as tab C: first pick is primary, the rest become stops.
+      if (!r.proposed && (r.dests || []).length) {
+        card.appendChild(el(`<div class="cite" style="white-space:normal">🗺️ Visits, per the description — pick the ones this tour really goes to. First pick is the primary pin; the rest become tethered stops.</div>`));
+        const chosen = () => (DEC[r.id]?.places ?? []).map((x) => x.placeId);
+        const destPins = () => {
+          const ch = chosen();
+          return r.dests.map((c, i) => {
+            const at = ch.indexOf(c.id);
+            return { coord: c.coord, label: at >= 0 ? String(at + 1) : String(i + 1),
+              name: at === 0 ? `Primary — ${c.name}` : at > 0 ? `Also visits — ${c.name}` : c.name,
+              sel: at === 0, second: at > 0 };
+          });
+        };
+        const paintD = () => {
+          showPins(destPins(), true);
+          const ch = chosen();
+          if (ch.length > 1) {
+            tether(ch.map((id) => r.dests.find((c) => c.id === id)).filter(Boolean)
+              .map((c) => [c.coord.lng, c.coord.lat]));
+          } else clearTether();
+        };
+        const box = el('<div class="items"></div>');
+        for (const [ci, c] of r.dests.entries()) {
+          const ch = chosen();
+          const at = ch.indexOf(c.id);
+          const row2 = el(`<div class="cand"><span class="nm"><b>${ci + 1}.</b> ${esc(c.name)}<br><span class="co">${c.coord.lng}, ${c.coord.lat}</span></span></div>`);
+          const b2 = el(`<button class="${at >= 0 ? 'sel' : ''}">${at === 0 ? 'primary' : at > 0 ? `also #${at + 1}` : 'add'}</button>`);
+          b2.onclick = () => {
+            const cur = (DEC[r.id]?.places ?? []).slice();
+            const idx = cur.findIndex((x) => x.placeId === c.id);
+            if (idx >= 0) cur.splice(idx, 1);
+            else cur.push({ placeId: c.id, coord: c.coord, name: c.name, cite: c.cite });
+            if (!cur.length) setDec([r.id], null);
+            else setDec([r.id], { action: 'accept', source: 'known-place', places: cur,
+              placeId: cur[0].placeId, coord: cur[0].coord, name: cur[0].name,
+              cite: `${cur[0].cite} — named as a stop in the Viator product description` });
+            paintD();
+          };
+          row2.appendChild(b2);
+          box.appendChild(row2);
+        }
+        card.appendChild(box);
       }
       if (r.proposed) {
         const approxNote = (r.proposed.role === 'landmark' || r.proposed.approx || r.coarserThanText)
