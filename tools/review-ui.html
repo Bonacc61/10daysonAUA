@@ -348,8 +348,8 @@ function render() {
   if (TAB === 'D' || TAB === 'E') {
     const rows = TAB === 'D' ? P.groupD : P.groupE;
     L.appendChild(el(`<p class="note">${TAB === 'D'
-      ? 'Sails and cruises have no destination — the departure point <em>is</em> where the activity happens. Assign a marina or pier only where you actually know it; otherwise leave unpinned.'
-      : 'Roving island tours, classes, pub crawls and unnamed dive sites. These have no single location, so no pin is the correct answer. The card still appears in the photo strip.'}</p>`));
+      ? 'Sails and cruises have no destination — the departure point <em>is</em> where the activity happens. The 📍 line is Viator\'s own meeting-point text; where it named a pier or hotel, a proposal is offered. A hotel means the pier on that hotel\'s beach, roughly 100-200m away.'
+      : 'Roving island tours, classes and pub crawls. Most have no single location and should stay unpinned — but where Viator states a fixed meeting point, that is a real place and a proposal is offered.'}</p>`));
     clearMarkers();
     for (const r of rows) {
       const st = DEC[r.id];
@@ -357,15 +357,38 @@ function render() {
       card.appendChild(el(`<div class="ghd"><b>${esc(r.title)}</b>
         <span class="badge ${st?.action === 'accept' ? 'acc' : st?.action === 'reject' ? 'rej' : ''}">${st?.action ? (st.name ?? 'no pin') : 'undecided'}</span>
         <span class="id co">${esc(r.id)}</span></div>`));
+      // Meeting-point text straight from Viator, plus whatever place it resolved
+      // to. Showing the prose matters: it is the evidence for the proposal, and
+      // a hotel name in it means "the pier on that hotel's beach", not the hotel.
+      if (r.meeting) {
+        card.appendChild(el(`<div class="cite" style="white-space:normal">📍 ${esc(r.meeting).slice(0, 320)}</div>`));
+      }
+      if (r.proposed) {
+        const pr = el(`<div class="items"><div class="cand">
+          <span class="nm">→ <b>${esc(r.proposed.name)}</b><br>
+          <span class="co">${r.proposed.coord.lng}, ${r.proposed.coord.lat} · matched "${esc(r.alias ?? '')}"</span></span></div></div>`);
+        card.appendChild(pr);
+      }
       const acts = el('<div class="acts"></div>');
-      if (TAB === 'D') {
-        const sel = el('<select><option value="">— departure point —</option></select>');
+      if (r.proposed) {
+        const bA = el('<button class="a">Accept departure</button>');
+        bA.onclick = () => {
+          showPins([{ coord: r.proposed.coord, name: r.proposed.name, label: '⚓' }], true);
+          setDec([r.id], { action: 'accept', placeId: r.proposed.id, coord: r.proposed.coord,
+            name: r.proposed.name, source: 'departure',
+            cite: `${r.proposed.cite} — meeting point per Viator: "${String(r.meeting ?? '').replace(/\s+/g, ' ').slice(0, 120)}"` });
+        };
+        acts.appendChild(bA);
+      }
+      if (TAB === 'D' || TAB === 'E') {
+        const sel = el('<select><option value="">— pick another —</option></select>');
         for (const p of P.places) sel.appendChild(el(`<option value="${p.id}"${st?.placeId === p.id ? ' selected' : ''}>${esc(p.name)}</option>`));
         sel.onchange = () => {
           const p = P.places.find((x) => x.id === sel.value);
           if (!p) return setDec([r.id], null);
           showPins([{ coord: p.coord, name: p.name }], true);
-          setDec([r.id], { action: 'accept', placeId: p.id, coord: p.coord, name: p.name, cite: p.cite, source: 'departure' });
+          setDec([r.id], { action: 'accept', placeId: p.id, coord: p.coord, name: p.name, source: 'departure',
+            cite: `${p.cite}${r.meeting ? ` — meeting point per Viator: "${String(r.meeting).replace(/\s+/g, ' ').slice(0, 120)}"` : ''}` });
         };
         acts.appendChild(sel);
       }

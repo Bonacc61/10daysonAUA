@@ -1,0 +1,410 @@
+{
+ "245504": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "245508": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Walk down the walkway between the Hilton and RIU Palace. You will see the Coconuts Gift Shop on De Palm Pier. Enter the Coconuts Store and go to the counter to check-in for your activity."
+ },
+ "444239P8": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "our address is Bucutiweg #34 or if using GPS, it is easier to locate The Fish House Restaurant at Varadero Marina as we are located on the same property."
+ },
+ "103088P1": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Palm Beach Pier SURF CLUB (Marriott)"
+ },
+ "6593P7": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Pelican Pier is located between the Holiday Inn Hotel and the Playa Linda Beach Resort. Check-in time is at 9:30 A.M"
+ },
+ "2785DINNER": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Please check in at our pier located behind the Hyatt Regency 30 minutes prior to departure time"
+ },
+ "6593P11": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Check in time is at 4:30pm at Pelican Pier which is between the Holiday Inn Hotel and Playa Linda Beach Resort."
+ },
+ "47607P2": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Your tour departs from the Octopus Aruba beach hut which is located on Palm Beach behind the Holiday Inn. Once you reach the Holiday Inn Hotel, please walk through the lobby until you reach the beach area. Make a left on the footpath and you will see us on your right."
+ },
+ "2785P10": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Please check in at our pier located behind the Hyatt Regency 30 min prior to departure."
+ },
+ "6593P10": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Check-in time is at 5:00 P.M at the front desk of the Pelican Pier located between the Holiday Inn & Playa Linda Beach Resorts"
+ },
+ "47607P3": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Your tour departs from the Octopus Aruba beach hut which is located on Palm Beach behind the Holiday Inn. Once you reach the Holiday Inn Hotel, please walk through the lobby until you reach the beach area. Make a left on the footpath and you will see us on your right."
+ },
+ "6593DINNER": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Check-in time is at 5:00 P.M. at the Pelican Pier, located between Playa Linda Beach Resort and the Holiday Inn."
+ },
+ "103020P7": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Behind the airport at address Bucutiweg 31."
+ },
+ "8936P1": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Located on the high-rise area of Palm Beach between the Hilton and the Barcelo resorts on the beach in a brown building facing the ocean. Check-in 30 minutes before departure."
+ },
+ "13526P13": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "Hadicurari Fishermans Pier/Moomba Beach Bar is located on the beach between Marriott Surf Club and Holiday Inn. Our representative will be holding a sign saying, \"Banana Adventure\". Must check in 45 minutes before cruise begins."
+ },
+ "13526P14": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "Located between Holiday Inn and Marriott"
+ },
+ "6593BRUNCH": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Check-in time is at 8:30AM at Pelican Pier which is between the Holiday Inn Hotel & Playa Linda Beach Resort."
+ },
+ "47607P4": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Your tour departs from the Octopus Aruba beach hut, located on Palm Beach behind the Holiday Inn. Please walk through the lobby of the Holiday Inn until you reach the beach area. Make a left on the footpath and you will see us on your right. Check in time is 4:30PM & boarding time is 4:45PM."
+ },
+ "137607P23": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "119085P2": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Check in time is 30 minutes before the start time of the tour. Delphi Watersports is located in front of the Hyatt Regency towel hut on the beach. Look for the big sign Delphi Watersports. Ask for Olga & Jhon. Please take note that your feet can get wet, as we do board from the beach."
+ },
+ "119085P10": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Delphi Watersports (big sign) is located in front of the Hyatt Regency towel hut on the beach. Ask for Olga and Jhon wearing a I Love Aruba shirt. Please make sure to arrive at least **20 minutes before your scheduled activity** to our beach location in front of the Hyatt Regency Hotel!"
+ },
+ "364486P1": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Directions using *Google Maps: Address 1. “Chef and Steward” on Google Maps 2. Bona Vista 36 Noord What to look out for It is a row of colorful Cunucu houses on Rte3 that tour buses usually stop"
+ },
+ "292552P1": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "6180PUB": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "62666P3": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "The tour starts at Zoutmanstraat 1, right behind the Renaissance Hotel Marina Tower. You’ll find a small roundabout nearby the Protestant Church and Yemanja Restaurant. Please look out for the Aruba Walking Tours sign."
+ },
+ "459169P1": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "Near Ling&Songs supermarket ,once in the area we can come meet you"
+ },
+ "459169P2": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": null
+ },
+ "392509P1": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "Our meeting point is on the same road of the Ayo Rock Formation, just a (1) minute drive or 1/4 miles (400 m) further to the west. It is located right at the open/soccer field."
+ },
+ "106422P2": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "Outside our property you will find our Pure Diving Aruba sign. Inside you can park your car."
+ },
+ "5585429P11": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "139296P1": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "5593159P4": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "The Beach is located right behind of the Divi Phoenix Resort. The Divi Phoenix Resort is located next to the St. Regis Resort."
+ },
+ "6841P12": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": null
+ },
+ "476164P4": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "Next to Dunkin Donuts at the Tank Flip roundabout in Noord, Aruba"
+ },
+ "5595542P1": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "We Are In Front Of The Island Cabana Hut"
+ },
+ "6687P13": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "6687P10": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": null
+ },
+ "137607P19": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "The starting point of the tour can be determined by the guests."
+ },
+ "476164P3": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "Located at the Tanki Flip roundabout located in Noord, Aruba."
+ },
+ "6687P12": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "33158P1": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "You will see a sign of \"Aruba Go Cherry\" about 300 meters from Burger King Paradera. You can also find our exact location on Google Maps."
+ },
+ "325347P3": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Look for the snorkeling guides wearing a bright colored Underdog Divers longsleeve shirt. For GPS locations or directions, please type in ''Tres Trapi Beach'' on Google Maps."
+ },
+ "377394P9": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "Please park at the Cas di Max Parking lot"
+ },
+ "377394P8": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "We start the tour from Schotlandstraat 46, Oranjestad. Customers that come to our office by themself. Please, park at the Cas di Max Parking lot"
+ },
+ "325347P2": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "We wear bright colored long sleeved shirts with the Underdog Divers logo on it. So you can’t miss us. It’s easy to find, just type “Mangel Halto Beach Sign” into Google Maps."
+ },
+ "178836P1": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "6687ATV": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": null
+ },
+ "292552P2": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "200215P1": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "We are located on the road to the natural bridge and Bushiribana Gold mill ruins. Our address is Matividiri 60. Please arrive at 8:30am for the mandatory instructions. We are the last stop on that road, next to the Ostrich farm."
+ },
+ "6593P14": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Check-in is at 5:00 P.M. at the front desk of the Pelican Pier located between the Holiday Inn & Playa Linda Beach Resort."
+ },
+ "419440P1": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "We will meet the guests at the parking lot of Zeerovers Restaurant in Savaneta."
+ },
+ "5585429P1": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "47774P3": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": null
+ },
+ "33158P4": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": null
+ },
+ "377394P7": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "Please park at the Cas di Max Parking lot"
+ },
+ "137607P12": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": null
+ },
+ "39473P5": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "377394P1": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "212359P5": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "13835P20": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "Easy Navigation with Google maps ot Waze. Address is Boroncana Noord behind house number 8. Please be at the ranch 15 minutes PRIOR to tour departure"
+ },
+ "47774P7": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": null
+ },
+ "300281P10": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "Our meeting point is next to Flying Fishbone at the boat ramp. In case of strong wind or rough seas, we may depart from a nearby spot called The Casita, located just past the Old Man and the Sea ruins near the shoreline."
+ },
+ "39473P6": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "3046P8": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "7389P10": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "186518P4": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "200 feet from Marina Pirata Restaurant, Nautilus Dive Center. PADI FLAG"
+ },
+ "3046P7": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "13526P6": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "13835P11": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "We recommend navigating directly to \"Rancho Notorious\" using Google Maps or Waze."
+ },
+ "13835P3": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "Please look for reconfirmation email from us with the exact time to wait outside the lobby of your hotel. Cruise ship guests, wait outside the Food Shop of the Citgo GasStation.Left outside gate 5. we have free parking. Easy Navigation with Google maps or Waze. . Boroncana behind house number 8"
+ },
+ "12431P3": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "39473P3": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "Our main office"
+ },
+ "5494168P1": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "Noord 23, Palm Beach Aruba"
+ },
+ "39473P2": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "106422P3": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "Outside our property you will find our Pure Diving Aruba sig. Inside you can park your car."
+ },
+ "47774P1": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": null
+ },
+ "15815P2": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "Use Google Maps or maps.me for easier navigation by placing our address BUCUTIWEG 20. Parking is available and free of charge, when on the BUCUTIWEG road, look on the opposite side of the water for a house with our sign, there you can park safely and walk across the street to our pier."
+ },
+ "7389P1": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "13835P15": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "We recommend navigating directly to \"Rancho Notorious\" using Google Maps or Waze."
+ },
+ "292552P5": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "7927P1": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": null
+ },
+ "292552P4": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "13835P17": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "We recommend navigating directly to \"Rancho Notorious\" using Google Maps or Waze."
+ },
+ "300281P7": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "Our meeting point is at the right next to Flying Fishbone at the boat ramp. In case of strong wind or rough seas, we may depart from a nearby spot called The Casita, located just past the Old Man and the Sea ruins near the shoreline."
+ },
+ "13835P1": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "We recommend navigating directly to \"Rancho Notorious\" using Google Maps or Waze."
+ },
+ "137607P22": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Kiosk of Around Aruba Tours behind Aruba Marriott Resort & Stellaris Casino near Antilles Beach Bar on the backside/beachside Kiosk of Around Aruba Tours behind Marriott's Surf Ocean Club on the backside/beachside Kiosk of Around Aruba Tours behind Holiday Inn Resort Aruba-Beach Resort & Casino and right in front of Pelican Pier on the backside/beachside. Kiosk of Around Aruba Tours in between Hotel Riu Palace Aruba and Hotel Riu Palace Antillas on the backside/beachside Kiosk of Around Aruba Tours right behind Marriott's Surf Club on the backside/beachside Eagle Beach (Island Watersports Aruba Hut) - in front of the Paradise Beach Villas (Yellow Hut with Jet Ski on the Roof)"
+ },
+ "474314P1": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Exact meeting will be shared upon booking. The Beach is located right behind the resort."
+ },
+ "429943P1": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Our pontoon boat is located at Varadero Aruba Marina & Boatyard."
+ },
+ "6841P6": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Cruise passengers are welcome to join the tour. Please check your ship’s arrival time to ensure you’ll have sufficient time to reach the meeting point before the tour begins. Meet us at our main office, which is ABC headquarters, at Schotlandstraat 61, we have limited parking, and suggest you take taxi to meeting at location. Meeting time for this excursion is 7:45 AM, Tour departs exactly at 8:30. We can provide drop off once the tour is finished."
+ },
+ "122173P3": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "The meeting point is located at the small pier right next to Villa Rossana in Savaneta. It is very close to the Flying Fishbone Restaurant."
+ },
+ "70453P2": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Meeting time 5.45 pm at Arashi Beach Departure Time 6 pm at Arashi Beach Clear Kayak Aruba DOES NOT have a booth on Arashi Beach. The guides will meet you in the parking lot. Call for info +297 5662205 or +297 5928757"
+ },
+ "70453P1": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": null
+ },
+ "358117P10": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "On the right off Savaneta 284 villa Rossana you will see an abandoned house.Right behind it there’s a ramp where we launch from. Precisely between villa Rossana and Aruba Reef Apartments."
+ },
+ "19808P5": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "139296P2": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "283728P3": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "if you pass the Ritz Carlton on your left hand side, look out for the big BLUE building on your left hand. There we are to welcome you with the biggest smiles ;)"
+ },
+ "404788P3": {
+  "pickupType": "PICKUP_AND_MEET_AT_START_POINT",
+  "meeting": "Guests staying at Airbnb / Vacation Rental in Oranjestad & other areas. Meeting point: Taxi stand Renaissance. Centrally located, easy to find, with free parking. Guests staying at Airbnb / Vacation Rental in Noord Meeting point: J.E. Irausquin Blvd 330 Centrally located, easy to find, with free parking. About a 10-minute drive from most Airbnbs in Noord."
+ },
+ "5599636P2": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "You can find us on Eagle Beach, directly across from La Quinta Beach Resort. Just look for our setup on the beach—we'll be there waiting for you!"
+ },
+ "292552P14": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "472918P1": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "Boca Catalina beach We’ll message you 24 hours before your tour with the exact meeting point (Google Maps pin), parking/landmark details, and your guide’s contact info. Please arrive 10 minutes early so we can fit your snorkel gear and do a quick safety briefing."
+ },
+ "2455P17": {
+  "pickupType": "PICKUP_EVERYONE",
+  "meeting": null
+ },
+ "400174P2": {
+  "pickupType": "MEET_EVERYONE_AT_START_POINT",
+  "meeting": "We will meet at Signature Park Aruba in front of a Blue Building"
+ }
+}

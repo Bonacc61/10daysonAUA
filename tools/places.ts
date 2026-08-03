@@ -34,48 +34,147 @@ export type Place = {
   coord: Coord;
   terrain: 'land' | 'water';
   cite: string;
+  /**
+   * 'venue'    — a real departure point: a pier, marina or beach club.
+   * 'landmark' — a hotel used only to locate a venue in prose.
+   * undefined  — an ordinary destination (beach, park, cave, town).
+   *
+   * A venue always outranks a landmark when both appear in one meeting-point
+   * description, because the hotel is how the text describes where the pier is,
+   * not where the activity departs from.
+   */
+  role?: 'venue' | 'landmark';
 };
 
 export const PLACES: Place[] = [
+  // ── Hotel landmarks (role: 'landmark') ────────────────────────────────────
+  // Viator meeting-point descriptions locate piers by the hotel beside them:
+  // "our pier located behind the Hyatt Regency", "Pelican Pier is located
+  // between the Holiday Inn Hotel and the Playa Linda Beach Resort".
+  //
+  // These are ORIENTATION anchors, not destinations. A named pier always beats a
+  // hotel when both appear in the same description — see the resolver. A pin
+  // placed on the hotel is an approximation of the pier on its beach, ~100-200m
+  // away, and the citation says so.
+  { id: 'amsterdam-manor-resort', name: 'Amsterdam Manor Resort', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0544, lat: 12.5541 },
+    aliases: ['amsterdam manor'],
+    cite: 'OpenStreetMap way/640018902, verified 2026-08-03' },
+  { id: 'aruba-marriott-resort', name: 'Aruba Marriott Resort', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0435, lat: 12.5807 },
+    aliases: ['aruba marriott', 'marriott resort'],
+    cite: 'OpenStreetMap way/370141800, verified 2026-08-03' },
+  { id: 'bucuti-and-tara-resort', name: 'Bucuti and Tara resort', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0618, lat: 12.5417 },
+    aliases: ['bucuti'],
+    cite: 'OpenStreetMap way/370524102, verified 2026-08-03' },
+  { id: 'costa-linda-beach-resort', name: 'Costa Linda Beach Resort', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0612, lat: 12.5433 },
+    aliases: ['costa linda'],
+    cite: 'OpenStreetMap way/751959427, verified 2026-08-03' },
+  { id: 'divi-dutch-village-beach-resort', name: 'Divi Dutch Village Beach Resort', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0553, lat: 12.5321 },
+    aliases: ['divi dutch village'],
+    cite: 'OpenStreetMap way/1463835569, verified 2026-08-03' },
+  { id: 'divi-phoenix', name: 'Divi Phoenix', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0512, lat: 12.5642 },
+    aliases: ['divi phoenix'],
+    cite: 'OpenStreetMap node/3102983952, verified 2026-08-03' },
+  { id: 'embassy-suites', name: 'Embassy Suites', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0522, lat: 12.561 },
+    aliases: ['embassy suites'],
+    cite: 'OpenStreetMap node/6303599521, verified 2026-08-03' },
+  { id: 'hilton', name: 'Hilton', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0463, lat: 12.5683 },
+    aliases: ['hilton'],
+    cite: 'OpenStreetMap node/924094088, verified 2026-08-03' },
+  { id: 'hotel-riu-palace-antillas', name: 'Hotel Riu Palace Antillas', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0483, lat: 12.5658 },
+    aliases: ['riu palace antillas'],
+    cite: 'OpenStreetMap way/38528332, verified 2026-08-03' },
+  { id: 'hotel-riu-palace-aruba', name: 'Hotel Riu Palace Aruba', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0478, lat: 12.567 },
+    aliases: ['riu palace aruba', 'riu palace'],
+    cite: 'OpenStreetMap way/370376059, verified 2026-08-03' },
+  { id: 'hyatt-regency-aruba-resort-spa-and', name: 'Hyatt Regency Aruba Resort Spa and Casino', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0456, lat: 12.5718 },
+    aliases: ['hyatt regency', 'hyatt'],
+    cite: 'OpenStreetMap way/629617326, verified 2026-08-03' },
+  { id: 'la-cabana-beach-resort-and-casino', name: 'La Cabana Beach Resort & Casino', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0541, lat: 12.5516 },
+    aliases: ['la cabana'],
+    cite: 'OpenStreetMap way/335599680, verified 2026-08-03' },
+  { id: 'manchebo-beach-resort-and-spa', name: 'Manchebo Beach Resort & Spa', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0623, lat: 12.5408 },
+    aliases: ['manchebo beach resort'],
+    cite: 'OpenStreetMap way/335599676, verified 2026-08-03' },
+  { id: 'marriott-ocean-club', name: 'Marriott Ocean Club', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0433, lat: 12.5794 },
+    aliases: ['marriott ocean club'],
+    cite: 'OpenStreetMap way/321552376, verified 2026-08-03' },
+  { id: 'playa-linda-beach-resort', name: 'Playa Linda Beach Resort', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0451, lat: 12.5733 },
+    aliases: ['playa linda'],
+    cite: 'OpenStreetMap node/3102989929, verified 2026-08-03' },
+  { id: 'radisson-blu', name: 'Radisson Blu', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0421, lat: 12.5757 },
+    aliases: ['radisson'],
+    cite: 'OpenStreetMap way/370371692, verified 2026-08-03' },
+  { id: 'royal-level-at-barceló-aruba', name: 'Royal Level at Barceló Aruba', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0458, lat: 12.5704 },
+    aliases: ['barcelo', 'barceló'],
+    cite: 'OpenStreetMap node/924108491, verified 2026-08-03' },
+  { id: 'tamarijn-divi-aruba', name: 'Tamarijn Divi Aruba', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0558, lat: 12.5355 },
+    aliases: ['tamarijn'],
+    cite: 'OpenStreetMap node/2067021475, verified 2026-08-03' },
+  { id: 'the-ritz-carlton-aruba', name: 'The Ritz-Carlton, Aruba', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0441, lat: 12.5829 },
+    aliases: ['ritz-carlton', 'ritz carlton'],
+    cite: 'OpenStreetMap way/370096811, verified 2026-08-03' },
+  { id: 'holiday-inn-resort', name: 'Holiday Inn Resort', terrain: 'land', role: 'landmark',
+    coord: { lng: -70.0449, lat: 12.5759 },
+    aliases: ['holiday inn'],
+    cite: 'OpenStreetMap way/370372887, verified 2026-08-03' },
   // ── Departure venues ──────────────────────────────────────────────────────
   // Piers and beach clubs that sails, cruises and watersports actually leave
   // from. Added because Viator cannot supply a departure point: its product
   // `logistics.start[]` refs resolve to Google Place IDs carrying no name and no
   // coordinates, and the product pages return 403 to any fetch. These make the
   // reviewer's departure dropdown usable, so a human assigns them per product.
-  { id: 'moomba-beach', name: 'MooMba Beach', terrain: 'land',
+  { id: 'moomba-beach', role: 'venue', name: 'MooMba Beach', terrain: 'land',
     coord: { lng: -70.0447, lat: 12.5776 },
     aliases: ['moomba', 'moomba beach', 'jolly pirate', 'jolly pirates'],
     cite: 'OpenStreetMap node/3809023231 (MooMba Beach bar). Jolly Pirates departure point confirmed by the product owner, 2026-08-03' },
-  { id: 'de-palm-pier', name: 'De Palm Pier', terrain: 'land',
+  { id: 'de-palm-pier', role: 'venue', name: 'De Palm Pier', terrain: 'land',
     coord: { lng: -70.0487, lat: 12.5682 },
     aliases: ['de palm pier', 'bugaloe'],
     cite: 'OpenStreetMap way/335257951 (De Palm Pier); Bugaloe sits on it' },
-  { id: 'pelican-pier', name: 'Pelican Pier', terrain: 'land',
+  { id: 'pelican-pier', role: 'venue', name: 'Pelican Pier', terrain: 'land',
     coord: { lng: -70.0461, lat: 12.5744 },
     aliases: ['pelican pier', 'pelican adventures'],
     cite: 'OpenStreetMap way/555476889, verified 2026-08-03' },
-  { id: 'hadicurari-pier', name: 'Hadicurari Pier', terrain: 'land',
+  { id: 'hadicurari-pier', role: 'venue', name: 'Hadicurari Pier', terrain: 'land',
     coord: { lng: -70.0455, lat: 12.5780 },
     aliases: ['hadicurari pier'],
     cite: 'OpenStreetMap way/371842506, verified 2026-08-03' },
-  { id: 'pier-di-rancho', name: 'Pier Di Rancho, Oranjestad', terrain: 'land',
+  { id: 'pier-di-rancho', role: 'venue', name: 'Pier Di Rancho, Oranjestad', terrain: 'land',
     coord: { lng: -70.0401, lat: 12.5192 },
     aliases: ['pier di rancho', 'rancho pier'],
     cite: 'OpenStreetMap way/367742288, verified 2026-08-03' },
-  { id: 'de-palm-ferry', name: 'De Palm Island Ferry Terminal', terrain: 'land',
+  { id: 'de-palm-ferry', role: 'venue', name: 'De Palm Island Ferry Terminal', terrain: 'land',
     coord: { lng: -69.9787, lat: 12.4723 },
     aliases: ['de palm island ferry'],
     cite: 'OpenStreetMap node/2682381431, verified 2026-08-03' },
-  { id: 'barefoot', name: 'Barefoot Restaurant, Oranjestad', terrain: 'land',
+  { id: 'barefoot', role: 'venue', name: 'Barefoot Restaurant, Oranjestad', terrain: 'land',
     coord: { lng: -70.0294, lat: 12.5085 },
     aliases: ['barefoot restaurant'],
     cite: 'OpenStreetMap node/1814558239, verified 2026-08-03' },
-  { id: 'west-deck', name: 'The West Deck, Oranjestad', terrain: 'land',
+  { id: 'west-deck', role: 'venue', name: 'The West Deck, Oranjestad', terrain: 'land',
     coord: { lng: -70.0346, lat: 12.5154 },
     aliases: ['west deck'],
     cite: 'OpenStreetMap node/4256309544, verified 2026-08-03' },
-  { id: 'pelican-watersports', name: 'Pelican Tours & Watersports', terrain: 'land',
+  { id: 'pelican-watersports', role: 'venue', name: 'Pelican Tours & Watersports', terrain: 'land',
     coord: { lng: -70.0570, lat: 12.5445 },
     aliases: ['pelican tours', 'pelican watersports'],
     cite: 'OpenStreetMap way/370524409, verified 2026-08-03' },

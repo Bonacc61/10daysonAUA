@@ -18,7 +18,24 @@ import { loadCatalog, getCatalog } from '../src/data/activitySource';
 import { isAutoFillExcluded } from '../src/data/itemFit';
 import { ITEM_PINS } from '../src/data/itemCoords';
 import { PLACES, type Place } from './places';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+
+/**
+ * Meeting-point text pulled from the Viator API (`logistics.start[].description`),
+ * keyed by product code. Written by the op=meeting probe.
+ *
+ * This is the only licensed source for where a sail or cruise departs from: the
+ * `location.ref` beside it resolves to a Google Place ID carrying no name and no
+ * coordinates, and the product web pages sit behind DataDome and return 403.
+ */
+const MEETING: Record<string, { start?: Array<{ description?: string | null }> }> =
+  existsSync('/tmp/meeting-text.json')
+    ? JSON.parse(readFileSync('/tmp/meeting-text.json', 'utf8'))
+    : {};
+
+function meetingText(id: string): string {
+  return (MEETING[id]?.start ?? []).map((s) => s.description ?? '').join(' ').trim();
+}
 
 const MIN_REVIEWS = 25;  // mirrors MIN_CHAMPION_REVIEWS, itineraryGenerator.ts:130
 
@@ -85,6 +102,34 @@ function matchPlace(text: string): Match {
   return { kind: 'hit', place: specific[0].place, alias: specific[0].alias };
 }
 
+/**
+ * Match a meeting-point description. A named venue (pier, marina, beach club)
+ * always wins over a hotel landmark, because the prose uses the hotel to say
+ * WHERE the pier is — "Pelican Pier is located between the Holiday Inn Hotel and
+ * the Playa Linda Beach Resort" is one departure point, not three.
+ */
+function matchMeeting(text: string): Match {
+  const t = norm(text);
+  const hit = (roles: Array<Place['role']>) => {
+    const pool = PLACES.filter((p) => roles.includes(p.role));
+    const hits: Array<{ place: Place; alias: string }> = [];
+    for (const place of pool) {
+      for (const alias of place.aliases) {
+        const a = norm(alias);
+        if (new RegExp(`\\b${escapeRe(a)}\\b`).test(t)) hits.push({ place, alias: a });
+      }
+    }
+    if (!hits.length) return null;
+    hits.sort((a, b) => b.alias.length - a.alias.length);
+    const specific = hits.filter((h) => !hits.some((o) => o.alias !== h.alias && o.alias.includes(h.alias)));
+    const distinct = [...new Map(specific.map((h) => [h.place.id, h.place])).values()];
+    if (distinct.length > 1) return { kind: 'ambiguous' as const, places: distinct };
+    return { kind: 'hit' as const, place: specific[0].place, alias: specific[0].alias };
+  };
+  // venues first; only fall back to hotel landmarks when no venue is named
+  return hit(['venue']) ?? hit(['landmark']) ?? hit([undefined]);
+}
+
 async function main() {
   // loadCatalog() RETURNS the live catalog; getCatalog() is the stub accessor and
   // would silently give 20 items instead of ~360. Compare the two so a silent
@@ -110,7 +155,7 @@ async function main() {
   const SAIL_RE = /\b(sail|sailing|cruise|catamaran|yacht|schooner|boat charter)\b/i;
   const ROVING_RE = /\b(island tour|utv|atv|jeep|off[- ]road|scooter|harley|buggy|horseback|e-?bike|surron|sightseeing|countryside|trikes?)\b/i;
 
-  type Row = { id: string; title: string; place?: Place; alias?: string; via?: string; cands?: Place[] };
+  type Row = { id: string; title: string; place?: Place; alias?: string; via?: string; cands?: Place[]; meeting?: string };
   const accept: Row[] = [], check: Row[] = [], pick: Row[] = [], departure: Row[] = [], leave: Row[] = [];
   const registryLine = (id: string, p: Place, title: string) =>
     `  '${id}': { coord: { lng: ${p.coord.lng}, lat: ${p.coord.lat} }, `
@@ -127,7 +172,17 @@ async function main() {
     const row: Row = { id: item.id, title };
 
     if (!m) {
-      (SAIL_RE.test(title) && !ROVING_RE.test(title) ? departure : leave).push(row);
+      // No destination in the title or description. Try the meeting-point text —
+      // for a sail or a class, where it departs from IS where it happens.
+      const mt = meetingText(item.id);
+      const mm = mt ? matchMeeting(mt) : null;
+      if (mm && mm.kind === 'hit') {
+        (SAIL_RE.test(title) && !ROVING_RE.test(title) ? departure : leave).push({
+          ...row, place: mm.place, alias: mm.alias, via: 'meeting point', meeting: mt,
+        });
+      } else {
+        (SAIL_RE.test(title) && !ROVING_RE.test(title) ? departure : leave).push({ ...row, meeting: mt || undefined });
+      }
     } else if (m.kind === 'ambiguous') {
       pick.push({ ...row, cands: m.places });
     } else {
@@ -204,8 +259,10 @@ async function main() {
     })),
     groupB: check.map((r) => ({ id: r.id, title: r.title, alias: r.alias, place: slim(r.place!) })),
     groupC: pick.map((r) => ({ id: r.id, title: r.title, candidates: r.cands!.map(slim) })),
-    groupD: departure.map((r) => ({ id: r.id, title: r.title })),
-    groupE: leave.map((r) => ({ id: r.id, title: r.title })),
+    groupD: departure.map((r) => ({ id: r.id, title: r.title, meeting: r.meeting ?? null,
+      proposed: r.place ? slim(r.place) : null, alias: r.alias ?? null })),
+    groupE: leave.map((r) => ({ id: r.id, title: r.title, meeting: r.meeting ?? null,
+      proposed: r.place ? slim(r.place) : null, alias: r.alias ?? null })),
     places: PLACES.map(slim),
   }, null, 1));
 

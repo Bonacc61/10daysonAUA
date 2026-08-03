@@ -28,13 +28,18 @@ export type ViatorProduct = {
   // src/data/itemCoords.ts rather than carried through the catalog payload.
   // See docs/map/viator-location-probe.md.
   logistics?: {
-    start?: Array<{ location?: { ref?: string } }>;
-    end?: Array<{ location?: { ref?: string } }>;
+    start?: Array<{ location?: { ref?: string }; description?: string }>;
+    end?: Array<{ location?: { ref?: string }; description?: string }>;
     travelerPickup?: {
       allowCustomTravelerPickup?: boolean;
-      locations?: Array<{ location?: { ref?: string } }>;
+      pickupOptionType?: string;
+      additionalInfo?: string;
+      locations?: Array<{ location?: { ref?: string }; pickupType?: string }>;
     };
+    redemption?: { specialInstructions?: string };
   };
+  inclusions?: Array<{ otherDescription?: string; description?: string }>;
+  additionalInfo?: Array<{ description?: string }>;
   itinerary?: {
     itineraryType?: string;
     items?: Array<{ pointOfInterestLocation?: { location?: { ref?: string } } }>;
