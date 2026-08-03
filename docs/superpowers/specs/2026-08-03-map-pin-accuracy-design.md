@@ -265,7 +265,29 @@ Reviewed interactively as a side-by-side demo before approval.
 
 ## UI honesty
 
-- Popup shows the meeting point when it is known and differs from the pin.
+### Pickup point in the activity card (required)
+
+The card that opens on pin click gains a **pickup block**, below price/duration:
+
+| Case | Renders |
+|---|---|
+| Pickup known, differs from pin | Pickup name + address, pickup time when available, and the distance from the pin, with the note that the tour travels to the activity |
+| Pickup known, same as pin | Pickup name + time only — no distance line, since there is nothing to reconcile |
+| No pickup offered | "No pickup — make your own way there" |
+| Pickup unknown (no Viator data) | Block omitted entirely — never guessed, never blank |
+
+The distance line is what makes the split pin/pickup model legible: it tells the reader
+*why* the pin is somewhere they are not being collected. Without it, a Palm Beach pickup
+on a Conchi pin reads as a data error.
+
+In a multi-stop cluster the list rows show the pickup name only; the full block appears
+when a single stop is opened.
+
+This block is the reason the destination-vs-meeting-point decision is safe to make: the
+logistics data is not discarded, it is relocated to where it is actually useful.
+
+### Rest
+
 - A pin resolved at `confidence: 'meeting-point'` is labelled as a departure point, so it
   is never mistaken for a destination.
 - No badge on curated / POI / gazetteer pins — an accuracy indicator on a pin that is
