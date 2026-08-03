@@ -1160,12 +1160,17 @@ export function generatePlan(
       // beach staple. Both are placed like a pin but their group is NOT retired:
       // the group's crowd-pleaser should still surface elsewhere, and for a
       // staple, retiring `sailing-cruises` would take most of the live catalog
-      // with it. We mark the item id (lastUsedDay) and its experience CLUSTER,
-      // but NOT its tags: cluster id means "the same real-world experience," so
-      // normal fill won't place an identical one, while the coarser tag-Jaccard
-      // fallback would wrongly suppress a distinct-but-related crowd-pleaser (a
-      // charter and a party cruise share sail tags) — exactly the second pick
-      // we want.
+      // with it.
+      //
+      // Their TAGS are now recorded too. They used to be deliberately withheld,
+      // on the reasoning that cluster id already means "the same experience" and
+      // the coarser tag-Jaccard net would wrongly suppress a distinct-but-related
+      // crowd-pleaser. In practice that left Jaccard — the net that does nearly
+      // all the real work, since championsByExperience already thins each cluster
+      // to one item — completely blind to whatever a staple placed. Reported from
+      // production: the catamaran staple lands, then normal fill adds a second
+      // catamaran the same day. Those two score Jaccard 0.500 against each other,
+      // twice the 0.35 threshold; nothing was ever asked to compare them.
       const premium = premiumSlots.get(d)?.get(slot);
       const autoPlaced = premium ?? stapleSlots.get(d)?.get(slot);
       if (autoPlaced) {
@@ -1181,6 +1186,8 @@ export function generatePlan(
         if (pick.kind === 'group') {
           const cid = pick.bestSeller.experience_cluster_id;
           if (cid) ctx.usedClusterIds.add(cid);
+          const ptags = pick.bestSeller.tags ?? [];
+          if (ptags.length > 0) ctx.usedTagSets.push(ptags);
         }
         usedKinds.add(entryKind(pick));
         if (!anchor) anchor = entryRegion(pick);
