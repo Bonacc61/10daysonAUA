@@ -257,6 +257,46 @@ Constraints this places on the rest of the design:
 - Rule 5 (collision report) therefore matters more under this choice, since a
   re-introduced centroid is visually indistinguishable from a legitimate shared point.
 
+## Route segments — showing an activity that has no coordinate
+
+Some activities genuinely have no location to pin. Measured on the live catalog
+(2026-08-03): of 103 items with no destination in their title, **20 are
+hotel-pickup products** where the operator collects from the traveller's own
+accommodation, **11 state nothing at all**, and **2 defer the meeting point until
+after booking**. There is no coordinate to find, and inventing one — a hotel-strip
+centroid, say — would reintroduce exactly the failure `GROUP_COORDS` represented.
+
+Dropping them off the map entirely is also wrong: the traveller has that activity
+in their day and sees nothing for it.
+
+**So a coordinate-less activity draws no pin, but still owns a stretch of route.**
+
+- The day's route is drawn as **one segment per activity**, not a single
+  polyline, each in a different hue of the day's colour (same base hue, stepped
+  lightness). Consecutive activities are then visually distinguishable along the
+  route, which they are not today.
+- An activity with no coordinate owns the leg **from the previous located stop to
+  the next located stop**, in its own hue. It reads as "this happens somewhere
+  along here", which is exactly what is known.
+- Clicking a segment opens that activity's card, so a pinless activity is still
+  reachable from the map.
+
+### Edge cases and their defaults
+
+| Case | Behaviour |
+|---|---|
+| Coordless activity is first in the day | No preceding stop to connect from, so no segment. The card stays in the photo strip. Do **not** substitute the traveller's lodging — it is a guess about where they start, not a fact about the activity. |
+| Coordless activity is last in the day | Symmetrically, no segment. |
+| Two or more consecutive coordless activities | They share one leg. Draw it once, split into equal sub-segments along its length so each activity keeps a distinct hue, rather than overplotting. |
+| Whole day has fewer than two located stops | No route at all, as today. |
+
+### What this does not change
+
+Hue is a *presentation* device, exactly like the marker displacement. It carries
+no claim about position: the segment endpoints are the true coordinates of the
+located stops on either side. The engine, the registry and the audit are all
+untouched by it.
+
 ## Activity card — pickup block (required)
 
 The card that opens on pin click gains a **pickup block**, below price/duration:
