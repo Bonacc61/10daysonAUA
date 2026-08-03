@@ -132,39 +132,68 @@ function ActivityMini({ a }: { a: Activity }) {
   );
 }
 
-function EmptySlot() {
+/* Placement mirrors Section in Itinerary.tsx, which is the whole point of a
+   sample: the lunch button belongs to the AFTERNOON only and sits above that
+   section's cards, while the favourites picker sits below the cards of EVERY
+   section, filled or not. Stacking the two inside an empty slot showed a
+   pairing the real page only produces when an afternoon happens to be empty. */
+function SuggestLunchSlot() {
+  // Illustrative — there is nothing to suggest into on the landing page.
   return (
-    <button
-      type="button"
-      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, border: '2px dashed rgba(255,255,255,0.7)', borderRadius: 12, padding: 22, color: 'var(--cream)', fontStyle: 'italic', background: 'transparent', cursor: 'pointer', width: '100%', fontFamily: 'inherit' }}
+    <div
+      aria-hidden
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, border: '2px dashed rgba(255,255,255,0.7)', borderRadius: 12, padding: 22, color: 'var(--cream)', fontStyle: 'italic', background: 'transparent', width: '100%', marginBottom: 10 }}
     >
       <Sparkle size={16} />
       <span style={{ fontSize: 13 }}>suggest lunchspot</span>
-    </button>
+    </div>
   );
 }
 
-function Slot({ label, content }: { label: string; content: React.ReactNode }) {
+function ShortlistSlot() {
+  // Reuses the production classes rather than restyling inline, but stays a
+  // picture of the control, not the control: the ▼ promises an expansion this
+  // page has nothing to expand, and six live buttons sharing one accessible
+  // name would be six ways to get thrown off the page you're reading. The
+  // live route to favourites is the coral button below the preview.
+  return (
+    <div className="itin-section-empty has-shortlist" style={{ marginTop: 10 }} aria-hidden>
+      <div className="itin-shortlist-toggle" style={{ cursor: 'default' }}>
+        <span className="itin-shortlist-toggle-spacer" />
+        <span className="itin-shortlist-toggle-label">
+          <span className="itin-shortlist-heart">♥</span>
+          Add from favourites
+        </span>
+        <span className="itin-shortlist-toggle-icon end">▼</span>
+      </div>
+    </div>
+  );
+}
+
+function Slot({ label, isAfternoon, content }: { label: string; isAfternoon?: boolean; content: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.75)', marginBottom: 8 }}>{label}</div>
+      {isAfternoon && <SuggestLunchSlot />}
       {content}
+      <ShortlistSlot />
     </div>
   );
 }
 
 function DayBlock({ d, isLast }: { d: Day; isLast: boolean }) {
   // Sections are now lists; the landing preview shows the first entry of each.
+  // An empty section contributes nothing of its own, same as the real
+  // itinerary, which drops its placeholder text once you have favourites and
+  // leaves just the picker.
   const slot = (entries: SlotEntry[]) => {
     const s = entries[0];
-    if (!s) return <EmptySlot />;
-    if (s.kind === 'activity') {
-      const a = activityById(s.id);
-      return a ? <ActivityMini a={a} /> : <EmptySlot />;
-    }
+    if (!s) return null;
     // 'group' kind: the sample-itinerary preview on the landing page doesn't
     // currently include group entries, but be defensive.
-    return <EmptySlot />;
+    if (s.kind !== 'activity') return null;
+    const a = activityById(s.id);
+    return a ? <ActivityMini a={a} /> : null;
   };
   return (
     <div style={{ position: 'relative', paddingLeft: 56, paddingBottom: 28 }}>
@@ -187,7 +216,7 @@ function DayBlock({ d, isLast }: { d: Day; isLast: boolean }) {
         Day {d.day} <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 18, margin: '0 4px' }}>—</span> {d.title}
       </h3>
       <Slot label="Morning"   content={slot(d.morning)} />
-      <Slot label="Afternoon" content={slot(d.afternoon)} />
+      <Slot label="Afternoon" content={slot(d.afternoon)} isAfternoon />
       <Slot label="Evening"   content={slot(d.evening)} />
     </div>
   );
@@ -239,10 +268,11 @@ function SampleSection({ days, goPlan, goExplore }: { days: string; goPlan: () =
                 <DayBlock key={d.day} d={d} isLast={i === 1} />
               ))}
               <div style={{ marginTop: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                {/* Live control, unlike the three illustrative buttons beside it:
-                    this is the one action that explains the page's point — the
-                    plan is a starting draft you edit. Sends you to Explore to
-                    heart things, which is where the real picker draws from. */}
+                {/* Live control, unlike the three illustrative buttons beside it
+                    and unlike the pickers drawn inside the days: this is the one
+                    action that explains the page's point — the plan is a starting
+                    draft you edit. Sends you to Explore to heart things, which is
+                    where the real picker draws from. */}
                 <button type="button" className="btn-coral" onClick={goExplore} style={{ fontSize: 13, padding: '9px 16px', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                   <Heart size={14} /> Add from favourites
                 </button>
