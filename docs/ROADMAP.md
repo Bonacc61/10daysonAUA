@@ -27,9 +27,9 @@ Tracked in detail in `docs/matching-engine/development-log.md`:
   is the fix; no constant will do it.
 - **The en-route food post-pass has no time accounting.** It appends a second
   afternoon card (`day.afternoon.push`) after the day loop, outside `feasible`,
-  so a day can exceed the 8h daytime cap: measured on the live catalog, 26 of
-  558 days run past 12h and the worst is 15h. Pre-dates the evening budget, but
-  filling evenings made it visible (>12h days went 5 -> 26). Budget the post-pass
+  so a day can exceed the 8h daytime cap: measured on the live catalog, 52 of
+  558 days run past 12h and the worst is 14.6h. Pre-dates the evening budget,
+  but filling evenings made it visible (>12h days went 6 -> 52). Budget the post-pass
   against DAY_CAP_MIN, or drop the stop when the day is already full.
 - Same-day cross-slot: two items from one Viator group can land on the same day.
   `similarReason` consults `usedGroupIds` only for items with neither tags nor a

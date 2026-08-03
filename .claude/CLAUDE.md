@@ -20,7 +20,7 @@ Live production app. Dutch law (GDPR) applies. Reddit launch imminent.
 
 ## GDPR rules
 
-- PostHog must not fire before explicit consent. Enforced by `src/lib/analytics.ts` — the app never imports `posthog-js` directly, and `initAnalytics()` runs only after `10doa:analytics-consent === 'true'`. `CookieBanner` (`src/App.tsx`) is the only thing that sets it. Never call `posthog.*` outside this module.
+- PostHog must not fire before explicit consent. Enforced by `src/lib/analytics.ts` — the app never imports `posthog-js` directly, and `initAnalytics()` runs only after `10doa:analytics-consent === 'true'`. `CookieBanner` (`src/components/CookieBanner.tsx`, rendered from `App.tsx`) is the only thing that sets it; `src/main.tsx` reads it at boot. Never call `posthog.*` outside this module.
 - Any new data collection (PostHog events, Supabase inserts, edge function logging) needs a legal basis documented in the Privacy Policy (`src/pages/Privacy.tsx`).
 - Contact submissions auto-purge after 12 months (cron job exists). New tables need matching retention.
 

@@ -119,7 +119,7 @@ async function main() {
         hits += 1;
       }
     }
-    if (!hits) console.log('  no candidate matched — it was filtered before the ladder (slot, flags, budget tier or popularity floor).');
+    if (!hits) console.log('  no candidate matched — it was filtered before the ladder (slot, flags, budget tier, the champion pool, or isAutoFillExcluded).');
     console.log();
     return;
   }

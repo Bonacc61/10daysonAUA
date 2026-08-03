@@ -232,9 +232,9 @@ const DAY_CAP_MIN = 480;   // 8h of DAYTIME activity is the most we book in one 
 // 12h is NOT a hard ceiling, and the gap is not this cap. The en-route food
 // post-pass (see the bottom of generatePlan) appends a second afternoon card
 // with no feasibility accounting at all, so days of 13-15h exist: measured on
-// the live catalog, 26 of 558 days exceed 12h and the worst is 15h. That hole
+// the live catalog, 52 of 558 days exceed 12h and the worst is 14.6h. That hole
 // pre-dates the evening budget — but filling evenings makes it visible, taking
-// >12h days from 5 to 26. Tracked in docs/ROADMAP.md.
+// >12h days from 6 to 52. Tracked in docs/ROADMAP.md.
 const EVENING_CAP_MIN = 240;
 const BUFFER_MIN  = 60;    // travel/rest gap counted between consecutive activities
 // Wall-clock length of each slot. An activity longer than its slot "spreads"
@@ -344,7 +344,8 @@ function scoreEntry(e: CardEntry, tags: Set<MatchTag>, prefSections: Set<Section
 
 export type TraceRejectReason =
   | 'already-placed'      // lastUsedDay — this exact id is elsewhere in the trip
-  | 'similar-to-placed'   // notSimilar — cluster / tag-Jaccard / route family
+  | 'similar-to-placed'   // notSimilar — route family, boat day-gap, one-boat-
+                          // per-day, same-day Jaccard, cluster, trip-wide Jaccard
   | 'day-time-budget'     // would push the day past DAY_CAP_MIN
   | 'same-kind-today'     // variety pass only; relaxed on the second run
   | 'over-budget';        // price > maxPrice for this slot
@@ -445,6 +446,8 @@ type Ctx = {
   day: number;
   nDays: number;
   lastFamilyDay: Map<string, number>;
+  // Families already placed TODAY (reset per day). Hard cap: one per day.
+  dayFamilies: Set<string>;
   // Route families placed this trip. Off-road tours (jeep/UTV/ATV) all run the
   // same Aruba circuit, so once one is placed the whole family is retired for the
   // rest of the trip — regardless of trip length (see routeFamilyOf).
@@ -475,6 +478,15 @@ const BOAT_KINDS = new Set(['sail', 'snorkel', 'dive', 'sec:cruises-water']);
 // Whole days that must sit between two outings of the same family. 2 means
 // "at least one clear day in between": a sail on day 3 puts the next at day 5.
 const FAMILY_MIN_DAY_GAP = 2;
+// Same-day cap family. Unlike gapFamilyOf this DOES include evening boats: two
+// sails in one day is excessive however different they are, so a daytime
+// catamaran and an evening dinner cruise cannot share a day either. Similarity
+// is irrelevant here — it is a count, not a comparison.
+function dayCapFamilyOf(e: CardEntry): string | undefined {
+  if (e.kind !== 'group') return undefined;
+  return BOAT_KINDS.has(activityKind(e.bestSeller)) ? 'boat' : undefined;
+}
+
 function gapFamilyOf(e: CardEntry): string | undefined {
   // Local shore picks are deliberately excluded — a beach snorkel the day after
   // a catamaran was explicitly called fine. This is about repeat BOAT trips.
@@ -637,6 +649,9 @@ function pickForSlot(
     // applies to Viator groups and local picks alike.
     const fam = routeFamilyOf(e);
     if (fam && ctx.usedRouteFamilies.has(fam)) return `route family "${fam}" already placed this trip`;
+    // Hard same-day cap: one boat outing per day, however different they are.
+    const dcf = dayCapFamilyOf(e);
+    if (dcf && ctx.dayFamilies.has(dcf)) return `already a ${dcf} outing today`;
     // Minimum whole days between two outings of the same family.
     const gf = gapFamilyOf(e);
     if (gf) {
@@ -872,6 +887,11 @@ export function resolvePinId(rawId: string, catalog: Catalog): CardEntry | null 
 
 // Preferred and fallback slot lists for a resolved pin.
 export function getPinSlotPrefs(entry: CardEntry): { preferred: Slot[]; fallback: Slot[] } {
+  // Arikok's gates shut at 16:00, so Conchi is a morning even when the traveller
+  // pinned it themselves. A pin overrides our TASTE, not the opening hours — an
+  // afternoon departure physically cannot get in and back out.
+  const title = entry.kind === 'group' ? entry.bestSeller.title : entry.activity.title;
+  if (isNaturalPool({ title })) return { preferred: ['morning'], fallback: [] };
   if (entry.kind === 'group') {
     return isEveningItem(entry.bestSeller)
       ? { preferred: ['evening'], fallback: ['morning', 'afternoon'] }
@@ -953,7 +973,7 @@ export function generatePlan(
     // random food day on the opposite coast by normal fill.
     activities: filteredCatalog.activities.filter((a) => !dupedLocal(a) && !foodPlaceKey(a.id)),
   };
-  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], dayTagSets: [], day: 0, nDays, lastFamilyDay: new Map(), usedRouteFamilies: new Set() };
+  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], dayTagSets: [], day: 0, nDays, lastFamilyDay: new Map(), dayFamilies: new Set(), usedRouteFamilies: new Set() };
 
   // Trip-wide budget pool: keeps the AVERAGE daily activity spend within the
   // tier cap (budget-conscious ≈ $110/day on average), letting days vary while
@@ -966,6 +986,13 @@ export function generatePlan(
   // land regardless of cost. They still debit the budget pool so normal fill
   // respects what a pin consumed.
   const pinClaimed = new Map<number, Set<Slot>>();
+  // Days that already hold a boat outing from an earlier pre-pass. The pre-passes
+  // place via findPinSlot, which knows nothing about the dedup rules, so without
+  // this the catamaran staple and the premium yacht charter both landed on day 2
+  // — 19 of 75 trips. Pins are exempt: an explicit shortlist choice always lands.
+  const boatDays = new Set<number>();
+  const avoidsBoatClash = (entry: CardEntry) => (day: number) =>
+    dayCapFamilyOf(entry) !== 'boat' || !boatDays.has(day);
   const openAft = (day: number) => nDays > 1 && (day === 1 || day === nDays);
   const slotAvail = (day: number, slot: Slot): boolean => {
     if (slot === 'morning' && flags.has('no-early-mornings')) return false;
@@ -1002,6 +1029,7 @@ export function generatePlan(
       if (cid) ctx.usedClusterIds.add(cid);
     }
 
+    if (dayCapFamilyOf(resolved) === 'boat') boatDays.add(day);
     const slotEntry: SlotEntry = { ...toSlotEntry(resolved), pinned: true };
     if (!pinnedSlots.has(day)) pinnedSlots.set(day, new Map());
     pinnedSlots.get(day)!.set(slot, { cardEntry: resolved, slotEntry });
@@ -1039,7 +1067,8 @@ export function generatePlan(
     // Paid staples skip the arrival day — day 1 is the free/chill settle-in day
     // normal fill also honours (see `freeOnly` below).
     const stapleAvail = (day: number, slot: Slot): boolean =>
-      slotAvail(day, slot) && (free || nDays === 1 || day !== 1);
+      slotAvail(day, slot) && (free || nDays === 1 || day !== 1)
+      && avoidsBoatClash(entry)(day);
     const placement = findPinSlot(preferred, fallback, nDays, stapleCursor, stapleAvail);
     if (!placement) continue;
 
@@ -1060,6 +1089,7 @@ export function generatePlan(
       if (cid) ctx.usedClusterIds.add(cid);
     }
 
+    if (dayCapFamilyOf(entry) === 'boat') boatDays.add(day);
     if (!stapleSlots.has(day)) stapleSlots.set(day, new Map());
     // `staple: true` (not `pinned`) — an island default we chose, so it gets its
     // own badge rather than the "★ Your pick" pin badge. The flag also stops
@@ -1142,12 +1172,15 @@ export function generatePlan(
       const others = otherItemsInGroup(group.id, item.id, filteredCatalog);
       const cardEntry: CardEntry = { kind: 'group', group, bestSeller: item, others };
       const { preferred, fallback } = getPinSlotPrefs(cardEntry);
-      const placement = findPinSlot(preferred, fallback, nDays, premCursor, slotAvail);
+      const premAvail = (day: number, slot: Slot): boolean =>
+        slotAvail(day, slot) && avoidsBoatClash(cardEntry)(day);
+      const placement = findPinSlot(preferred, fallback, nDays, premCursor, premAvail);
       if (!placement) continue;
       const { day, slot } = placement;
       if (!pinClaimed.has(day)) pinClaimed.set(day, new Set());
       pinClaimed.get(day)!.add(slot);
       if (cid) usedPremiumClusters.add(cid);
+      if (dayCapFamilyOf(cardEntry) === 'boat') boatDays.add(day);
       // `splurge: true` (not `pinned`) — auto-suggested aspirational pick, shown
       // with a "Signature splurge" badge rather than the "★ Your pick" pin badge.
       if (!premiumSlots.has(day)) premiumSlots.set(day, new Map());
@@ -1189,7 +1222,15 @@ export function generatePlan(
     // every dedup rule combined — and left evenings 46.5% filled against 91.8%
     // for daytime. A day out and a dinner are not the same budget.
     let dayMin = 0;
-    ctx.dayTagSets = [];   // same-day shape is per-day; trip-wide sets persist
+    // Same-day state is per-day. Pre-placed cards register as the slot loop
+    // reaches them, NOT up front. Seeding the day from its pre-placed cards
+    // first was tried on review recommendation and measured worse — days with
+    // two catamarans went 0 -> 9 over 60 trips, because blocking more candidates
+    // pushes fill into the relaxed ladder tiers where the kind-variety gate is
+    // dropped altogether. The pre-passes coordinate among themselves via
+    // `boatDays` instead, which is what actually took two-boat days to zero.
+    ctx.dayTagSets = [];
+    ctx.dayFamilies = new Set();
     ctx.day = d;
     const blocked = new Set<Slot>();
     const dayTheme = themeGroups.length ? themeGroups[(d - 1) % themeGroups.length] : undefined;
@@ -1235,6 +1276,7 @@ export function generatePlan(
         ctx.lastUsedDay.set(entryId(pick), d);
         { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }
       { const gf = gapFamilyOf(pick); if (gf) ctx.lastFamilyDay.set(gf, d); }
+      { const df = dayCapFamilyOf(pick); if (df) ctx.dayFamilies.add(df); }
         { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
         if (pick.kind === 'group') {
           ctx.usedGroupIds.add(pick.group.id);
@@ -1280,6 +1322,7 @@ export function generatePlan(
         ctx.lastUsedDay.set(entryId(pick), d);
         { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }
       { const gf = gapFamilyOf(pick); if (gf) ctx.lastFamilyDay.set(gf, d); }
+      { const df = dayCapFamilyOf(pick); if (df) ctx.dayFamilies.add(df); }
         { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
         if (pick.kind === 'group') {
           const cid = pick.bestSeller.experience_cluster_id;
@@ -1324,6 +1367,7 @@ export function generatePlan(
       ctx.lastUsedDay.set(entryId(pick), d);
       { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }
       { const gf = gapFamilyOf(pick); if (gf) ctx.lastFamilyDay.set(gf, d); }
+      { const df = dayCapFamilyOf(pick); if (df) ctx.dayFamilies.add(df); }
       { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
       if (pick.kind === 'group') {
         ctx.usedGroupIds.add(pick.group.id);

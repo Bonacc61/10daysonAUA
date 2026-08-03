@@ -282,8 +282,8 @@ Two results worth keeping:
 Method note: measure through `loadCatalog()`, not the raw edge-function payload —
 the app filters transport-only items, regroups, and runs `normalizePopularity` at
 load. Probing the raw payload makes the popularity floor look inert (it is not)
-and mutating `popularity_score` to disable it also zeroes the ranking bonus at
-`itemFit.ts:289`. The only clean lever is the pool rule itself.
+and mutating `popularity_score` to disable it also zeroes the ranking bonus in `itemFit.ts`
+(`score += (item.popularity_score ?? 0) * 3`). The only clean lever is the pool rule itself.
 
 ### Cluster sizes (context, not the headline)
 
@@ -295,7 +295,9 @@ small-group UTV, private jeep and 4x4 Natural-Pool tours. Worth revisiting
 
 To inspect: `npm run trace -- --persona adventurer --days 14 --verbose`, then grep
 `experience cluster`. On a 14-day adventurer plan the rules now fire roughly
-640 (tag Jaccard) / 112 (route family) / 33 (cluster). Cluster fires rarely BY
+323 (tag Jaccard) / 110 (route family) / 12 (cluster), plus ~385 same-day
+Jaccard and ~149 boat day-gap — the two newer rules sit earlier in the chain
+and take counts that used to fall to Jaccard. Cluster fires rarely BY
 DESIGN: `championsByExperience` has already admitted only one item per cluster
 to the pool, so tag Jaccard is the net actually catching duplicates — which is
 why making the cluster authoritative removed dedup almost entirely.
@@ -309,8 +311,9 @@ a rule can fire constantly and cost nothing while alternatives remain.
   day. Not a recording-order problem — the day loop records each pick's group,
   cluster and tags immediately, before the next slot is filled. The gap is that
   `similarReason` consults `usedGroupIds` ONLY for items with neither tags nor a
-  cluster id, so two tagged items from one group are caught only if tag Jaccard
-  clears `TAG_SIMILARITY_THRESHOLD`. Observed as low-risk at current catalog size.
+  cluster id, so two tagged items from one group are caught only if Jaccard clears
+  a threshold — `SAME_DAY_SIMILARITY_THRESHOLD` (0.08) within one day, or
+  `TAG_SIMILARITY_THRESHOLD` (0.35) across the trip. Observed as low-risk at current catalog size.
 
 - **Tag sparsity**: items with `tags: []` (e.g. stub local activities, or live
   products where Viator returned no tags) bypass semantic dedup entirely and

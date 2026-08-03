@@ -612,19 +612,66 @@ describe('generatePlan — champion-per-experience fill pool', () => {
       ? { ...i, id: `aaa-np-${n}`, title: `Aruba Natural Pool Safari ${n}`, experience_cluster_id: `NP-${n}` }
       : i));
     const days = 10;
-    const plan = generatePlan({ ...DEFAULT_ANSWERS, days }, cat, { seed: 8 });
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days }, cat, { seed: 6 });
     const hits: { day: number; slot: string }[] = [];
     plan.forEach((d, i) => (['morning', 'afternoon', 'evening'] as const).forEach((s) => {
       if (d[s].some((e) => e.kind === 'group' && /^aaa-np-/.test((e as { bestSellerId: string }).bestSellerId))) {
         hits.push({ day: i + 1, slot: s });
       }
     }));
-    expect(hits.length).toBeLessThanOrEqual(1);          // one Conchi per trip
+    expect(hits.length).toBe(1);   // exactly one — at 0 the assertions below are vacuous
     for (const h of hits) {
       expect(h.slot).toBe('morning');                     // Arikok shuts at 16:00
       expect(h.day).toBeGreaterThan(1);
       expect(h.day).toBeLessThan(days);
     }
+  });
+
+  it('never puts two boat outings on one day, however different they are', () => {
+    // One of the evening cruises becomes the beach-dinner STAPLE, i.e. it is
+    // pre-placed before the slot loop runs. That also covers the pre-seed:
+    // without seeding the day from its pre-placed cards, an evening staple is
+    // invisible to that same day's morning and afternoon fill.
+    // The cap only adds anything over the day-gap rule for a DAYTIME boat plus
+    // an EVENING one: two daytime boats already collide on the gap rule
+    // (day - day = 0 < 2), and two evening boats cannot share a day because a
+    // day has one evening slot. So the fixture must mix the two.
+    const cat = clusteredCatalog({ clusters: 30, reviews: () => 400 });
+    cat.items = cat.items.map((i, n) => {
+      if (n < 3) return { ...i, id: `aaa-boatday-${n}`, title: `Catamaran Snorkel Sail ${n}`, tags: [11888, ...Array.from({ length: 9 }, (_, k) => 700 + n * 10 + k)], experience_cluster_id: `BD-${n}` };
+      if (n < 6) return { ...i, id: `aaa-boateve-${n}`, title: `Sunset Dinner Catamaran Cruise ${n}`, tags: [11888, ...Array.from({ length: 9 }, (_, k) => 900 + n * 10 + k)], experience_cluster_id: `BE-${n}` };
+      return i;
+    });
+    for (const d of generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, cat, { seed: 11 })) {
+      const boats = [...d.morning, ...d.afternoon, ...d.evening]
+        .filter((e) => e.kind === 'group' && /^aaa-boat(day|eve)-/.test((e as { bestSellerId: string }).bestSellerId));
+      expect(boats.length).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('lets a staple block a later near-twin (its tags reach usedTagSets)', () => {
+    // The production report: the catamaran staple lands, then normal fill adds a
+    // second catamaran. Staples recorded their cluster but not their tags, so
+    // trip-wide Jaccard could not see what a staple had placed.
+    //
+    // Both twins are EVENING boats so gapFamilyOf ignores them — otherwise the
+    // day-gap rule would separate them and the test would pass without the fix.
+    // Identical tags, distinct clusters: trip-wide Jaccard is the only rule that
+    // can stop the second, and it needs the staple to have registered its tags.
+    const cat = clusteredCatalog({ clusters: 30, reviews: () => 400 });
+    const shared = [11888, 11912, 801, 802, 803, 804, 805, 806];
+    cat.items = cat.items.map((i, n) => (n < 2
+      ? {
+          ...i, id: `aaa-twin-${n}`, title: `Sunset Dinner Catamaran Cruise ${n}`,
+          tags: shared, experience_cluster_id: `TWIN-${n}`, price_usd: 0,
+        }
+      : i));
+    const ids = generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, cat, { seed: 12 })
+      .flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening])
+      .filter((e) => e.kind === 'group')
+      .map((e) => (e as { bestSellerId: string }).bestSellerId)
+      .filter((id) => /^aaa-twin-/.test(id));
+    expect(new Set(ids).size).toBeLessThanOrEqual(1);
   });
 
   it('leaves at least one whole day between two daytime boat outings', () => {

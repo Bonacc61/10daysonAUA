@@ -21,7 +21,7 @@ npm run trace -- --persona adventurer --days 7
 The live Viator catalog is the default. **Duplicate bugs almost never reproduce
 on the offline stub** — it has no Viator tags and no cluster ids, so cluster
 dedup, tag-Jaccard and route-family retirement are all inert on it. If the tool
-prints `offline stub — fell back:` treat the trace as unreliable for any dedup
+prints `offline stub … — no live catalog` treat the trace as unreliable for any dedup
 question and fix the fallback cause first.
 
 ### Flags
@@ -61,12 +61,12 @@ afternoon  ✓  Arikok National Park 4x4 Jeep Safari   $89  pool 18/21, survivor
 | Reason | Rule | Where |
 |---|---|---|
 | `already placed` | this exact id is elsewhere in the trip | `lastUsedDay` |
-| `duplicate experience` | route family, cluster id, tag Jaccard, or group | `similarReason` |
-| `day time budget` | would push the day past 8h of activity | `DAY_CAP_MIN` |
+| `duplicate experience` | route family, boat day-gap, one-boat-per-day, same-day Jaccard, cluster id, trip-wide Jaccard, or group | `similarReason` |
+| `day time budget` | past 8h of daytime activity, or past the 4h evening cap | `DAY_CAP_MIN` / `EVENING_CAP_MIN` |
 | `same kind today` | variety gate, first pass only | `entryKind` |
 | `over budget` | free-only arrival day only | `maxPrice === 0` |
 
-`duplicate experience` always names which of the four rules fired, with the
+`duplicate experience` always names which of the six rules fired, with the
 Jaccard score where relevant — that is usually the whole diagnosis.
 
 ## Typical investigations
@@ -84,7 +84,8 @@ overbooked upstream, not that the pool is thin.
 
 **"I expected activity X and never got it."**
 `--why "<part of the title>"`. If nothing matches at all, it was filtered
-*before* the ladder — by slot, a Q8 flag, budget tier, or the popularity floor —
+*before* the ladder — by slot, a Q8 flag, budget tier, the champion pool
+(`MIN_CHAMPION_REVIEWS`), or `isAutoFillExcluded` —
 and the trace cannot see it. Check `fitItem` / `applyCatalogFlags` instead.
 
 ## After you fix something
