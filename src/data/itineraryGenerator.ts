@@ -415,6 +415,10 @@ type Ctx = {
   prefSections: Set<Section>;
   rand: () => number;
   lastUsedDay: Map<string, number>;
+  // How many times each id has been placed this trip. lastUsedDay answers "when
+  // was it last used"; this answers "how often", which is what caps a
+  // revisitable beach at MAX_REVISITABLE_PLACEMENTS.
+  placements: Map<string, number>;
   // Set only when generatePlan was given an onTrace callback. Undefined in the
   // app, which is what keeps this whole mechanism zero-cost in production.
   trace?: (ev: SlotTrace) => void;
@@ -468,6 +472,9 @@ type Ctx = {
 // no-repeat rule. Everything else (any Viator product, anything with a price,
 // any tour) stays once-only.
 const REVISITABLE_MIN_DAY_GAP = 2;   // at least one clear day before returning
+// A revisitable beach may appear at most this many times in one trip. With 13
+// curated beaches, a 14-day plan should be working through them, not looping.
+const MAX_REVISITABLE_PLACEMENTS = 2;
 function isRevisitableBeach(e: CardEntry): boolean {
   return e.kind === 'activity'
     && e.activity.category === 'Beaches'
@@ -577,6 +584,10 @@ function entryKind(e: CardEntry): string {
 // a different one — variety without a meaningful quality drop. Exact-top-only
 // (BAND 0) gives no variety when one item dominates the slot.
 const BAND = 1;
+// How far a revisit is pushed down the ranking. Must exceed BAND so a beach the
+// traveller has already seen can never outrank one they have not — a revisit is
+// a last resort for an otherwise-empty slot, not a competitor on merit.
+const REVISIT_PENALTY = BAND * 4;
 
 // Coordinate of a candidate: the activity's own point, the shown Viator item's
 // point, or the item's group-area fallback. undefined when unmapped.
@@ -605,9 +616,21 @@ function geoPenalty(e: CardEntry, anchorCoord: Coord | undefined): number {
 // pick and a comparably-scored off-theme pick stay in the same shuffle band —
 // coherence without killing regenerate variety.
 const THEME_BONUS = BAND;
+/** Record that an id has been placed. Paired with every lastUsedDay write. */
+function bumpPlacement(ctx: Ctx, id: string): void {
+  ctx.placements.set(id, (ctx.placements.get(id) ?? 0) + 1);
+}
+
 function ranked(ctx: Ctx, cands: CardEntry[], anchor: Region | undefined, anchorCoord: Coord | undefined, themeGroupId?: string): CardEntry[] {
   const themeBonus = (e: CardEntry) => themeGroupId && e.kind === 'group' && e.group.id === themeGroupId ? THEME_BONUS : 0;
-  const scored = cands.map((e) => ({ e, s: scoreEntry(e, ctx.tags, ctx.prefSections) - geoPenalty(e, anchorCoord) + themeBonus(e) }));
+  // A beach already placed this trip ranks below every unvisited candidate.
+  // `unused` decides whether a revisit is ALLOWED; this decides whether it is
+  // PREFERRED, and it never is while something unseen fits the slot.
+  const revisitPenalty = (e: CardEntry) => (ctx.lastUsedDay.has(entryId(e)) ? REVISIT_PENALTY : 0);
+  const scored = cands.map((e) => ({
+    e, s: scoreEntry(e, ctx.tags, ctx.prefSections) - geoPenalty(e, anchorCoord)
+      + themeBonus(e) - revisitPenalty(e),
+  }));
   const maxS = scored.reduce((m, x) => Math.max(m, x.s), -Infinity);
   // Shuffle the within-BAND top band (variety on regen), then stably partition
   // by anchor-region so clustering only breaks ties — the shuffle order survives
@@ -652,7 +675,13 @@ function pickForSlot(
     if (last === undefined) return true;
     // A free local beach may come back after a clear day; nothing else may.
     if (ctx.pinnedIds.has(entryId(e))) return false;   // an explicit choice, placed once
-    return isRevisitableBeach(e) && ctx.day - last >= REVISITABLE_MIN_DAY_GAP;
+    if (!isRevisitableBeach(e) || ctx.day - last < REVISITABLE_MIN_DAY_GAP) return false;
+    // ...and only so many times. Without a cap the gap rule alone let one beach
+    // return every other day forever: a 14-day beach-leaning plan came back
+    // manchebo x7, eagle x6, and days 9-14 were a literal two-day cycle. The
+    // island has 13 curated beaches; a plan that shows four of them is not the
+    // beach-heavy ethos, it is the same beach on repeat.
+    return (ctx.placements.get(entryId(e)) ?? 0) < MAX_REVISITABLE_PLACEMENTS;
   };
   const newKind = (e: CardEntry) => !usedKinds.has(entryKind(e));
   // Semantic dedup: skip candidates that represent an already-placed experience.
@@ -993,7 +1022,7 @@ export function generatePlan(
     // random food day on the opposite coast by normal fill.
     activities: filteredCatalog.activities.filter((a) => !dupedLocal(a) && !foodPlaceKey(a.id)),
   };
-  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], dayTagSets: [], day: 0, nDays, lastFamilyDay: new Map(), dayFamilies: new Set(), pinnedIds: new Set(), usedRouteFamilies: new Set() };
+  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), placements: new Map(), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], dayTagSets: [], day: 0, nDays, lastFamilyDay: new Map(), dayFamilies: new Set(), pinnedIds: new Set(), usedRouteFamilies: new Set() };
 
   // Trip-wide budget pool: keeps the AVERAGE daily activity spend within the
   // tier cap (budget-conscious ≈ $110/day on average), letting days vary while
@@ -1044,6 +1073,7 @@ export function generatePlan(
     // gets there, and doing it here would retire the group for the whole trip.)
     ctx.pinnedIds.add(entryId(resolved));
     ctx.lastUsedDay.set(entryId(resolved), day);
+    bumpPlacement(ctx, entryId(resolved));
     { const rf = routeFamilyOf(resolved); if (rf) ctx.usedRouteFamilies.add(rf); }
     if (resolved.kind === 'group') {
       const cid = resolved.bestSeller.experience_cluster_id;
@@ -1104,6 +1134,7 @@ export function generatePlan(
     // experience cluster and its route family up front closes that window (and
     // stops a day-1 catamaran preceding the day-2 catamaran staple).
     ctx.lastUsedDay.set(entryId(entry), day);
+    bumpPlacement(ctx, entryId(entry));
     { const rf = routeFamilyOf(entry); if (rf) ctx.usedRouteFamilies.add(rf); }
     if (entry.kind === 'group') {
       const cid = entry.bestSeller.experience_cluster_id;
@@ -1252,6 +1283,17 @@ export function generatePlan(
     // `boatDays` instead, which is what actually took two-boat days to zero.
     ctx.dayTagSets = [];
     ctx.dayFamilies = new Set();
+    // ...with ONE exception: a boat already reserved for this day by a pre-pass.
+    // dayFamilies is otherwise filled lazily as the slot loop reaches each card,
+    // and the evening is last — so a dinner cruise booked for this evening was
+    // invisible while the morning filled, and normal fill happily added a
+    // catamaran. Measured 30/30 seeds on a boat-heavy catalog before this line.
+    //
+    // This is deliberately narrower than the seeding described above, which was
+    // tried and measured worse: that blocked EVERY family a pre-placed card
+    // belonged to, pushing fill into relaxed tiers where the kind gate is
+    // dropped. One boat per day is a hard cap, not a variety preference.
+    if (boatDays.has(d)) ctx.dayFamilies.add('boat');
     ctx.day = d;
     const blocked = new Set<Slot>();
     const dayTheme = themeGroups.length ? themeGroups[(d - 1) % themeGroups.length] : undefined;
@@ -1295,6 +1337,7 @@ export function generatePlan(
         emit?.({ type: 'preplaced', day: d, slot, source: 'pin', id: entryId(pick), title: entryTitle(pick) });
         budgetLeft -= entryPrice(pick);
         ctx.lastUsedDay.set(entryId(pick), d);
+        bumpPlacement(ctx, entryId(pick));
         { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }
       { const gf = gapFamilyOf(pick); if (gf) ctx.lastFamilyDay.set(gf, d); }
       { const df = dayCapFamilyOf(pick); if (df) ctx.dayFamilies.add(df); }
@@ -1341,6 +1384,7 @@ export function generatePlan(
         });
         budgetLeft -= entryPrice(pick);
         ctx.lastUsedDay.set(entryId(pick), d);
+        bumpPlacement(ctx, entryId(pick));
         { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }
       { const gf = gapFamilyOf(pick); if (gf) ctx.lastFamilyDay.set(gf, d); }
       { const df = dayCapFamilyOf(pick); if (df) ctx.dayFamilies.add(df); }
@@ -1386,6 +1430,7 @@ export function generatePlan(
       if (!pick) continue;
       budgetLeft -= entryPrice(pick);
       ctx.lastUsedDay.set(entryId(pick), d);
+      bumpPlacement(ctx, entryId(pick));
       { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }
       { const gf = gapFamilyOf(pick); if (gf) ctx.lastFamilyDay.set(gf, d); }
       { const df = dayCapFamilyOf(pick); if (df) ctx.dayFamilies.add(df); }
