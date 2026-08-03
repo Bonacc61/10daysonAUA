@@ -442,11 +442,20 @@ function render() {
         const bA = el('<button class="a">Accept departure</button>');
         bA.onclick = () => {
           showPins([{ coord: r.proposed.coord, name: r.proposed.name, label: '⚓' }], true);
-          const isLandmark = r.proposed.role === 'landmark' || !!r.proposed.approx || !!r.coarserThanText;
+          // The caveat must describe THIS pin. Blanket hotel wording was being
+          // written onto street- and village-level pins that have no hotel and
+          // no pier, and the citation is the only human-checkable artifact here.
+          const isLandmark = r.proposed.role === 'landmark';
+          const isApprox = isLandmark || !!r.proposed.approx || !!r.coarserThanText;
+          const caveat = isLandmark
+            ? 'APPROX — pinned at the named hotel; the pier sits ~150-200m seaward. '
+            : r.coarserThanText
+              ? 'APPROX — the meeting text names a street address this pin does not cover. '
+              : 'APPROX — street/area level, not the doorway. ';
           setDec([r.id], { action: 'accept', placeId: r.proposed.id, coord: r.proposed.coord,
-            name: r.proposed.name, source: 'departure', approx: isLandmark,
-            cite: `${isLandmark ? 'APPROX — pinned at the named hotel; the pier sits ~150-200m seaward. ' : ''}`
-              + `${r.proposed.cite} — meeting point per Viator: "${String(r.meeting ?? '').replace(/\s+/g, ' ').slice(0, 120)}"` });
+            name: r.proposed.name, source: 'departure', approx: isApprox,
+            cite: `${isApprox ? caveat : ''}${r.proposed.cite}`
+              + ` — meeting point per Viator: "${String(r.meeting ?? '').replace(/\s+/g, ' ').slice(0, 120)}"` });
         };
         acts.appendChild(bA);
       }
@@ -457,9 +466,10 @@ function render() {
           const p = P.places.find((x) => x.id === sel.value);
           if (!p) return setDec([r.id], null);
           showPins([{ coord: p.coord, name: p.name }], true);
-          const lm = p.role === 'landmark' || !!p.approx;
-          setDec([r.id], { action: 'accept', placeId: p.id, coord: p.coord, name: p.name, source: 'departure', approx: lm,
-            cite: `${lm ? 'APPROX — pinned at the named hotel; the pier sits ~150-200m seaward. ' : ''}${p.cite}`
+          const lm = p.role === 'landmark';
+          const ap = lm || !!p.approx;
+          setDec([r.id], { action: 'accept', placeId: p.id, coord: p.coord, name: p.name, source: 'departure', approx: ap,
+            cite: `${ap ? (lm ? 'APPROX — pinned at the named hotel; the pier sits ~150-200m seaward. ' : 'APPROX — street/area level, not the doorway. ') : ''}${p.cite}`
               + `${r.meeting ? ` — meeting point per Viator: "${String(r.meeting).replace(/\s+/g, ' ').slice(0, 120)}"` : ''}` });
         };
         acts.appendChild(sel);

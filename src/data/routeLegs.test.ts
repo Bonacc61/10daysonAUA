@@ -133,4 +133,27 @@ describe('splitLeg', () => {
     expect(out[0][0]).toEqual([0, 0]);
     expect(out[out.length - 1][out[out.length - 1].length - 1]).toEqual([10, 10]);
   });
+
+  // Exhaustive, because both bugs in this function were shape-dependent and the
+  // hand-picked cases missed them. The first fix dropped an owner on short
+  // lines; the second walked off the end, leaving 205 of these 295 combinations
+  // stopping short of the destination pin. Neither was visible from an example.
+  it('holds for every line length and owner count we can hit', () => {
+    for (let len = 2; len <= 60; len++) {
+      for (let parts = 2; parts <= 6; parts++) {
+        const line: [number, number][] = Array.from({ length: len }, (_, i) => [i, 0]);
+        const out = splitLeg(line, parts);
+
+        expect(out, `len=${len} parts=${parts}: every owner needs a slice`).toHaveLength(parts);
+        out.forEach(seg => expect(seg.length).toBeGreaterThanOrEqual(2));
+        expect(out[0][0], `len=${len} parts=${parts}: must start at the origin`).toEqual([0, 0]);
+        const last = out[out.length - 1];
+        expect(last[last.length - 1], `len=${len} parts=${parts}: must reach the destination`).toEqual([len - 1, 0]);
+        for (let i = 1; i < out.length; i++) {
+          expect(out[i][0], `len=${len} parts=${parts}: slice ${i} must join the previous`)
+            .toEqual(out[i - 1][out[i - 1].length - 1]);
+        }
+      }
+    }
+  });
 });

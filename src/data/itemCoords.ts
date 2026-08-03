@@ -8,7 +8,12 @@ import type { Coord } from './coords';
  * committed, any coordinate change appears in a normal diff and goes through
  * /code-review — the registry is its own audit baseline.
  *
- * An id absent from ITEM_PINS draws NO PIN. That is a supported state, not a gap:
+ * An id absent from ITEM_PINS draws NO PIN. That means one of three things, and
+ * the audit distinguishes them: reviewed and declined, never reviewed, or
+ * outside the plannable pool entirely. It does NOT mean "reviewed and declined"
+ * on its own — 79 plannable items are simply not reviewed yet.
+ *
+ * Absence is a supported state, not a gap:
  * Map.tsx keeps the card in the photo strip and omits the marker. There is
  * deliberately no fallback coordinate anywhere in the codebase — the six invented
  * GROUP_COORDS centroids this replaces gave ~340 catalog items a coordinate the
@@ -238,20 +243,47 @@ export const ITEM_PINS: Record<string, Pin> = {
   '6593BRUNCH': { coord: { lng: -70.0461, lat: 12.5744 }, source: 'departure', place: 'Pelican Pier', cite: 'OpenStreetMap way/555476889, verified 2026-08-03 — meeting point per Viator: "Check-in time is at 8:30AM at Pelican Pier which is between the Holiday Inn Hotel & Playa Linda Beach Resort."' },  // Premium Morning Snorkel Sail with Champagne Brunch
   '47607P4': { coord: { lng: -70.0449, lat: 12.5759 }, source: 'departure', place: 'Holiday Inn Resort', cite: 'APPROX — pinned at the named hotel; the pier sits ~150-200m seaward. OpenStreetMap way/370372887, verified 2026-08-03 — meeting point per Viator: "Your tour departs from the Octopus Aruba beach hut, located on Palm Beach behind the Holiday Inn. Please walk through th"', approx: true },  // Aruba Happy Hour Sunset Sail with Savory Bites and Cocktails
   '119085P10': { coord: { lng: -70.0456, lat: 12.5718 }, source: 'departure', place: 'Hyatt Regency Aruba Resort Spa and Casino', cite: 'APPROX — pinned at the named hotel; the pier sits ~150-200m seaward. OpenStreetMap way/629617326, verified 2026-08-03 — meeting point per Viator: "Delphi Watersports (big sign) is located in front of the Hyatt Regency towel hut on the beach. Ask for Olga and Jhon wea"', approx: true },  // Private Boat Cruise with Snorkeling
-  '444239P8': { coord: { lng: -70.0136, lat: 12.4958 }, source: 'departure', place: 'Bucutiweg', cite: 'APPROX — pinned at the named hotel; the pier sits ~150-200m seaward. OpenStreetMap way/40957323 (tertiary), verified 2026-08-03 (street/area level — accurate to the block, not the doorway) — meeting point per Viator: "our address is Bucutiweg #34 or if using GPS, it is easier to locate The Fish House Restaurant at Varadero Marina as we "', approx: true },  // Tropical Sailing Experience with BBQ Lunch or BBQ Dinner in Ar
-  '103020P7': { coord: { lng: -70.0136, lat: 12.4958 }, source: 'departure', place: 'Bucutiweg', cite: 'APPROX — pinned at the named hotel; the pier sits ~150-200m seaward. OpenStreetMap way/40957323 (tertiary), verified 2026-08-03 (street/area level — accurate to the block, not the doorway) — meeting point per Viator: "Behind the airport at address Bucutiweg 31."', approx: true },  // Luxury Private Yacht Charter Aruba - Eden Luca Yachts
+  '444239P8': { coord: { lng: -70.0136, lat: 12.4958 }, source: 'departure', place: 'Bucutiweg', cite: 'APPROX — street/area level, not the doorway; Aruba has no house-number data in OSM. OpenStreetMap way/40957323 (tertiary), verified 2026-08-03 (street/area level — accurate to the block, not the doorway) — meeting point per Viator: "our address is Bucutiweg #34 or if using GPS, it is easier to locate The Fish House Restaurant at Varadero Marina as we "', approx: true },  // Tropical Sailing Experience with BBQ Lunch or BBQ Dinner in Ar
+  '103020P7': { coord: { lng: -70.0136, lat: 12.4958 }, source: 'departure', place: 'Bucutiweg', cite: 'APPROX — street/area level, not the doorway; Aruba has no house-number data in OSM. OpenStreetMap way/40957323 (tertiary), verified 2026-08-03 (street/area level — accurate to the block, not the doorway) — meeting point per Viator: "Behind the airport at address Bucutiweg 31."', approx: true },  // Luxury Private Yacht Charter Aruba - Eden Luca Yachts
   '119085P2': { coord: { lng: -70.0456, lat: 12.5718 }, source: 'departure', place: 'Hyatt Regency Aruba Resort Spa and Casino', cite: 'APPROX — pinned at the named hotel; the pier sits ~150-200m seaward. OpenStreetMap way/629617326, verified 2026-08-03 — meeting point per Viator: "Check in time is 30 minutes before the start time of the tour. Delphi Watersports is located in front of the Hyatt Regen"', approx: true },  // Aruba Sunset Sail Cruise Aboard The Dolphin Catamaran
   '392509P1': { coord: { lng: -69.972, lat: 12.5322 }, source: 'departure', place: 'Ayo Rock Formation', cite: 'OpenStreetMap way/43109643 (park), verified 2026-08-03 — meeting point per Viator: "Our meeting point is on the same road of the Ayo Rock Formation, just a (1) minute drive or 1/4 miles (400 m) further to"' },  // Epic Off-Road Surron Electric Bike Tour in Aruba
   '5593159P4': { coord: { lng: -70.0512, lat: 12.5642 }, source: 'departure', place: 'Divi Phoenix', cite: 'APPROX — pinned at the named hotel; the pier sits ~150-200m seaward. OpenStreetMap node/3102983952, verified 2026-08-03 — meeting point per Viator: "The Beach is located right behind of the Divi Phoenix Resort. The Divi Phoenix Resort is located next to the St. Regis R"', approx: true },  // 50%OFF Aruba‘s #1Clear Kayak Experience@arubaphotoshootexperie
-  '476164P4': { coord: { lng: -70.0306, lat: 12.5461 }, source: 'departure', place: 'Tanki Flip', cite: 'APPROX — pinned at the named hotel; the pier sits ~150-200m seaward. OpenStreetMap overpass place=village (village), verified 2026-08-03 (street/area level — accurate to the block, not the doorway) — meeting point per Viator: "Next to Dunkin Donuts at the Tank Flip roundabout in Noord, Aruba"', approx: true },  // Guided 3-Hour E-Scooter Island Tour in Aruba (1 or 2-seater)
-  '476164P3': { coord: { lng: -70.0306, lat: 12.5461 }, source: 'departure', place: 'Tanki Flip', cite: 'APPROX — pinned at the named hotel; the pier sits ~150-200m seaward. OpenStreetMap overpass place=village (village), verified 2026-08-03 (street/area level — accurate to the block, not the doorway) — meeting point per Viator: "Located at the Tanki Flip roundabout located in Noord, Aruba."', approx: true },  // Sunset Island Tour in Aruba on Electric Scooter (1 or 2-seater
+  '476164P4': { coord: { lng: -70.0306, lat: 12.5461 }, source: 'departure', place: 'Tanki Flip', cite: 'APPROX — street/area level, not the doorway; Aruba has no house-number data in OSM. OpenStreetMap overpass place=village (village), verified 2026-08-03 (street/area level — accurate to the block, not the doorway) — meeting point per Viator: "Next to Dunkin Donuts at the Tank Flip roundabout in Noord, Aruba"', approx: true },  // Guided 3-Hour E-Scooter Island Tour in Aruba (1 or 2-seater)
+  '476164P3': { coord: { lng: -70.0306, lat: 12.5461 }, source: 'departure', place: 'Tanki Flip', cite: 'APPROX — street/area level, not the doorway; Aruba has no house-number data in OSM. OpenStreetMap overpass place=village (village), verified 2026-08-03 (street/area level — accurate to the block, not the doorway) — meeting point per Viator: "Located at the Tanki Flip roundabout located in Noord, Aruba."', approx: true },  // Sunset Island Tour in Aruba on Electric Scooter (1 or 2-seater
   '325347P3': { coord: { lng: -70.0513, lat: 12.6024 }, source: 'departure', place: 'Tres Trapi', cite: 'OpenStreetMap node/4491605028, verified 2026-08-03 — meeting point per Viator: "Look for the snorkeling guides wearing a bright colored Underdog Divers longsleeve shirt. For GPS locations or direction"' },  // Private Turtle Snorkel Tour in Aruba +Professional video foota
   '325347P2': { coord: { lng: -69.9695, lat: 12.4643 }, source: 'departure', place: 'Mangel Halto', cite: 'OpenStreetMap way/463354307, verified 2026-08-03 — meeting point per Viator: "We wear bright colored long sleeved shirts with the Underdog Divers logo on it. So you can’t miss us. It’s easy to find,"' },  // Private First-Time Dive in Aruba. Reef, Wreck or Turtle site
+
+  // ── Restored from the deleted VIATOR_ITEM_COORDS ────────────────────────────
+  // These eight carried researched coordinates in the old table and were dropped
+  // by the migration without ever reaching the review — a silent loss of exactly
+  // the cited data this registry exists to preserve. Caught by the ship gate.
+  //
+  // The first four are the Wikipedia-verified Conchi point, identical to
+  // 'natural-pool-jeep' above. The last four are open-bus sightseeing tours that
+  // the old table pinned to the Palm Beach hotel strip they depart from; that is
+  // a departure approximation, so they are recorded as one rather than presented
+  // as a destination.
+  //
+  // 'utv-cave-pool' and 'jeep-arikok' are offline-stub ids (src/data/viator-stub.ts),
+  // which activitySource.ts serves as the production fallback when the Viator
+  // edge function fails — so without these the fallback path had no pins at all.
+  'utv-cave-pool': { coord: { lng: -69.9287, lat: 12.5246 }, source: 'known-place', place: 'Conchi (Natural Pool)', cite: 'Wikipedia: Natural Pool (Aruba); restored from VIATOR_ITEM_COORDS' },
+  'jeep-arikok':   { coord: { lng: -69.9287, lat: 12.5246 }, source: 'known-place', place: 'Conchi (Natural Pool)', cite: 'Wikipedia: Natural Pool (Aruba); restored from VIATOR_ITEM_COORDS' },
+  '300281P9':      { coord: { lng: -69.9287, lat: 12.5246 }, source: 'known-place', place: 'Conchi (Natural Pool)', cite: 'Wikipedia: Natural Pool (Aruba); restored from VIATOR_ITEM_COORDS' },  // Arikok Sunrise Hiking Tour to Natural Pool
+  '5629889P1':     { coord: { lng: -69.9287, lat: 12.5246 }, source: 'known-place', place: 'Conchi (Natural Pool)', cite: 'Wikipedia: Natural Pool (Aruba); restored from VIATOR_ITEM_COORDS' },  // Full Day Jeep Tour with Arikok National Park and Caves
+  '139296P2':      { coord: { lng: -70.0430, lat: 12.5620 }, source: 'departure', place: 'Palm Beach hotel strip', approx: true, cite: 'APPROX — departure point only, the tour roams the island. Palm Beach hotel strip; restored from VIATOR_ITEM_COORDS' },  // Best of Aruba weekend open bus
+  '139296P3':      { coord: { lng: -70.0430, lat: 12.5620 }, source: 'departure', place: 'Palm Beach hotel strip', approx: true, cite: 'APPROX — departure point only, the tour roams the island. Palm Beach hotel strip; restored from VIATOR_ITEM_COORDS' },  // Aruba open bus Shore Excursion
+  '6593P17':       { coord: { lng: -70.0430, lat: 12.5620 }, source: 'departure', place: 'Palm Beach hotel strip', approx: true, cite: 'APPROX — departure point only, the tour roams the island. Palm Beach hotel strip; restored from VIATOR_ITEM_COORDS' },  // Open Air Beach Bus Tour of Aruba
+  '47774P1':       { coord: { lng: -70.0430, lat: 12.5620 }, source: 'departure', place: 'Palm Beach hotel strip', approx: true, cite: 'APPROX — departure point only, the tour roams the island. Palm Beach hotel strip; restored from VIATOR_ITEM_COORDS' },  // Colorful Beach Bus Sightseeing Tour
 };
 
 /** Look up a pin. Returns undefined — never a fallback — for unregistered ids. */
 export function pinFor(id: string): Pin | undefined {
-  return ITEM_PINS[id];
+  // Own-property check, not a bare index: pinFor('constructor') would otherwise
+  // return an Object.prototype member and break the documented "never a
+  // fallback" contract. (hasOwnProperty rather than Object.hasOwn — the app's
+  // tsconfig lib predates ES2022.)
+  return Object.prototype.hasOwnProperty.call(ITEM_PINS, id) ? ITEM_PINS[id] : undefined;
 }
 
 /**

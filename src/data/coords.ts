@@ -13,9 +13,15 @@ export type Coord = { lng: number; lat: number };
  * geography, so a Palm Beach ATV and a Conchi jeep tour both sat at the Arikok
  * gate and scored zero distance from each other while being 15km apart.
  *
- * The 29 hand-verified ACTIVITY_COORDS and the per-product VIATOR_ITEM_COORDS
- * were migrated into src/data/itemCoords.ts, machine-compared 29/29 identical.
- * Nothing researched was lost; only the invented fallback is gone.
+ * All 29 ACTIVITY_COORDS migrated into src/data/itemCoords.ts and were
+ * machine-compared 29/29 identical at the time of the move. Three were
+ * afterwards CORRECTED against OpenStreetMap on their own merits, and the
+ * registry records each: tres-trapi was 4.94km out (near Palm Beach, where no
+ * such spot exists), malmok-beach ~300m, lunch-oniels ~570m.
+ *
+ * Eight VIATOR_ITEM_COORDS entries were initially dropped by the migration and
+ * restored once the ship gate caught it. Only the six invented GROUP_COORDS
+ * centroids are gone by intent.
  *
  * Callers that get undefined must treat the entry as geographically neutral —
  * see geoPenalty in itineraryGenerator.ts, and docs/matching-engine/geography.md

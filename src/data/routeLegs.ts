@@ -66,23 +66,30 @@ export function planLegs(entries: Array<{ coord: Coord | null }>): LegPlan {
 export function splitLeg(line: [number, number][], parts: number): [number, number][][] {
   if (parts <= 1 || line.length < 2) return [line];
 
-  // Every owner must get a drawable slice. A straight-line leg is only two
-  // points, so naive slicing produced ONE slice for two owners and the second
-  // activity vanished from the map entirely — exactly the disappearance this
-  // feature exists to prevent. Densify first so there is always enough to go
-  // round: linear interpolation adds no geographic claim, it just subdivides a
-  // line that is already being drawn.
+  // Every owner gets a drawable slice AND the route reaches the destination.
+  //
+  // Two bugs lived here. The first returned ONE slice for two owners on a
+  // two-point line, so the second of two adjacent coordless activities vanished
+  // from the map — the exact disappearance this feature prevents. The fix for
+  // that introduced a worse one: fixed-width slicing walked off the end, and
+  // 205 of 295 (length x owners) combinations stopped short of the destination
+  // pin — a 10-point leg split 5 ways ended at point 5 of 9.
+  //
+  // Both are avoided by cutting at proportional indices computed from the ends,
+  // so the first slice always starts at 0 and the last always ends at n-1.
   let pts = line;
-  const needed = parts + 1;
-  if (pts.length < needed) {
+  if (pts.length < parts + 1) {
+    // Not enough points to give every owner its own cut: subdivide by linear
+    // interpolation. This adds no geographic claim — it subdivides a straight
+    // line that is already being drawn between two real coordinates.
     const dense: [number, number][] = [];
     const segs = pts.length - 1;
+    const perSeg = Math.ceil(parts / segs) + 1;
     for (let i = 0; i < segs; i++) {
       const [x0, y0] = pts[i];
       const [x1, y1] = pts[i + 1];
-      const steps = Math.ceil((needed - 1) / segs);
-      for (let k = 0; k < steps; k++) {
-        const t = k / steps;
+      for (let k = 0; k < perSeg; k++) {
+        const t = k / perSeg;
         dense.push([x0 + (x1 - x0) * t, y0 + (y1 - y0) * t]);
       }
     }
@@ -90,13 +97,14 @@ export function splitLeg(line: [number, number][], parts: number): [number, numb
     pts = dense;
   }
 
-  const per = Math.max(2, Math.ceil(pts.length / parts));
+  const n = pts.length;
   const out: [number, number][][] = [];
   for (let i = 0; i < parts; i++) {
-    const slice = pts.slice(i * (per - 1), i * (per - 1) + per);
+    const from = Math.round((i * (n - 1)) / parts);
+    const to = Math.round(((i + 1) * (n - 1)) / parts);
+    // Slices share their boundary point, so the drawn segments join with no gap.
+    const slice = pts.slice(from, to + 1);
     if (slice.length >= 2) out.push(slice);
   }
-  // Anything still short is padded from the tail so no owner is dropped.
-  while (out.length < parts && out.length > 0) out.push(out[out.length - 1]);
-  return out.length ? out : [line];
+  return out.length === parts ? out : [pts];
 }
