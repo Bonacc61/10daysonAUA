@@ -91,61 +91,97 @@ async function main() {
     (i) => !isAutoFillExcluded(i) && (i.review_count ?? 0) >= MIN_REVIEWS,
   );
 
-  const rows: string[] = [];
-  const accepted: string[] = [];
-  let already = 0, proposed = 0, ambiguous = 0, none = 0;
+  // Products with no nameable destination. Splitting these matters for review:
+  // a sunset sail can sensibly take a departure pin, a roving island tour cannot
+  // take any pin at all, and lumping them together hides that difference.
+  const SAIL_RE = /\b(sail|sailing|cruise|catamaran|yacht|schooner|boat charter)\b/i;
+  const ROVING_RE = /\b(island tour|utv|atv|jeep|off[- ]road|scooter|harley|buggy|horseback|e-?bike|surron|sightseeing|countryside|trikes?)\b/i;
 
+  type Row = { id: string; title: string; place?: Place; alias?: string; via?: string; cands?: Place[] };
+  const accept: Row[] = [], check: Row[] = [], pick: Row[] = [], departure: Row[] = [], leave: Row[] = [];
+  const registryLine = (id: string, p: Place, title: string) =>
+    `  '${id}': { coord: { lng: ${p.coord.lng}, lat: ${p.coord.lat} }, `
+    + `source: 'known-place', place: '${p.name.replace(/'/g, "\\'")}', `
+    + `cite: '${p.cite.replace(/'/g, "\\'")}' },  // ${title.slice(0, 60)}`;
+
+  let already = 0;
   for (const item of plannable) {
     if (ITEM_PINS[item.id]) { already++; continue; }
-
+    const title = item.title.replace(/\s+/g, ' ').trim();
     const byTitle = matchPlace(item.title);
     const byDesc = item.description ? matchPlace(item.description) : null;
     const m = byTitle ?? byDesc;
-    const via = byTitle ? 'title' : 'description';
-    const title = item.title.replace(/\s+/g, ' ').trim();
+    const row: Row = { id: item.id, title };
 
     if (!m) {
-      none++;
-      rows.push(`| \`${item.id}\` | ${title} | — | NO MATCH → no pin | |`);
-      continue;
+      (SAIL_RE.test(title) && !ROVING_RE.test(title) ? departure : leave).push(row);
+    } else if (m.kind === 'ambiguous') {
+      pick.push({ ...row, cands: m.places });
+    } else {
+      const r = { ...row, place: m.place, alias: m.alias, via: byTitle ? 'title' : 'description' };
+      (byTitle ? accept : check).push(r);
     }
-    if (m.kind === 'ambiguous') {
-      ambiguous++;
-      rows.push(`| \`${item.id}\` | ${title} | — | AMBIGUOUS (${m.places.map((p) => p.name).join(' / ')}) → no pin | |`);
-      continue;
-    }
-
-    proposed++;
-    const { coord, name, cite } = m.place;
-    const link = `https://www.google.com/maps?q=${coord.lat},${coord.lng}`;
-    rows.push(`| \`${item.id}\` | ${title} | ${name} | via ${via}: "${m.alias}" | [check](${link}) |`);
-    accepted.push(
-      `  '${item.id}': { coord: { lng: ${coord.lng}, lat: ${coord.lat} }, `
-      + `source: 'known-place', place: '${name.replace(/'/g, "\\'")}', `
-      + `cite: '${cite.replace(/'/g, "\\'")}' },  // ${title.slice(0, 60)}`,
-    );
   }
 
-  const report = [
-    '# Coordinate proposals', '',
-    `Catalog items: ${catalog.items.length}`,
-    `Plannable pool (not auto-fill-excluded, >= ${MIN_REVIEWS} reviews): ${plannable.length}`,
-    `Already registered: ${already}`,
-    `Proposed: ${proposed}`,
-    `Ambiguous (no pin): ${ambiguous}`,
-    `No match (no pin): ${none}`, '',
-    'Review every row. Verify the coordinate against the map link before accepting.',
-    'Reject anything you cannot defend — an unregistered item simply draws no pin.', '',
-    '| id | title | proposed place | basis | verify |',
-    '|---|---|---|---|---|',
-    ...rows,
-  ].join('\n');
+  // Group A by proposed place so identical decisions are made once, not 42 times.
+  const byPlace = new Map<string, Row[]>();
+  for (const r of accept) byPlace.set(r.place!.id, [...(byPlace.get(r.place!.id) ?? []), r]);
+  const groups = [...byPlace.entries()].sort((a, b) => b[1].length - a[1].length);
 
-  writeFileSync('/tmp/coord-proposals.md', report);
-  writeFileSync('/tmp/coord-proposals.ts', accepted.join('\n') + '\n');
+  const gmaps = (p: Place) => `https://www.google.com/maps?q=${p.coord.lat},${p.coord.lng}`;
+  const L: string[] = [];
+  L.push('# Coordinate review', '');
+  L.push(`Catalog ${catalog.items.length} · plannable ${plannable.length} · already registered ${already}`, '');
+  L.push(`| Group | What it is | Count | Your job |`);
+  L.push(`|---|---|---:|---|`);
+  L.push(`| A | Title names one known place | ${accept.length} | Accept per place, in bulk |`);
+  L.push(`| B | Only the description matched | ${check.length} | Judgement — the place may be incidental |`);
+  L.push(`| C | Two or more places named | ${pick.length} | Pick the primary destination |`);
+  L.push(`| D | Sail/cruise, no destination | ${departure.length} | Optional departure pin |`);
+  L.push(`| E | Roving tour / class, no destination | ${leave.length} | Leave unpinned |`);
+  L.push('', '---', '');
 
-  console.log(report.split('\n').slice(0, 9).join('\n'));
-  console.log(`\nWrote /tmp/coord-proposals.md (${rows.length} rows) and /tmp/coord-proposals.ts`);
+  L.push(`## A — Accept in bulk (${accept.length} items, ${groups.length} distinct places)`, '');
+  L.push('Each block is one place. Check the map link once, then accept the whole block.', '');
+  for (const [pid, rows] of groups) {
+    const p = rows[0].place!;
+    L.push(`### ${p.name} — ${rows.length} item${rows.length > 1 ? 's' : ''}  ·  [map](${gmaps(p)})`);
+    L.push(`\`${p.coord.lng}, ${p.coord.lat}\` · ${p.cite}`, '');
+    for (const r of rows) L.push(`- ${r.title}  <br/>  <sub>matched "${r.alias}" · \`${r.id}\`</sub>`);
+    L.push('', '```ts');
+    for (const r of rows) L.push(registryLine(r.id, r.place!, r.title));
+    L.push('```', '');
+    void pid;
+  }
+
+  L.push('---', '', `## B — Description-only matches (${check.length})`, '');
+  L.push('The title says nothing; the place came from the description, so it may be a', 'passing mention rather than the destination. Reject freely.', '');
+  for (const r of check) {
+    L.push(`- **${r.title}**  <br/>  → ${r.place!.name} (matched "${r.alias}" in description) · [map](${gmaps(r.place!)}) · \`${r.id}\``);
+    L.push(`  <br/><sub>\`${registryLine(r.id, r.place!, r.title).trim()}\`</sub>`);
+  }
+
+  L.push('', '---', '', `## C — Pick the primary destination (${pick.length})`, '');
+  L.push('Multi-stop tours. The resolver refuses to choose between named places —', 'alias length is not a reason to prefer one destination over another.', '');
+  for (const r of pick) {
+    L.push(`- **${r.title}** · \`${r.id}\``);
+    for (const c of r.cands!) L.push(`  - ${c.name} · [map](${gmaps(c)}) · \`${registryLine(r.id, c, r.title).trim()}\``);
+  }
+
+  L.push('', '---', '', `## D — Sails and cruises: optional departure pin (${departure.length})`, '');
+  L.push('No destination exists — the departure point IS where the activity happens.', 'Only pin these where you know the actual marina or pier.', '');
+  for (const r of departure) L.push(`- ${r.title} · \`${r.id}\``);
+
+  L.push('', '---', '', `## E — Leave unpinned (${leave.length})`, '');
+  L.push('Roving island tours, classes, pub crawls, unnamed dive sites. These have no', 'single location. No pin is the correct answer; the card still shows in the strip.', '');
+  for (const r of leave) L.push(`- ${r.title} · \`${r.id}\``);
+
+  writeFileSync('/tmp/coord-review.md', L.join('\n'));
+  writeFileSync('/tmp/coord-proposals.ts', accept.map((r) => registryLine(r.id, r.place!, r.title)).join('\n') + '\n');
+
+  console.log(`plannable ${plannable.length}  ·  A accept ${accept.length} (${groups.length} places)`
+    + `  ·  B check ${check.length}  ·  C pick ${pick.length}  ·  D departure ${departure.length}  ·  E leave ${leave.length}`);
+  console.log('\nWrote /tmp/coord-review.md and /tmp/coord-proposals.ts');
 }
 
 main();
