@@ -603,6 +603,59 @@ describe('generatePlan — champion-per-experience fill pool', () => {
     }
   });
 
+  // Conchi sits inside Arikok, whose gates shut at 16:00 — so it is a morning
+  // trip or it does not happen — and it is one place, so once per trip, and not
+  // on the day you land or fly out.
+  it('places Natural Pool once, in a morning, and never on the first or last day', () => {
+    const cat = clusteredCatalog({ clusters: 30, reviews: () => 400 });
+    cat.items = cat.items.map((i, n) => (n < 3
+      ? { ...i, id: `aaa-np-${n}`, title: `Aruba Natural Pool Safari ${n}`, experience_cluster_id: `NP-${n}` }
+      : i));
+    const days = 10;
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days }, cat, { seed: 8 });
+    const hits: { day: number; slot: string }[] = [];
+    plan.forEach((d, i) => (['morning', 'afternoon', 'evening'] as const).forEach((s) => {
+      if (d[s].some((e) => e.kind === 'group' && /^aaa-np-/.test((e as { bestSellerId: string }).bestSellerId))) {
+        hits.push({ day: i + 1, slot: s });
+      }
+    }));
+    expect(hits.length).toBeLessThanOrEqual(1);          // one Conchi per trip
+    for (const h of hits) {
+      expect(h.slot).toBe('morning');                     // Arikok shuts at 16:00
+      expect(h.day).toBeGreaterThan(1);
+      expect(h.day).toBeLessThan(days);
+    }
+  });
+
+  it('leaves at least one whole day between two daytime boat outings', () => {
+    // The reported pair read as two different activityKinds ('sail' and
+    // 'snorkel'), so only a family-level gap rule can separate them.
+    const cat = clusteredCatalog({ clusters: 30, reviews: () => 400 });
+    // All four share the sail tag 11888 so activityKind is 'sail' for each (a
+    // different tag per item would put them outside the boat family and the rule
+    // would never apply). The nine filler tags are distinct, so Jaccard between
+    // any pair is 1/19 = 0.053 — under BOTH the same-day 0.08 and trip-wide 0.35
+    // thresholds, leaving the day-gap rule as the only thing separating them.
+    cat.items = cat.items.map((i, n) => (n < 4
+      ? {
+          ...i, id: `aaa-boat-${n}`, title: `Catamaran Snorkel Sail ${n}`,
+          tags: [11888, ...Array.from({ length: 9 }, (_, k) => 600 + n * 10 + k)],
+          experience_cluster_id: `BOAT-${n}`,
+        }
+      : i));
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, cat, { seed: 9 });
+    const boatDays: number[] = [];
+    plan.forEach((d, i) => (['morning', 'afternoon', 'evening'] as const).forEach((s) => {
+      if (d[s].some((e) => e.kind === 'group' && /^aaa-boat-/.test((e as { bestSellerId: string }).bestSellerId))) {
+        boatDays.push(i + 1);
+      }
+    }));
+    const sorted = [...new Set(boatDays)].sort((a, b) => a - b);
+    for (let k = 1; k < sorted.length; k += 1) {
+      expect(sorted[k] - sorted[k - 1]).toBeGreaterThanOrEqual(2);
+    }
+  });
+
   it('never auto-fills self-drive vehicle hire', () => {
     // Every other item is evening-only, so the Harley is the ONLY product that
     // can fill a daytime slot. If it reaches the pool it is placed; if the rule

@@ -18,7 +18,7 @@ import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry, ViatorItem, ViatorGroup } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, entryPrice } from './matcher';
-import { fitItem, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, isAutoFillExcluded, offroadAdrenalineBonus, itemSlotOk, itemAdventure } from './itemFit';
+import { fitItem, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, isAutoFillExcluded, isNaturalPool, offroadAdrenalineBonus, itemSlotOk, itemAdventure } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 import { effectiveFlags } from './notesFlags';
@@ -440,6 +440,11 @@ type Ctx = {
   // day loop. Judged against the stricter SAME_DAY_SIMILARITY_THRESHOLD, and
   // populated for local picks as well as Viator items.
   dayTagSets: number[][];
+  // Day number currently being filled, and the last day each gap-family was
+  // used. Together they enforce FAMILY_MIN_DAY_GAP.
+  day: number;
+  nDays: number;
+  lastFamilyDay: Map<string, number>;
   // Route families placed this trip. Off-road tours (jeep/UTV/ATV) all run the
   // same Aruba circuit, so once one is placed the whole family is retired for the
   // rest of the trip — regardless of trip length (see routeFamilyOf).
@@ -452,8 +457,33 @@ type Ctx = {
 // Natural Pool run). undefined = no family (dedup by cluster/tag only).
 const LOCAL_OFFROAD = /jeep|safari|4x4|4wd|off.?road|utv|atv|natural pool|conchi/i;
 function routeFamilyOf(e: CardEntry): string | undefined {
+  const title = e.kind === 'group' ? e.bestSeller.title : e.activity.title;
+  // Conchi gets its OWN family, retired after one visit however it is reached.
+  // The generic off-road family only catches items whose tags classify them as
+  // off-road, and on the live catalog the 21 Natural Pool products split three
+  // ways — 17 off-road, 3 hike, 1 cruise — so a Natural Pool hike and a Natural
+  // Pool jeep safari were free to appear in the same trip. It is one place.
+  if (isNaturalPool({ title })) return 'natural-pool';
   if (e.kind === 'group') return activityKind(e.bestSeller) === 'offroad' ? 'offroad' : undefined;
-  return LOCAL_OFFROAD.test(e.activity.title) ? 'offroad' : undefined;
+  return LOCAL_OFFROAD.test(title) ? 'offroad' : undefined;
+}
+
+// Boat outings, treated as ONE family for the minimum-gap rule below. Two
+// catamaran trips read as different `activityKind`s — the reported pair was
+// 'sail' and 'snorkel' — so a kind-level rule could never have separated them.
+const BOAT_KINDS = new Set(['sail', 'snorkel', 'dive', 'sec:cruises-water']);
+// Whole days that must sit between two outings of the same family. 2 means
+// "at least one clear day in between": a sail on day 3 puts the next at day 5.
+const FAMILY_MIN_DAY_GAP = 2;
+function gapFamilyOf(e: CardEntry): string | undefined {
+  // Local shore picks are deliberately excluded — a beach snorkel the day after
+  // a catamaran was explicitly called fine. This is about repeat BOAT trips.
+  if (e.kind !== 'group') return undefined;
+  // Evening boat trips are excluded: a sunset dinner cruise is a different kind
+  // of evening from a daytime snorkel sail, and the two are the curated staple
+  // pairing. The report was about two DAYTIME catamaran sails.
+  if (isEveningItem(e.bestSeller)) return undefined;
+  return BOAT_KINDS.has(activityKind(e.bestSeller)) ? 'boat' : undefined;
 }
 
 // Candidates for a slot — ONE CardEntry per Viator item (no group face-collapse),
@@ -469,9 +499,15 @@ function routeFamilyOf(e: CardEntry): string | undefined {
 function candidatesFor(ctx: Ctx, slot: Slot, useTags: Set<MatchTag> | null): CardEntry[] {
   // Local activities: matched pool via matchPool (tag overlap + time-of-day);
   // widened pool is time-of-day only. (Empty groups arg — items handled below.)
-  const activities = useTags === null
+  const npDayOk = (title: string) =>
+    !isNaturalPool({ title }) || ctx.nDays <= 2 || (ctx.day !== 1 && ctx.day !== ctx.nDays);
+  const activities = (useTags === null
     ? ctx.catalog.activities.filter((a) => a.timeOfDay === SLOT_TOD[slot])
-    : matchPool(ctx.catalog.activities, [], useTags, slot).activities;
+    : matchPool(ctx.catalog.activities, [], useTags, slot).activities)
+    // Local picks bypass itemSlotOk entirely (it takes a ViatorItem), so the
+    // Conchi day rule has to be applied to them here too — `natural-pool-jeep`
+    // is a local, and was landing on arrival and departure days.
+    .filter((a) => npDayOk(a.title));
 
   // One candidate per item. Hard filters (both pools): slot-appropriate + fits the
   // real answers (the hard budget guard). Relevance narrowing (matched pool only)
@@ -480,6 +516,10 @@ function candidatesFor(ctx: Ctx, slot: Slot, useTags: Set<MatchTag> | null): Car
   const itemEntries: CardEntry[] = [];
   for (const item of ctx.catalog.items) {
     if (!itemSlotOk(item, slot)) continue;
+    // Conchi is a full morning that starts with a drive across the island, so it
+    // belongs in the middle of a trip rather than on the day you land or the day
+    // you fly out. itemSlotOk has already pinned it to a morning.
+    if (isNaturalPool(item) && ctx.nDays > 2 && (ctx.day === 1 || ctx.day === ctx.nDays)) continue;
     if (fitItem(item, ctx.tags).rejected) continue;
     const group = ctx.groupById.get(item.group_id);
     if (!group) continue; // data-integrity guard (mirrors blendPools' best-seller guard)
@@ -597,6 +637,14 @@ function pickForSlot(
     // applies to Viator groups and local picks alike.
     const fam = routeFamilyOf(e);
     if (fam && ctx.usedRouteFamilies.has(fam)) return `route family "${fam}" already placed this trip`;
+    // Minimum whole days between two outings of the same family.
+    const gf = gapFamilyOf(e);
+    if (gf) {
+      const last = ctx.lastFamilyDay.get(gf);
+      if (last !== undefined && ctx.day - last < FAMILY_MIN_DAY_GAP) {
+        return `another ${gf} outing on day ${last}; needs ${FAMILY_MIN_DAY_GAP} days between`;
+      }
+    }
     // Same-day shape, checked BEFORE the group-only rules so it covers local
     // picks too — the reported case was a local snorkel beach sharing a day with
     // a snorkel catamaran, which no Viator-only signal could ever see.
@@ -905,7 +953,7 @@ export function generatePlan(
     // random food day on the opposite coast by normal fill.
     activities: filteredCatalog.activities.filter((a) => !dupedLocal(a) && !foodPlaceKey(a.id)),
   };
-  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], dayTagSets: [], usedRouteFamilies: new Set() };
+  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], dayTagSets: [], day: 0, nDays, lastFamilyDay: new Map(), usedRouteFamilies: new Set() };
 
   // Trip-wide budget pool: keeps the AVERAGE daily activity spend within the
   // tier cap (budget-conscious ≈ $110/day on average), letting days vary while
@@ -1142,6 +1190,7 @@ export function generatePlan(
     // for daytime. A day out and a dinner are not the same budget.
     let dayMin = 0;
     ctx.dayTagSets = [];   // same-day shape is per-day; trip-wide sets persist
+    ctx.day = d;
     const blocked = new Set<Slot>();
     const dayTheme = themeGroups.length ? themeGroups[(d - 1) % themeGroups.length] : undefined;
     // Book a pick's time and, if it overruns its slot window, spread it into the
@@ -1185,6 +1234,7 @@ export function generatePlan(
         budgetLeft -= entryPrice(pick);
         ctx.lastUsedDay.set(entryId(pick), d);
         { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }
+      { const gf = gapFamilyOf(pick); if (gf) ctx.lastFamilyDay.set(gf, d); }
         { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
         if (pick.kind === 'group') {
           ctx.usedGroupIds.add(pick.group.id);
@@ -1229,6 +1279,7 @@ export function generatePlan(
         budgetLeft -= entryPrice(pick);
         ctx.lastUsedDay.set(entryId(pick), d);
         { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }
+      { const gf = gapFamilyOf(pick); if (gf) ctx.lastFamilyDay.set(gf, d); }
         { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
         if (pick.kind === 'group') {
           const cid = pick.bestSeller.experience_cluster_id;
@@ -1272,6 +1323,7 @@ export function generatePlan(
       budgetLeft -= entryPrice(pick);
       ctx.lastUsedDay.set(entryId(pick), d);
       { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }
+      { const gf = gapFamilyOf(pick); if (gf) ctx.lastFamilyDay.set(gf, d); }
       { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
       if (pick.kind === 'group') {
         ctx.usedGroupIds.add(pick.group.id);

@@ -35,8 +35,14 @@ Accumulates trip-wide state across the day loop:
 | Field | Purpose |
 |---|---|
 | `lastUsedDay` | item-id → day number; prevents any id repeating |
-| `usedGroupIds` | group-ids retired after first use; prevents booking-option variants repeating |
-| `usedTagSets` | Viator tag-ID arrays of placed items; drives semantic dedup (see below) |
+| `usedClusterIds` | embedding clusters placed; a hit is conclusive, a miss falls through |
+| `usedTagSets` | tag arrays of placed items; trip-wide Jaccard at 0.35 |
+| `dayTagSets` | tag arrays placed TODAY, reset per day; stricter Jaccard at 0.08 |
+| `usedRouteFamilies` | one off-road circuit, and one Conchi visit, per trip |
+| `lastFamilyDay` | family → last day used; enforces FAMILY_MIN_DAY_GAP (boat outings) |
+| `usedGroupIds` | last-resort group dedup; only for items with neither tags nor a cluster |
+| `day` / `nDays` | current day and trip length; day-level eligibility (Conchi never lands on the first or last day) |
+| `groupById` | group lookup for per-item candidates |
 
 ### Fill ladder (`pickForSlot`)
 
