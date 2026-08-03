@@ -248,7 +248,7 @@ async function main() {
   writeFileSync('/tmp/coord-proposals.ts', accept.map((r) => registryLine(r.id, r.place!, r.title)).join('\n') + '\n');
 
   // Structured form for the interactive reviewer (tools/review-server.mjs).
-  const slim = (p: Place) => ({ id: p.id, name: p.name, coord: p.coord, cite: p.cite, terrain: p.terrain, role: p.role ?? null });
+  const slim = (p: Place) => ({ id: p.id, name: p.name, coord: p.coord, cite: p.cite, terrain: p.terrain, role: p.role ?? null, approx: p.approx ?? null });
   writeFileSync('/tmp/coord-proposals.json', JSON.stringify({
     catalogItems: catalog.items.length,
     plannable: plannable.length,

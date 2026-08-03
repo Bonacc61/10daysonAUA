@@ -44,9 +44,56 @@ export type Place = {
    * not where the activity departs from.
    */
   role?: 'venue' | 'landmark';
+  /**
+   * The coordinate is street-, road- or village-level rather than the exact
+   * doorway. Propagates to Pin.approx so the map never implies more precision
+   * than the source supports.
+   */
+  approx?: true;
 };
 
 export const PLACES: Place[] = [
+  // ── Departure points named in Viator meeting-point text ───────────────────
+  // Geocoded from the operator's own wording, e.g. "next to Flying Fishbone at
+  // the boat ramp", "at the Tanki Flip roundabout", "Zoutmanstraat 1, right
+  // behind the Renaissance Marina Tower".
+  //
+  // `approx` marks the ones that resolve to a street, road or village rather
+  // than a doorway. Nominatim gave a confidently wrong answer for Tanki Flip —
+  // "The Healthy Center Aruba" on a different road entirely — so every result
+  // here was checked against the description that produced it before landing.
+  { id: 'bucutiweg', role: 'venue', name: 'Bucutiweg', terrain: 'land', approx: true,
+    coord: { lng: -70.0136, lat: 12.4958 },
+    aliases: ['bucutiweg'],
+    cite: 'OpenStreetMap way/40957323 (tertiary), verified 2026-08-03 (street/area level — accurate to the block, not the doorway)' },
+  { id: 'zoutmanstraat', role: 'venue', name: 'Zoutmanstraat', terrain: 'land', approx: true,
+    coord: { lng: -70.0364, lat: 12.5185 },
+    aliases: ['zoutmanstraat'],
+    cite: 'OpenStreetMap way/909265318 (pedestrian), verified 2026-08-03 (street/area level — accurate to the block, not the doorway)' },
+  { id: 'ayo-rock', role: 'venue', name: 'Ayo Rock Formation', terrain: 'land',
+    coord: { lng: -69.972, lat: 12.5322 },
+    aliases: ['ayo rock', 'ayo rock formation'],
+    cite: 'OpenStreetMap way/43109643 (park), verified 2026-08-03' },
+  { id: 'tanki-flip', role: 'venue', name: 'Tanki Flip', terrain: 'land', approx: true,
+    coord: { lng: -70.0306, lat: 12.5461 },
+    aliases: ['tanki flip', 'tank flip'],
+    cite: 'OpenStreetMap overpass place=village (village), verified 2026-08-03 (street/area level — accurate to the block, not the doorway)' },
+  { id: 'flying-fishbone', role: 'venue', name: 'Flying Fishbone', terrain: 'land',
+    coord: { lng: -69.9444, lat: 12.4447 },
+    aliases: ['flying fishbone'],
+    cite: 'OpenStreetMap way/376319912 (restaurant), verified 2026-08-03' },
+  { id: 'marina-pirata', role: 'venue', name: 'Marina Pirata', terrain: 'land',
+    coord: { lng: -69.9755, lat: 12.4696 },
+    aliases: ['marina pirata', 'nautilus dive'],
+    cite: 'OpenStreetMap way/376285540 (restaurant), verified 2026-08-03' },
+  { id: 'signature-park', role: 'venue', name: 'Signature Park', terrain: 'land',
+    coord: { lng: -70.0505, lat: 12.5645 },
+    aliases: ['signature park'],
+    cite: 'OpenStreetMap way/685527702 (park), verified 2026-08-03' },
+  { id: 'matividiri', role: 'venue', name: 'Matividiri', terrain: 'land', approx: true,
+    coord: { lng: -69.9684, lat: 12.5361 },
+    aliases: ['matividiri'],
+    cite: 'OpenStreetMap way/595617951 (residential), verified 2026-08-03 (street/area level — accurate to the block, not the doorway)' },
   // Piet's Pier — the pier behind the Hyatt Regency. OSM has the pier geometry
   // but no name on it; the identification is the product owner's local knowledge
   // (2026-08-03). It sits 163m due west of the hotel, at the same latitude,
