@@ -238,30 +238,36 @@ push to `main` is already mandatory, so this lands in an existing gate.
 - Resolver returns `null` for a curated list of ambiguous and place-free titles.
 - Regression fixtures pinning all 29 existing activity coordinates.
 
-## Rendering — cluster, don't displace
+## Rendering — displacement retained (decided)
 
-The fan-out in `Map.tsx:180-192` is removed. Co-located stops become **one marker at the
-true coordinate**, with the stack drawn inside the marker's own box in CSS.
+**Decision: keep the fan-out in `Map.tsx:180-192` as it stands.** Clustering was
+prototyped and reviewed interactively against three scenarios; displacement was chosen
+for legibility. Every stop keeps its own visible, individually-clickable pin.
 
-The distinction: offsetting pixels within a marker is drawing. Offsetting the anchor is
-a claim about geography.
+This is a deliberate, scoped trade and it needs recording accurately: in a collision, a
+pin is drawn **~175 m** from the coordinate its data claims (measured across all three
+demo scenarios: 176 m / 174 m / 174 m at `R = 0.0016°`). That displacement is a
+*presentation* offset applied after resolution — it never mutates stored or resolved
+coordinates, and it never feeds the validators.
 
-- `locatedEntries` groups by coordinate key and returns `{ coord, stops[] }`. Stop
-  numbering stays global and chronological (`1..N`).
-- `PhotoPin` gains a stacked variant — same photo disc, a count badge, two offset sheets
-  behind it.
-- The popup gains a list mode for multi-stop clusters. Single-stop clusters render
-  exactly the popup that exists today.
-- `straightCoords` drops consecutive duplicate points before calling the Directions API,
-  removing the phantom zigzag leg.
+Consequences this design must therefore honour:
 
-**Scoped decision: cluster on exact coincidence only, not proximity.** Zoom-aware
-clustering (supercluster-style) is a substantially larger change and is not needed — the
-displacement bug only fires on exact 5-decimal coordinate matches today. Two genuinely
-distinct places 200 m apart overlapping at zoom 11 is a legibility annoyance, not a
-veracity problem, and is out of scope.
+- **The route line uses true coordinates, not displaced ones.** `straightCoords`
+  (`Map.tsx:196-199`) is built from resolved coordinates with consecutive duplicates
+  dropped, before displacement is applied. This removes the phantom ~175 m zigzag leg
+  between co-located stops without touching the pins. Pins stay legible; the route stays
+  honest. This is the one rendering change in scope.
+- **Displacement is applied last**, in the marker render path only, so the audit script
+  and every validator see the true coordinate.
+- **Collisions will become more frequent, not less**, once `GROUP_COORDS` is deleted —
+  genuinely co-located tours will start sharing real marina and trailhead coordinates
+  rather than fake centroids. Displacement will fire on correctly-sourced points. This
+  is understood and accepted.
+- Validator rule 4 (collision report) becomes more valuable under this choice, since a
+  re-introduced centroid is now visually indistinguishable from a legitimate shared
+  point. It stays a warning requiring human sign-off.
 
-Reviewed interactively as a side-by-side demo before approval.
+Clustering is recorded in Non-goals as considered and declined.
 
 ## UI honesty
 
@@ -280,8 +286,8 @@ The distance line is what makes the split pin/pickup model legible: it tells the
 *why* the pin is somewhere they are not being collected. Without it, a Palm Beach pickup
 on a Conchi pin reads as a data error.
 
-In a multi-stop cluster the list rows show the pickup name only; the full block appears
-when a single stop is opened.
+Because displacement is retained, every stop keeps its own pin and its own card, so the
+block always renders in full — there is no condensed multi-stop list variant.
 
 This block is the reason the destination-vs-meeting-point decision is safe to make: the
 logistics data is not discarded, it is relocated to where it is actually useful.
@@ -297,6 +303,9 @@ logistics data is not discarded, it is relocated to where it is actually useful.
 
 ## Non-goals
 
+- **Marker clustering of any kind.** Prototyped and reviewed side-by-side against
+  displacement across three scenarios; displacement was chosen for legibility. Not
+  revisited in this piece of work.
 - Zoom-aware proximity clustering.
 - Geocoding street addresses for restaurants beyond the curated set.
 - Changing the matching engine, `SlotEntry`, or any localStorage contract.
@@ -318,6 +327,9 @@ logistics data is not discarded, it is relocated to where it is actually useful.
 2. `GROUP_COORDS` no longer exists in the codebase.
 3. Every coordinate the app can render traces to a `source` string or a Viator location
    ref.
-4. No rendered marker sits at a coordinate other than the one its data claims —
-   verified by a test asserting marker anchors equal resolved coordinates.
+4. Displacement is presentation-only — verified by a test asserting that the resolved
+   coordinate, the route-line vertex, and the audited coordinate for a stop are
+   identical, and that the marker offset is applied solely in the render path. (Marker
+   anchors deliberately differ from resolved coordinates in collisions; that is the
+   accepted trade recorded above, not a defect.)
 5. The audit baseline is committed, and CI fails on undiffed coordinate drift.
