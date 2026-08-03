@@ -3,9 +3,9 @@
 **Date:** 2026-08-03
 **Status:** Draft — awaiting approval
 **Scope:** Where map pins are sourced from, how they are verified, and the activity card's
-pickup block. Touches `src/data/coords.ts`, `src/pages/Map.tsx`, and adds a resolution
-tool + audit script under `tools/`. No change to the matching engine, storage, or the
-`SlotEntry` contract.
+pickup block. Touches `src/data/coords.ts`, `src/pages/Map.tsx`, `src/data/enRoute.ts`,
+`src/data/itineraryGenerator.ts` (coordinate reads only), and adds a resolution tool +
+audit script under `tools/`. No change to storage or the `SlotEntry` contract.
 
 ## Problem
 
@@ -112,6 +112,50 @@ A guess is never the default; a human must promote it and supply a citation.
 The Aruba place table (~80 beaches, dive sites, landmarks, parks, towns, marinas) lives
 under `tools/`, not `src/`. It is authoring input. It does not ship — the registry holds
 literal coordinates, so the browser needs no matching logic at all.
+
+### Coverage scope — the plannable pool, not the whole catalog
+
+The registry does **not** need to cover all ~361 catalog items. It needs to cover
+everything the app can put in front of a traveller as a suggestion. The engine already
+narrows that set with two existing rules:
+
+- **`isAutoFillExcluded`** (`itemFit.ts:244`) — the never-suggest-unasked rule: retail
+  ("Diamond Shopping Experience"), photo services, self-drive vehicle hire.
+- **`MIN_CHAMPION_REVIEWS = 25`** (`itineraryGenerator.ts:130`) — the popularity floor
+  that keeps niche listings (6-review sunset photoshoots, 12-review Hooiberg hikes) out
+  of the fill pool.
+
+Per `docs/ROADMAP.md` (verified 2026-08-02): ~155 eligible experiences after exclusions,
+champion pool ~81. Plus the 29 curated activities, which lead.
+
+**Required coverage = the 29 curated activities + every item that passes both rules.**
+That is a few hundred at the outside and realistically a few dozen distinct locations,
+which is what makes one-off research viable.
+
+Items outside the pool render no pin. They can still reach a plan if a traveller
+explicitly hearts one — pins resolve against the un-narrowed catalog (`itemFit.ts:206-210`)
+— and in that case the card simply has no marker. Honest, and rare by construction.
+
+### Why this removes the coordinate fallback entirely
+
+`GROUP_COORDS` is not only a map fallback. It also feeds the generator's geography:
+`entryCoord` (`itineraryGenerator.ts:567-571`), the day-clustering penalty (`:585`), the
+day anchor (`:1290`, `:1335`, `:1381`), and the en-route lunch stop (`:1424`).
+`enRoute.ts:48` reads `ACTIVITY_COORDS` directly.
+
+Deleting a coarse fallback would normally make ~340 items geo-neutral inside the engine
+and loosen day clustering. **Scoping coverage to the plannable pool removes that risk:**
+every item the engine can auto-place carries a precise registry coordinate, so the engine
+ends up with strictly better geographic data than the group centroids gave it.
+
+Therefore `GROUP_COORDS` is deleted outright — from the map *and* the engine. There is no
+rough-coordinate tier anywhere in the codebase. The engine, the en-route picker, and the
+map all read the one registry.
+
+Generated itineraries will shift slightly, because the engine's geography becomes truer.
+This is verified, not assumed: a before/after itinerary diff across the five
+`tools/itinerary-trace.ts` personas is a required step, and any day whose clustering
+degrades is investigated before merge.
 
 ### Ongoing churn
 
@@ -258,7 +302,8 @@ lookup and a separate piece of work — explicitly out of scope here.
 - **Marker clustering of any kind.** Prototyped, reviewed side-by-side, declined.
 - Runtime or ingest-time coordinate resolution. Resolution is one-off and offline.
 - Geocoding street addresses for restaurants beyond the curated set.
-- Changing the matching engine, `SlotEntry`, or any localStorage contract.
+- Changing matching-engine *logic*, `SlotEntry`, or any localStorage contract. The engine's
+  coordinate *reads* are repointed at the registry; its scoring rules are untouched.
 - Backfilling coordinates for items with no determinable location — those correctly
   render no pin.
 
@@ -283,3 +328,7 @@ lookup and a separate piece of work — explicitly out of scope here.
    coordinate, the route-line vertex, and the audited coordinate are identical, and that
    the offset is applied solely in the render path.
 6. The audit's churn report is clean, or every outstanding item is explicitly accepted.
+7. **Every item in the plannable pool has a registry pin** — audit fails if an item passes
+   `isAutoFillExcluded` and the review floor but has no coordinate.
+8. A before/after itinerary diff across all five trace personas shows no day whose
+   geographic clustering degraded.
