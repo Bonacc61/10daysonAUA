@@ -114,7 +114,7 @@ serve(async (req) => {
   // actually returns before designing around it. Read-only; remove once
   // docs/map/viator-location-probe.md records the findings.
   if (op === 'locations') {
-    const codes = (url.searchParams.get('codes') ?? '').split(',').map((c) => c.trim()).filter(Boolean);
+    const codes = (new URL(req.url).searchParams.get('codes') ?? '').split(',').map((c) => c.trim()).filter(Boolean);
     const out: Record<string, unknown> = {};
     const refs = new Set<string>();
     for (const code of codes) {
