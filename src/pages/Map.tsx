@@ -10,6 +10,7 @@ import { viatorLink } from '../data/exploreItems';
 import type { Answers, PageId } from '../App';
 import { dayHues } from '../data/dayHues';
 import { planLegs, splitLeg } from '../data/routeLegs';
+import { distanceKm } from '../data/coordValidate';
 import type { SlotEntry } from '../types';
 import type { Catalog } from '../data/activitySource';
 
@@ -111,7 +112,7 @@ function softenTrafficGreen(map: StyleMap): void {
   }
 }
 
-type AnyPopup = { lng: number; lat: number; title: string; sub: string; price?: string | null; duration?: string | null; image?: string | null; url?: string | null };
+type AnyPopup = { lng: number; lat: number; title: string; sub: string; price?: string | null; duration?: string | null; image?: string | null; url?: string | null; pin?: Pin | null };
 // Display labels only — the underlying variant order/indices (activePlanIdx) are
 // unchanged. Three parallel adjectives; "Your trip"/"-leaning" dropped.
 const PLAN_VARIANTS = [
@@ -364,7 +365,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
               match the card order, de-stacked so shared coordinates stay visible */}
           {planDay && locatedEntries.map((e, i) => (
             <Marker key={e.key} longitude={e.coord.lng} latitude={e.coord.lat} anchor="bottom"
-              onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url }); }}>
+              onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url, pin: e.pin }); }}>
               <PhotoPin image={e.image} color={hueFor(e.idx)} label={String(e.num)} />
             </Marker>
           ))}
@@ -393,6 +394,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
                       {popup.duration && <span style={{ fontSize: 11, color: '#888' }}>⏱ {popup.duration}</span>}
                     </div>
                   )}
+                  <PickupBlock pin={popup.pin ?? null} />
                   {popup.url && (
                     <div style={{ fontSize: 11, color: '#888', fontStyle: 'italic' }}>Tap to book on Viator →</div>
                   )}
@@ -505,7 +507,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
               <div
                 key={e.key}
                 style={{ flexShrink: 0, width: 120, cursor: 'pointer' }}
-                onClick={() => e.coord && setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url })}
+                onClick={() => e.coord && setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url, pin: e.pin })}
               >
                 <div style={{ width: 120, height: 72, borderRadius: 10, overflow: 'hidden', background: '#e8e2d6', border: `2px solid ${dayColor}`, flexShrink: 0 }}>
                   {e.image
@@ -529,6 +531,44 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
             ))}
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Where the traveller is collected, when that differs from where the activity
+ * happens. The pin marks the destination; this says where to actually stand.
+ *
+ * Renders ONLY when a pickup is actually known. Where it is unknown the card's
+ * existing "Tap to book on Viator →" line already points at the authoritative
+ * source, and a second line saying the same thing is noise.
+ *
+ * Currently no pin carries a pickup, and that is the design working rather than
+ * a gap: every departure point the review found became the PIN itself
+ * (source: 'departure'), because for a sunset sail the departure point is where
+ * the activity happens. A separate pickup only applies to a product where both a
+ * destination and a different collection point are known, and Viator publishes
+ * no usable data for that — the 2026-08-03 probe found only 3 of 24 meeting-point
+ * refs carried coordinates, and those were hotels on a pickup round.
+ * See docs/map/viator-location-probe.md.
+ */
+function PickupBlock({ pin }: { pin: Pin | null }) {
+  const pickup = pin?.pickup;
+  if (!pickup) return null;
+  const wrap = { margin: '7px -10px 0', padding: '7px 10px 8px', background: '#f4f0e4', borderTop: '1px solid #e3ddcc' };
+  const head = { fontSize: 9, fontWeight: 700 as const, textTransform: 'uppercase' as const, letterSpacing: 0.6, color: '#8c8c8c', marginBottom: 3 };
+
+  const m = pin ? Math.round(distanceKm(pickup.coord, pin.coord) * 1000) : 0;
+  return (
+    <div style={wrap}>
+      <div style={head}>Pickup</div>
+      <div style={{ fontSize: 11.5, fontWeight: 600, color: '#3a352e', lineHeight: 1.35 }}>{pickup.name}</div>
+      {pickup.time && <div style={{ fontSize: 10.5, color: '#8c8c8c', marginTop: 2 }}>{pickup.time}</div>}
+      {m > 150 && (
+        <div style={{ fontSize: 10, color: '#8c8c8c', marginTop: 3, fontStyle: 'italic' }}>
+          {m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${m} m`} from the pin — the tour travels to the activity
         </div>
       )}
     </div>
