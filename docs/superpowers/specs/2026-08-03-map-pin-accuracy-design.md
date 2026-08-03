@@ -233,6 +233,26 @@ A pin with `source: 'departure'` is labelled as a departure point, so it is neve
 for a destination. No badge on `viator-poi` / `known-place` / `curated` pins — an accuracy
 indicator on an accurate pin is noise.
 
+### Pickup data is volatile — treat it differently from geography
+
+The one-off registry is right for coordinates because geography is static: Eagle Beach
+will not move. **Pickup arrangements are not static.** An operator can change a meeting
+point or a departure time at any point, and a registry captured once will keep asserting
+the old one.
+
+This asymmetry is handled by scope, not by re-fetching:
+
+- The pickup block states the pickup **location**, which is stable in practice (operators
+  change hotels-vs-pier rarely).
+- Pickup **time** renders only when Viator supplied one, and is presented as indicative.
+- The card already links to the Viator product page, which is the authoritative source for
+  what a traveller must actually do on the day. The block is orientation, not instruction.
+- `cite` on a pickup records when it was captured, so staleness is visible in the registry
+  rather than invisible in the UI.
+
+If pickup accuracy later needs to be guaranteed rather than indicative, that is a live
+lookup and a separate piece of work — explicitly out of scope here.
+
 ## Non-goals
 
 - **Marker clustering of any kind.** Prototyped, reviewed side-by-side, declined.
@@ -250,6 +270,7 @@ indicator on an accurate pin is noise.
 | Registry goes stale as catalog churns | Audit reports the delta both ways; unregistered items render no pin rather than a wrong one |
 | Manual review effort across ~361 items | Tool proposes with citations, human accepts; most items resolve to a small set of repeated places (18 already map to Natural Pool alone) |
 | Pin coverage drops visibly | Expected and correct — current coverage is substantially false. Audit quantifies before/after so the trade is a decision, not a surprise |
+| Captured pickup data goes stale | Pickup is scoped as indicative orientation, not instruction; the Viator link remains authoritative. Capture date recorded in `cite`. Guaranteed pickup accuracy is a separate live-lookup piece of work |
 
 ## Success criteria
 
