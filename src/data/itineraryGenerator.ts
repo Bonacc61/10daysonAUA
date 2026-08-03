@@ -50,6 +50,37 @@ function tagJaccard(a: number[], b: number[]): number {
 // keeping a snorkel cruise (zero jeep tags) eligible on the same trip.
 const TAG_SIMILARITY_THRESHOLD = 0.35;
 
+// A SECOND, stricter threshold that applies only WITHIN one day. Two things can
+// be different enough to sit on consecutive days and still be too alike to share
+// a single day: a shore snorkel at Tres Trapi and a snorkel catamaran are a fine
+// Tuesday and Wednesday, but a poor Tuesday. Reported from production, twice.
+//
+// Trip-wide dedup answers "have I already suggested this experience?"; this
+// answers "does this day have a shape?". It is deliberately NOT relaxable —
+// unlike the same-day `kindOk` gate, which the fill ladder drops on its second
+// pass — because a repeated day is exactly what the report was about.
+//
+// Swept over 60 trips (4 personas x 7/10/14 days x 5 seeds). Days containing two
+// sails / two snorkels:
+//
+//   no rule   26 / 40      evenings 73.3%   daytime 89.3%
+//   0.18       9 / 20      evenings 66.5%   daytime 92.0%
+//   0.12      11 / 20      evenings 67.2%   daytime 90.2%
+//   0.08       3 /  3      evenings 66.5%   daytime 89.9%
+//
+// 0.08 is near-free relative to 0.18 — same fill, an order of magnitude fewer
+// repeated days. The ~7pp of evening fill this costs overall is the rule working
+// as specified: a snorkel sail in the afternoon now blocks a dinner cruise that
+// night. Still far above the 45.3% evenings had before any of this work.
+const SAME_DAY_SIMILARITY_THRESHOLD = 0.08;
+
+// Viator tag ids for either kind of entry. Local picks carry hand-assigned tags
+// (see Activity.tags) so they share one vocabulary with live Viator items —
+// without that, no semantic signal could compare a local to a Viator product.
+function entryTags(e: CardEntry): number[] {
+  return (e.kind === 'group' ? e.bestSeller.tags : e.activity.tags) ?? [];
+}
+
 const SLOT_TOD: Record<Slot, Activity['timeOfDay']> = {
   morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening',
 };
@@ -405,6 +436,10 @@ type Ctx = {
   usedClusterIds: Set<string>;
   // Tag-ID fingerprints used as fallback when no embedding cluster is available.
   usedTagSets: number[][];
+  // Tag-ID fingerprints of everything placed on the CURRENT day, reset by the
+  // day loop. Judged against the stricter SAME_DAY_SIMILARITY_THRESHOLD, and
+  // populated for local picks as well as Viator items.
+  dayTagSets: number[][];
   // Route families placed this trip. Off-road tours (jeep/UTV/ATV) all run the
   // same Aruba circuit, so once one is placed the whole family is retired for the
   // rest of the trip — regardless of trip length (see routeFamilyOf).
@@ -562,6 +597,16 @@ function pickForSlot(
     // applies to Viator groups and local picks alike.
     const fam = routeFamilyOf(e);
     if (fam && ctx.usedRouteFamilies.has(fam)) return `route family "${fam}" already placed this trip`;
+    // Same-day shape, checked BEFORE the group-only rules so it covers local
+    // picks too — the reported case was a local snorkel beach sharing a day with
+    // a snorkel catamaran, which no Viator-only signal could ever see.
+    const tags = entryTags(e);
+    if (tags.length > 0) {
+      const clash = ctx.dayTagSets.find((used) => tagJaccard(tags, used) >= SAME_DAY_SIMILARITY_THRESHOLD);
+      if (clash) {
+        return `too alike for one day — tag Jaccard ${tagJaccard(tags, clash).toFixed(2)} >= ${SAME_DAY_SIMILARITY_THRESHOLD} vs something already on this day`;
+      }
+    }
     if (e.kind !== 'group') return null;
     // LAYERED, not alternatives. A cluster hit is conclusive; a cluster MISS is
     // not, so we fall through to tag Jaccard rather than returning null.
@@ -585,7 +630,6 @@ function pickForSlot(
     if (cid && ctx.usedClusterIds.has(cid)) return `experience cluster "${cid}" already placed`;
     // Second net, for everything the cluster missed — which is most things,
     // since the champion pool has already thinned each cluster to one item.
-    const tags = e.bestSeller.tags ?? [];
     if (tags.length === 0) {
       // Neither cluster id nor tags: the Viator group is the only "same
       // experience" signal left (hand-written stub / thin offline catalog).
@@ -861,7 +905,7 @@ export function generatePlan(
     // random food day on the opposite coast by normal fill.
     activities: filteredCatalog.activities.filter((a) => !dupedLocal(a) && !foodPlaceKey(a.id)),
   };
-  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], usedRouteFamilies: new Set() };
+  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], dayTagSets: [], usedRouteFamilies: new Set() };
 
   // Trip-wide budget pool: keeps the AVERAGE daily activity spend within the
   // tier cap (budget-conscious ≈ $110/day on average), letting days vary while
@@ -1097,6 +1141,7 @@ export function generatePlan(
     // every dedup rule combined — and left evenings 46.5% filled against 91.8%
     // for daytime. A day out and a dinner are not the same budget.
     let dayMin = 0;
+    ctx.dayTagSets = [];   // same-day shape is per-day; trip-wide sets persist
     const blocked = new Set<Slot>();
     const dayTheme = themeGroups.length ? themeGroups[(d - 1) % themeGroups.length] : undefined;
     // Book a pick's time and, if it overruns its slot window, spread it into the
@@ -1139,6 +1184,7 @@ export function generatePlan(
         emit?.({ type: 'preplaced', day: d, slot, source: 'pin', id: entryId(pick), title: entryTitle(pick) });
         budgetLeft -= entryPrice(pick);
         ctx.lastUsedDay.set(entryId(pick), d);
+        { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }
         { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
         if (pick.kind === 'group') {
           ctx.usedGroupIds.add(pick.group.id);
@@ -1182,6 +1228,7 @@ export function generatePlan(
         });
         budgetLeft -= entryPrice(pick);
         ctx.lastUsedDay.set(entryId(pick), d);
+        { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }
         { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
         if (pick.kind === 'group') {
           const cid = pick.bestSeller.experience_cluster_id;
@@ -1224,6 +1271,7 @@ export function generatePlan(
       if (!pick) continue;
       budgetLeft -= entryPrice(pick);
       ctx.lastUsedDay.set(entryId(pick), d);
+      { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }
       { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
       if (pick.kind === 'group') {
         ctx.usedGroupIds.add(pick.group.id);

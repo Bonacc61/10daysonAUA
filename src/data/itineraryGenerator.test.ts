@@ -576,6 +576,33 @@ describe('generatePlan — champion-per-experience fill pool', () => {
     expect(isAutoFillExcluded(item('Catamaran Sail & Snorkel at Boca Catalina'))).toBe(false);
   });
 
+  it('keeps two near-alike picks off the SAME day but allows them on different days', () => {
+    // The reported case: a local snorkel beach and a snorkel catamaran are a
+    // fine Tuesday and Wednesday, but a poor Tuesday. Two items sharing most of
+    // their tags must never share a day; they may still both appear in the trip.
+    // Tags are chosen to sit BETWEEN the two thresholds: 2 shared of 18 union =
+    // Jaccard 0.111, which is >= the 0.08 same-day rule but < the 0.35 trip-wide
+    // one. Identical tags would be blocked trip-wide and the same-day rule would
+    // never be the deciding factor — the test would then pass with it disabled.
+    // Every other item is evening-only, so these two are the ONLY things that can
+    // fill a daytime slot: with the rule off they share a day, with it on they
+    // cannot.
+    const A = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const B = [1, 2, 11, 12, 13, 14, 15, 16, 17, 18];
+    const cat = clusteredCatalog({ n: 62, clusters: 31, reviews: () => 400 });
+    cat.items = cat.items.map((i, n) => {
+      if (n === 0) return { ...i, id: 'aaa-snorkel-0', title: 'Snorkel Sail Alpha', tags: A, experience_cluster_id: 'SNORK-0' };
+      if (n === 1) return { ...i, id: 'aaa-snorkel-1', title: 'Snorkel Sail Beta', tags: B, experience_cluster_id: 'SNORK-1' };
+      return { ...i, title: `Sunset Nightlife Session ${n}`, tags: [300 + n, 400 + n] };
+    });
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, cat, { seed: 6 });
+    for (const d of plan) {
+      const sameDay = [...d.morning, ...d.afternoon, ...d.evening]
+        .filter((e) => e.kind === 'group' && /^aaa-snorkel-/.test((e as { bestSellerId: string }).bestSellerId));
+      expect(sameDay.length).toBeLessThanOrEqual(1);
+    }
+  });
+
   it('never auto-fills self-drive vehicle hire', () => {
     // Every other item is evening-only, so the Harley is the ONLY product that
     // can fill a daytime slot. If it reaches the pool it is placed; if the rule

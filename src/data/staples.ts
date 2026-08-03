@@ -1,6 +1,6 @@
 import type { Catalog } from './activitySource';
 import type { Activity } from './activities';
-import { activityKind, isEveningItem, fitItem } from './itemFit';
+import { activityKind, isEveningItem, fitItem, isAutoFillExcluded } from './itemFit';
 import type { CardEntry, MatchTag, Slot, ViatorItem } from '../types';
 
 /* ------------------------------------------------------------------ *
@@ -145,6 +145,11 @@ export function resolveStaples(
     if (spec.itemMatch) {
       const candidates = catalog.items
         .filter(spec.itemMatch)
+        // A staple is the most prominent auto-suggestion there is — it lands in
+        // every plan — so the "never suggest this unasked" rule has to apply here
+        // too. Latent today, but "Sunset Dinner Photoshoot" would satisfy the
+        // beach-dinner matcher exactly.
+        .filter((i) => !isAutoFillExcluded(i))
         .filter((i) => !fitItem(i, tags).rejected)
         .filter((i) => !taken.has(i.id))
         .filter((i) => !i.experience_cluster_id || !usedClusters.has(i.experience_cluster_id))
