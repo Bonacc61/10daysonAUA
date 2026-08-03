@@ -14,7 +14,8 @@ Open work for 10daysonaruba.com. Durable facts and invariants live in
 
 ## Matching engine — open items
 
-Tracked in detail in `docs/matching-engine/development-log.md`:
+Tracked in detail in `docs/matching-engine/development-log.md`; how geography
+feeds the engine is in `docs/matching-engine/geography.md`:
 
 - Embedding clustering **is live** (verified 2026-08-02: all live items carry an
   `experience_cluster_id`). Over-clustering was investigated and ranks third
