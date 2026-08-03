@@ -20,12 +20,14 @@ Supporting modules:
 ```
 answersToTags(answers)
   → applyCatalogFlags(catalog, flags)     // no-boats / mobility / intense-hikes
+  → isAutoFillExcluded + championsByExperience   // one well-reviewed champion per experience
   → pin pre-pass                          // claim slots for shortlisted picks
   → day loop (d = 1 … nDays)
       for each slot (morning / afternoon / evening):
         candidatesFor(ctx, slot, tags)    // matchPool + blendPools + refaceForAnswers
         pickForSlot(ctx, slot, …)         // ranked fill ladder
         record pick → update ctx
+  → en-route food post-pass               // appends a lunch stop; NOT time-budgeted
 ```
 
 ### Context (`Ctx`)
@@ -41,13 +43,16 @@ Accumulates trip-wide state across the day loop:
 | `usedRouteFamilies` | one off-road circuit, and one Conchi visit, per trip |
 | `lastFamilyDay` | family → last day used; enforces FAMILY_MIN_DAY_GAP (boat outings) |
 | `usedGroupIds` | last-resort group dedup; only for items with neither tags nor a cluster |
-| `day` / `nDays` | current day and trip length; day-level eligibility (Conchi never lands on the first or last day) |
+| `dayFamilies` | families placed TODAY; hard cap of one boat outing per day |
+| `day` / `nDays` | current day and trip length; day-level eligibility (Conchi avoids the first and last day on trips longer than 2 days) |
+| `trace?` | opt-in diagnostic callback; undefined in the app |
 | `groupById` | group lookup for per-item candidates |
 
 ### Fill ladder (`pickForSlot`)
 
-Four tiers, best → worst. Every tier is gated by `unused` (trip-wide no-repeat)
-and `notSimilar` (tag-based semantic dedup). `kindOk` runs the whole ladder for
+Four tiers, best → worst. Every tier is gated by `unused` (trip-wide no-repeat),
+`notSimilar` (semantic dedup) and `feasible` (day/evening time budget); when
+`maxPrice === 0` (the free-only arrival day) it returns before tiers 3-4. `kindOk` runs the whole ladder for
 variety-introducing picks first, then relaxes for same-kind picks:
 
 1. Affordable + on-theme
@@ -217,11 +222,11 @@ Present-tense. The dated entries above are records of what was built on the day;
 where they disagree with this section, this section wins.
 
 - **It is live.** Verified 2026-08-02 against the live `viator-cards` payload:
-  all 361 items carry an `experience_cluster_id` (172 clusters). `index.ts:199`
+  all 361 items carry an `experience_cluster_id` (172 clusters). `index.ts`
   sets that field only inside `if (provider)`, so a provider secret is set and
   clustering runs on every ingest. The activation checklist in the 2026-07-08
   entry is done.
-- **Threshold is `EMBEDDING_CLUSTER_THRESHOLD = 0.82`** (`index.ts:181`), not the
+- **Threshold is `EMBEDDING_CLUSTER_THRESHOLD = 0.82`** (in `index.ts`), not the
   0.88 quoted in the July entry. Rationale is in the code comment: two
   Natural-Pool jeep safaris embed at ~0.83, two sunset dinner cruises at ~0.89,
   while genuinely distinct pairs sit at ~0.56–0.60.
@@ -250,7 +255,7 @@ entirely recovers only ~16 slots and 14 products. Ranked by actual cost:
    redundant variants of popular experiences while deleting whole experiences
    whose members were all modestly reviewed. It wiped **96 of 161 distinct
    experiences entirely**. Replaced by `championsByExperience` (below).
-2. **Catalog size** — the real ceiling. **72 of 155** eligible experiences (retail and photo services excluded) have a member
+2. **Catalog size** — the real ceiling. **72 of 155** eligible experiences (retail, photo services and self-drive vehicle hire excluded) have a member
    with 25+ reviews, giving a champion pool of ~81. A 14-day trip needs ~36 picks and no-repeat dedup retires a
    cluster on first use, so once slot, section, budget and geo constraints
    narrow those 72 per persona, long trips still cannot fill. An ingestion

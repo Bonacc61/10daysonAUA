@@ -50,28 +50,6 @@ export async function getProduct(code: string): Promise<ViatorProduct> {
   return await r.json();
 }
 
-export type ViatorLocation = {
-  reference: string;
-  provider?: string;
-  name?: string;
-  address?: { street?: string; city?: string; state?: string; country?: string };
-  center?: { latitude: number; longitude: number };
-};
-
-// Resolve location references (from a product's logistics / itinerary blocks)
-// to names and coordinates. Viator caps this endpoint at 500 refs per call.
-export async function getLocationsBulk(refs: string[]): Promise<ViatorLocation[]> {
-  if (refs.length === 0) return [];
-  const r = await fetch(`${BASE}/locations/bulk`, {
-    method: 'POST',
-    headers: headers(),
-    body: JSON.stringify({ locations: refs.slice(0, 500) }),
-  });
-  if (!r.ok) throw new Error(`Viator locations ${r.status}: ${(await r.text()).slice(0, 160)}`);
-  const body = await r.json();
-  return body?.locations ?? [];
-}
-
 export type ViatorTag = { tagId: number; parentTagIds?: number[]; allNamesByLocale?: Record<string, string> };
 
 // Full Viator tag taxonomy (id → name → parentTagIds). Used to roll a product's

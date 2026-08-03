@@ -21,7 +21,7 @@ feeds the engine is in `docs/matching-engine/geography.md`:
   `experience_cluster_id`). Over-clustering was investigated and ranks third
   behind the pool rule and catalog size — see "What actually limits plan variety"
   in the dev log.
-- **Catalog size is the real variety ceiling.** 72 of 155 eligible experiences (after retail/photo-service exclusion)
+- **Catalog size is the real variety ceiling.** 72 of 155 eligible experiences (after retail, photo-service and vehicle-hire exclusion)
   have a member with 25+ reviews (champion pool ~81), so a 14-day trip (~36
   picks, cluster retired on first use, further narrowed per persona by slot,
   section, budget and geo) still cannot fill. Broader Viator taxonomy ingestion
@@ -32,7 +32,9 @@ feeds the engine is in `docs/matching-engine/geography.md`:
   558 days run past 12h and the worst is 14.6h. Pre-dates the evening budget,
   but filling evenings made it visible (>12h days went 6 -> 52). Budget the post-pass
   against DAY_CAP_MIN, or drop the stop when the day is already full.
-- Same-day cross-slot: two items from one Viator group can land on the same day.
+- Same-day cross-slot (largely addressed): `SAME_DAY_SIMILARITY_THRESHOLD = 0.08`
+  plus a hard one-boat-per-day cap now govern within a day. What remains: two items
+  from one Viator group can still land on the same day when neither rule fires.
   `similarReason` consults `usedGroupIds` only for items with neither tags nor a
   cluster id, so two *tagged* items from one group are caught only if tag Jaccard
   clears the threshold.
