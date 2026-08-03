@@ -364,8 +364,11 @@ function render() {
         card.appendChild(el(`<div class="cite" style="white-space:normal">📍 ${esc(r.meeting).slice(0, 320)}</div>`));
       }
       if (r.proposed) {
-        const approxNote = (r.proposed.role === 'landmark' || r.proposed.approx)
-          ? `<br><span class="co" style="color:#E63946">approximate — ${r.proposed.role === 'landmark' ? 'hotel landmark, actual pier ~150-200m seaward' : 'street or area level, not the exact doorway'}</span>`
+        const approxNote = (r.proposed.role === 'landmark' || r.proposed.approx || r.coarserThanText)
+          ? `<br><span class="co" style="color:#E63946">approximate — ${
+              r.proposed.role === 'landmark' ? 'hotel landmark, actual pier ~150-200m seaward'
+              : r.coarserThanText ? 'the text names a street address this pin does not cover'
+              : 'street or area level, not the exact doorway'}</span>`
           : '<br><span class="co" style="color:#2e7d32">exact — a named pier or beach club</span>';
         const pr = el(`<div class="items"><div class="cand">
           <span class="nm">→ <b>${esc(r.proposed.name)}</b><br>
@@ -377,7 +380,7 @@ function render() {
         const bA = el('<button class="a">Accept departure</button>');
         bA.onclick = () => {
           showPins([{ coord: r.proposed.coord, name: r.proposed.name, label: '⚓' }], true);
-          const isLandmark = r.proposed.role === 'landmark' || !!r.proposed.approx;
+          const isLandmark = r.proposed.role === 'landmark' || !!r.proposed.approx || !!r.coarserThanText;
           setDec([r.id], { action: 'accept', placeId: r.proposed.id, coord: r.proposed.coord,
             name: r.proposed.name, source: 'departure', approx: isLandmark,
             cite: `${isLandmark ? 'APPROX — pinned at the named hotel; the pier sits ~150-200m seaward. ' : ''}`

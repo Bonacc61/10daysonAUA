@@ -50,9 +50,26 @@ export type Place = {
    * than the source supports.
    */
   approx?: true;
+  /**
+   * A town or village — an AREA, not a point you can meet someone at.
+   *
+   * These must never satisfy a meeting-point description that states a street
+   * address. "We start the tour from Schotlandstraat 46, Oranjestad" matched the
+   * word "Oranjestad" and pinned the town centre, 1.5km from the street. The
+   * resolver now refuses an area match when the text names a street.
+   */
+  area?: true;
 };
 
 export const PLACES: Place[] = [
+  // Street named in a meeting-point address. Street level, not the doorway —
+  // Nominatim carries no house numbers for Aruba at all (0 of 7 addresses
+  // resolved), so "Schotlandstraat 46" can only ever land on Schotlandstraat.
+  // Still 1.5km better than the Oranjestad town centre it used to match.
+  { id: 'schotlandstraat', role: 'venue', name: 'Schotlandstraat, Oranjestad', terrain: 'land', approx: true,
+    coord: { lng: -70.0470, lat: 12.5298 },
+    aliases: ['schotlandstraat'],
+    cite: 'OpenStreetMap: Schotlandstraat, Madiki/Bushiri, Oranjestad West (residential road), verified 2026-08-03 (street level — no house-number data exists for Aruba)' },
   // ── Departure points named in Viator meeting-point text ───────────────────
   // Geocoded from the operator's own wording, e.g. "next to Flying Fishbone at
   // the boat ramp", "at the Tanki Flip roundabout", "Zoutmanstraat 1, right
@@ -74,7 +91,7 @@ export const PLACES: Place[] = [
     coord: { lng: -69.972, lat: 12.5322 },
     aliases: ['ayo rock', 'ayo rock formation'],
     cite: 'OpenStreetMap way/43109643 (park), verified 2026-08-03' },
-  { id: 'tanki-flip', role: 'venue', name: 'Tanki Flip', terrain: 'land', approx: true,
+  { id: 'tanki-flip', role: 'venue', area: true, name: 'Tanki Flip', terrain: 'land', approx: true,
     coord: { lng: -70.0306, lat: 12.5461 },
     aliases: ['tanki flip', 'tank flip'],
     cite: 'OpenStreetMap overpass place=village (village), verified 2026-08-03 (street/area level — accurate to the block, not the doorway)' },
@@ -380,7 +397,7 @@ export const PLACES: Place[] = [
     coord: { lng: -69.9777, lat: 12.4706 },
     aliases: ['aruba nautical club'],
     cite: 'OpenStreetMap relation/5263514, verified 2026-08-03' },
-  { id: 'oranjestad', name: 'Oranjestad', terrain: 'land',
+  { id: 'oranjestad', area: true, name: 'Oranjestad', terrain: 'land',
     coord: { lng: -70.0371, lat: 12.5201 },
     aliases: ['oranjestad'],
     cite: 'OpenStreetMap node/50031810, verified 2026-08-03' },
@@ -388,7 +405,7 @@ export const PLACES: Place[] = [
     coord: { lng: -70.049, lat: 12.5748 },
     aliases: ['palm beach'],
     cite: 'OpenStreetMap way/23060047, verified 2026-08-03' },
-  { id: 'paradera', name: 'Paradera', terrain: 'land',
+  { id: 'paradera', area: true, name: 'Paradera', terrain: 'land',
     coord: { lng: -70.005, lat: 12.5354 },
     aliases: ['paradera'],
     cite: 'OpenStreetMap node/4599172433, verified 2026-08-03' },
@@ -400,15 +417,15 @@ export const PLACES: Place[] = [
     coord: { lng: -69.8849, lat: 12.4179 },
     aliases: ['rodgers beach', 'rodger’s beach'],
     cite: 'OpenStreetMap way/305490212, verified 2026-08-03' },
-  { id: 'san-nicolas', name: 'San Nicolas', terrain: 'land',
+  { id: 'san-nicolas', area: true, name: 'San Nicolas', terrain: 'land',
     coord: { lng: -69.909, lat: 12.4364 },
     aliases: ['san nicolas', 'san nicolaas'],
     cite: 'OpenStreetMap node/13111662192, verified 2026-08-03' },
-  { id: 'santa-cruz', name: 'Santa Cruz', terrain: 'land',
+  { id: 'santa-cruz', area: true, name: 'Santa Cruz', terrain: 'land',
     coord: { lng: -69.9804, lat: 12.5114 },
     aliases: ['santa cruz'],
     cite: 'OpenStreetMap node/4182294398, verified 2026-08-03' },
-  { id: 'savaneta', name: 'Savaneta', terrain: 'land',
+  { id: 'savaneta', area: true, name: 'Savaneta', terrain: 'land',
     coord: { lng: -69.9497, lat: 12.4526 },
     aliases: ['savaneta', 'zeerover', 'zeerovers'],
     cite: 'OpenStreetMap node/4258604522, verified 2026-08-03' },
@@ -420,7 +437,7 @@ export const PLACES: Place[] = [
     coord: { lng: -70.0296, lat: 12.508 },
     aliases: ['surfside'],
     cite: 'OpenStreetMap way/305490815, verified 2026-08-03' },
-  { id: 'tanki-leendert', name: 'Tanki Leendert', terrain: 'land',
+  { id: 'tanki-leendert', area: true, name: 'Tanki Leendert', terrain: 'land',
     coord: { lng: -70.0196, lat: 12.542 },
     aliases: ['tanki leendert'],
     cite: 'OpenStreetMap node/4599172432, verified 2026-08-03' },

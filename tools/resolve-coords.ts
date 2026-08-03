@@ -108,6 +108,27 @@ function matchPlace(text: string): Match {
  * WHERE the pier is — "Pelican Pier is located between the Holiday Inn Hotel and
  * the Playa Linda Beach Resort" is one departure point, not three.
  */
+/**
+ * Street addresses stated in meeting-point text: "Schotlandstraat 46",
+ * "Matividiri 60", "Bucutiweg #34", "Bona Vista 36".
+ *
+ * Deliberately narrow. Numbers in prose ("30 minutes prior", "Departure Time 6")
+ * are not addresses, so the word before the number must look like a place name
+ * and must not be a common instruction word.
+ */
+const ADDR_RE = /\b([A-ZÀ-Ý][\wÀ-ÿ'’-]*(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]*)?)\s*#?\s*(\d{1,4})\b/g;
+const ADDR_STOP = /^(check|please|arrive|ask|look|meet|call|we|our|the|for|at|in|on|is|are|it|you|your|tour|time|minutes?|hours?|am|pm|route|rte|max|group|adult|child|departure|hyatt|holiday|playa|marriott|riu|hilton|ritz|divi|barcelo)$/i;
+
+function streetAddresses(text: string): string[] {
+  const found: string[] = [];
+  for (const m of text.matchAll(ADDR_RE)) {
+    const name = m[1].trim();
+    if (ADDR_STOP.test(name.split(/\s+/)[0])) continue;
+    found.push(name);
+  }
+  return [...new Set(found)];
+}
+
 function matchMeeting(text: string): Match {
   const t = norm(text);
   const hit = (roles: Array<Place['role']>) => {
@@ -126,8 +147,18 @@ function matchMeeting(text: string): Match {
     if (distinct.length > 1) return { kind: 'ambiguous' as const, places: distinct };
     return { kind: 'hit' as const, place: specific[0].place, alias: specific[0].alias };
   };
-  // venues first; only fall back to hotel landmarks when no venue is named
-  return hit(['venue']) ?? hit(['landmark']) ?? hit([undefined]);
+  const result = hit(['venue']) ?? hit(['landmark']) ?? hit([undefined]);
+
+  // A town is an area, not a meeting point. If the text states a street address
+  // and the only thing that matched is a town, refuse: "Schotlandstraat 46,
+  // Oranjestad" pinning the Oranjestad town centre is a 1.5km error wearing a
+  // citation. Better to leave it for the reviewer's dropdown.
+  if (result?.kind === 'hit' && result.place.area) {
+    const streets = streetAddresses(text);
+    const matchesStreet = streets.some((st) => norm(result.place.name).includes(norm(st)));
+    if (streets.length && !matchesStreet) return null;
+  }
+  return result;
 }
 
 async function main() {
@@ -155,7 +186,7 @@ async function main() {
   const SAIL_RE = /\b(sail|sailing|cruise|catamaran|yacht|schooner|boat charter)\b/i;
   const ROVING_RE = /\b(island tour|utv|atv|jeep|off[- ]road|scooter|harley|buggy|horseback|e-?bike|surron|sightseeing|countryside|trikes?)\b/i;
 
-  type Row = { id: string; title: string; place?: Place; alias?: string; via?: string; cands?: Place[]; meeting?: string };
+  type Row = { id: string; title: string; place?: Place; alias?: string; via?: string; cands?: Place[]; meeting?: string; coarserThanText?: boolean };
   const accept: Row[] = [], check: Row[] = [], pick: Row[] = [], departure: Row[] = [], leave: Row[] = [];
   const registryLine = (id: string, p: Place, title: string) =>
     `  '${id}': { coord: { lng: ${p.coord.lng}, lat: ${p.coord.lat} }, `
@@ -177,8 +208,16 @@ async function main() {
       const mt = meetingText(item.id);
       const mm = mt ? matchMeeting(mt) : null;
       if (mm && mm.kind === 'hit') {
+        // The text names a street address the matched place does not cover, e.g.
+        // "Noord 23, Palm Beach Aruba" landing on the beach. Not wrong, but
+        // coarser than what the operator wrote — say so rather than imply the
+        // pin is the doorway.
+        const streets = streetAddresses(mt);
+        const coarserThanText = streets.length > 0
+          && !streets.some((st) => norm(mm.place.name).includes(norm(st)));
         (SAIL_RE.test(title) && !ROVING_RE.test(title) ? departure : leave).push({
           ...row, place: mm.place, alias: mm.alias, via: 'meeting point', meeting: mt,
+          coarserThanText,
         });
       } else {
         (SAIL_RE.test(title) && !ROVING_RE.test(title) ? departure : leave).push({ ...row, meeting: mt || undefined });
@@ -260,9 +299,11 @@ async function main() {
     groupB: check.map((r) => ({ id: r.id, title: r.title, alias: r.alias, place: slim(r.place!) })),
     groupC: pick.map((r) => ({ id: r.id, title: r.title, candidates: r.cands!.map(slim) })),
     groupD: departure.map((r) => ({ id: r.id, title: r.title, meeting: r.meeting ?? null,
-      proposed: r.place ? slim(r.place) : null, alias: r.alias ?? null })),
+      proposed: r.place ? slim(r.place) : null, alias: r.alias ?? null,
+      coarserThanText: !!r.coarserThanText })),
     groupE: leave.map((r) => ({ id: r.id, title: r.title, meeting: r.meeting ?? null,
-      proposed: r.place ? slim(r.place) : null, alias: r.alias ?? null })),
+      proposed: r.place ? slim(r.place) : null, alias: r.alias ?? null,
+      coarserThanText: !!r.coarserThanText })),
     places: PLACES.map(slim),
   }, null, 1));
 
