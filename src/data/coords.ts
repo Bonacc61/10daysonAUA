@@ -23,13 +23,9 @@ export const ACTIVITY_COORDS: Record<string, Coord> = {
   'mangel-halto':                 { lng: -69.9695, lat: 12.4649 },  // Wikipedia Mangel Halto
   'rodgers-beach':                { lng: -69.8841, lat: 12.4172 },  // Wikipedia Beaches of Aruba
   'boca-grandi':                  { lng: -69.8739, lat: 12.4402 },  // Wikipedia Beaches of Aruba
-  // North-coast beaches. Unlike the entries above these are interpolated from
-  // their verified neighbours on this same strip rather than read off a source,
-  // so treat them as ±150 m and re-pin them with tools/resolve-coords before
-  // anyone navigates by them.
-  'arashi-beach':                 { lng: -70.0553, lat: 12.6083 },  // between malmok (12.5980) and the lighthouse (12.6138)
-  'boca-catalina-beach':          { lng: -70.0515, lat: 12.6046 },  // same cove as boca-catalina-snorkel, reusing its verified point
-  'palm-beach':                   { lng: -70.0420, lat: 12.5770 },  // strip centre, between Hadicurari (12.5865) and Pika's Corner (12.5720)
+  'arashi-beach':                 { lng: -70.0536, lat: 12.6099 },  // OpenStreetMap way/461766965, verified 2026-08-03
+  'boca-catalina-beach':          { lng: -70.0519, lat: 12.6049 },  // OpenStreetMap way/690840582, verified 2026-08-03
+  'palm-beach':                   { lng: -70.0490, lat: 12.5748 },  // OpenStreetMap way/23060047, verified 2026-08-03
   // Curated lunch spots (kept out of the catalog) — coordinates so their pins +
   // cards render on the Map, whether added via the "Suggest lunch spot" button or
   // the en-route auto-suggestion. Town-level approximations.
