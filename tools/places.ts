@@ -47,6 +47,22 @@ export type Place = {
 };
 
 export const PLACES: Place[] = [
+  // Piet's Pier — the pier behind the Hyatt Regency. OSM has the pier geometry
+  // but no name on it; the identification is the product owner's local knowledge
+  // (2026-08-03). It sits 163m due west of the hotel, at the same latitude,
+  // which is exactly what "our pier located behind the Hyatt Regency" describes.
+  //
+  // NOT Pelican Pier: Viator's own text puts that one "between the Holiday Inn
+  // and the Playa Linda" (lat 12.5744, and OSM agrees), which is 293m north of
+  // the Hyatt with the Playa Linda in between. Two different piers.
+  //
+  // The description phrases are aliases on purpose. They are not names, but on
+  // this stretch of Palm Beach "behind the Hyatt" identifies exactly one pier,
+  // and it is what the operators actually write. Every match is still reviewed.
+  { id: 'piets-pier', role: 'venue', name: "Piet's Pier", terrain: 'land',
+    coord: { lng: -70.0471, lat: 12.5717 },
+    aliases: ["piet's pier", 'piets pier', 'pier behind the hyatt', 'behind the hyatt regency', 'behind the hyatt'],
+    cite: "OpenStreetMap way/613967713 (pier, unnamed, 163m west of the Hyatt Regency); identified as Piet's Pier by the product owner, 2026-08-03" },
   // ── Hotel landmarks (role: 'landmark') ────────────────────────────────────
   // Viator meeting-point descriptions locate piers by the hotel beside them:
   // "our pier located behind the Hyatt Regency", "Pelican Pier is located
