@@ -339,5 +339,788 @@
   "name": "Conchi (Natural Pool)",
   "cite": "Wikipedia: Natural Pool (Aruba); matches the verified curated pin",
   "source": "known-place"
+ },
+ "37387P4": {
+  "action": "accept",
+  "placeId": "moomba-beach",
+  "coord": {
+   "lng": -70.0447,
+   "lat": 12.5776
+  },
+  "name": "MooMba Beach",
+  "cite": "OpenStreetMap node/3809023231 (MooMba Beach bar). Jolly Pirates departure point confirmed by the product owner, 2026-08-03",
+  "source": "known-place"
+ },
+ "37387P3": {
+  "action": "accept",
+  "placeId": "moomba-beach",
+  "coord": {
+   "lng": -70.0447,
+   "lat": 12.5776
+  },
+  "name": "MooMba Beach",
+  "cite": "OpenStreetMap node/3809023231 (MooMba Beach bar). Jolly Pirates departure point confirmed by the product owner, 2026-08-03",
+  "source": "known-place"
+ },
+ "37387P2": {
+  "action": "accept",
+  "placeId": "moomba-beach",
+  "coord": {
+   "lng": -70.0447,
+   "lat": 12.5776
+  },
+  "name": "MooMba Beach",
+  "cite": "OpenStreetMap node/3809023231 (MooMba Beach bar). Jolly Pirates departure point confirmed by the product owner, 2026-08-03",
+  "source": "known-place"
+ },
+ "5566924P9": {
+  "action": "accept",
+  "placeId": "flamingo-beach",
+  "coord": {
+   "lng": -70.0298,
+   "lat": 12.501
+  },
+  "name": "Flamingo Beach, Renaissance Island",
+  "cite": "OpenStreetMap way/38424483, verified 2026-08-03",
+  "source": "known-place"
+ },
+ "62666P1": {
+  "action": "accept",
+  "placeId": "oranjestad",
+  "coord": {
+   "lng": -70.0371,
+   "lat": 12.5201
+  },
+  "name": "Oranjestad",
+  "cite": "OpenStreetMap node/50031810, verified 2026-08-03",
+  "source": "known-place"
+ },
+ "117113P1": {
+  "action": "accept",
+  "placeId": "san-nicolas",
+  "coord": {
+   "lng": -69.909,
+   "lat": 12.4364
+  },
+  "name": "San Nicolas",
+  "cite": "OpenStreetMap node/13111662192, verified 2026-08-03",
+  "source": "known-place"
+ },
+ "6687P4": {
+  "action": "accept",
+  "placeId": "alto-vista",
+  "coord": {
+   "lng": -70.0109,
+   "lat": 12.576
+  },
+  "name": "Alto Vista Chapel",
+  "cite": "OpenStreetMap node/540115823, verified 2026-08-03",
+  "source": "known-place"
+ },
+ "200215P2": {
+  "action": "accept",
+  "placeId": "bushiribana",
+  "coord": {
+   "lng": -69.9766,
+   "lat": 12.5537
+  },
+  "name": "Bushiribana Gold Mill Ruins",
+  "cite": "OpenStreetMap way/79210010, verified 2026-08-03",
+  "source": "known-place"
+ },
+ "2785SUNSET": {
+  "action": "accept",
+  "placeId": "palm-beach",
+  "coord": {
+   "lng": -70.049,
+   "lat": 12.5748
+  },
+  "name": "Palm Beach",
+  "cite": "OpenStreetMap way/23060047, verified 2026-08-03",
+  "source": "known-place"
+ },
+ "7470P2": {
+  "action": "accept",
+  "placeId": "bushiribana",
+  "coord": {
+   "lng": -69.9766,
+   "lat": 12.5537
+  },
+  "name": "Bushiribana Gold Mill Ruins",
+  "cite": "OpenStreetMap way/79210010, verified 2026-08-03",
+  "source": "known-place"
+ },
+ "19808P11": {
+  "action": "accept",
+  "placeId": "arikok",
+  "coord": {
+   "lng": -69.9485,
+   "lat": 12.4997
+  },
+  "name": "Arikok National Park",
+  "cite": "OpenStreetMap node/6586531285, verified 2026-08-03",
+  "source": "known-place"
+ },
+ "5585429P2": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "baby-beach",
+    "coord": {
+     "lng": -69.8793,
+     "lat": 12.4137
+    },
+    "name": "Baby Beach",
+    "cite": "OpenStreetMap node/10308886317, verified 2026-08-03"
+   },
+   {
+    "placeId": "arikok",
+    "coord": {
+     "lng": -69.9485,
+     "lat": 12.4997
+    },
+    "name": "Arikok National Park",
+    "cite": "OpenStreetMap node/6586531285, verified 2026-08-03"
+   }
+  ],
+  "placeId": "baby-beach",
+  "coord": {
+   "lng": -69.8793,
+   "lat": 12.4137
+  },
+  "name": "Baby Beach",
+  "cite": "OpenStreetMap node/10308886317, verified 2026-08-03"
+ },
+ "441143P5": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "natural-pool",
+    "coord": {
+     "lng": -69.9287,
+     "lat": 12.5246
+    },
+    "name": "Conchi (Natural Pool)",
+    "cite": "Wikipedia: Natural Pool (Aruba); matches the verified curated pin"
+   },
+   {
+    "placeId": "baby-beach",
+    "coord": {
+     "lng": -69.8793,
+     "lat": 12.4137
+    },
+    "name": "Baby Beach",
+    "cite": "OpenStreetMap node/10308886317, verified 2026-08-03"
+   }
+  ],
+  "placeId": "natural-pool",
+  "coord": {
+   "lng": -69.9287,
+   "lat": 12.5246
+  },
+  "name": "Conchi (Natural Pool)",
+  "cite": "Wikipedia: Natural Pool (Aruba); matches the verified curated pin"
+ },
+ "324189P3": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "san-nicolas",
+    "coord": {
+     "lng": -69.909,
+     "lat": 12.4364
+    },
+    "name": "San Nicolas",
+    "cite": "OpenStreetMap node/13111662192, verified 2026-08-03"
+   },
+   {
+    "placeId": "baby-beach",
+    "coord": {
+     "lng": -69.8793,
+     "lat": 12.4137
+    },
+    "name": "Baby Beach",
+    "cite": "OpenStreetMap node/10308886317, verified 2026-08-03"
+   }
+  ],
+  "placeId": "san-nicolas",
+  "coord": {
+   "lng": -69.909,
+   "lat": 12.4364
+  },
+  "name": "San Nicolas",
+  "cite": "OpenStreetMap node/13111662192, verified 2026-08-03"
+ },
+ "358826P1": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "natural-pool",
+    "coord": {
+     "lng": -69.9287,
+     "lat": 12.5246
+    },
+    "name": "Conchi (Natural Pool)",
+    "cite": "Wikipedia: Natural Pool (Aruba); matches the verified curated pin"
+   },
+   {
+    "placeId": "baby-beach",
+    "coord": {
+     "lng": -69.8793,
+     "lat": 12.4137
+    },
+    "name": "Baby Beach",
+    "cite": "OpenStreetMap node/10308886317, verified 2026-08-03"
+   }
+  ],
+  "placeId": "natural-pool",
+  "coord": {
+   "lng": -69.9287,
+   "lat": 12.5246
+  },
+  "name": "Conchi (Natural Pool)",
+  "cite": "Wikipedia: Natural Pool (Aruba); matches the verified curated pin"
+ },
+ "324189P1": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "bushiribana",
+    "coord": {
+     "lng": -69.9766,
+     "lat": 12.5537
+    },
+    "name": "Bushiribana Gold Mill Ruins",
+    "cite": "OpenStreetMap way/79210010, verified 2026-08-03"
+   },
+   {
+    "placeId": "natural-bridge",
+    "coord": {
+     "lng": -69.9581,
+     "lat": 12.5408
+    },
+    "name": "Natural Bridge",
+    "cite": "OpenStreetMap node/540233078, verified 2026-08-03"
+   }
+  ],
+  "placeId": "bushiribana",
+  "coord": {
+   "lng": -69.9766,
+   "lat": 12.5537
+  },
+  "name": "Bushiribana Gold Mill Ruins",
+  "cite": "OpenStreetMap way/79210010, verified 2026-08-03"
+ },
+ "137607P20": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "natural-pool",
+    "coord": {
+     "lng": -69.9287,
+     "lat": 12.5246
+    },
+    "name": "Conchi (Natural Pool)",
+    "cite": "Wikipedia: Natural Pool (Aruba); matches the verified curated pin"
+   },
+   {
+    "placeId": "arikok",
+    "coord": {
+     "lng": -69.9485,
+     "lat": 12.4997
+    },
+    "name": "Arikok National Park",
+    "cite": "OpenStreetMap node/6586531285, verified 2026-08-03"
+   }
+  ],
+  "placeId": "natural-pool",
+  "coord": {
+   "lng": -69.9287,
+   "lat": 12.5246
+  },
+  "name": "Conchi (Natural Pool)",
+  "cite": "Wikipedia: Natural Pool (Aruba); matches the verified curated pin"
+ },
+ "476164P1": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "arashi",
+    "coord": {
+     "lng": -70.0536,
+     "lat": 12.6099
+    },
+    "name": "Arashi Beach",
+    "cite": "OpenStreetMap way/461766965, verified 2026-08-03"
+   },
+   {
+    "placeId": "alto-vista",
+    "coord": {
+     "lng": -70.0109,
+     "lat": 12.576
+    },
+    "name": "Alto Vista Chapel",
+    "cite": "OpenStreetMap node/540115823, verified 2026-08-03"
+   }
+  ],
+  "placeId": "arashi",
+  "coord": {
+   "lng": -70.0536,
+   "lat": 12.6099
+  },
+  "name": "Arashi Beach",
+  "cite": "OpenStreetMap way/461766965, verified 2026-08-03"
+ },
+ "324189P2": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "arikok",
+    "coord": {
+     "lng": -69.9485,
+     "lat": 12.4997
+    },
+    "name": "Arikok National Park",
+    "cite": "OpenStreetMap node/6586531285, verified 2026-08-03"
+   },
+   {
+    "placeId": "baby-beach",
+    "coord": {
+     "lng": -69.8793,
+     "lat": 12.4137
+    },
+    "name": "Baby Beach",
+    "cite": "OpenStreetMap node/10308886317, verified 2026-08-03"
+   }
+  ],
+  "placeId": "arikok",
+  "coord": {
+   "lng": -69.9485,
+   "lat": 12.4997
+  },
+  "name": "Arikok National Park",
+  "cite": "OpenStreetMap node/6586531285, verified 2026-08-03"
+ },
+ "441143P1": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "arikok",
+    "coord": {
+     "lng": -69.9485,
+     "lat": 12.4997
+    },
+    "name": "Arikok National Park",
+    "cite": "OpenStreetMap node/6586531285, verified 2026-08-03"
+   },
+   {
+    "placeId": "natural-pool",
+    "coord": {
+     "lng": -69.9287,
+     "lat": 12.5246
+    },
+    "name": "Conchi (Natural Pool)",
+    "cite": "Wikipedia: Natural Pool (Aruba); matches the verified curated pin"
+   },
+   {
+    "placeId": "baby-beach",
+    "coord": {
+     "lng": -69.8793,
+     "lat": 12.4137
+    },
+    "name": "Baby Beach",
+    "cite": "OpenStreetMap node/10308886317, verified 2026-08-03"
+   }
+  ],
+  "placeId": "arikok",
+  "coord": {
+   "lng": -69.9485,
+   "lat": 12.4997
+  },
+  "name": "Arikok National Park",
+  "cite": "OpenStreetMap node/6586531285, verified 2026-08-03"
+ },
+ "441143P8": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "natural-bridge",
+    "coord": {
+     "lng": -69.9581,
+     "lat": 12.5408
+    },
+    "name": "Natural Bridge",
+    "cite": "OpenStreetMap node/540233078, verified 2026-08-03"
+   },
+   {
+    "placeId": "natural-pool",
+    "coord": {
+     "lng": -69.9287,
+     "lat": 12.5246
+    },
+    "name": "Conchi (Natural Pool)",
+    "cite": "Wikipedia: Natural Pool (Aruba); matches the verified curated pin"
+   }
+  ],
+  "placeId": "natural-bridge",
+  "coord": {
+   "lng": -69.9581,
+   "lat": 12.5408
+  },
+  "name": "Natural Bridge",
+  "cite": "OpenStreetMap node/540233078, verified 2026-08-03"
+ },
+ "14261P1": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "arikok",
+    "coord": {
+     "lng": -69.9485,
+     "lat": 12.4997
+    },
+    "name": "Arikok National Park",
+    "cite": "OpenStreetMap node/6586531285, verified 2026-08-03"
+   },
+   {
+    "placeId": "natural-pool",
+    "coord": {
+     "lng": -69.9287,
+     "lat": 12.5246
+    },
+    "name": "Conchi (Natural Pool)",
+    "cite": "Wikipedia: Natural Pool (Aruba); matches the verified curated pin"
+   }
+  ],
+  "placeId": "arikok",
+  "coord": {
+   "lng": -69.9485,
+   "lat": 12.4997
+  },
+  "name": "Arikok National Park",
+  "cite": "OpenStreetMap node/6586531285, verified 2026-08-03"
+ },
+ "137607P17": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "natural-pool",
+    "coord": {
+     "lng": -69.9287,
+     "lat": 12.5246
+    },
+    "name": "Conchi (Natural Pool)",
+    "cite": "Wikipedia: Natural Pool (Aruba); matches the verified curated pin"
+   },
+   {
+    "placeId": "arikok",
+    "coord": {
+     "lng": -69.9485,
+     "lat": 12.4997
+    },
+    "name": "Arikok National Park",
+    "cite": "OpenStreetMap node/6586531285, verified 2026-08-03"
+   }
+  ],
+  "placeId": "natural-pool",
+  "coord": {
+   "lng": -69.9287,
+   "lat": 12.5246
+  },
+  "name": "Conchi (Natural Pool)",
+  "cite": "Wikipedia: Natural Pool (Aruba); matches the verified curated pin"
+ },
+ "6593P8": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "antilla",
+    "coord": {
+     "lng": -70.0577,
+     "lat": 12.6021
+    },
+    "name": "SS Antilla wreck",
+    "cite": "OpenStreetMap way/337807284, verified 2026-08-03"
+   },
+   {
+    "placeId": "boca-catalina",
+    "coord": {
+     "lng": -70.0519,
+     "lat": 12.6049
+    },
+    "name": "Boca Catalina",
+    "cite": "OpenStreetMap way/690840582, verified 2026-08-03"
+   }
+  ],
+  "placeId": "antilla",
+  "coord": {
+   "lng": -70.0577,
+   "lat": 12.6021
+  },
+  "name": "SS Antilla wreck",
+  "cite": "OpenStreetMap way/337807284, verified 2026-08-03"
+ },
+ "2785MORSNORKEL": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "antilla",
+    "coord": {
+     "lng": -70.0577,
+     "lat": 12.6021
+    },
+    "name": "SS Antilla wreck",
+    "cite": "OpenStreetMap way/337807284, verified 2026-08-03"
+   },
+   {
+    "placeId": "boca-catalina",
+    "coord": {
+     "lng": -70.0519,
+     "lat": 12.6049
+    },
+    "name": "Boca Catalina",
+    "cite": "OpenStreetMap way/690840582, verified 2026-08-03"
+   }
+  ],
+  "placeId": "antilla",
+  "coord": {
+   "lng": -70.0577,
+   "lat": 12.6021
+  },
+  "name": "SS Antilla wreck",
+  "cite": "OpenStreetMap way/337807284, verified 2026-08-03"
+ },
+ "39473P4": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "natural-pool",
+    "coord": {
+     "lng": -69.9287,
+     "lat": 12.5246
+    },
+    "name": "Conchi (Natural Pool)",
+    "cite": "Wikipedia: Natural Pool (Aruba); matches the verified curated pin"
+   },
+   {
+    "placeId": "baby-beach",
+    "coord": {
+     "lng": -69.8793,
+     "lat": 12.4137
+    },
+    "name": "Baby Beach",
+    "cite": "OpenStreetMap node/10308886317, verified 2026-08-03"
+   }
+  ],
+  "placeId": "natural-pool",
+  "coord": {
+   "lng": -69.9287,
+   "lat": 12.5246
+  },
+  "name": "Conchi (Natural Pool)",
+  "cite": "Wikipedia: Natural Pool (Aruba); matches the verified curated pin"
+ },
+ "186518P3": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "mangel-halto",
+    "coord": {
+     "lng": -69.9695,
+     "lat": 12.4643
+    },
+    "name": "Mangel Halto",
+    "cite": "OpenStreetMap way/463354307, verified 2026-08-03"
+   },
+   {
+    "placeId": "baby-beach",
+    "coord": {
+     "lng": -69.8793,
+     "lat": 12.4137
+    },
+    "name": "Baby Beach",
+    "cite": "OpenStreetMap node/10308886317, verified 2026-08-03"
+   }
+  ],
+  "placeId": "mangel-halto",
+  "coord": {
+   "lng": -69.9695,
+   "lat": 12.4643
+  },
+  "name": "Mangel Halto",
+  "cite": "OpenStreetMap way/463354307, verified 2026-08-03"
+ },
+ "2785AFTSNORKEL": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "antilla",
+    "coord": {
+     "lng": -70.0577,
+     "lat": 12.6021
+    },
+    "name": "SS Antilla wreck",
+    "cite": "OpenStreetMap way/337807284, verified 2026-08-03"
+   },
+   {
+    "placeId": "boca-catalina",
+    "coord": {
+     "lng": -70.0519,
+     "lat": 12.6049
+    },
+    "name": "Boca Catalina",
+    "cite": "OpenStreetMap way/690840582, verified 2026-08-03"
+   }
+  ],
+  "placeId": "antilla",
+  "coord": {
+   "lng": -70.0577,
+   "lat": 12.6021
+  },
+  "name": "SS Antilla wreck",
+  "cite": "OpenStreetMap way/337807284, verified 2026-08-03"
+ },
+ "7389P8": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "mangel-halto",
+    "coord": {
+     "lng": -69.9695,
+     "lat": 12.4643
+    },
+    "name": "Mangel Halto",
+    "cite": "OpenStreetMap way/463354307, verified 2026-08-03"
+   },
+   {
+    "placeId": "baby-beach",
+    "coord": {
+     "lng": -69.8793,
+     "lat": 12.4137
+    },
+    "name": "Baby Beach",
+    "cite": "OpenStreetMap node/10308886317, verified 2026-08-03"
+   }
+  ],
+  "placeId": "mangel-halto",
+  "coord": {
+   "lng": -69.9695,
+   "lat": 12.4643
+  },
+  "name": "Mangel Halto",
+  "cite": "OpenStreetMap way/463354307, verified 2026-08-03"
+ },
+ "6841ISLAND": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "natural-pool",
+    "coord": {
+     "lng": -69.9287,
+     "lat": 12.5246
+    },
+    "name": "Conchi (Natural Pool)",
+    "cite": "Wikipedia: Natural Pool (Aruba); matches the verified curated pin"
+   },
+   {
+    "placeId": "baby-beach",
+    "coord": {
+     "lng": -69.8793,
+     "lat": 12.4137
+    },
+    "name": "Baby Beach",
+    "cite": "OpenStreetMap node/10308886317, verified 2026-08-03"
+   }
+  ],
+  "placeId": "natural-pool",
+  "coord": {
+   "lng": -69.9287,
+   "lat": 12.5246
+  },
+  "name": "Conchi (Natural Pool)",
+  "cite": "Wikipedia: Natural Pool (Aruba); matches the verified curated pin"
+ },
+ "19808P9": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "natural-pool",
+    "coord": {
+     "lng": -69.9287,
+     "lat": 12.5246
+    },
+    "name": "Conchi (Natural Pool)",
+    "cite": "Wikipedia: Natural Pool (Aruba); matches the verified curated pin"
+   },
+   {
+    "placeId": "baby-beach",
+    "coord": {
+     "lng": -69.8793,
+     "lat": 12.4137
+    },
+    "name": "Baby Beach",
+    "cite": "OpenStreetMap node/10308886317, verified 2026-08-03"
+   }
+  ],
+  "placeId": "natural-pool",
+  "coord": {
+   "lng": -69.9287,
+   "lat": 12.5246
+  },
+  "name": "Conchi (Natural Pool)",
+  "cite": "Wikipedia: Natural Pool (Aruba); matches the verified curated pin"
+ },
+ "186518P1": {
+  "action": "accept",
+  "placeId": "mangel-halto",
+  "coord": {
+   "lng": -69.9695,
+   "lat": 12.4643
+  },
+  "name": "Mangel Halto",
+  "cite": "OpenStreetMap way/463354307, verified 2026-08-03",
+  "source": "known-place"
+ },
+ "2455HAPPY": {
+  "action": "accept",
+  "placeId": "antilla",
+  "coord": {
+   "lng": -70.0577,
+   "lat": 12.6021
+  },
+  "name": "SS Antilla wreck",
+  "cite": "OpenStreetMap way/337807284, verified 2026-08-03",
+  "source": "known-place"
+ },
+ "119085P1": {
+  "action": "accept",
+  "placeId": "antilla",
+  "coord": {
+   "lng": -70.0577,
+   "lat": 12.6021
+  },
+  "name": "SS Antilla wreck",
+  "cite": "OpenStreetMap way/337807284, verified 2026-08-03",
+  "source": "known-place"
  }
 }
