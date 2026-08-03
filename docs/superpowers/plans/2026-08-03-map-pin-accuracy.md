@@ -197,28 +197,63 @@ Pure predicates with no I/O. The coastline polygon is passed **in** as a paramet
 
 - [ ] **Step 1: Fetch a real Aruba coastline polygon**
 
-Do not hand-write coordinates. Fetch the island boundary from OSM:
+Do not hand-write coordinates.
+
+**Do not use Nominatim.** Its `Aruba` result is the *administrative* boundary,
+which includes territorial waters and spans lng `-70.27..-69.66`, lat
+`12.26..12.82` — far beyond the island. A land/sea test against it calls the
+open sea "land". Use the OSM island relation via Overpass instead:
 
 ```bash
 mkdir -p tools
-curl -s 'https://nominatim.openstreetmap.org/search?country=Aruba&polygon_geojson=1&format=json&limit=1' \
-  -H 'User-Agent: 10daysonaruba-coord-audit/1.0' \
-  | node -e '
-    let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
-      const g=JSON.parse(s)[0].geojson;
-      // Take the largest ring — the main island, not the offshore islets.
-      const rings = g.type==="Polygon" ? g.coordinates : g.coordinates.flat();
-      const main = rings.sort((a,b)=>b.length-a.length)[0];
-      // Thin to ~200 vertices; full resolution is unnecessary for a land/sea test.
-      const step = Math.max(1, Math.floor(main.length/200));
-      const out = main.filter((_,i)=>i%step===0);
-      if (out[0][0]!==out[out.length-1][0] || out[0][1]!==out[out.length-1][1]) out.push(out[0]);
-      console.log(JSON.stringify({ring: out}));
-    });' > tools/aruba-coastline.json
-node -e 'const r=require("./tools/aruba-coastline.json").ring; console.log("vertices:", r.length)'
+cat > /tmp/q.overpass <<'EOF'
+[out:json][timeout:90];
+rel["place"="island"]["name"="Aruba"];
+out geom;
+EOF
+curl -s -X POST --data-binary @/tmp/q.overpass https://overpass-api.de/api/interpreter -o /tmp/aruba-island.json
+node -e '
+const rel = require("/tmp/aruba-island.json").elements[0];
+// Stitch the relation'"'"'s ways into one closed ring.
+const ways = rel.members.filter(m => m.type === "way" && m.geometry).map(m => m.geometry.map(p => [p.lon, p.lat]));
+let ring = ways.shift(), guard = 0;
+while (ways.length && guard++ < 5000) {
+  const tail = ring[ring.length - 1];
+  let i = ways.findIndex(w => w[0][0] === tail[0] && w[0][1] === tail[1]);
+  if (i >= 0) { ring = ring.concat(ways.splice(i,1)[0].slice(1)); continue; }
+  i = ways.findIndex(w => w[w.length-1][0] === tail[0] && w[w.length-1][1] === tail[1]);
+  if (i >= 0) { ring = ring.concat(ways.splice(i,1)[0].reverse().slice(1)); continue; }
+  break;
+}
+const step = Math.max(1, Math.floor(ring.length / 200));
+let out = ring.filter((_, i) => i % step === 0);
+if (out[0][0] !== out[out.length-1][0] || out[0][1] !== out[out.length-1][1]) out.push(out[0]);
+require("fs").writeFileSync("tools/aruba-coastline.json", JSON.stringify({
+  source: "OpenStreetMap relation place=island name=Aruba, via Overpass API",
+  query: "[out:json];rel[\"place\"=\"island\"][\"name\"=\"Aruba\"];out geom;",
+  fetched: new Date().toISOString().slice(0,10),
+  note: "Coastline of the island landmass, NOT the Nominatim country boundary (which includes territorial waters). Thinned for a land/sea sanity check, not for cartography.",
+  ring: out,
+}));
+const lngs = out.map(p=>p[0]), lats = out.map(p=>p[1]);
+console.log("vertices:", out.length);
+console.log("extent lng:", Math.min(...lngs).toFixed(4), "->", Math.max(...lngs).toFixed(4));
+console.log("extent lat:", Math.min(...lats).toFixed(4), "->", Math.max(...lats).toFixed(4));
+'
 ```
 
-Expected: `vertices: ` followed by a number between roughly 50 and 210.
+Expected: ~203 vertices, lng extent about `-70.0638 -> -69.8655`, lat about
+`12.4118 -> 12.6234`. If the extent is much wider you have the territorial-waters
+polygon, not the coastline.
+
+**Note on tolerances, discovered here:** `baby-beach-snorkel`'s verified
+coordinate sits **38 m offshore** in the lagoon, confirmed against the
+full-resolution 8667-vertex ring — it is not a thinning artefact. Verified beach
+and snorkel coordinates routinely sit slightly in the water, and for a snorkel
+activity that is arguably more correct than a point on the sand. So the land/sea
+rule is a *tolerance*, not a binary: `LAND_TOLERANCE_KM = 0.5` for ordinary
+places, `SEA_TOLERANCE_KM = 3` for genuine offshore sites like the SS Antilla
+wreck.
 
 - [ ] **Step 2: Write the failing tests**
 
