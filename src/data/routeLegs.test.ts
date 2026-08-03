@@ -1,0 +1,108 @@
+import { describe, it, expect } from 'vitest';
+import { planLegs, splitLeg } from './routeLegs';
+
+const A = { lng: -70.0579, lat: 12.5492 };   // Eagle Beach
+const B = { lng: -69.9287, lat: 12.5246 };   // Natural Pool
+const C = { lng: -69.8808, lat: 12.4138 };   // Baby Beach
+
+const at = (coord: typeof A | null) => ({ coord });
+
+describe('planLegs — waypoints', () => {
+  it('keeps every located stop in day order', () => {
+    const { waypoints } = planLegs([at(A), at(B), at(C)]);
+    expect(waypoints.map(w => w.idx)).toEqual([0, 1, 2]);
+  });
+
+  it('drops consecutive duplicate coordinates, which would draw a zero-length leg', () => {
+    const { waypoints, legOwners } = planLegs([at(A), at(A), at(B)]);
+    expect(waypoints.map(w => w.idx)).toEqual([0, 2]);
+    expect(legOwners).toHaveLength(1);
+  });
+
+  it('keeps a repeat coordinate that is not consecutive', () => {
+    // Returning to the same beach later in the day is a real leg out and back.
+    const { waypoints } = planLegs([at(A), at(B), at(A)]);
+    expect(waypoints.map(w => w.idx)).toEqual([0, 1, 2]);
+  });
+
+  it('produces one fewer leg than waypoints', () => {
+    const { waypoints, legOwners } = planLegs([at(A), at(B), at(C)]);
+    expect(legOwners).toHaveLength(waypoints.length - 1);
+  });
+
+  it('produces no legs for a day with a single stop', () => {
+    expect(planLegs([at(A)]).legOwners).toEqual([]);
+  });
+
+  it('produces nothing for a day with no located stops', () => {
+    const { waypoints, legOwners } = planLegs([at(null), at(null)]);
+    expect(waypoints).toEqual([]);
+    expect(legOwners).toEqual([]);
+  });
+});
+
+describe('planLegs — who owns each leg', () => {
+  it('gives a leg to the activity it arrives at', () => {
+    const { legOwners } = planLegs([at(A), at(B), at(C)]);
+    expect(legOwners).toEqual([[1], [2]]);
+  });
+
+  it('hands the spanning leg to a coordless activity between two stops', () => {
+    // index 1 has no coordinate: it owns the A→C leg, so it stays visible.
+    const { waypoints, legOwners } = planLegs([at(A), at(null), at(C)]);
+    expect(waypoints.map(w => w.idx)).toEqual([0, 2]);
+    expect(legOwners).toEqual([[1]]);
+  });
+
+  it('shares one leg between several consecutive coordless activities', () => {
+    const { legOwners } = planLegs([at(A), at(null), at(null), at(C)]);
+    expect(legOwners).toEqual([[1, 2]]);
+  });
+
+  it('gives a leading coordless activity no segment — nothing to connect back to', () => {
+    const { waypoints, legOwners } = planLegs([at(null), at(A), at(B)]);
+    expect(waypoints.map(w => w.idx)).toEqual([1, 2]);
+    expect(legOwners).toEqual([[2]]);
+  });
+
+  it('gives a trailing coordless activity no segment', () => {
+    const { legOwners } = planLegs([at(A), at(B), at(null)]);
+    expect(legOwners).toEqual([[1]]);
+  });
+
+  it('never invents an origin for a day that is entirely coordless but for one stop', () => {
+    const { waypoints, legOwners } = planLegs([at(null), at(A), at(null)]);
+    expect(waypoints.map(w => w.idx)).toEqual([1]);
+    expect(legOwners).toEqual([]);
+  });
+});
+
+describe('splitLeg', () => {
+  const line: [number, number][] = Array.from({ length: 11 }, (_, i) => [i, 0]);
+
+  it('returns the line unchanged for a single owner', () => {
+    expect(splitLeg(line, 1)).toEqual([line]);
+  });
+
+  it('splits into one piece per owner', () => {
+    expect(splitLeg(line, 3)).toHaveLength(3);
+  });
+
+  it('makes consecutive pieces share a point, so the drawn route has no gaps', () => {
+    const parts = splitLeg(line, 3);
+    for (let i = 1; i < parts.length; i++) {
+      expect(parts[i][0]).toEqual(parts[i - 1][parts[i - 1].length - 1]);
+    }
+  });
+
+  it('never emits a piece too short to draw', () => {
+    for (const parts of [splitLeg(line, 2), splitLeg(line, 3), splitLeg(line, 5)]) {
+      parts.forEach(p => expect(p.length).toBeGreaterThanOrEqual(2));
+    }
+  });
+
+  it('falls back to the whole line when it is too short to divide', () => {
+    const tiny: [number, number][] = [[0, 0], [1, 1]];
+    expect(splitLeg(tiny, 3)).toEqual([tiny]);
+  });
+});

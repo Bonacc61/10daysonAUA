@@ -4,11 +4,12 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { useCatalog } from '../data/useCatalog';
 import { useAuth } from '../lib/auth';
 import { generatePlan } from '../data/itineraryGenerator';
-import { ACTIVITY_COORDS, GROUP_COORDS, VIATOR_ITEM_COORDS } from '../data/coords';
+import { pinFor, pinPlaces, type Pin } from '../data/itemCoords';
 import { LUNCHSPOTS } from '../data/lunchspots';
 import { viatorLink } from '../data/exploreItems';
 import type { Answers, PageId } from '../App';
 import { dayHues } from '../data/dayHues';
+import { planLegs, splitLeg } from '../data/routeLegs';
 import type { SlotEntry } from '../types';
 import type { Catalog } from '../data/activitySource';
 
@@ -17,7 +18,7 @@ const ARUBA_CENTER = { longitude: -70.0164, latitude: 12.5211, zoom: 11.5 };
 
 
 type Coord = { lng: number; lat: number };
-type DayEntry = { key: string; slot: string; title: string; image: string | null; coord: Coord | null; price: string | null; duration: string | null; url: string | null };
+type DayEntry = { key: string; slot: string; title: string; image: string | null; coord: Coord | null; pin: Pin | null; price: string | null; duration: string | null; url: string | null };
 
 // Local ('activity'-kind) entries are usually catalog activities, but curated
 // lunch spots (added by the "Suggest lunch spot" button or the en-route
@@ -27,9 +28,12 @@ function localActivity(id: string, catalog: Catalog) {
   return catalog.activities.find(a => a.id === id) ?? LUNCHSPOTS.find(l => l.id === id);
 }
 
-function coordFor(entry: SlotEntry): Coord | null {
-  if (entry.kind === 'activity') return ACTIVITY_COORDS[entry.id] ?? null;
-  return VIATOR_ITEM_COORDS[entry.bestSellerId] ?? GROUP_COORDS[entry.groupId] ?? null;
+// Where an activity happens, from the pin registry (src/data/itemCoords.ts).
+// Returns null — never a fallback — for an item with no researched coordinate.
+// Such an activity draws no marker; it owns a stretch of the day's route instead,
+// so it stays visible without the map claiming a point nobody verified.
+function pinForEntry(entry: SlotEntry): Pin | null {
+  return pinFor(entry.kind === 'activity' ? entry.id : entry.bestSellerId) ?? null;
 }
 
 function imageFor(entry: SlotEntry, catalog: Catalog): string | null {
@@ -183,7 +187,8 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
         slot,
         title: titleFor(entry, catalog),
         image: imageFor(entry, catalog),
-        coord: coordFor(entry),
+        coord: pinForEntry(entry)?.coord ?? null,
+        pin: pinForEntry(entry),
         price: priceFor(entry, catalog),
         duration: durationFor(entry, catalog),
         url: urlFor(entry, catalog),
@@ -198,7 +203,9 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   // instead of stacking into a single pin. Coordless entries are excluded here
   // (still listed in the photo strip below) — not silently dropped from the day.
   const locatedEntries = useMemo(() => {
-    const located = dayEntries.filter((e): e is typeof e & { coord: Coord } => !!e.coord);
+    const located = dayEntries
+      .map((e, idx) => ({ ...e, idx }))
+      .filter((e): e is typeof e & { coord: Coord } => !!e.coord);
     const buckets = new Map<string, number>();
     for (const e of located) {
       const k = `${e.coord.lng.toFixed(5)},${e.coord.lat.toFixed(5)}`;
@@ -220,24 +227,40 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
     });
   }, [dayEntries]);
 
-  // Straight-line waypoints for the active day (used as fallback + for Directions API)
+  // Route waypoints come from TRUE coordinates — dayEntries, before the marker
+  // displacement above — with consecutive duplicates dropped. Routing on the
+  // displaced anchors drew a phantom ~175m zigzag between stops that are
+  // actually at the same place.
+  //
+  // `owners` records which day activities each leg belongs to. An activity with
+  // no coordinate owns the leg spanning it, so it reads as "this happens
+  // somewhere along here" rather than vanishing from the map. See
+  // docs/superpowers/specs/2026-08-03-map-pin-accuracy-design.md.
+  const { waypoints, legOwners } = useMemo(() => planLegs(dayEntries), [dayEntries]);
+
   const straightCoords = useMemo((): [number, number][] =>
-    locatedEntries.map(e => [e.coord.lng, e.coord.lat]),
-    [locatedEntries],
+    waypoints.map(w => [w.coord.lng, w.coord.lat]),
+    [waypoints],
   );
 
-  // Road-snapped route from Mapbox Directions API
-  const [roadCoords, setRoadCoords] = useState<[number, number][] | null>(null);
+  // Road-snapped route, one geometry PER LEG. steps=true is what makes per-leg
+  // geometry available: the top-level route geometry is a single polyline, which
+  // cannot be split per activity. Falls back to straight legs on any failure.
+  const [roadLegs, setRoadLegs] = useState<[number, number][][] | null>(null);
   useEffect(() => {
-    if (!TOKEN || straightCoords.length < 2) { setRoadCoords(null); return; }
+    if (!TOKEN || straightCoords.length < 2) { setRoadLegs(null); return; }
     let alive = true;
     const coordStr = straightCoords.map(([lng, lat]) => `${lng},${lat}`).join(';');
-    fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coordStr}?geometries=geojson&overview=full&access_token=${TOKEN}`)
+    fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coordStr}?geometries=geojson&overview=full&steps=true&access_token=${TOKEN}`)
       .then(r => r.json())
-      .then((data: { routes?: Array<{ geometry: { coordinates: [number, number][] } }> }) => {
-        if (alive) setRoadCoords(data.routes?.[0]?.geometry?.coordinates ?? null);
+      .then((data: { routes?: Array<{ legs?: Array<{ steps?: Array<{ geometry?: { coordinates: [number, number][] } }> }> }> }) => {
+        if (!alive) return;
+        const legs = data.routes?.[0]?.legs;
+        if (!legs?.length) { setRoadLegs(null); return; }
+        setRoadLegs(legs.map(leg =>
+          (leg.steps ?? []).flatMap(st => st.geometry?.coordinates ?? [])));
       })
-      .catch(() => { /* fall back to straight */ });
+      .catch(() => { /* fall back to straight legs */ });
     return () => { alive = false; };
   }, [straightCoords, TOKEN]);
 
@@ -276,13 +299,29 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
     );
   }
 
-  const routeCoords = roadCoords ?? straightCoords;
   const dayColor = planDay?.color ?? '#E63946';
-  // One shade per stop, darkest first, so a day's markers are individually
-  // legible and their order reads off the map — while still being obviously the
-  // same day. See src/data/dayHues.ts.
-  const stopHues = dayHues(dayColor, locatedEntries.length);
-  const hueAt = (i: number) => stopHues[i] ?? dayColor;
+  // One shade per ACTIVITY, darkest first, so a day's markers and route segments
+  // are individually legible and the day reads in order — while still being
+  // obviously one day. Indexed by position in dayEntries rather than by located
+  // stop, so an activity with no coordinate still owns a hue and its stretch of
+  // route is distinguishable. See src/data/dayHues.ts.
+  const entryHues = dayHues(dayColor, dayEntries.length);
+  const hueFor = (idx: number) => entryHues[idx] ?? dayColor;
+
+  // One LineString per leg, coloured by the activity that owns it. A leg shared
+  // by several coordless activities is split into equal parts so each keeps its
+  // own hue instead of overplotting.
+  const routeFeatures = legOwners.flatMap((owners, legIdx) => {
+    const line = roadLegs?.[legIdx]?.length
+      ? roadLegs[legIdx]
+      : [straightCoords[legIdx], straightCoords[legIdx + 1]].filter(Boolean) as [number, number][];
+    if (line.length < 2) return [];
+    return splitLeg(line, owners.length).map((slice, i) => ({
+      type: 'Feature' as const,
+      properties: { color: hueFor(owners[i] ?? owners[0] ?? legIdx) },
+      geometry: { type: 'LineString' as const, coordinates: slice },
+    }));
+  });
 
   return (
     <div style={{ height: 'calc(100vh - 70px)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -306,28 +345,17 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
         >
           <NavigationControl position="top-right" />
 
-          {/* Road-snapped route for the active day */}
-          {planDay && routeCoords.length >= 2 && (
-            <Source type="geojson" lineMetrics data={{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: routeCoords } }}>
-              {/* line-gradient needs lineMetrics on the source. The stops run
-                  first-darkest to last-lightest, so the route shades the same way
-                  and the day reads in order rather than as one flat colour. */}
+          {/* Road-snapped route for the active day, one segment per activity.
+              Discrete segments rather than a single gradient line, so a stretch
+              can belong to a named activity — including one with no coordinate,
+              which owns the leg spanning it and would otherwise be invisible. */}
+          {planDay && routeFeatures.length > 0 && (
+            <Source type="geojson" data={{ type: 'FeatureCollection', features: routeFeatures }}>
               <Layer
                 id="route-line"
                 type="line"
-                paint={stopHues.length >= 2 ? {
-                  'line-width': 4,
-                  'line-opacity': 0.9,
-                  'line-gradient': [
-                    'interpolate', ['linear'], ['line-progress'],
-                    ...stopHues.flatMap((hex, i) => [i / (stopHues.length - 1), hex]),
-                  ],
-                } : {
-                  // An interpolate needs two ascending stops; with 0 or 1 located
-                  // entries there is no progression to show, so use the flat day
-                  // colour rather than emit a malformed expression.
-                  'line-width': 4, 'line-opacity': 0.9, 'line-color': dayColor,
-                }}
+                layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+                paint={{ 'line-width': 4, 'line-opacity': 0.9, 'line-color': ['get', 'color'] }}
               />
             </Source>
           )}
@@ -337,7 +365,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
           {planDay && locatedEntries.map((e, i) => (
             <Marker key={e.key} longitude={e.coord.lng} latitude={e.coord.lat} anchor="bottom"
               onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url }); }}>
-              <PhotoPin image={e.image} color={hueAt(i)} label={String(e.num)} />
+              <PhotoPin image={e.image} color={hueFor(e.idx)} label={String(e.num)} />
             </Marker>
           ))}
 
