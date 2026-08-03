@@ -563,6 +563,38 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
  */
 function PickupBlock({ pin }: { pin: Pin | null }) {
   const pickup = pin?.pickup;
+
+  // No separate pickup record, but the pin itself IS the departure point — which
+  // is the case for every sail and cruise, where the boat leaves from where the
+  // pin sits. Name it, because "Pelican Pier" is the one thing a traveller
+  // actually needs and the title never says it.
+  if (!pickup && pin?.source === 'departure' && pin.place) {
+    return (
+      <div style={{ margin: '7px -10px 0', padding: '7px 10px 8px', background: '#f4f0e4', borderTop: '1px solid #e3ddcc' }}>
+        <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, color: '#8c8c8c', marginBottom: 3 }}>Departs from</div>
+        <div style={{ fontSize: 11.5, fontWeight: 600, color: '#3a352e', lineHeight: 1.35 }}>{pin.place}</div>
+        {pin.approx && (
+          <div style={{ fontSize: 10, color: '#8c8c8c', marginTop: 3, fontStyle: 'italic' }}>
+            Approximate — check your booking for the exact spot
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // A destination pin whose place is worth naming — "Conchi (Natural Pool)"
+  // tells the traveller more than the tour title usually does.
+  if (!pickup && pin?.place && pin.source !== 'curated') {
+    return (
+      <div style={{ margin: '7px -10px 0', padding: '7px 10px 8px', background: '#f4f0e4', borderTop: '1px solid #e3ddcc' }}>
+        <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, color: '#8c8c8c', marginBottom: 3 }}>Where</div>
+        <div style={{ fontSize: 11.5, fontWeight: 600, color: '#3a352e', lineHeight: 1.35 }}>
+          {pin.place}{(pin.stops?.length ?? 0) > 0 ? ` + ${pin.stops!.length} more stop${pin.stops!.length > 1 ? 's' : ''}` : ''}
+        </div>
+      </div>
+    );
+  }
+
   if (!pickup) return null;
   const wrap = { margin: '7px -10px 0', padding: '7px 10px 8px', background: '#f4f0e4', borderTop: '1px solid #e3ddcc' };
   const head = { fontSize: 9, fontWeight: 700 as const, textTransform: 'uppercase' as const, letterSpacing: 0.6, color: '#8c8c8c', marginBottom: 3 };
