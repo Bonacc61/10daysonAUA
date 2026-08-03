@@ -1,4 +1,53 @@
 {
+ "245504": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "alto-vista",
+    "coord": {
+     "lng": -70.0109,
+     "lat": 12.576
+    },
+    "name": "Alto Vista Chapel",
+    "cite": "OpenStreetMap node/540115823, verified 2026-08-03"
+   },
+   {
+    "placeId": "baby-beach",
+    "coord": {
+     "lng": -69.8793,
+     "lat": 12.4137
+    },
+    "name": "Baby Beach",
+    "cite": "OpenStreetMap node/10308886317, verified 2026-08-03"
+   },
+   {
+    "placeId": "california-lighthouse",
+    "coord": {
+     "lng": -70.0513,
+     "lat": 12.6138
+    },
+    "name": "California Lighthouse",
+    "cite": "OpenStreetMap node/540121391, verified 2026-08-03"
+   },
+   {
+    "placeId": "natural-bridge",
+    "coord": {
+     "lng": -69.9581,
+     "lat": 12.5408
+    },
+    "name": "Natural Bridge",
+    "cite": "OpenStreetMap node/540233078, verified 2026-08-03"
+   }
+  ],
+  "placeId": "alto-vista",
+  "coord": {
+   "lng": -70.0109,
+   "lat": 12.576
+  },
+  "name": "Alto Vista Chapel",
+  "cite": "OpenStreetMap node/540115823, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
  "245508": {
   "action": "accept",
   "placeId": "de-palm-pier",
@@ -1405,5 +1454,1041 @@
   "source": "departure",
   "approx": false,
   "cite": "OpenStreetMap way/463354307, verified 2026-08-03 — meeting point per Viator: \"We wear bright colored long sleeved shirts with the Underdog Divers logo on it. So you can’t miss us. It’s easy to find,\""
+ },
+ "8936P1": {
+  "action": "reject",
+  "reason": "no location stated anywhere in the product data"
+ },
+ "137607P23": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "arashi",
+    "coord": {
+     "lng": -70.0536,
+     "lat": 12.6099
+    },
+    "name": "Arashi Beach",
+    "cite": "OpenStreetMap way/461766965, verified 2026-08-03"
+   },
+   {
+    "placeId": "mangel-halto",
+    "coord": {
+     "lng": -69.9695,
+     "lat": 12.4643
+    },
+    "name": "Mangel Halto",
+    "cite": "OpenStreetMap way/463354307, verified 2026-08-03"
+   }
+  ],
+  "placeId": "arashi",
+  "coord": {
+   "lng": -70.0536,
+   "lat": 12.6099
+  },
+  "name": "Arashi Beach",
+  "cite": "OpenStreetMap way/461766965, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
+ "364486P1": {
+  "action": "reject",
+  "reason": "no location stated anywhere in the product data"
+ },
+ "292552P1": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "eagle-beach",
+    "coord": {
+     "lng": -70.0594,
+     "lat": 12.5465
+    },
+    "name": "Eagle Beach",
+    "cite": "OpenStreetMap way/25590792, verified 2026-08-03"
+   },
+   {
+    "placeId": "palm-beach",
+    "coord": {
+     "lng": -70.049,
+     "lat": 12.5748
+    },
+    "name": "Palm Beach",
+    "cite": "OpenStreetMap way/23060047, verified 2026-08-03"
+   }
+  ],
+  "placeId": "eagle-beach",
+  "coord": {
+   "lng": -70.0594,
+   "lat": 12.5465
+  },
+  "name": "Eagle Beach",
+  "cite": "OpenStreetMap way/25590792, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
+ "6180PUB": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "62666P3": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "yemanja",
+  "coord": {
+   "lng": -70.0366,
+   "lat": 12.5189
+  },
+  "name": "Yemanja Woodfired Grill, Oranjestad",
+  "approx": true,
+  "cite": "APPROX — the meeting text names a street address this pin does not cover. OpenStreetMap node/4487848715, verified 2026-08-03 — meeting point per Viator: \"The tour starts at Zoutmanstraat 1, right behind the Renaissance Hotel Marina Tower. You’ll find a small roundabout near\""
+ },
+ "459169P1": {
+  "action": "reject",
+  "reason": "no location stated anywhere in the product data"
+ },
+ "459169P2": {
+  "action": "reject",
+  "reason": "no location stated anywhere in the product data"
+ },
+ "106422P2": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "mangel-halto",
+    "coord": {
+     "lng": -69.9695,
+     "lat": 12.4643
+    },
+    "name": "Mangel Halto",
+    "cite": "OpenStreetMap way/463354307, verified 2026-08-03"
+   }
+  ],
+  "placeId": "mangel-halto",
+  "coord": {
+   "lng": -69.9695,
+   "lat": 12.4643
+  },
+  "name": "Mangel Halto",
+  "cite": "OpenStreetMap way/463354307, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
+ "5585429P11": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "139296P1": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "6841P12": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "5595542P1": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "antilla",
+    "coord": {
+     "lng": -70.0577,
+     "lat": 12.6021
+    },
+    "name": "SS Antilla wreck",
+    "cite": "OpenStreetMap way/337807284, verified 2026-08-03"
+   },
+   {
+    "placeId": "boca-catalina",
+    "coord": {
+     "lng": -70.0519,
+     "lat": 12.6049
+    },
+    "name": "Boca Catalina",
+    "cite": "OpenStreetMap way/690840582, verified 2026-08-03"
+   },
+   {
+    "placeId": "tres-trapi",
+    "coord": {
+     "lng": -70.0513,
+     "lat": 12.6024
+    },
+    "name": "Tres Trapi",
+    "cite": "OpenStreetMap node/4491605028, verified 2026-08-03"
+   }
+  ],
+  "placeId": "antilla",
+  "coord": {
+   "lng": -70.0577,
+   "lat": 12.6021
+  },
+  "name": "SS Antilla wreck",
+  "cite": "OpenStreetMap way/337807284, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
+ "6687P13": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "6687P10": {
+  "action": "reject",
+  "reason": "no location stated anywhere in the product data"
+ },
+ "137607P19": {
+  "action": "reject",
+  "reason": "meeting point is only disclosed after booking"
+ },
+ "6687P12": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "33158P1": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "paradera",
+  "coord": {
+   "lng": -70.005,
+   "lat": 12.5354
+  },
+  "name": "Paradera",
+  "cite": "OpenStreetMap node/4599172433, verified 2026-08-03 — meeting point per Viator: \"You will see a sign of \"Aruba Go Cherry\" about 300 meters from Burger King Paradera. You can also find our exact locatio\""
+ },
+ "377394P9": {
+  "action": "reject",
+  "reason": "no location stated anywhere in the product data"
+ },
+ "377394P8": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "schotlandstraat",
+  "coord": {
+   "lng": -70.047,
+   "lat": 12.5298
+  },
+  "name": "Schotlandstraat, Oranjestad",
+  "approx": true,
+  "cite": "APPROX — street/area level, not the doorway. OpenStreetMap: Schotlandstraat, Madiki/Bushiri, Oranjestad West (residential road), verified 2026-08-03 (street level — no house-number data exists for Aruba) — meeting point per Viator: \"We start the tour from Schotlandstraat 46, Oranjestad. Customers that come to our office by themself. Please, park at th\""
+ },
+ "178836P1": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "6687ATV": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "alto-vista",
+    "coord": {
+     "lng": -70.0109,
+     "lat": 12.576
+    },
+    "name": "Alto Vista Chapel",
+    "cite": "OpenStreetMap node/540115823, verified 2026-08-03"
+   },
+   {
+    "placeId": "bushiribana",
+    "coord": {
+     "lng": -69.9766,
+     "lat": 12.5537
+    },
+    "name": "Bushiribana Gold Mill Ruins",
+    "cite": "OpenStreetMap way/79210010, verified 2026-08-03"
+   },
+   {
+    "placeId": "natural-bridge",
+    "coord": {
+     "lng": -69.9581,
+     "lat": 12.5408
+    },
+    "name": "Natural Bridge",
+    "cite": "OpenStreetMap node/540233078, verified 2026-08-03"
+   }
+  ],
+  "placeId": "alto-vista",
+  "coord": {
+   "lng": -70.0109,
+   "lat": 12.576
+  },
+  "name": "Alto Vista Chapel",
+  "cite": "OpenStreetMap node/540115823, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
+ "292552P2": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "200215P1": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "ostrich-farm",
+  "coord": {
+   "lng": -69.9785,
+   "lat": 12.5466
+  },
+  "name": "Aruba Ostrich Farm",
+  "approx": true,
+  "cite": "APPROX — the meeting text names a street address this pin does not cover. OpenStreetMap way/377194991 (zoo), verified 2026-08-03 — meeting point per Viator: \"We are located on the road to the natural bridge and Bushiribana Gold mill ruins. Our address is Matividiri 60. Please a\""
+ },
+ "6593P14": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "pelican-pier",
+  "coord": {
+   "lng": -70.0461,
+   "lat": 12.5744
+  },
+  "name": "Pelican Pier",
+  "cite": "OpenStreetMap way/555476889, verified 2026-08-03 — meeting point per Viator: \"Check-in is at 5:00 P.M. at the front desk of the Pelican Pier located between the Holiday Inn & Playa Linda Beach Resor\""
+ },
+ "419440P1": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "savaneta",
+  "coord": {
+   "lng": -69.9497,
+   "lat": 12.4526
+  },
+  "name": "Savaneta",
+  "cite": "OpenStreetMap node/4258604522, verified 2026-08-03 — meeting point per Viator: \"We will meet the guests at the parking lot of Zeerovers Restaurant in Savaneta.\""
+ },
+ "5585429P1": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "47774P3": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "bushiribana",
+    "coord": {
+     "lng": -69.9766,
+     "lat": 12.5537
+    },
+    "name": "Bushiribana Gold Mill Ruins",
+    "cite": "OpenStreetMap way/79210010, verified 2026-08-03"
+   },
+   {
+    "placeId": "california-lighthouse",
+    "coord": {
+     "lng": -70.0513,
+     "lat": 12.6138
+    },
+    "name": "California Lighthouse",
+    "cite": "OpenStreetMap node/540121391, verified 2026-08-03"
+   }
+  ],
+  "placeId": "bushiribana",
+  "coord": {
+   "lng": -69.9766,
+   "lat": 12.5537
+  },
+  "name": "Bushiribana Gold Mill Ruins",
+  "cite": "OpenStreetMap way/79210010, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
+ "33158P4": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "377394P7": {
+  "action": "reject",
+  "reason": "no location stated anywhere in the product data"
+ },
+ "137607P12": {
+  "action": "reject",
+  "reason": "no location stated anywhere in the product data"
+ },
+ "39473P5": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "alto-vista",
+    "coord": {
+     "lng": -70.0109,
+     "lat": 12.576
+    },
+    "name": "Alto Vista Chapel",
+    "cite": "OpenStreetMap node/540115823, verified 2026-08-03"
+   },
+   {
+    "placeId": "bushiribana",
+    "coord": {
+     "lng": -69.9766,
+     "lat": 12.5537
+    },
+    "name": "Bushiribana Gold Mill Ruins",
+    "cite": "OpenStreetMap way/79210010, verified 2026-08-03"
+   },
+   {
+    "placeId": "california-lighthouse",
+    "coord": {
+     "lng": -70.0513,
+     "lat": 12.6138
+    },
+    "name": "California Lighthouse",
+    "cite": "OpenStreetMap node/540121391, verified 2026-08-03"
+   },
+   {
+    "placeId": "natural-bridge",
+    "coord": {
+     "lng": -69.9581,
+     "lat": 12.5408
+    },
+    "name": "Natural Bridge",
+    "cite": "OpenStreetMap node/540233078, verified 2026-08-03"
+   },
+   {
+    "placeId": "tres-trapi",
+    "coord": {
+     "lng": -70.0513,
+     "lat": 12.6024
+    },
+    "name": "Tres Trapi",
+    "cite": "OpenStreetMap node/4491605028, verified 2026-08-03"
+   },
+   {
+    "placeId": "wariruri",
+    "coord": {
+     "lng": -69.9852,
+     "lat": 12.559
+    },
+    "name": "Wariruri Bay",
+    "cite": "OpenStreetMap relation/14759456, verified 2026-08-03"
+   }
+  ],
+  "placeId": "alto-vista",
+  "coord": {
+   "lng": -70.0109,
+   "lat": 12.576
+  },
+  "name": "Alto Vista Chapel",
+  "cite": "OpenStreetMap node/540115823, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
+ "377394P1": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "212359P5": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "13835P20": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "eagle-beach",
+    "coord": {
+     "lng": -70.0594,
+     "lat": 12.5465
+    },
+    "name": "Eagle Beach",
+    "cite": "OpenStreetMap way/25590792, verified 2026-08-03"
+   },
+   {
+    "placeId": "palm-beach",
+    "coord": {
+     "lng": -70.049,
+     "lat": 12.5748
+    },
+    "name": "Palm Beach",
+    "cite": "OpenStreetMap way/23060047, verified 2026-08-03"
+   }
+  ],
+  "placeId": "eagle-beach",
+  "coord": {
+   "lng": -70.0594,
+   "lat": 12.5465
+  },
+  "name": "Eagle Beach",
+  "cite": "OpenStreetMap way/25590792, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
+ "47774P7": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "bushiribana",
+    "coord": {
+     "lng": -69.9766,
+     "lat": 12.5537
+    },
+    "name": "Bushiribana Gold Mill Ruins",
+    "cite": "OpenStreetMap way/79210010, verified 2026-08-03"
+   }
+  ],
+  "placeId": "bushiribana",
+  "coord": {
+   "lng": -69.9766,
+   "lat": 12.5537
+  },
+  "name": "Bushiribana Gold Mill Ruins",
+  "cite": "OpenStreetMap way/79210010, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
+ "300281P10": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "flying-fishbone",
+  "coord": {
+   "lng": -69.9444,
+   "lat": 12.4447
+  },
+  "name": "Flying Fishbone",
+  "cite": "OpenStreetMap way/376319912 (restaurant), verified 2026-08-03 — meeting point per Viator: \"Our meeting point is next to Flying Fishbone at the boat ramp. In case of strong wind or rough seas, we may depart from \""
+ },
+ "39473P6": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "alto-vista",
+    "coord": {
+     "lng": -70.0109,
+     "lat": 12.576
+    },
+    "name": "Alto Vista Chapel",
+    "cite": "OpenStreetMap node/540115823, verified 2026-08-03"
+   },
+   {
+    "placeId": "andicuri",
+    "coord": {
+     "lng": -69.9558,
+     "lat": 12.5375
+    },
+    "name": "Andicuri Beach",
+    "cite": "OpenStreetMap way/339090140, verified 2026-08-03"
+   },
+   {
+    "placeId": "bushiribana",
+    "coord": {
+     "lng": -69.9766,
+     "lat": 12.5537
+    },
+    "name": "Bushiribana Gold Mill Ruins",
+    "cite": "OpenStreetMap way/79210010, verified 2026-08-03"
+   },
+   {
+    "placeId": "mangel-halto",
+    "coord": {
+     "lng": -69.9695,
+     "lat": 12.4643
+    },
+    "name": "Mangel Halto",
+    "cite": "OpenStreetMap way/463354307, verified 2026-08-03"
+   },
+   {
+    "placeId": "natural-bridge",
+    "coord": {
+     "lng": -69.9581,
+     "lat": 12.5408
+    },
+    "name": "Natural Bridge",
+    "cite": "OpenStreetMap node/540233078, verified 2026-08-03"
+   }
+  ],
+  "placeId": "alto-vista",
+  "coord": {
+   "lng": -70.0109,
+   "lat": 12.576
+  },
+  "name": "Alto Vista Chapel",
+  "cite": "OpenStreetMap node/540115823, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
+ "3046P8": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "186518P4": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "marina-pirata",
+  "coord": {
+   "lng": -69.9755,
+   "lat": 12.4696
+  },
+  "name": "Marina Pirata",
+  "cite": "OpenStreetMap way/376285540 (restaurant), verified 2026-08-03 — meeting point per Viator: \"200 feet from Marina Pirata Restaurant, Nautilus Dive Center. PADI FLAG\""
+ },
+ "3046P7": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "13526P6": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "13835P11": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "rancho-notorious",
+  "coord": {
+   "lng": -70.032,
+   "lat": 12.585
+  },
+  "name": "Rancho Notorious",
+  "cite": "OpenStreetMap way/641456655, verified 2026-08-03 — meeting point per Viator: \"We recommend navigating directly to \"Rancho Notorious\" using Google Maps or Waze.\""
+ },
+ "13835P3": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "cruise-terminal",
+  "coord": {
+   "lng": -70.0436,
+   "lat": 12.5212
+  },
+  "name": "Cruise Terminal, Oranjestad",
+  "approx": true,
+  "cite": "APPROX — street/area level, not the doorway. OpenStreetMap: Cruise Ship Dock, Oranjestad, verified 2026-08-03 (meeting point is across the street, so ~100m) — meeting point per Viator: \"Please look for reconfirmation email from us with the exact time to wait outside the lobby of your hotel. Cruise ship gu\""
+ },
+ "12431P3": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "39473P3": {
+  "action": "reject",
+  "reason": "no location stated anywhere in the product data"
+ },
+ "5494168P1": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "palm-beach",
+  "coord": {
+   "lng": -70.049,
+   "lat": 12.5748
+  },
+  "name": "Palm Beach",
+  "approx": true,
+  "cite": "APPROX — the meeting text names a street address this pin does not cover. OpenStreetMap way/23060047, verified 2026-08-03 — meeting point per Viator: \"Noord 23, Palm Beach Aruba\""
+ },
+ "39473P2": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "alto-vista",
+    "coord": {
+     "lng": -70.0109,
+     "lat": 12.576
+    },
+    "name": "Alto Vista Chapel",
+    "cite": "OpenStreetMap node/540115823, verified 2026-08-03"
+   },
+   {
+    "placeId": "california-lighthouse",
+    "coord": {
+     "lng": -70.0513,
+     "lat": 12.6138
+    },
+    "name": "California Lighthouse",
+    "cite": "OpenStreetMap node/540121391, verified 2026-08-03"
+   }
+  ],
+  "placeId": "alto-vista",
+  "coord": {
+   "lng": -70.0109,
+   "lat": 12.576
+  },
+  "name": "Alto Vista Chapel",
+  "cite": "OpenStreetMap node/540115823, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
+ "106422P3": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "mangel-halto",
+    "coord": {
+     "lng": -69.9695,
+     "lat": 12.4643
+    },
+    "name": "Mangel Halto",
+    "cite": "OpenStreetMap way/463354307, verified 2026-08-03"
+   }
+  ],
+  "placeId": "mangel-halto",
+  "coord": {
+   "lng": -69.9695,
+   "lat": 12.4643
+  },
+  "name": "Mangel Halto",
+  "cite": "OpenStreetMap way/463354307, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
+ "15815P2": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "bucutiweg",
+  "coord": {
+   "lng": -70.0136,
+   "lat": 12.4958
+  },
+  "name": "Bucutiweg",
+  "approx": true,
+  "cite": "APPROX — street/area level, not the doorway. OpenStreetMap way/40957323 (tertiary), verified 2026-08-03 (street/area level — accurate to the block, not the doorway) — meeting point per Viator: \"Use Google Maps or maps.me for easier navigation by placing our address BUCUTIWEG 20. Parking is available and free of c\""
+ },
+ "7389P1": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "13835P15": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "rancho-notorious",
+  "coord": {
+   "lng": -70.032,
+   "lat": 12.585
+  },
+  "name": "Rancho Notorious",
+  "cite": "OpenStreetMap way/641456655, verified 2026-08-03 — meeting point per Viator: \"We recommend navigating directly to \"Rancho Notorious\" using Google Maps or Waze.\""
+ },
+ "292552P5": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "bushiribana",
+    "coord": {
+     "lng": -69.9766,
+     "lat": 12.5537
+    },
+    "name": "Bushiribana Gold Mill Ruins",
+    "cite": "OpenStreetMap way/79210010, verified 2026-08-03"
+   },
+   {
+    "placeId": "mangel-halto",
+    "coord": {
+     "lng": -69.9695,
+     "lat": 12.4643
+    },
+    "name": "Mangel Halto",
+    "cite": "OpenStreetMap way/463354307, verified 2026-08-03"
+   }
+  ],
+  "placeId": "bushiribana",
+  "coord": {
+   "lng": -69.9766,
+   "lat": 12.5537
+  },
+  "name": "Bushiribana Gold Mill Ruins",
+  "cite": "OpenStreetMap way/79210010, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
+ "7927P1": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "292552P4": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "13835P17": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "rancho-notorious",
+  "coord": {
+   "lng": -70.032,
+   "lat": 12.585
+  },
+  "name": "Rancho Notorious",
+  "cite": "OpenStreetMap way/641456655, verified 2026-08-03 — meeting point per Viator: \"We recommend navigating directly to \"Rancho Notorious\" using Google Maps or Waze.\""
+ },
+ "300281P7": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "flying-fishbone",
+  "coord": {
+   "lng": -69.9444,
+   "lat": 12.4447
+  },
+  "name": "Flying Fishbone",
+  "cite": "OpenStreetMap way/376319912 (restaurant), verified 2026-08-03 — meeting point per Viator: \"Our meeting point is at the right next to Flying Fishbone at the boat ramp. In case of strong wind or rough seas, we may\""
+ },
+ "13835P1": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "rancho-notorious",
+  "coord": {
+   "lng": -70.032,
+   "lat": 12.585
+  },
+  "name": "Rancho Notorious",
+  "cite": "OpenStreetMap way/641456655, verified 2026-08-03 — meeting point per Viator: \"We recommend navigating directly to \"Rancho Notorious\" using Google Maps or Waze.\""
+ },
+ "137607P22": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "pelican-pier",
+  "coord": {
+   "lng": -70.0461,
+   "lat": 12.5744
+  },
+  "name": "Pelican Pier",
+  "cite": "OpenStreetMap way/555476889, verified 2026-08-03 — meeting point per Viator: \"Kiosk of Around Aruba Tours behind Aruba Marriott Resort & Stellaris Casino near Antilles Beach Bar on the backside/beac\""
+ },
+ "474314P1": {
+  "action": "reject",
+  "reason": "meeting point is only disclosed after booking"
+ },
+ "429943P1": {
+  "action": "reject",
+  "reason": "no location stated anywhere in the product data"
+ },
+ "6841P6": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "schotlandstraat",
+  "coord": {
+   "lng": -70.047,
+   "lat": 12.5298
+  },
+  "name": "Schotlandstraat, Oranjestad",
+  "approx": true,
+  "cite": "APPROX — street/area level, not the doorway. OpenStreetMap: Schotlandstraat, Madiki/Bushiri, Oranjestad West (residential road), verified 2026-08-03 (street level — no house-number data exists for Aruba) — meeting point per Viator: \"Cruise passengers are welcome to join the tour. Please check your ship’s arrival time to ensure you’ll have sufficient t\""
+ },
+ "122173P3": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "flying-fishbone",
+  "coord": {
+   "lng": -69.9444,
+   "lat": 12.4447
+  },
+  "name": "Flying Fishbone",
+  "cite": "OpenStreetMap way/376319912 (restaurant), verified 2026-08-03 — meeting point per Viator: \"The meeting point is located at the small pier right next to Villa Rossana in Savaneta. It is very close to the Flying F\""
+ },
+ "70453P2": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "arashi",
+  "coord": {
+   "lng": -70.0536,
+   "lat": 12.6099
+  },
+  "name": "Arashi Beach",
+  "cite": "OpenStreetMap way/461766965, verified 2026-08-03 — meeting point per Viator: \"Meeting time 5.45 pm at Arashi Beach Departure Time 6 pm at Arashi Beach Clear Kayak Aruba DOES NOT have a booth on Aras\""
+ },
+ "70453P1": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "mangel-halto",
+    "coord": {
+     "lng": -69.9695,
+     "lat": 12.4643
+    },
+    "name": "Mangel Halto",
+    "cite": "OpenStreetMap way/463354307, verified 2026-08-03"
+   }
+  ],
+  "placeId": "mangel-halto",
+  "coord": {
+   "lng": -69.9695,
+   "lat": 12.4643
+  },
+  "name": "Mangel Halto",
+  "cite": "OpenStreetMap way/463354307, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
+ "358117P10": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "savaneta",
+  "coord": {
+   "lng": -69.9497,
+   "lat": 12.4526
+  },
+  "name": "Savaneta",
+  "cite": "OpenStreetMap node/4258604522, verified 2026-08-03 — meeting point per Viator: \"On the right off Savaneta 284 villa Rossana you will see an abandoned house.Right behind it there’s a ramp where we laun\""
+ },
+ "19808P5": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "bushiribana",
+    "coord": {
+     "lng": -69.9766,
+     "lat": 12.5537
+    },
+    "name": "Bushiribana Gold Mill Ruins",
+    "cite": "OpenStreetMap way/79210010, verified 2026-08-03"
+   },
+   {
+    "placeId": "mangel-halto",
+    "coord": {
+     "lng": -69.9695,
+     "lat": 12.4643
+    },
+    "name": "Mangel Halto",
+    "cite": "OpenStreetMap way/463354307, verified 2026-08-03"
+   },
+   {
+    "placeId": "natural-bridge",
+    "coord": {
+     "lng": -69.9581,
+     "lat": 12.5408
+    },
+    "name": "Natural Bridge",
+    "cite": "OpenStreetMap node/540233078, verified 2026-08-03"
+   }
+  ],
+  "placeId": "bushiribana",
+  "coord": {
+   "lng": -69.9766,
+   "lat": 12.5537
+  },
+  "name": "Bushiribana Gold Mill Ruins",
+  "cite": "OpenStreetMap way/79210010, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
+ "367744P1": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "arashi",
+    "coord": {
+     "lng": -70.0536,
+     "lat": 12.6099
+    },
+    "name": "Arashi Beach",
+    "cite": "OpenStreetMap way/461766965, verified 2026-08-03"
+   },
+   {
+    "placeId": "eagle-beach",
+    "coord": {
+     "lng": -70.0594,
+     "lat": 12.5465
+    },
+    "name": "Eagle Beach",
+    "cite": "OpenStreetMap way/25590792, verified 2026-08-03"
+   },
+   {
+    "placeId": "natural-bridge",
+    "coord": {
+     "lng": -69.9581,
+     "lat": 12.5408
+    },
+    "name": "Natural Bridge",
+    "cite": "OpenStreetMap node/540233078, verified 2026-08-03"
+   }
+  ],
+  "placeId": "arashi",
+  "coord": {
+   "lng": -70.0536,
+   "lat": 12.6099
+  },
+  "name": "Arashi Beach",
+  "cite": "OpenStreetMap way/461766965, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
+ "283728P3": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "the-ritz-carlton-aruba",
+  "coord": {
+   "lng": -70.0441,
+   "lat": 12.5829
+  },
+  "name": "The Ritz-Carlton, Aruba",
+  "approx": true,
+  "cite": "APPROX — pinned at the named hotel; the pier sits ~150-200m seaward. OpenStreetMap way/370096811, verified 2026-08-03 — meeting point per Viator: \"if you pass the Ritz Carlton on your left hand side, look out for the big BLUE building on your left hand. There we are \""
+ },
+ "404788P3": {
+  "action": "reject",
+  "reason": "hotel pickup — the operator collects from the traveller's own accommodation, so no fixed departure point exists"
+ },
+ "5599636P2": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "eagle-beach",
+  "coord": {
+   "lng": -70.0594,
+   "lat": 12.5465
+  },
+  "name": "Eagle Beach",
+  "cite": "OpenStreetMap way/25590792, verified 2026-08-03 — meeting point per Viator: \"You can find us on Eagle Beach, directly across from La Quinta Beach Resort. Just look for our setup on the beach—we'll \""
+ },
+ "292552P14": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "palm-beach",
+    "coord": {
+     "lng": -70.049,
+     "lat": 12.5748
+    },
+    "name": "Palm Beach",
+    "cite": "OpenStreetMap way/23060047, verified 2026-08-03"
+   }
+  ],
+  "placeId": "palm-beach",
+  "coord": {
+   "lng": -70.049,
+   "lat": 12.5748
+  },
+  "name": "Palm Beach",
+  "cite": "OpenStreetMap way/23060047, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
+ "472918P1": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "boca-catalina",
+  "coord": {
+   "lng": -70.0519,
+   "lat": 12.6049
+  },
+  "name": "Boca Catalina",
+  "cite": "OpenStreetMap way/690840582, verified 2026-08-03 — meeting point per Viator: \"Boca Catalina beach We’ll message you 24 hours before your tour with the exact meeting point (Google Maps pin), parking/\""
+ },
+ "2455P17": {
+  "action": "accept",
+  "source": "known-place",
+  "places": [
+   {
+    "placeId": "butterfly-farm",
+    "coord": {
+     "lng": -70.05,
+     "lat": 12.5637
+    },
+    "name": "The Butterfly Farm",
+    "cite": "OpenStreetMap way/38451837, verified 2026-08-03"
+   },
+   {
+    "placeId": "california-lighthouse",
+    "coord": {
+     "lng": -70.0513,
+     "lat": 12.6138
+    },
+    "name": "California Lighthouse",
+    "cite": "OpenStreetMap node/540121391, verified 2026-08-03"
+   },
+   {
+    "placeId": "natural-bridge",
+    "coord": {
+     "lng": -69.9581,
+     "lat": 12.5408
+    },
+    "name": "Natural Bridge",
+    "cite": "OpenStreetMap node/540233078, verified 2026-08-03"
+   }
+  ],
+  "placeId": "butterfly-farm",
+  "coord": {
+   "lng": -70.05,
+   "lat": 12.5637
+  },
+  "name": "The Butterfly Farm",
+  "cite": "OpenStreetMap way/38451837, verified 2026-08-03 — named as a stop in the Viator product description"
+ },
+ "400174P2": {
+  "action": "accept",
+  "source": "departure",
+  "placeId": "signature-park",
+  "coord": {
+   "lng": -70.0505,
+   "lat": 12.5645
+  },
+  "name": "Signature Park",
+  "cite": "OpenStreetMap way/685527702 (park), verified 2026-08-03 — meeting point per Viator: \"We will meet at Signature Park Aruba in front of a Blue Building\""
+ },
+ "7389P10": {
+  "action": "reject",
+  "reason": "no location stated anywhere in the product data"
  }
 }

@@ -40,6 +40,14 @@ const ALLOWED_COLLISIONS: Record<string, string> = {
   '-69.96950,12.46430': 'Mangel Halto — the island\'s main mangrove snorkel and kayak spot',
   '-70.04470,12.57760': 'MooMba Beach — Jolly Pirates and others sail from here',
   '-70.04490,12.57590': 'Holiday Inn pier — several catamarans board here',
+  // Aruba's headline sights: many operators visit the same handful of places, so
+  // a shared coordinate here is the catalog telling the truth, not a centroid.
+  '-70.01090,12.57600': 'Alto Vista Chapel — on nearly every north-coast itinerary',
+  '-70.05130,12.61380': 'California Lighthouse — the standard north-tip stop',
+  '-69.95810,12.54080': 'Natural Bridge / Bushiribana — the classic north-coast pairing',
+  '-70.05130,12.60240': 'Tres Trapi, Malmok — the turtle-snorkel cove, local card plus tours',
+  '-70.05940,12.54650': 'Eagle Beach — the most-visited beach on the island',
+  '-70.03200,12.58500': 'Rancho Notorious — one operator, several horseback products',
   // Each of these is a curated local pick agreeing with Viator items about where
   // a place is — which is the point of one registry, not a re-introduced centroid.
   '-69.90900,12.43640': 'San Nicolas — the mural walk plus tours that visit it',
@@ -66,8 +74,13 @@ async function main() {
         hard.push({ id: where, msg: `outside Aruba (${place.coord.lng}, ${place.coord.lat})` });
         continue;  // distance checks are meaningless off-island
       }
-      if (!hasPrecision(place.coord) && !/pending re-research/i.test(place.cite ?? '')) {
-        hard.push({ id: where, msg: 'coarser than 3 decimals and not flagged pending' });
+      // A cited OSM element id is direct evidence the coordinate is not a guess,
+      // which is what the precision rule is a proxy for. Without this exemption a
+      // precise coordinate whose last digit is zero fails — JavaScript cannot
+      // distinguish an authored -70.0500 from a rounded -70.05.
+      const osmCited = /OpenStreetMap[^,]*\b(node|way|relation)\/\d+/i.test(place.cite ?? '');
+      if (!hasPrecision(place.coord) && !osmCited && !/pending re-research/i.test(place.cite ?? '')) {
+        hard.push({ id: where, msg: 'coarser than 3 decimals, uncited, and not flagged pending' });
       }
       const onLand = pointInRing(place.coord, RING);
       const km = kmToRing(place.coord, RING);

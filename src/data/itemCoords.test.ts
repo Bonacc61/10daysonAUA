@@ -49,9 +49,18 @@ describe('registry integrity', () => {
     'lunch-willems-pancakes',  // no OSM record found 2026-08-03; still town-level
   ]);
 
-  it('keeps every pin and stop at 3+ decimal precision', () => {
+  // A coordinate citing a specific OpenStreetMap element is exempt: the element
+  // id IS the provenance this check is a proxy for. JavaScript cannot tell an
+  // authored -70.0500 from a rounded -70.05, so a genuinely precise OSM feature
+  // whose last digit happens to be zero would otherwise fail — as The Butterfly
+  // Farm (way/38451837, -70.0500) did. The check still catches an uncited round
+  // number, which is the actual failure mode: a guess presented as a fact.
+  const OSM_CITED = /OpenStreetMap[^,]*\b(node|way|relation)\/\d+/i;
+
+  it('keeps every uncited pin and stop at 3+ decimal precision', () => {
     const coarse = places
       .filter(([id]) => !PENDING_RESEARCH.has(id))
+      .filter(([, p]) => !OSM_CITED.test(p.cite ?? ''))
       .filter(([, p]) => !hasPrecision(p.coord));
     expect(coarse.map(([id]) => id)).toEqual([]);
   });
