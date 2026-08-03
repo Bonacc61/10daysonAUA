@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import RMap, { Marker, Popup, Source, Layer, NavigationControl, type MapRef } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useCatalog } from '../data/useCatalog';
-import { useAuth } from '../lib/auth';
 import { generatePlan } from '../data/itineraryGenerator';
 import { pinFor, pinPlaces, type Pin } from '../data/itemCoords';
 import { LUNCHSPOTS } from '../data/lunchspots';
@@ -125,7 +124,6 @@ type Props = { answers: Answers; canSeeItinerary: boolean; setPage: (p: PageId) 
 
 export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   const { catalog } = useCatalog();
-  const { user } = useAuth();
   const [popup, setPopup] = useState<AnyPopup | null>(null);
   const [activeDay, setActiveDay] = useState(1);
   const [activePlanIdx, setActivePlanIdx] = useState(0);
@@ -421,8 +419,13 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
         )}
       </div>
 
-      {/* ── Bottom panel: CTA when logged out ── */}
-      {!user && (
+      {/* ── Bottom panel: CTA when there is no itinerary to show yet ── */}
+      {/* Gated on canSeeItinerary (qDone || user), NOT on user alone. Someone who
+          finished the questionnaire without logging in has a plan — the Itinerary
+          page shows it — but this panel used to tell them to "start the quiz"
+          they had just completed, and the day switcher below stayed hidden, so
+          the map was stuck on day 1 with no way to reach the rest of the trip. */}
+      {!canSeeItinerary && (
         <div style={{ background: 'rgba(255,251,240,0.98)', backdropFilter: 'blur(12px)', borderTop: '2px solid var(--ink)', flexShrink: 0, padding: '20px 24px', textAlign: 'center' }}>
           <p className="font-display" style={{ fontSize: 20, margin: '0 0 12px', color: 'var(--ink)', lineHeight: 1.2 }}>
             Plan your Aruba trip
@@ -437,7 +440,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
       )}
 
       {/* ── Bottom panel: plan switcher + day nav + activity photo strip ── */}
-      {user && plan && planDay && (
+      {canSeeItinerary && plan && planDay && (
         <div style={{ background: 'rgba(255,251,240,0.98)', backdropFilter: 'blur(12px)', borderTop: '1px solid rgba(0,0,0,0.1)', flexShrink: 0 }}>
 
           {/* Itinerary variant switcher — mirrors Dashboard ITINERARY_VARIANTS */}
