@@ -770,7 +770,10 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   font-style: italic; font-size: 15px; line-height: 1.5;
   color: rgba(0,0,0,0.85); margin: 0 0 26px; max-width: 620px;
 }
-.gtk-tl { position: relative; padding-left: 6px; --phh: 50px; --chh: 60px; }
+/* --gtk-surface is the page background the sticky phase headers pin against;
+   it defaults to the landing section's yellow and callers on another surface
+   (Practical Info sits on --cream) override it on .gtk-tl. */
+.gtk-tl { position: relative; padding-left: 6px; --phh: 50px; --chh: 60px; --gtk-surface: var(--yellow-bg); }
 /* the vertical spine */
 .gtk-tl::before {
   content: ''; position: absolute; left: 16px; top: 10px; bottom: 10px;
@@ -784,7 +787,7 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   text-align: left; font: inherit; color: var(--ink);
   /* Sticky section header: pins the active phase's label to the top as its cards
      scroll. Opaque section bg so scrolled content doesn't show through. */
-  position: sticky; top: 0; z-index: 4; background: var(--yellow-bg);
+  position: sticky; top: 0; z-index: 4; background: var(--gtk-surface);
 }
 .gtk-phase-head:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; border-radius: 8px; }
 /* node sits on the spine (spine at left:16px; node is 24px, centred there) */

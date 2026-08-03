@@ -2,13 +2,13 @@ import React, { type CSSProperties, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { capture } from '../lib/analytics';
 import {
-  Clock, Users, Sparkle, Chev, iconFor, Share, Calendar, Mail, Heart,
+  Clock, Users, Sparkle, Chev, Share, Calendar, Mail, Heart,
 } from '../components/Icons';
 import Footer from '../components/Footer';
+import GoodToKnowTimeline from '../components/GoodToKnowTimeline';
 import {
   SAMPLE_ITINERARY,
   FAQ_ITEMS,
-  GTK_CARDS,
   activityById,
   type Activity,
   type Day,
@@ -290,66 +290,7 @@ function SampleSection({ days, goPlan, goExplore }: { days: string; goPlan: () =
 
 /* ---------- Good to know ---------- */
 
-const GTK_SECTION_META = [
-  { key: 'before',     label: 'Before you get here' },
-  { key: 'first-day',  label: 'Your first day' },
-  { key: 'throughout', label: 'Throughout your stay' },
-] as const;
-
-function GtkTimelineCard({ card, index }: { card: typeof GTK_CARDS[number]; index: number }) {
-  const IconCmp = iconFor(card.icon);
-  return (
-    <div className="tlc" style={{ '--accent': card.accent, '--i': index } as CSSProperties}>
-      <div className="tlc-head">
-        <span className="tlc-stamp"><IconCmp size={17} /></span>
-        <h4 className="tlc-title font-display">{card.title}</h4>
-        {card.note && <span className="tlc-flag">{card.note}</span>}
-      </div>
-      <p className="tlc-body">{card.body}</p>
-      {card.attribution && <span className="tlc-sign">— {card.attribution}</span>}
-    </div>
-  );
-}
-
 function GoodToKnowSection() {
-  const phases = GTK_SECTION_META.map((s) => ({
-    ...s,
-    cards: GTK_CARDS.filter((c) => c.section === s.key),
-  }));
-
-  // All three subsections stay expanded; the sticky phase headers + sticky-stacking
-  // cards do the sequencing — you scroll through one subsection's cards (they stack
-  // up) before the next subsection's header takes over and its cards start stacking.
-  // This replaces the old scroll-spy one-at-a-time collapse, which switched
-  // subsections before their cards could finish stacking (so the stacking only ever
-  // showed on the last of the three). Clicking a header jumps to that subsection.
-  const jumpTo = (el: Element | null) =>
-    (el as HTMLElement | null)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-  const tl = (
-    <div className="gtk-tl">
-      {phases.map((p) => (
-        <div className="gtk-phase" data-active="" data-open="" key={p.key}>
-          <button
-            type="button"
-            className="gtk-phase-head"
-            onClick={(e) => jumpTo(e.currentTarget.closest('.gtk-phase'))}
-          >
-            <span className="gtk-node" aria-hidden />
-            <span className="gtk-phase-label font-display">{p.label}</span>
-          </button>
-          <div className="gtk-phase-wrap">
-            <div className="gtk-phase-inner">
-              <div className="gtk-phase-cards">
-                {p.cards.map((c, ci) => <GtkTimelineCard key={c.title} card={c} index={ci} />)}
-              </div>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
   return (
     <details
       className="aruba-section bleed"
@@ -367,7 +308,7 @@ function GoodToKnowSection() {
       <div style={{ padding: '0 36px 56px' }}>
         <div className="container-1280" style={{ padding: 0 }}>
           <p className="gtk-lede">The little things locals wish every visitor knew — scroll to move through the trip.</p>
-          {tl}
+          <GoodToKnowTimeline />
         </div>
       </div>
     </details>

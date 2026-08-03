@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
-import { iconFor, Calendar, Check, Chev, Clock, Dice, Doc, Dollar, Download, Heart, Info, IOSShare, Mail, MapPin, Star } from '../components/Icons';
+import { Calendar, Check, Chev, Clock, Dice, Doc, Dollar, Download, Heart, Info, IOSShare, Mail, MapPin, Star } from '../components/Icons';
+import GoodToKnowTimeline from '../components/GoodToKnowTimeline';
 import { useCatalog } from '../data/useCatalog';
 import { filterExploreEntries, bookingUrl } from '../data/exploreItems';
-import { INFO_TOPICS, GTK_CARDS } from '../data/activities';
+import { INFO_TOPICS } from '../data/activities';
 import { answersToTags } from '../data/answerTags';
 import { resolveSlotEntry } from '../data/activitySource';
 import { buildIcs, downloadIcs } from '../lib/icsExport';
@@ -1240,26 +1241,12 @@ function PracticalPanel() {
 
       <h3 className="font-display" style={{ fontSize: 24, margin: '0 0 8px', color: 'var(--ink)' }}>Good-to-knows</h3>
       <p style={{ fontStyle: 'italic', fontSize: 13, color: 'var(--sand-700)', margin: '0 0 20px' }}>
-        The little things locals wish every visitor knew.
+        The little things locals wish every visitor knew — scroll to move through the trip.
       </p>
-      <div className="gtk-board">
-        <div className="gtk-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18 }}>
-          {GTK_CARDS.map((c, i) => {
-            const IconCmp = iconFor(c.icon as never);
-            return (
-              <article key={c.title} className="gtk-tag"
-                style={{ '--accent': c.accent, '--tilt': i % 2 === 0 ? '-1.2deg' : '1.1deg' } as CSSProperties}>
-                <span className="gtk-tag-num">{String(i + 1).padStart(2, '0')}</span>
-                {c.note && <span className="gtk-tag-flag">{c.note}</span>}
-                <span className="gtk-tag-stamp"><IconCmp size={20} /></span>
-                <h4 className="font-display gtk-tag-title">{c.title}</h4>
-                <p className="gtk-tag-body">{c.body}</p>
-                {c.attribution && <span className="gtk-tag-sign">— {c.attribution}</span>}
-              </article>
-            );
-          })}
-        </div>
-      </div>
+      {/* Same timeline the landing page shows, on this panel's cream instead of
+          the landing section's yellow — the sticky phase headers pin against
+          whatever surface they're told. */}
+      <GoodToKnowTimeline surface="var(--cream)" />
     </div>
   );
 }
