@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "trace": "node tools/run-trace.cjs",
     "resolve:coords": "node tools/run-resolve.cjs",
+    "audit:coords": "node tools/run-audit.cjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
