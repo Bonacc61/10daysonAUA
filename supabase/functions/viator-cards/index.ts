@@ -7,7 +7,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { GROUPS, ARUBA_DESTINATION_ID } from './groups.ts';
 import { normalizeProduct } from './normalize.ts';
-import { hasKey, ping, searchProducts, searchProductsPaged, freetextSearch, getProduct, getTags } from './viator.ts';
+import { hasKey, ping, searchProducts, searchProductsPaged, freetextSearch, getProduct, getTags, getLocationsBulk } from './viator.ts';
 import { embedBatch, clusterByEmbedding, activeProvider } from './embeddings.ts';
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
@@ -107,6 +107,38 @@ serve(async (req) => {
       catch { counts[t] = -1; }
     }));
     return json(counts);
+  }
+
+  // TEMPORARY: dump raw logistics/itinerary refs for a handful of products and
+  // resolve them, so the pin-accuracy work can confirm what location data Viator
+  // actually returns before designing around it. Read-only; remove once
+  // docs/map/viator-location-probe.md records the findings.
+  if (op === 'locations') {
+    const codes = (url.searchParams.get('codes') ?? '').split(',').map((c) => c.trim()).filter(Boolean);
+    const out: Record<string, unknown> = {};
+    const refs = new Set<string>();
+    for (const code of codes) {
+      try {
+        const p = await getProduct(code);
+        const poi = (p.itinerary?.items ?? [])
+          .map((i) => i.pointOfInterestLocation?.location?.ref).filter(Boolean) as string[];
+        const start = (p.logistics?.start ?? [])
+          .map((s) => s.location?.ref).filter(Boolean) as string[];
+        const pickup = (p.logistics?.travelerPickup?.locations ?? [])
+          .map((l) => l.location?.ref).filter(Boolean) as string[];
+        [...poi, ...start, ...pickup.slice(0, 3)].forEach((r) => refs.add(r));
+        out[code] = {
+          title: p.title,
+          itineraryType: p.itinerary?.itineraryType ?? null,
+          poiCount: poi.length, poi,
+          startCount: start.length, start,
+          pickupCount: pickup.length,
+        };
+      } catch (e) { out[code] = { error: String(e) }; }
+    }
+    let resolved: unknown = null;
+    try { resolved = await getLocationsBulk([...refs]); } catch (e) { resolved = String(e); }
+    return json({ probed: codes.length, refs: [...refs].length, products: out, resolved });
   }
 
   // Serve from cache if fresh enough, stale cache as fallback on Viator failure.
