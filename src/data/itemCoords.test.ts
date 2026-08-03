@@ -1,21 +1,27 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { ITEM_PINS, pinFor } from './itemCoords';
+import { ITEM_PINS, pinFor, pinPlaces } from './itemCoords';
 import {
-  inBounds, hasPrecision, pointInRing, kmToRing,
+  inBounds, hasPrecision, pointInRing, kmToRing, distanceKm,
   LAND_TOLERANCE_KM, SEA_TOLERANCE_KM, type Ring,
 } from './coordValidate';
 
 const RING: Ring = JSON.parse(readFileSync('tools/aruba-coastline.json', 'utf8')).ring;
 const entries = Object.entries(ITEM_PINS);
 
+// Every place every pin covers, flattened. A multi-stop activity's secondary
+// coordinates must clear exactly the same bar as its primary — an unchecked
+// stop is the easiest place for a bad coordinate to hide.
+const places = entries.flatMap(([id, p]) =>
+  pinPlaces(p).map((pl, i) => [`${id}${pl.primary ? '' : ` (stop ${i})`}`, pl] as const));
+
 describe('registry integrity', () => {
   it('is not empty', () => {
     expect(entries.length).toBeGreaterThan(0);
   });
 
-  it('gives every pin a non-empty citation', () => {
-    const uncited = entries.filter(([, p]) => !p.cite || p.cite.trim().length === 0);
+  it('gives every pin and stop a non-empty citation', () => {
+    const uncited = places.filter(([, p]) => !p.cite || p.cite.trim().length === 0);
     expect(uncited.map(([id]) => id)).toEqual([]);
   });
 
@@ -24,8 +30,8 @@ describe('registry integrity', () => {
     expect(placeholder.map(([id]) => id)).toEqual([]);
   });
 
-  it('keeps every pin inside Aruba', () => {
-    const out = entries.filter(([, p]) => !inBounds(p.coord));
+  it('keeps every pin and stop inside Aruba', () => {
+    const out = places.filter(([, p]) => !inBounds(p.coord));
     expect(out.map(([id]) => id)).toEqual([]);
   });
 
@@ -41,8 +47,8 @@ describe('registry integrity', () => {
     'lunch-willems-pancakes',  // no OSM record found 2026-08-03; still town-level
   ]);
 
-  it('keeps every pin at 3+ decimal precision', () => {
-    const coarse = entries
+  it('keeps every pin and stop at 3+ decimal precision', () => {
+    const coarse = places
       .filter(([id]) => !PENDING_RESEARCH.has(id))
       .filter(([, p]) => !hasPrecision(p.coord));
     expect(coarse.map(([id]) => id)).toEqual([]);
@@ -56,8 +62,8 @@ describe('registry integrity', () => {
     expect(stale).toEqual([]);
   });
 
-  it('keeps every pin on land or within the sea tolerance of shore', () => {
-    const bad = entries.filter(([, p]) =>
+  it('keeps every pin and stop on land or within the sea tolerance of shore', () => {
+    const bad = places.filter(([, p]) =>
       !pointInRing(p.coord, RING) && kmToRing(p.coord, RING) > SEA_TOLERANCE_KM);
     expect(bad.map(([id]) => id)).toEqual([]);
   });
@@ -67,7 +73,7 @@ describe('registry integrity', () => {
     // mainland place more than LAND_TOLERANCE_KM out to sea is a research error.
     // Driving this off the pin's own flag rather than a list of exempt ids means
     // new dive sites and islets declare themselves instead of rotting the test.
-    const bad = entries.filter(([, p]) =>
+    const bad = places.filter(([, p]) =>
       !p.offshore
       && !pointInRing(p.coord, RING)
       && kmToRing(p.coord, RING) > LAND_TOLERANCE_KM);
@@ -77,10 +83,26 @@ describe('registry integrity', () => {
   it('keeps offshore pins off the mainland but within the sea tolerance', () => {
     // A pin flagged offshore that is actually inland means the flag was copied
     // onto the wrong entry.
-    const water = entries.filter(([, p]) => p.offshore);
+    const water = places.filter(([, p]) => p.offshore);
     expect(water.length).toBeGreaterThan(0);
     const bad = water.filter(([, p]) => kmToRing(p.coord, RING) > SEA_TOLERANCE_KM);
     expect(bad.map(([id]) => id)).toEqual([]);
+  });
+
+  it('never repeats the primary coordinate as one of its own stops', () => {
+    // A duplicated coordinate would draw two markers on top of each other and
+    // imply the activity spans somewhere it does not.
+    const dupes = entries.filter(([, p]) =>
+      (p.stops ?? []).some((s) => s.coord.lng === p.coord.lng && s.coord.lat === p.coord.lat));
+    expect(dupes.map(([id]) => id)).toEqual([]);
+  });
+
+  it('keeps multi-stop activities plausibly close together', () => {
+    // Aruba is ~30km end to end. Stops further apart than that are not one
+    // activity, they are a mis-assignment.
+    const tooFar = entries.filter(([, p]) =>
+      (p.stops ?? []).some((s) => distanceKm(p.coord, s.coord) > 30));
+    expect(tooFar.map(([id]) => id)).toEqual([]);
   });
 
   it('gives every pickup a coordinate inside Aruba', () => {

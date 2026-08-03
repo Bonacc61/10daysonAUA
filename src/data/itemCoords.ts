@@ -34,11 +34,36 @@ export type PinSource =
  */
 export type Pickup = { coord: Coord; name: string; time?: string };
 
+/**
+ * An additional place a multi-stop activity visits.
+ *
+ * "Aruba Island Private Jeep Tour Arikok Park & Baby beach" genuinely happens in
+ * two places 25km apart. Forcing it onto one coordinate would put the pin on a
+ * spot the traveller spends half the day away from — the same class of untruth
+ * this whole registry exists to remove.
+ */
+export type Stop = { coord: Coord; place?: string; cite: string; offshore?: true };
+
 export type Pin = {
+  /**
+   * The PRIMARY location. For a single-location activity this is the whole
+   * story; for a multi-stop one it is the headline destination — the place a
+   * traveller would say the tour is about.
+   *
+   * The itinerary engine reads only this (`entryCoord`, itineraryGenerator.ts),
+   * because day-clustering needs exactly one anchor point per pick. The map
+   * draws this plus every entry in `stops`.
+   */
   coord: Coord;
   source: PinSource;
   cite: string;      // REQUIRED — a reference a human can check. Enforced by test.
   place?: string;    // human-readable place name, shown on the card
+  /**
+   * Further locations this activity visits, beyond `coord`. Ordered as the
+   * activity visits them where that is known. Map-only: these draw extra
+   * markers sharing the primary's card, and never reach the engine.
+   */
+  stops?: Stop[];
   pickup?: Pickup;
   /**
    * Set for pins that legitimately sit away from the main island landmass:
@@ -145,4 +170,22 @@ export const ITEM_PINS: Record<string, Pin> = {
 /** Look up a pin. Returns undefined — never a fallback — for unregistered ids. */
 export function pinFor(id: string): Pin | undefined {
   return ITEM_PINS[id];
+}
+
+/**
+ * Every place a pin covers — the primary first, then any additional stops.
+ *
+ * The map draws one marker per entry. They must READ AS ONE ACTIVITY, not as
+ * separate stops in the day: same stop number on every marker, a dashed tether
+ * between them, secondary markers visually lighter than the primary, and any of
+ * them opening the same card. A traveller should see "this one thing happens in
+ * two places", never "I have two activities here".
+ *
+ * The day's route line and the engine both use the primary only — see `coord`.
+ */
+export function pinPlaces(pin: Pin): Array<{ coord: Coord; place?: string; cite: string; offshore?: true; primary: boolean }> {
+  return [
+    { coord: pin.coord, place: pin.place, cite: pin.cite, offshore: pin.offshore, primary: true },
+    ...(pin.stops ?? []).map((s) => ({ ...s, primary: false as const })),
+  ];
 }

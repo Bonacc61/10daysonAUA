@@ -80,6 +80,10 @@
   .pin.ghost{border-color:#999;opacity:.55;width:18px;height:18px}
   .pin.sel{border-color:var(--green);background:var(--green);color:#fff;
            width:32px;height:32px;font-size:12px}
+  /* secondary stop of a multi-stop activity: same number, visually lighter, so
+     the pair reads as one activity rather than two separate things */
+  .pin.second{width:24px;height:24px;border-width:2.5px;border-style:dashed;
+              background:#f4f0e4;font-size:10px}
 
   #legend{position:absolute;left:10px;bottom:10px;z-index:5;background:rgba(255,251,240,.97);
           border:2px solid var(--ink);border-radius:9px;padding:9px 11px;max-width:280px;
@@ -165,6 +169,19 @@ function tabs() {
 
 function clearMarkers() { markers.forEach((m) => m.remove()); markers = []; }
 
+// Dashed line joining the stops of one activity. Without it two markers read as
+// two unrelated activities; with it they read as one thing happening in two
+// places, which is what the data actually says.
+function tether(coords) {
+  const data = { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } };
+  if (map.getSource('tether')) { map.getSource('tether').setData(data); return; }
+  map.addSource('tether', { type: 'geojson', data });
+  map.addLayer({ id: 'tether', type: 'line', source: 'tether',
+    paint: { 'line-color': '#2e7d32', 'line-width': 2.5, 'line-dasharray': [2, 1.6], 'line-opacity': .85 } });
+}
+function clearTether() { if (map.getSource('tether')) map.getSource('tether').setData(
+  { type: 'Feature', geometry: { type: 'LineString', coordinates: [] } }); }
+
 // The digits on the pins mean different things per tab, so say so rather than
 // leaving the reader to infer it. This was genuinely confusing without it.
 const LEGENDS = {
@@ -173,8 +190,9 @@ const LEGENDS = {
   B: ['What the pins mean',
       '<div class="row"><span class="chip">·</span><span>One pin per product, at the place found in its <b>description</b>. Click a pin for its name.</span></div>'],
   C: ['What the pins mean',
-      '<div class="row"><span class="chip">1</span><span>The numbered candidates for the tour you are looking at — the numbers match the list on the left.</span></div>'
-      + '<div class="row"><span class="chip g">1</span><span>Your current choice.</span></div>'],
+      '<div class="row"><span class="chip">1</span><span>Candidate places for this tour — numbers match the list on the left.</span></div>'
+      + '<div class="row"><span class="chip g">1</span><span><b>Primary</b> — drives the day route and the planner.</span></div>'
+      + '<div class="row"><span class="chip" style="border-style:dashed">2</span><span>Another stop on the same activity, joined by a dashed line.</span></div>'],
   D: ['No pins here', '<span>These products have no destination. Pick a departure point on the left to see it on the map.</span>'],
   E: ['No pins here', '<span>These products have no single location, so nothing is plotted.</span>'],
 };
@@ -187,7 +205,7 @@ function showPins(pins, fit = true) {
   clearMarkers();
   const valid = pins.filter((p) => p && p.coord);
   for (const p of valid) {
-    const cls = `pin${p.ghost ? ' ghost' : ''}${p.sel ? ' sel' : ''}`;
+    const cls = `pin${p.ghost ? ' ghost' : ''}${p.sel ? ' sel' : ''}${p.second ? ' second' : ''}`;
     const m = new mapboxgl.Marker({ element: el(`<div class="${cls}">${p.label ?? ''}</div>`) })
       .setLngLat([p.coord.lng, p.coord.lat])
       .setPopup(new mapboxgl.Popup({ offset: 18 }).setHTML(`<b>${esc(p.name)}</b>`))
@@ -265,22 +283,53 @@ function render() {
   }
 
   if (TAB === 'C') {
-    L.appendChild(el(`<p class="note">Multi-stop tours naming two or more known places. Pick the primary destination — the one a traveller would say the tour is <em>about</em> — or reject to leave it unpinned.</p>`));
+    L.appendChild(el(`<p class="note">Multi-stop tours. Click <b>add</b> on every place the tour actually visits — the first one you pick is the primary. Extra stops draw a lighter pin joined by a dashed line, so they read as one activity in two places rather than two separate things. Click again to remove.</p>`));
     for (const r of P.groupC) {
       const st = DEC[r.id];
       const card = el(`<div class="grp ${st?.action === 'accept' ? 'done' : st?.action === 'reject' ? 'rejected' : ''}"></div>`);
       card.appendChild(el(`<div class="ghd"><b>${esc(r.title)}</b>
         <span class="badge ${st?.action === 'accept' ? 'acc' : st?.action === 'reject' ? 'rej' : ''}">${st?.action ? (st.name ?? st.action) : 'undecided'}</span></div>`));
-      const candPins = () => r.candidates.map((c, i) => ({
-        coord: c.coord, name: `${i + 1}. ${c.name}`, label: String(i + 1),
-        sel: DEC[r.id]?.placeId === c.id,
-      }));
-      card.querySelector('.ghd').onclick = () => showPins(candPins(), true);
+      // Chosen places, in the order they were picked. First = primary (drives the
+      // engine and the route line); the rest become `stops` and draw tethered
+      // secondary markers.
+      const chosen = () => (DEC[r.id]?.places ?? []).map((x) => x.placeId);
+      const candPins = () => {
+        const ch = chosen();
+        return r.candidates.map((c, i) => {
+          const at = ch.indexOf(c.id);
+          return {
+            coord: c.coord, label: at >= 0 ? String(ch.length > 1 ? at + 1 : 1) : String(i + 1),
+            name: at === 0 ? `Primary — ${c.name}` : at > 0 ? `Also visits — ${c.name}` : c.name,
+            sel: at === 0, second: at > 0,
+          };
+        });
+      };
+      const paint = () => {
+        showPins(candPins(), true);
+        const ch = chosen();
+        if (ch.length > 1) {
+          tether(ch.map((id) => r.candidates.find((c) => c.id === id)).filter(Boolean)
+            .map((c) => [c.coord.lng, c.coord.lat]));
+        } else clearTether();
+      };
+      card.querySelector('.ghd').onclick = paint;
       const items = el('<div class="items"></div>');
       for (const [ci, c] of r.candidates.entries()) {
+        const ch = chosen();
+        const at = ch.indexOf(c.id);
+        const tag = at === 0 ? 'primary' : at > 0 ? `also #${at + 1}` : 'add';
         const row = el(`<div class="cand"><span class="nm"><b>${ci + 1}.</b> ${esc(c.name)}<br><span class="co">${c.coord.lng}, ${c.coord.lat}</span></span></div>`);
-        const b = el(`<button class="${st?.placeId === c.id ? 'sel' : ''}">${st?.placeId === c.id ? 'chosen' : 'choose'}</button>`);
-        b.onclick = () => { setDec([r.id], { action: 'accept', placeId: c.id, coord: c.coord, name: c.name, cite: c.cite, source: 'known-place' }); showPins(candPins(), true); };
+        const b = el(`<button class="${at >= 0 ? 'sel' : ''}">${tag}</button>`);
+        b.onclick = () => {
+          const cur = (DEC[r.id]?.places ?? []).slice();
+          const idx = cur.findIndex((x) => x.placeId === c.id);
+          if (idx >= 0) cur.splice(idx, 1);
+          else cur.push({ placeId: c.id, coord: c.coord, name: c.name, cite: c.cite });
+          if (cur.length === 0) setDec([r.id], null);
+          else setDec([r.id], { action: 'accept', source: 'known-place', places: cur,
+            placeId: cur[0].placeId, coord: cur[0].coord, name: cur[0].name, cite: cur[0].cite });
+          paint();
+        };
         row.appendChild(b);
         items.appendChild(row);
       }
