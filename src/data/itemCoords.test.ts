@@ -62,14 +62,24 @@ describe('registry integrity', () => {
     expect(bad.map(([id]) => id)).toEqual([]);
   });
 
-  it('keeps non-dive pins on land or barely offshore', () => {
-    // Only the wreck dive is expected to sit meaningfully out to sea. Anything
-    // else more than LAND_TOLERANCE_KM offshore is a research error.
-    const OFFSHORE_BY_DESIGN = new Set(['antilla-wreck-dive']);
-    const bad = entries.filter(([id, p]) =>
-      !OFFSHORE_BY_DESIGN.has(id)
+  it('keeps mainland pins on land or barely offshore', () => {
+    // Anything not explicitly marked `offshore` is a mainland place, and a
+    // mainland place more than LAND_TOLERANCE_KM out to sea is a research error.
+    // Driving this off the pin's own flag rather than a list of exempt ids means
+    // new dive sites and islets declare themselves instead of rotting the test.
+    const bad = entries.filter(([, p]) =>
+      !p.offshore
       && !pointInRing(p.coord, RING)
       && kmToRing(p.coord, RING) > LAND_TOLERANCE_KM);
+    expect(bad.map(([id]) => id)).toEqual([]);
+  });
+
+  it('keeps offshore pins off the mainland but within the sea tolerance', () => {
+    // A pin flagged offshore that is actually inland means the flag was copied
+    // onto the wrong entry.
+    const water = entries.filter(([, p]) => p.offshore);
+    expect(water.length).toBeGreaterThan(0);
+    const bad = water.filter(([, p]) => kmToRing(p.coord, RING) > SEA_TOLERANCE_KM);
     expect(bad.map(([id]) => id)).toEqual([]);
   });
 

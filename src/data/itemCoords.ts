@@ -40,6 +40,21 @@ export type Pin = {
   cite: string;      // REQUIRED — a reference a human can check. Enforced by test.
   place?: string;    // human-readable place name, shown on the card
   pickup?: Pickup;
+  /**
+   * Set for pins that legitimately sit away from the main island landmass:
+   * wreck and reef dive sites, and offshore islets such as De Palm Island
+   * (628m out) and Renaissance Island. Absent means "on the main island", which
+   * is the overwhelming majority.
+   *
+   * Not called `terrain: 'water'` because De Palm Island is genuine land — it is
+   * simply not the land the coastline polygon describes.
+   *
+   * Exists so the land/sea validator stays strict by default: a mainland pin
+   * more than 500m out to sea is a research error, while the SS Antilla wreck
+   * at 667m is correct. The alternative — a hand-maintained list of exempt ids
+   * inside the test — would rot silently as the catalog changes.
+   */
+  offshore?: true;
 };
 
 export const ITEM_PINS: Record<string, Pin> = {
@@ -52,7 +67,7 @@ export const ITEM_PINS: Record<string, Pin> = {
   'california-lighthouse-sunset': { coord: { lng: -70.0514, lat: 12.6138 }, source: 'curated', place: 'California Lighthouse', cite: 'Wikipedia: California Lighthouse infobox' },
   'flamingo-renaissance':         { coord: { lng: -70.0293, lat: 12.5009 }, source: 'curated', place: 'Renaissance Island',    cite: 'latlong.net: Renaissance Island' },
   'boca-catalina-snorkel':        { coord: { lng: -70.0515, lat: 12.6046 }, source: 'curated', place: 'Boca Catalina',         cite: 'Wikipedia: Beaches of Aruba' },
-  'antilla-wreck-dive':           { coord: { lng: -70.0580, lat: 12.6020 }, source: 'curated', place: 'SS Antilla wreck',      cite: 'Wikipedia: SS Antilla' },
+  'antilla-wreck-dive':           { coord: { lng: -70.0580, lat: 12.6020 }, source: 'curated', place: 'SS Antilla wreck',      cite: 'Wikipedia: SS Antilla', offshore: true },
   'zeerovers-fresh-catch':        { coord: { lng: -69.9466, lat: 12.4461 }, source: 'curated', place: 'Zeerover, Savaneta',    cite: 'Tripexpert / OSM: Savaneta 270A pier' },
   'gasparito-restaurant':         { coord: { lng: -70.0415, lat: 12.5618 }, source: 'curated', place: 'Gasparito, Noord',      cite: 'Mapcarta' },
   'oranjestad-walking':           { coord: { lng: -70.0270, lat: 12.5240 }, source: 'curated', place: 'Oranjestad',            cite: 'latitude.to: Oranjestad' },
@@ -89,6 +104,42 @@ export const ITEM_PINS: Record<string, Pin> = {
   'lunch-willems-pancakes': { coord: { lng: -70.0400, lat: 12.5750 }, source: 'curated', place: 'Noord',              cite: 'Noord (town-level; migrated from coords.ts, pending re-research)' },
   'lunch-lindas-pancakes':  { coord: { lng: -70.0415, lat: 12.5760 }, source: 'curated', place: 'Noord',              cite: 'Noord (town-level; migrated from coords.ts, pending re-research)' },
   'lunch-bingo':            { coord: { lng: -70.0420, lat: 12.5740 }, source: 'curated', place: 'Noord',              cite: 'Noord (town-level; migrated from coords.ts, pending re-research)' },
+  // ── Viator catalog items ────────────────────────────────────────────────────
+  // Resolved by tools/resolve-coords.ts, reviewed one by one in the interactive
+  // reviewer, and written from the saved decisions — coordinates copied, never
+  // retyped. Items absent from this list were reviewed and declined, or have no
+  // determinable location; either way they draw no pin.
+  '117113P2': { coord: { lng: -69.909, lat: 12.4364 }, source: 'known-place', place: 'San Nicolas', cite: 'OpenStreetMap node/13111662192, verified 2026-08-03' },  // The Whole Story Tour of San Nicolas in Aruba
+  '2455SEMI': { coord: { lng: -70.049, lat: 12.5748 }, source: 'known-place', place: 'Palm Beach', cite: 'OpenStreetMap way/23060047, verified 2026-08-03' },  // Aruba Semi-Submarine Cruise from Palm Beach
+  '2455SUB': { coord: { lng: -70.0389, lat: 12.5189 }, source: 'known-place', place: 'Atlantis Submarines', cite: 'OpenStreetMap node/4509681292, verified 2026-08-03' },  // Aruba Atlantis Submarine Tour
+  '12431P1': { coord: { lng: -70.0371, lat: 12.5201 }, source: 'known-place', place: 'Oranjestad', cite: 'OpenStreetMap node/50031810, verified 2026-08-03' },  // Half-Day Aruba Island Tour from Oranjestad
+  '103088P3': { coord: { lng: -70.0519, lat: 12.6049 }, source: 'known-place', place: 'Boca Catalina', cite: 'OpenStreetMap way/690840582, verified 2026-08-03' },  // Adults Only Catalina Bay Small Group Snorkel & Sunset Sail
+  '330511P1': { coord: { lng: -69.9852, lat: 12.559 }, source: 'known-place', place: 'Wariruri Bay', cite: 'OpenStreetMap relation/14759456, verified 2026-08-03' },  // Horseback Riding Wariruri Beach Tour in Aruba
+  '337516P1': { coord: { lng: -69.9581, lat: 12.5408 }, source: 'known-place', place: 'Natural Bridge', cite: 'OpenStreetMap node/540233078, verified 2026-08-03' },  // 2-Hour Horseback Riding Tour to Little Natural Bridge in Aruba
+  '2455P18': { coord: { lng: -69.9843, lat: 12.4696 }, source: 'known-place', place: 'De Palm Island', cite: 'OpenStreetMap: De Palm Island (water_park), verified 2026-08-03', offshore: true },  // Aruba De Palm Island Day Pass
+  '5493518P1': { coord: { lng: -70.0594, lat: 12.5465 }, source: 'known-place', place: 'Eagle Beach', cite: 'OpenStreetMap way/25590792, verified 2026-08-03' },  // Aruba Eagle Beach Romantic Sunset Picnic in a Luxury Cabana
+  '13526P9': { coord: { lng: -70.0536, lat: 12.6099 }, source: 'known-place', place: 'Arashi Beach', cite: 'OpenStreetMap way/461766965, verified 2026-08-03' },  // Action-Packed Half Day Aruba UTV Tour and Arashi Beach
+  '7389P2': { coord: { lng: -70.0536, lat: 12.6099 }, source: 'known-place', place: 'Arashi Beach', cite: 'OpenStreetMap way/461766965, verified 2026-08-03' },  // Aruba Island Sightseeing Tour Plus Arashi Beach Visit
+  '300281P4': { coord: { lng: -69.9485, lat: 12.4997 }, source: 'known-place', place: 'Arikok National Park', cite: 'OpenStreetMap node/6586531285, verified 2026-08-03' },  // Half Day Hike at Arikok National Park & Snorkel
+  '324189P4': { coord: { lng: -69.9485, lat: 12.4997 }, source: 'known-place', place: 'Arikok National Park', cite: 'OpenStreetMap node/6586531285, verified 2026-08-03' },  // National Park Arikok Jeep Safari Adventures
+  '250774P1': { coord: { lng: -69.9695, lat: 12.4643 }, source: 'known-place', place: 'Mangel Halto', cite: 'OpenStreetMap way/463354307, verified 2026-08-03' },  // Small-Group Sea Scooters Snorkel at Mangel Halto Beach in Arub
+  '186518P5': { coord: { lng: -69.9695, lat: 12.4643 }, source: 'known-place', place: 'Mangel Halto', cite: 'OpenStreetMap way/463354307, verified 2026-08-03' },  // Small Group Snorkeling at Mangel Halto Aruba
+  '122173P1': { coord: { lng: -69.9695, lat: 12.4643 }, source: 'known-place', place: 'Mangel Halto', cite: 'OpenStreetMap way/463354307, verified 2026-08-03' },  // Kayak Tour at Mangel Halto and Spanish Lagoon
+  '445910P2': { coord: { lng: -70.0577, lat: 12.6021 }, source: 'known-place', place: 'SS Antilla wreck', cite: 'OpenStreetMap way/337807284, verified 2026-08-03', offshore: true },  // Aruba Sail and Snorkel with Turtles at WW2 Shipwreck Includes 
+  '445910P1': { coord: { lng: -70.0577, lat: 12.6021 }, source: 'known-place', place: 'SS Antilla wreck', cite: 'OpenStreetMap way/337807284, verified 2026-08-03', offshore: true },  // Snorkel with Turtles at WW2 Shipwreck Includes Sunset & BBQ
+  '13526P5': { coord: { lng: -70.0577, lat: 12.6021 }, source: 'known-place', place: 'SS Antilla wreck', cite: 'OpenStreetMap way/337807284, verified 2026-08-03', offshore: true },  // Antilla Shipwreck Seabob Tour
+  '367744P2': { coord: { lng: -69.8793, lat: 12.4137 }, source: 'known-place', place: 'Baby Beach', cite: 'OpenStreetMap node/10308886317, verified 2026-08-03' },  // Full-Day Aruba Sightseeing island Tour with Baby Beach Swim
+  '441143P2': { coord: { lng: -69.8793, lat: 12.4137 }, source: 'known-place', place: 'Baby Beach', cite: 'OpenStreetMap node/10308886317, verified 2026-08-03' },  // Aruba Half-Day Full Island Safari Adventure with Baby Beach Sw
+  '153287P4': { coord: { lng: -69.8793, lat: 12.4137 }, source: 'known-place', place: 'Baby Beach', cite: 'OpenStreetMap node/10308886317, verified 2026-08-03' },  // Baby Beach Day Roundtrip
+  '12431P9': { coord: { lng: -69.8793, lat: 12.4137 }, source: 'known-place', place: 'Baby Beach', cite: 'OpenStreetMap node/10308886317, verified 2026-08-03' },  // Aruba Baby Beach Express Tour
+  '200215P3': { coord: { lng: -69.9287, lat: 12.5246 }, source: 'known-place', place: 'Conchi (Natural Pool)', cite: 'Wikipedia: Natural Pool (Aruba); matches the verified curated pin' },  // Horseback Riding and Natural Pool Adventure in Aruba
+  '47774P4': { coord: { lng: -69.9287, lat: 12.5246 }, source: 'known-place', place: 'Conchi (Natural Pool)', cite: 'Wikipedia: Natural Pool (Aruba); matches the verified curated pin' },  // Aruba Natural Pools Northshore Safari Tour
+  '6841P7': { coord: { lng: -69.9287, lat: 12.5246 }, source: 'known-place', place: 'Conchi (Natural Pool)', cite: 'Wikipedia: Natural Pool (Aruba); matches the verified curated pin' },  // Aruba UTV Adventure to Natural Pool Jeep Transfer
+  '6841POOL': { coord: { lng: -69.9287, lat: 12.5246 }, source: 'known-place', place: 'Conchi (Natural Pool)', cite: 'Wikipedia: Natural Pool (Aruba); matches the verified curated pin' },  // Aruba Natural Pool and Indian Cave Rugged Jeep Safari
+  '299932P2': { coord: { lng: -69.9287, lat: 12.5246 }, source: 'known-place', place: 'Conchi (Natural Pool)', cite: 'Wikipedia: Natural Pool (Aruba); matches the verified curated pin' },  // Sunrise Hike & Swim in Natural Pool: Escape the Crowds and Hea
+  '446074P1': { coord: { lng: -69.9287, lat: 12.5246 }, source: 'known-place', place: 'Conchi (Natural Pool)', cite: 'Wikipedia: Natural Pool (Aruba); matches the verified curated pin' },  // Private Aruba National Park Hiking & Natural Pool Swimming
+  '2455NPJEEP': { coord: { lng: -69.9287, lat: 12.5246 }, source: 'known-place', place: 'Conchi (Natural Pool)', cite: 'Wikipedia: Natural Pool (Aruba); matches the verified curated pin' },  // Aruba Off Road Safari Tour to Natural Pool
+  '6593P16': { coord: { lng: -69.9287, lat: 12.5246 }, source: 'known-place', place: 'Conchi (Natural Pool)', cite: 'Wikipedia: Natural Pool (Aruba); matches the verified curated pin' },  // Aruba Natural Wonders Caves and Natural Pool Jeep Tour
 };
 
 /** Look up a pin. Returns undefined — never a fallback — for unregistered ids. */

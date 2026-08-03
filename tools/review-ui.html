@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Coordinate review — 10daysonaruba</title>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.js"></script>
+<style>
+  :root{--ink:#1a1a1a;--cream:#FFFBF0;--coral:#E63946;--green:#2e7d32;
+        --line:rgba(0,0,0,.12);--muted:#7a7268}
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{background:var(--cream);color:var(--ink);
+       font:14px/1.5 Inter,system-ui,-apple-system,sans-serif;display:flex;flex-direction:column}
+
+  header{padding:12px 20px;border-bottom:2px solid var(--ink);display:flex;
+         gap:16px;align-items:center;flex-wrap:wrap;flex:0 0 auto}
+  h1{font-size:16px;margin:0;letter-spacing:-.01em}
+  .counts{font-size:12px;color:var(--muted)}
+  .counts b{color:var(--ink)}
+  .save{margin-left:auto;font-size:12px;color:var(--muted)}
+  .save.ok{color:var(--green)} .save.err{color:var(--coral)}
+
+  .tabs{display:flex;gap:6px;padding:9px 20px;border-bottom:1px solid var(--line);
+        flex-wrap:wrap;flex:0 0 auto}
+  .tab{padding:6px 13px;border-radius:18px;border:1.5px solid #ddd;background:transparent;
+       color:var(--muted);font:600 12px Inter,sans-serif;cursor:pointer}
+  .tab[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+  .tab .n{opacity:.65;margin-left:4px}
+
+  main{flex:1 1 auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:0}
+  @media (max-width:900px){main{grid-template-columns:1fr;grid-template-rows:1fr 45vh}}
+  #list{overflow-y:auto;padding:14px 18px;border-right:1px solid var(--line)}
+  #mapwrap{position:relative;min-height:0}
+  #map{position:absolute;inset:0}
+
+  .grp{border:2px solid var(--ink);border-radius:11px;margin-bottom:14px;overflow:hidden;
+       background:#fff}
+  .grp.done{opacity:.55}
+  .grp.rejected{border-color:#ccc}
+  .ghd{padding:10px 12px;background:#faf6ec;border-bottom:1px solid var(--line);
+       display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;cursor:pointer}
+  .ghd b{font-size:14px}
+  .ghd .co{font:11px ui-monospace,monospace;color:var(--muted)}
+  .ghd .badge{font:700 9px Inter,sans-serif;text-transform:uppercase;letter-spacing:.6px;
+              padding:3px 7px;border-radius:4px;background:#eee;color:var(--muted)}
+  .ghd .badge.acc{background:#e8f5e9;color:var(--green)}
+  .ghd .badge.rej{background:#fdecec;color:var(--coral)}
+  .cite{padding:6px 12px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--line)}
+  .items{padding:4px 12px 10px}
+  .item{padding:6px 0;border-bottom:1px solid #f0ece0;font-size:12.5px}
+  .item:last-child{border-bottom:none}
+  .item .id{font:10px ui-monospace,monospace;color:var(--muted)}
+  .acts{display:flex;gap:7px;padding:9px 12px;background:#faf6ec;border-top:1px solid var(--line)}
+  button.a,button.r,button.u{padding:6px 13px;border-radius:7px;font:600 12px Inter,sans-serif;
+       cursor:pointer;border:1.5px solid}
+  button.a{border-color:var(--green);color:var(--green);background:#fff}
+  button.a:hover{background:var(--green);color:#fff}
+  button.r{border-color:var(--coral);color:var(--coral);background:#fff}
+  button.r:hover{background:var(--coral);color:#fff}
+  button.u{border-color:#bbb;color:var(--muted);background:#fff}
+
+  .cand{display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #f0ece0}
+  .cand:last-child{border-bottom:none}
+  .cand button{padding:5px 11px;border-radius:6px;border:1.5px solid #ccc;background:#fff;
+               font:600 11px Inter,sans-serif;cursor:pointer;white-space:nowrap}
+  .cand button.sel{border-color:var(--green);background:var(--green);color:#fff}
+  .cand .nm{flex:1;font-size:12.5px}
+  .cand .co{font:10px ui-monospace,monospace;color:var(--muted)}
+
+  select{padding:5px 8px;border-radius:6px;border:1.5px solid #ccc;font:12px Inter,sans-serif;
+         background:#fff;max-width:230px}
+  .empty{color:var(--muted);font-size:13px;padding:18px 0}
+  .note{font-size:12px;color:var(--muted);margin:0 0 12px;line-height:1.5}
+  .pin{width:26px;height:26px;border-radius:50%;border:3px solid var(--coral);background:#fff;
+       display:flex;align-items:center;justify-content:center;font:700 10px Inter,sans-serif;
+       box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer}
+  .pin.ghost{border-color:#999;opacity:.55;width:18px;height:18px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Coordinate review</h1>
+  <div class="counts" id="counts">loading…</div>
+  <div class="save" id="save">&nbsp;</div>
+</header>
+
+<div class="tabs" id="tabs"></div>
+
+<main>
+  <div id="list"><div class="empty">loading…</div></div>
+  <div id="mapwrap"><div id="map"></div></div>
+</main>
+
+<script>
+mapboxgl.accessToken = '__MAPBOX_TOKEN__';
+const ARUBA = { center: [-69.97, 12.52], zoom: 10.6 };
+
+let DATA = null, DEC = {}, TAB = 'A', markers = [];
+const map = new mapboxgl.Map({ container: 'map', style: 'mapbox://styles/mapbox/light-v11',
+  ...ARUBA, attributionControl: false });
+map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+const el = (h) => { const d = document.createElement('div'); d.innerHTML = h.trim(); return d.firstChild; };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+
+let saveTimer = null;
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    const s = document.getElementById('save');
+    s.textContent = 'saving…'; s.className = 'save';
+    try {
+      const r = await fetch('/decisions', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(DEC) });
+      const j = await r.json();
+      s.textContent = `saved · ${j.saved} decisions`; s.className = 'save ok';
+    } catch (e) { s.textContent = 'SAVE FAILED — do not close this tab'; s.className = 'save err'; }
+  }, 250);
+}
+
+function counts() {
+  const P = DATA;
+  const total = P.groupA.reduce((n, g) => n + g.items.length, 0) + P.groupB.length
+    + P.groupC.length + P.groupD.length + P.groupE.length;
+  const decided = Object.keys(DEC).length;
+  const pinned = Object.values(DEC).filter((d) => d.action === 'accept').length;
+  document.getElementById('counts').innerHTML =
+    `plannable <b>${P.plannable}</b> · decided <b>${decided}</b>/${total} · will pin <b>${pinned}</b>`;
+}
+
+function tabs() {
+  const P = DATA;
+  const defs = [
+    ['A', 'Accept in bulk', P.groupA.reduce((n, g) => n + g.items.length, 0)],
+    ['B', 'Description only', P.groupB.length],
+    ['C', 'Pick destination', P.groupC.length],
+    ['D', 'Sails — departure', P.groupD.length],
+    ['E', 'No pin', P.groupE.length],
+  ];
+  const t = document.getElementById('tabs');
+  t.innerHTML = '';
+  for (const [k, label, n] of defs) {
+    const b = el(`<button class="tab" aria-pressed="${TAB === k ? 'true' : 'false'}">${k} · ${label}<span class="n">${n}</span></button>`);
+    b.onclick = () => { TAB = k; render(); };
+    t.appendChild(b);
+  }
+}
+
+function clearMarkers() { markers.forEach((m) => m.remove()); markers = []; }
+
+function showPins(pins, fit = true) {
+  clearMarkers();
+  const valid = pins.filter((p) => p && p.coord);
+  for (const p of valid) {
+    const m = new mapboxgl.Marker({ element: el(`<div class="pin${p.ghost ? ' ghost' : ''}">${p.label ?? ''}</div>`) })
+      .setLngLat([p.coord.lng, p.coord.lat])
+      .setPopup(new mapboxgl.Popup({ offset: 18 }).setHTML(`<b>${esc(p.name)}</b>`))
+      .addTo(map);
+    markers.push(m);
+  }
+  if (!fit || !valid.length) return;
+  if (valid.length === 1) { map.flyTo({ center: [valid[0].coord.lng, valid[0].coord.lat], zoom: 13.4, duration: 600 }); return; }
+  const lngs = valid.map((p) => p.coord.lng), lats = valid.map((p) => p.coord.lat);
+  map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+    { padding: 70, maxZoom: 13.4, duration: 600 });
+}
+
+function setDec(ids, dec) { for (const id of ids) { if (dec === null) delete DEC[id]; else DEC[id] = dec; } save(); render(); }
+
+function render() {
+  tabs(); counts();
+  const L = document.getElementById('list');
+  L.innerHTML = '';
+  const P = DATA;
+
+  if (TAB === 'A') {
+    L.appendChild(el(`<p class="note">Each block is one place. Click the header to fly the map there, check it, then accept or reject the whole block. All items in a block get the same coordinate.</p>`));
+    showPins(P.groupA.map((g) => ({ coord: g.place.coord, name: g.place.name, label: g.items.length })), true);
+    for (const g of P.groupA) {
+      const st = DEC[g.items[0].id]?.action;
+      const allSame = g.items.every((i) => DEC[i.id]?.action === st);
+      const state = allSame ? st : undefined;
+      const card = el(`<div class="grp ${state === 'accept' ? 'done' : state === 'reject' ? 'rejected' : ''}"></div>`);
+      card.appendChild(el(`<div class="ghd">
+        <b>${esc(g.place.name)}</b>
+        <span class="badge ${state === 'accept' ? 'acc' : state === 'reject' ? 'rej' : ''}">${state ?? 'undecided'}</span>
+        <span class="co">${g.place.coord.lng}, ${g.place.coord.lat}</span>
+        <span class="co">${g.items.length} item${g.items.length > 1 ? 's' : ''}</span></div>`));
+      card.querySelector('.ghd').onclick = () => showPins([{ coord: g.place.coord, name: g.place.name, label: g.items.length }], true);
+      card.appendChild(el(`<div class="cite">${esc(g.place.cite)}</div>`));
+      const items = el('<div class="items"></div>');
+      for (const it of g.items) items.appendChild(el(`<div class="item">${esc(it.title)}<br><span class="id">${esc(it.id)} · matched "${esc(it.alias)}"</span></div>`));
+      card.appendChild(items);
+      const acts = el('<div class="acts"></div>');
+      const ids = g.items.map((i) => i.id);
+      const bA = el('<button class="a">Accept all</button>');
+      bA.onclick = () => setDec(ids, { action: 'accept', placeId: g.place.id, coord: g.place.coord, name: g.place.name, cite: g.place.cite, source: 'known-place' });
+      const bR = el('<button class="r">Reject all</button>');
+      bR.onclick = () => setDec(ids, { action: 'reject' });
+      const bU = el('<button class="u">Undo</button>');
+      bU.onclick = () => setDec(ids, null);
+      acts.append(bA, bR, bU);
+      card.appendChild(acts);
+      L.appendChild(card);
+    }
+  }
+
+  if (TAB === 'B') {
+    L.appendChild(el(`<p class="note">The title says nothing — the place came from the product description, so it may be a passing mention rather than the destination. Reject freely.</p>`));
+    showPins(P.groupB.map((r) => ({ coord: r.place.coord, name: r.place.name })), true);
+    for (const r of P.groupB) {
+      const st = DEC[r.id]?.action;
+      const card = el(`<div class="grp ${st === 'accept' ? 'done' : st === 'reject' ? 'rejected' : ''}"></div>`);
+      card.appendChild(el(`<div class="ghd"><b>${esc(r.title)}</b>
+        <span class="badge ${st === 'accept' ? 'acc' : st === 'reject' ? 'rej' : ''}">${st ?? 'undecided'}</span></div>`));
+      card.querySelector('.ghd').onclick = () => showPins([{ coord: r.place.coord, name: r.place.name }], true);
+      card.appendChild(el(`<div class="cite">→ ${esc(r.place.name)} · matched "${esc(r.alias)}" in description · ${r.place.coord.lng}, ${r.place.coord.lat}</div>`));
+      const acts = el('<div class="acts"></div>');
+      const bA = el('<button class="a">Accept</button>');
+      bA.onclick = () => setDec([r.id], { action: 'accept', placeId: r.place.id, coord: r.place.coord, name: r.place.name, cite: r.place.cite, source: 'known-place' });
+      const bR = el('<button class="r">Reject</button>');
+      bR.onclick = () => setDec([r.id], { action: 'reject' });
+      const bU = el('<button class="u">Undo</button>');
+      bU.onclick = () => setDec([r.id], null);
+      acts.append(bA, bR, bU);
+      card.appendChild(acts);
+      L.appendChild(card);
+    }
+  }
+
+  if (TAB === 'C') {
+    L.appendChild(el(`<p class="note">Multi-stop tours naming two or more known places. Pick the primary destination — the one a traveller would say the tour is <em>about</em> — or reject to leave it unpinned.</p>`));
+    for (const r of P.groupC) {
+      const st = DEC[r.id];
+      const card = el(`<div class="grp ${st?.action === 'accept' ? 'done' : st?.action === 'reject' ? 'rejected' : ''}"></div>`);
+      card.appendChild(el(`<div class="ghd"><b>${esc(r.title)}</b>
+        <span class="badge ${st?.action === 'accept' ? 'acc' : st?.action === 'reject' ? 'rej' : ''}">${st?.action ? (st.name ?? st.action) : 'undecided'}</span></div>`));
+      card.querySelector('.ghd').onclick = () => showPins(r.candidates.map((c) => ({ coord: c.coord, name: c.name })), true);
+      const items = el('<div class="items"></div>');
+      for (const c of r.candidates) {
+        const row = el(`<div class="cand"><span class="nm">${esc(c.name)}<br><span class="co">${c.coord.lng}, ${c.coord.lat}</span></span></div>`);
+        const b = el(`<button class="${st?.placeId === c.id ? 'sel' : ''}">${st?.placeId === c.id ? 'chosen' : 'choose'}</button>`);
+        b.onclick = () => { showPins([{ coord: c.coord, name: c.name }], true); setDec([r.id], { action: 'accept', placeId: c.id, coord: c.coord, name: c.name, cite: c.cite, source: 'known-place' }); };
+        row.appendChild(b);
+        items.appendChild(row);
+      }
+      card.appendChild(items);
+      const acts = el('<div class="acts"></div>');
+      const bR = el('<button class="r">No pin</button>');
+      bR.onclick = () => setDec([r.id], { action: 'reject' });
+      const bU = el('<button class="u">Undo</button>');
+      bU.onclick = () => setDec([r.id], null);
+      acts.append(bR, bU);
+      card.appendChild(acts);
+      L.appendChild(card);
+    }
+  }
+
+  if (TAB === 'D' || TAB === 'E') {
+    const rows = TAB === 'D' ? P.groupD : P.groupE;
+    L.appendChild(el(`<p class="note">${TAB === 'D'
+      ? 'Sails and cruises have no destination — the departure point <em>is</em> where the activity happens. Assign a marina or pier only where you actually know it; otherwise leave unpinned.'
+      : 'Roving island tours, classes, pub crawls and unnamed dive sites. These have no single location, so no pin is the correct answer. The card still appears in the photo strip.'}</p>`));
+    clearMarkers();
+    for (const r of rows) {
+      const st = DEC[r.id];
+      const card = el(`<div class="grp ${st?.action === 'accept' ? 'done' : st?.action === 'reject' ? 'rejected' : ''}"></div>`);
+      card.appendChild(el(`<div class="ghd"><b>${esc(r.title)}</b>
+        <span class="badge ${st?.action === 'accept' ? 'acc' : st?.action === 'reject' ? 'rej' : ''}">${st?.action ? (st.name ?? 'no pin') : 'undecided'}</span>
+        <span class="id co">${esc(r.id)}</span></div>`));
+      const acts = el('<div class="acts"></div>');
+      if (TAB === 'D') {
+        const sel = el('<select><option value="">— departure point —</option></select>');
+        for (const p of P.places) sel.appendChild(el(`<option value="${p.id}"${st?.placeId === p.id ? ' selected' : ''}>${esc(p.name)}</option>`));
+        sel.onchange = () => {
+          const p = P.places.find((x) => x.id === sel.value);
+          if (!p) return setDec([r.id], null);
+          showPins([{ coord: p.coord, name: p.name }], true);
+          setDec([r.id], { action: 'accept', placeId: p.id, coord: p.coord, name: p.name, cite: p.cite, source: 'departure' });
+        };
+        acts.appendChild(sel);
+      }
+      const bR = el('<button class="r">No pin</button>');
+      bR.onclick = () => setDec([r.id], { action: 'reject' });
+      const bU = el('<button class="u">Undo</button>');
+      bU.onclick = () => setDec([r.id], null);
+      acts.append(bR, bU);
+      card.appendChild(acts);
+      L.appendChild(card);
+    }
+    if (TAB === 'E') {
+      const all = el('<div class="acts" style="position:sticky;bottom:0;border-radius:9px;border:2px solid var(--ink);margin-top:10px"></div>');
+      const b = el(`<button class="r">Mark all ${rows.length} as “no pin”</button>`);
+      b.onclick = () => setDec(rows.map((r) => r.id), { action: 'reject' });
+      all.appendChild(b);
+      L.appendChild(all);
+    }
+  }
+}
+
+(async function boot() {
+  const r = await fetch('/data');
+  const j = await r.json();
+  DATA = j.proposals; DEC = j.decisions ?? {};
+  map.on('load', render);
+  if (map.loaded()) render();
+})();
+</script>
+</body>
+</html>

@@ -179,6 +179,23 @@ async function main() {
   writeFileSync('/tmp/coord-review.md', L.join('\n'));
   writeFileSync('/tmp/coord-proposals.ts', accept.map((r) => registryLine(r.id, r.place!, r.title)).join('\n') + '\n');
 
+  // Structured form for the interactive reviewer (tools/review-server.mjs).
+  const slim = (p: Place) => ({ id: p.id, name: p.name, coord: p.coord, cite: p.cite, terrain: p.terrain });
+  writeFileSync('/tmp/coord-proposals.json', JSON.stringify({
+    catalogItems: catalog.items.length,
+    plannable: plannable.length,
+    groupA: groups.map(([pid, rows]) => ({
+      placeId: pid,
+      place: slim(rows[0].place!),
+      items: rows.map((r) => ({ id: r.id, title: r.title, alias: r.alias })),
+    })),
+    groupB: check.map((r) => ({ id: r.id, title: r.title, alias: r.alias, place: slim(r.place!) })),
+    groupC: pick.map((r) => ({ id: r.id, title: r.title, candidates: r.cands!.map(slim) })),
+    groupD: departure.map((r) => ({ id: r.id, title: r.title })),
+    groupE: leave.map((r) => ({ id: r.id, title: r.title })),
+    places: PLACES.map(slim),
+  }, null, 1));
+
   console.log(`plannable ${plannable.length}  ·  A accept ${accept.length} (${groups.length} places)`
     + `  ·  B check ${check.length}  ·  C pick ${pick.length}  ·  D departure ${departure.length}  ·  E leave ${leave.length}`);
   console.log('\nWrote /tmp/coord-review.md and /tmp/coord-proposals.ts');
