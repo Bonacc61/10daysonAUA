@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "trace": "node tools/run-trace.cjs",
+    "resolve:coords": "node tools/run-resolve.cjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

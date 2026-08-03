@@ -61,7 +61,11 @@ export const ITEM_PINS: Record<string, Pin> = {
   // Was -70.0500, 12.5980 — flagged by the precision check as suspiciously round
   // and confirmed ~300m off against the OSM beach feature. Corrected 2026-08-03.
   'malmok-beach':                 { coord: { lng: -70.0509, lat: 12.6007 }, source: 'curated', place: 'Malmok Beach',          cite: 'OpenStreetMap: Malmok Beach (beach feature), verified 2026-08-03' },
-  'tres-trapi':                   { coord: { lng: -70.0555, lat: 12.5579 }, source: 'curated', place: 'Tres Trapi',            cite: 'PADI dive site listing' },
+  // Was -70.0555, 12.5579 (cited to a PADI listing) — that is 4.94km away, near
+  // Palm Beach, where no such spot exists. Tres Trapi is in Malmok, between
+  // Boca Catalina and Arashi. Two independent OSM features of the same name (the
+  // beach and the bus stop serving it) agree on this point. Corrected 2026-08-03.
+  'tres-trapi':                   { coord: { lng: -70.0513, lat: 12.6024 }, source: 'curated', place: 'Tres Trapi, Malmok',    cite: 'OpenStreetMap: Tres Trapi beach + bus stop, Malmok; verified 2026-08-03' },
   'manchebo-beach':               { coord: { lng: -70.0580, lat: 12.5402 }, source: 'curated', place: 'Manchebo Beach',        cite: 'Wikipedia: Beaches of Aruba (onshore)' },
   'divi-beach':                   { coord: { lng: -70.0542, lat: 12.5259 }, source: 'curated', place: 'Druif Beach',           cite: 'latitude.to: Druif Beach' },
   'mangel-halto':                 { coord: { lng: -69.9695, lat: 12.4649 }, source: 'curated', place: 'Mangel Halto',          cite: 'Wikipedia: Mangel Halto' },
