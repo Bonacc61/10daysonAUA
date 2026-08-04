@@ -44,10 +44,15 @@ export default function CardBack(props: Props) {
   const taCount = isActivity ? props.activity.reviewCount : props.bestSeller.review_count;
   const taRating = isActivity ? props.activity.rating : props.bestSeller.rating;
 
-  // Our own words, for the cards with nothing sourced to show. Guarded on being
-  // non-empty: most of the curated picks ship `localsSay: ''`, and a Viator
-  // description is optional, so an unguarded block renders an empty box.
-  const ownNote = (isActivity ? props.activity.localsSay : props.bestSeller.description)?.trim();
+  // Our own words, for the cards with nothing sourced to show. localsSay first,
+  // description as the backstop — the seven curated picks ship `localsSay: ''`,
+  // and without the fallback they would flip to a blank card while the front
+  // face is still advertising "Tap for ratings". Still guarded on non-empty: a
+  // Viator description is optional, and an empty string would render an empty
+  // bordered box captioned "Why we picked it".
+  const ownNote = (isActivity
+    ? (props.activity.localsSay || props.activity.description)
+    : props.bestSeller.description)?.trim();
   const panels = (reddit ? 1 : 0) + (ta ? 1 : 0);
 
   return (
