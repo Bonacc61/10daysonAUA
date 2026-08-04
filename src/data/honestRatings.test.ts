@@ -119,9 +119,24 @@ describe('no fabricated social proof anywhere in the app', () => {
   });
 });
 
-/** Removes line and block comments so scans see only code and rendered text. */
+/**
+ * Blanks comments while preserving line count and leaving code untouched.
+ *
+ * A naive "delete from the first double-slash to end of line" truncated any line
+ * containing a URL — `href="https://x"` became `href="https:` — blinding every
+ * scan below on that line. And collapsing block comments shifted line numbers,
+ * so reported `file:line` was wrong and the proximity window below could pull in
+ * a guard that was actually further away than it looked.
+ */
 function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+  return src
+    // Block comments -> equally many blank lines, so numbering survives.
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => '\n'.repeat((m.match(/\n/g) ?? []).length))
+    // Only whole-line comments. A trailing `//` after code is rare here and not
+    // worth risking a string literal for.
+    .split('\n')
+    .map((line) => (/^\s*\/\//.test(line) ? '' : line))
+    .join('\n');
 }
 
 describe('every activity star is gated on ratingSource', () => {
@@ -147,6 +162,31 @@ describe('every activity star is gated on ratingSource', () => {
     const sabotaged = `${gated}\nexport const Regression = () => <span>{a.rating}</span>;\n`;
     expect(ungatedRatingSites([['pages/Explore.tsx', sabotaged]])).toHaveLength(1);
   });
+
+  it('CAN fail: catches the ternary badge form, not just {a.rating}', () => {
+    // The shipped Dashboard/SurpriseMe badges read the rating inside a ternary.
+    // The first version of this regex required `}` right after `.rating` and so
+    // sailed past them — the guards they depend on could have been deleted
+    // silently.
+    const ternary = `<span>{pick.kind === 'activity' ? pick.activity.rating : pick.item.rating}</span>`;
+    expect(ungatedRatingSites([['x.tsx', ternary]])).toHaveLength(1);
+  });
+
+  it('does not flag a Viator rating — those are real', () => {
+    const viator = `<span>{item.rating}</span>\n<span>{bestSeller.rating}</span>`;
+    expect(ungatedRatingSites([['x.tsx', viator]])).toEqual([]);
+  });
+
+  it('CAN fail: a guard beyond the window does not launder a later star', () => {
+    // Honest limitation: this is proximity, not scope analysis. An ungated star
+    // placed WITHIN GUARD_WINDOW lines of a real guard still passes — the window
+    // has to reach that far because the guard on ItineraryCard's badge sits 4
+    // lines above the render. It catches the realistic regressions (a star in a
+    // new file, a deleted guard, the ternary badge form) and not an adversarial
+    // insertion tucked against an existing guard.
+    const far = `{a.ratingSource === 'viator' && <span>{a.rating}</span>}${'\n'.repeat(7)}<span>{a.rating}</span>`;
+    expect(ungatedRatingSites([['x.tsx', far]])).toHaveLength(1);
+  });
 });
 
 /**
@@ -154,14 +194,30 @@ describe('every activity star is gated on ratingSource', () => {
  * within GUARD_WINDOW lines above them (covering both an inline `&&` guard and
  * an enclosing conditional a few lines up).
  */
-const GUARD_WINDOW = 6;
+const GUARD_WINDOW = 5;
 function ungatedRatingSites(files: ReadonlyArray<readonly [string, string]>): string[] {
-  const ACTIVITY_RATING = /\{\s*(?:[a-zA-Z]+\.)?(?:a|activity)\.rating\s*\}|\.activity\.rating\s*\}/;
+  // Any read of a local pick's rating inside a JSX expression. The earlier
+  // pattern required `}` immediately after and so missed the ternary form this
+  // very commit shipped — `{pick.kind === 'activity' ? pick.activity.rating :
+  // pick.item.rating}` — meaning the guards on the Dashboard and SurpriseMe
+  // badges could be deleted with the suite still green. Viator reads
+  // (`item.rating`, `bestSeller.rating`) stay exempt: those are real.
+  // `\b` before the object name so `pick.activity.rating` matches (the boundary
+  // sits between `.` and `a`) while `data.rating` does not (no boundary inside a
+  // word). `item.rating` and `bestSeller.rating` simply never match.
+  const ACTIVITY_RATING = /\b(?:a|activity)\.rating\b/;
+  // Ranking code is allowed to READ the weight — that is what it is for. Only
+  // rendering it is forbidden. Approximated by: JSX files only, and not a
+  // binding or a plain return. Without this the check flagged
+  // exploreItems.ts:228 and itineraryGenerator.ts:212, which are the very uses
+  // the field legitimately has.
+  const BINDING = /^\s*(?:const|let|var|return)\b/;
   const out: string[] = [];
   for (const [file, src] of files) {
+    if (!file.endsWith('.tsx')) continue;
     const lines = stripComments(src).split('\n');
     lines.forEach((line, i) => {
-      if (!ACTIVITY_RATING.test(line)) return;
+      if (!ACTIVITY_RATING.test(line) || BINDING.test(line)) return;
       const window = lines.slice(Math.max(0, i - GUARD_WINDOW), i + 1).join('\n');
       if (!window.includes('ratingSource')) out.push(`${file}:${i + 1}  ${line.trim().slice(0, 80)}`);
     });

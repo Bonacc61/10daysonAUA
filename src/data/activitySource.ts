@@ -167,14 +167,20 @@ export function mergeLocalMatches(
   return activities.map((a) => {
     const m = matches[a.id];
     if (!m) return a;
-    const realRating = typeof m.rating === 'number' && m.rating > 0;
+    // Both numbers must be real, because the card prints them together. Keying
+    // the flag on `rating` alone while `review_count` fell back independently
+    // could pair a genuine 4.3 with the editorial count — "4.3 from 2,847
+    // reviews" for a free public beach, which is the same fabrication wearing
+    // one true number.
+    const real = typeof m.rating === 'number' && m.rating > 0
+      && typeof m.review_count === 'number';
     return {
       ...a,
       title: m.title || a.title,
       image: m.image_url || a.image,
-      rating: realRating ? m.rating! : a.rating,
-      reviewCount: typeof m.review_count === 'number' ? m.review_count : a.reviewCount,
-      ...(realRating ? { ratingSource: 'viator' as const } : {}),
+      rating: real ? m.rating! : a.rating,
+      reviewCount: real ? m.review_count! : a.reviewCount,
+      ...(real ? { ratingSource: 'viator' as const } : {}),
       viator_item_url: m.viator_item_url,
     };
   });
