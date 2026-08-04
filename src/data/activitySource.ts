@@ -144,6 +144,42 @@ export function getCachedCatalog(): Catalog {
   return liveCatalog ?? getCatalog();
 }
 
+export type LocalMatch = {
+  title?: string; rating?: number; review_count?: number;
+  image_url?: string; viator_item_url?: string;
+};
+
+/**
+ * Merges curated local-pick matches into the editorial activities: the matched
+ * product's image, rating, reviews and affiliate link win; the editorial title
+ * and blurb stay. Picks with no match pass through untouched.
+ *
+ * `ratingSource` is the honesty flag. A local pick's own `rating` is an
+ * editorial ranking weight with no platform behind it, so the UI must not draw a
+ * star for it; only a rating that genuinely arrived from Viator earns one. A
+ * match can carry a link and no rating, so the link alone cannot stand in as
+ * proof that a real number exists.
+ */
+export function mergeLocalMatches(
+  activities: readonly Activity[],
+  matches: Record<string, LocalMatch>,
+): Activity[] {
+  return activities.map((a) => {
+    const m = matches[a.id];
+    if (!m) return a;
+    const realRating = typeof m.rating === 'number' && m.rating > 0;
+    return {
+      ...a,
+      title: m.title || a.title,
+      image: m.image_url || a.image,
+      rating: realRating ? m.rating! : a.rating,
+      reviewCount: typeof m.review_count === 'number' ? m.review_count : a.reviewCount,
+      ...(realRating ? { ratingSource: 'viator' as const } : {}),
+      viator_item_url: m.viator_item_url,
+    };
+  });
+}
+
 // Fetch the live Viator catalog from the edge function once (memoised). Falls
 // back to the stub if not configured or on any error. Never throws.
 export function loadCatalog(): Promise<Catalog> {
@@ -166,24 +202,7 @@ export function loadCatalog(): Promise<Catalog> {
       if (data?.error || !Array.isArray(groups) || !Array.isArray(items) || items.length === 0) {
         throw new Error('viator-cards: empty/invalid payload');
       }
-      // Merge curated local-pick matches: override image/rating/reviews + attach
-      // the affiliate link, keeping the editorial title/blurb. Editorial picks
-      // (no match) pass through unchanged.
-      const matches: Record<string, {
-        title?: string; rating?: number; review_count?: number; image_url?: string; viator_item_url?: string;
-      }> = data?.localMatches ?? {};
-      const activities = ACTIVITIES.map((a) => {
-        const m = matches[a.id];
-        if (!m) return a;
-        return {
-          ...a,
-          title: m.title || a.title,
-          image: m.image_url || a.image,
-          rating: typeof m.rating === 'number' && m.rating > 0 ? m.rating : a.rating,
-          reviewCount: typeof m.review_count === 'number' ? m.review_count : a.reviewCount,
-          viator_item_url: m.viator_item_url,
-        };
-      });
+      const activities = mergeLocalMatches(ACTIVITIES, data?.localMatches ?? {});
       liveCatalog = {
         activities, groups,
         items: normalizePopularity(regroupItems(groups, items.filter((i) => !isTransportOnly(i)))),

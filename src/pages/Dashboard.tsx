@@ -296,9 +296,11 @@ function SurprisePanel({ setPage, trip, answers }: { setPage: (p: PageId) => voi
                 alt={pick.kind === 'activity' ? pick.activity.title : pick.item.title}
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               />
-              <span style={{ position: 'absolute', top: 12, right: 12, background: 'var(--ink)', color: 'var(--yellow)', padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                <Star size={11} /> {pick.kind === 'activity' ? pick.activity.rating : pick.item.rating}
-              </span>
+              {(pick.kind === 'activity' ? pick.activity.ratingSource === 'viator' : true) && (
+                <span style={{ position: 'absolute', top: 12, right: 12, background: 'var(--ink)', color: 'var(--yellow)', padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <Star size={11} /> {pick.kind === 'activity' ? pick.activity.rating : pick.item.rating}
+                </span>
+              )}
               <button className={`a-star-btn${starred.has(pick.id) ? ' active' : ''}`} style={{ top: 12, left: 12, right: 'unset' }}
                 onClick={() => toggleStar(pick.id)} aria-label={starred.has(pick.id) ? 'Remove from favourites' : 'Add to favourites'}>
                 <Heart size={15} fill="currentColor" />
@@ -359,7 +361,7 @@ function StarredActivityCard({ entry, onStar }: { entry: ExploreEntry & { kind: 
     <div className="a-card fade-in">
       <div className="a-img">
         <img src={a.image} alt={a.title} />
-        <span className="a-rating"><Star size={10} /> {a.rating}</span>
+        {a.ratingSource === 'viator' && <span className="a-rating"><Star size={10} /> {a.rating}</span>}
         {onStar && (
           <button className="a-star-btn active" onClick={onStar} aria-label="Remove from favourites">
             <Heart size={14} fill="currentColor" />

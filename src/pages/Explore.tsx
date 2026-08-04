@@ -283,7 +283,7 @@ function ActivityTile({ a, section, sectionUrl: _sectionUrl, adventure, bookNow,
       <div className="card-header-band">{headerInner}</div>
       <div className="a-img">
         <img src={a.image} alt={a.title} loading="lazy" />
-        <span className="a-rating"><Star size={12} aria-hidden /> {a.rating}</span>
+        {a.ratingSource === 'viator' && <span className="a-rating"><Star size={12} aria-hidden /> {a.rating}</span>}
         <button className={`a-star-btn${starred ? ' active' : ''}`} onClick={(e) => { e.stopPropagation(); onStar(); }} aria-label={starred ? 'Remove from favourites' : 'Save to favourites'}>
           <Heart size={15} fill={starred ? 'currentColor' : 'none'} />
         </button>

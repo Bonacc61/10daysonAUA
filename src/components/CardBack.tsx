@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { Activity } from '../data/activities';
 import type { ViatorItem } from '../types';
 import { Star } from './Icons';
@@ -5,6 +6,21 @@ import { Star } from './Icons';
 type Props =
   | { kind: 'activity'; activity: Activity; onFlip: () => void }
   | { kind: 'group'; bestSeller: ViatorItem; onFlip: () => void };
+
+/**
+ * The card back shows social proof — and therefore shows NOTHING it cannot
+ * source.
+ *
+ * It used to fall back to `{ rating: 4.2, mentions: 60, quote: 'Solid pick.
+ * Goes on most r/Aruba shortlists.' }` under an r/Aruba-branded badge whenever a
+ * card had no real quote, which was 14 of the 26 local picks. An invented rating
+ * presented as a community rating is a fabricated review: wrong on the facts,
+ * and a named prohibited practice under EU unfair-commercial-practices rules on
+ * a site that earns affiliate revenue.
+ *
+ * The rule now: each block renders only when real data backs it, and a card with
+ * neither shows the editorial local tip instead of a manufactured consensus.
+ */
 
 const ACTIVITY_REDDIT: Record<string, { rating: number; mentions: number; quote: string }> = {
   'eagle-beach-morning':       { rating: 4.6, mentions: 312, quote: "Get there at 6:30am if you want a divi-divi for yourself. By 10 it's gone." },
@@ -29,22 +45,105 @@ const ACTIVITY_TA: Record<string, string> = {
   'antilla-wreck-dive':        'Top dive of our trip. Visibility was incredible.',
 };
 
-const FALLBACK_REDDIT = { rating: 4.2, mentions: 60, quote: 'Solid pick. Goes on most r/Aruba shortlists.' };
-const FALLBACK_TA     = 'Highly recommended by recent visitors.';
-
 export default function CardBack(props: Props) {
   const isActivity = props.kind === 'activity';
-  const id = isActivity ? props.activity.id : props.bestSeller.id;
   const title = isActivity ? props.activity.title : props.bestSeller.title;
 
   const reddit = isActivity
-    ? (ACTIVITY_REDDIT[id] ?? FALLBACK_REDDIT)
-    : (props.bestSeller.reddit_quote ?? FALLBACK_REDDIT);
+    ? ACTIVITY_REDDIT[props.activity.id]
+    : props.bestSeller.reddit_quote;
 
-  const ta = isActivity ? (ACTIVITY_TA[id] ?? FALLBACK_TA) : (props.bestSeller.ta_quote ?? FALLBACK_TA);
+  const travellerQuote = isActivity
+    ? ACTIVITY_TA[props.activity.id]
+    : props.bestSeller.ta_quote;
 
-  const taCount = isActivity ? props.activity.reviewCount : props.bestSeller.review_count;
-  const taRating = isActivity ? props.activity.rating : props.bestSeller.rating;
+  // Viator supplies rating + review count for every catalog item. A local pick
+  // only has them when loadCatalog merged a matched product in — otherwise
+  // `rating` is the editorial ranking weight and must not be shown as a star.
+  const rating = isActivity ? props.activity.rating : props.bestSeller.rating;
+  const reviewCount = isActivity ? props.activity.reviewCount : props.bestSeller.review_count;
+  const ratingIsReal = isActivity ? props.activity.ratingSource === 'viator' : true;
+  const showTravellers =
+    ratingIsReal && typeof rating === 'number' && rating > 0 && typeof reviewCount === 'number';
+
+  const blocks: ReactNode[] = [];
+
+  if (reddit) {
+    blocks.push(
+      <div key="reddit" style={{ background: '#FFF4E6', border: '2px solid #FF4500',
+                    borderRadius: 12, padding: 12,
+                    display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{
+            width: 22, height: 22, borderRadius: '50%',
+            background: '#FF4500', color: 'white',
+            fontWeight: 700, fontSize: 12,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          }}>r</span>
+          <span style={{ fontWeight: 700, fontSize: 12, color: '#7A2A00' }}>r/Aruba</span>
+          <span style={{ fontSize: 10, color: '#B05500', marginLeft: 'auto' }}>
+            {reddit.mentions} mentions
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 1 }}>
+            {[1, 2, 3, 4, 5].map((s) => (
+              <Star key={s} size={12}
+                    fill={s <= Math.round(reddit.rating) ? '#FF4500' : 'transparent'}
+                    color="#FF4500" />
+            ))}
+          </div>
+          <span style={{ fontWeight: 700, fontSize: 12, color: '#7A2A00' }}>{reddit.rating}</span>
+        </div>
+        <p style={{ fontSize: 11.5, lineHeight: 1.4, color: '#7A2A00',
+                    margin: 0, fontStyle: 'italic', overflow: 'hidden',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+          "{reddit.quote}"
+        </p>
+      </div>,
+    );
+  }
+
+  if (showTravellers) {
+    // Deliberately unbranded. These numbers come from the booking API, not from
+    // TripAdvisor, and the cards carry no Viator branding by design — so the
+    // block says what the number is rather than borrowing a logo for it.
+    blocks.push(
+      <div key="travellers" style={{ background: '#E9F7EF', border: '2px solid #22C55E',
+                    borderRadius: 12, padding: 12,
+                    display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontWeight: 700, fontSize: 12, color: '#155724' }}>Traveller reviews</span>
+          <span style={{ fontSize: 10, color: '#3A7D44', marginLeft: 'auto' }}>
+            {reviewCount.toLocaleString()} reviews
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 1 }}>
+            {[1, 2, 3, 4, 5].map((s) => (
+              <Star key={s} size={12}
+                    fill={s <= Math.round(rating) ? '#22C55E' : 'transparent'}
+                    color="#22C55E" />
+            ))}
+          </div>
+          <span style={{ fontWeight: 700, fontSize: 12, color: '#155724' }}>{rating}</span>
+        </div>
+        {travellerQuote && (
+          <p style={{ fontSize: 11.5, lineHeight: 1.4, color: '#155724',
+                      margin: 0, fontStyle: 'italic', overflow: 'hidden',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+            "{travellerQuote}"
+          </p>
+        )}
+      </div>,
+    );
+  }
+
+  // Nothing sourced: fall back to our own voice rather than a borrowed one.
+  // `localsSay` is written for every local pick and was rendered nowhere.
+  const localTip = isActivity ? props.activity.localsSay : props.bestSeller.description;
 
   return (
     <div className="chunky flip-face flip-back itin-card-back"
@@ -56,78 +155,27 @@ export default function CardBack(props: Props) {
           {title}
         </h3>
       </div>
-      <div className="itin-card-back-grid" style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr',
-        gap: 10, flex: 1, minHeight: 0,
-      }}>
-        {/* r/Aruba */}
-        <div style={{ background: '#FFF4E6', border: '2px solid #FF4500',
-                      borderRadius: 12, padding: 12,
-                      display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{
-              width: 22, height: 22, borderRadius: '50%',
-              background: '#FF4500', color: 'white',
-              fontWeight: 700, fontSize: 12,
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            }}>r</span>
-            <span style={{ fontWeight: 700, fontSize: 12, color: '#7A2A00' }}>r/Aruba</span>
-            <span style={{ fontSize: 10, color: '#B05500', marginLeft: 'auto' }}>
-              {reddit.mentions} mentions
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ display: 'flex', gap: 1 }}>
-              {[1, 2, 3, 4, 5].map((s) => (
-                <Star key={s} size={12}
-                      fill={s <= Math.round(reddit.rating) ? '#FF4500' : 'transparent'}
-                      color="#FF4500" />
-              ))}
-            </div>
-            <span style={{ fontWeight: 700, fontSize: 12, color: '#7A2A00' }}>{reddit.rating}</span>
-          </div>
-          <p style={{ fontSize: 11.5, lineHeight: 1.4, color: '#7A2A00',
+      {blocks.length > 0 ? (
+        <div className="itin-card-back-grid" style={{
+          display: 'grid',
+          gridTemplateColumns: blocks.length === 2 ? '1fr 1fr' : '1fr',
+          gap: 10, flex: 1, minHeight: 0,
+        }}>
+          {blocks}
+        </div>
+      ) : (
+        <div style={{ background: 'var(--sand-100)', border: '2px solid var(--ink)',
+                      borderRadius: 12, padding: 14, flex: 1, minHeight: 0,
+                      display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--ink)' }}>What locals say</span>
+          <p style={{ fontSize: 12.5, lineHeight: 1.45, color: 'var(--sand-700)',
                       margin: 0, fontStyle: 'italic', overflow: 'hidden',
                       display: '-webkit-box',
-                      WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
-            "{reddit.quote}"
+                      WebkitLineClamp: 6, WebkitBoxOrient: 'vertical' }}>
+            {localTip}
           </p>
         </div>
-
-        {/* TripAdvisor */}
-        <div style={{ background: '#E9F7EF', border: '2px solid #22C55E',
-                      borderRadius: 12, padding: 12,
-                      display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{
-              width: 22, height: 22, borderRadius: '50%',
-              background: '#22C55E', color: 'white',
-              fontWeight: 700, fontSize: 10,
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            }}>TA</span>
-            <span style={{ fontWeight: 700, fontSize: 12, color: '#155724' }}>TripAdvisor</span>
-            <span style={{ fontSize: 10, color: '#3A7D44', marginLeft: 'auto' }}>
-              {taCount.toLocaleString()} reviews
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ display: 'flex', gap: 1 }}>
-              {[1, 2, 3, 4, 5].map((s) => (
-                <Star key={s} size={12}
-                      fill={s <= Math.round(taRating) ? '#22C55E' : 'transparent'}
-                      color="#22C55E" />
-              ))}
-            </div>
-            <span style={{ fontWeight: 700, fontSize: 12, color: '#155724' }}>{taRating}</span>
-          </div>
-          <p style={{ fontSize: 11.5, lineHeight: 1.4, color: '#155724',
-                      margin: 0, fontStyle: 'italic', overflow: 'hidden',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
-            "{ta}"
-          </p>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

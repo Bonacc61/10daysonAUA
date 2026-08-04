@@ -154,11 +154,13 @@ function ActivityCardFront({
                 <MapPin size={12} /><span>{a.location}</span>
               </div>
             </div>
-            <span className="chip-outline" style={{
-              fontSize: 11, background: 'var(--yellow)', flexShrink: 0,
-            }}>
-              <Star size={11} /> {a.rating}
-            </span>
+            {a.ratingSource === 'viator' && (
+              <span className="chip-outline" style={{
+                fontSize: 11, background: 'var(--yellow)', flexShrink: 0,
+              }}>
+                <Star size={11} /> {a.rating}
+              </span>
+            )}
           </div>
           <p style={{ fontSize: 12.5, lineHeight: 1.45, color: 'var(--sand-700)',
                       margin: '0 0 10px', display: '-webkit-box',

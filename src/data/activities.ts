@@ -12,8 +12,17 @@ export type Activity = {
   timeOfDay: 'Morning' | 'Afternoon' | 'Evening';
   fitReason: string;
   location: string;
+  // EDITORIAL RANKING WEIGHT — NOT a platform rating, and never rendered as one.
+  // These numbers were written to populate the cards; no TripAdvisor or Viator
+  // listing backs them. They survive because Explore ordering
+  // (exploreItems.ts:228) and the generator (itineraryGenerator.ts:212) rank on
+  // them, so they are a curation signal — our ordering of our own picks.
+  // A star only renders when `ratingSource` says a real platform supplied it.
   rating: number;
   reviewCount: number;
+  // Set at runtime by loadCatalog when a matched Viator product supplied a real
+  // rating (> 0). Its absence means `rating` above is editorial: show no star.
+  ratingSource?: 'viator';
   adventure?: number;      // curated 0 (chill) … 100 (adrenaline); drives the Explore Vibe slider
   sections?: Section[];    // Explore taxonomy membership (editorial for local picks)
   // Viator taxonomy tag ids, hand-assigned for local picks so they share ONE
