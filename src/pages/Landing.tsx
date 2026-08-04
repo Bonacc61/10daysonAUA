@@ -251,7 +251,7 @@ function SampleSection({ days, goPlan, goExplore }: { days: string; goPlan: () =
               </div>
               <button className="btn-coral" onClick={goPlan}>build my plan →</button>
               <img
-                src="/sample-map.png"
+                src="/sample-map.webp"
                 alt="Sample Aruba trip map — three activity stops shown as photo pins connected by a route, with an activity card open"
                 loading="lazy"
                 width={980}
