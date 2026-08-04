@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { dayHues, hexToHsl, hslToHex } from './dayHues';
+import { DAY_COLORS } from './itineraryGenerator';
 
 const DAY_RED = '#E63946';   // one of DAY_COLORS
 const DAY_BLUE = '#3B82F6';
+// Smallest lightness gap between adjacent stops that still reads as two shades
+// at pin size — roughly 3/255. Below this the pins look like a flat block.
+const MIN_STEP_L = 0.012;
 
 describe('dayHues', () => {
   it('round-trips a colour through HSL without drifting', () => {
@@ -50,9 +54,27 @@ describe('dayHues', () => {
     }
   });
 
+  // The two hand-picked colours above (red, blue) both sit far enough from the
+  // lightness ceiling that they never exercised it. #FF6B47 (days 1 and 8) and
+  // #8B5CF6 (day 6) do not: with a fixed spread they ran past MAX_L and the last
+  // two stops of a long day clamped to the SAME lightness — visually one pin
+  // colour repeated. Table-test the real list so a new day colour can't
+  // reintroduce that silently.
+  it.each(DAY_COLORS)('keeps every stop separable across a long day — %s', (dayColor) => {
+    for (let count = 2; count <= 8; count += 1) {
+      const ls = dayHues(dayColor, count).map((h) => hexToHsl(h).l);
+      for (let i = 1; i < ls.length; i += 1) {
+        expect(
+          ls[i] - ls[i - 1],
+          `${dayColor} with ${count} stops: steps ${i - 1}→${i} are ${ls[i - 1].toFixed(3)}→${ls[i].toFixed(3)}`,
+        ).toBeGreaterThanOrEqual(MIN_STEP_L);
+      }
+    }
+  });
+
   it('clamps an already-dark or already-light day colour into the band', () => {
-    // DAY_COLORS all sit mid-lightness, so the clamp never fires for them —
-    // these extremes are what actually exercise it.
+    // These extremes sit outside the legible band entirely, so they exercise the
+    // centring path rather than the spread path.
     for (const extreme of ['#101820', '#FFF4D6']) {
       for (const hex of dayHues(extreme, 10)) {
         const l = hexToHsl(hex).l;

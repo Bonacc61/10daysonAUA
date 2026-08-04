@@ -11,7 +11,7 @@
 // added on top because two adjacent lightness steps of a saturated colour can be
 // hard to separate at pin size.
 
-const SPREAD_L = 0.30;   // total lightness travelled across a day, in HSL L
+const SPREAD_L = 0.30;   // most lightness we'll travel across a day, in HSL L
 const DRIFT_H = 10;      // degrees of hue drift across a day
 // Keep every shade legible against the map and against white pin text.
 const MIN_L = 0.30;
@@ -57,13 +57,21 @@ export function dayHues(baseHex: string, count: number): string[] {
   if (count <= 0) return [];
   const base = hexToHsl(baseHex);
   if (count === 1) return [baseHex];
+  // Spread symmetrically about the day colour, but only as far as the legible
+  // band actually allows. Walking a fixed SPREAD_L and clamping the result is
+  // what broke: #FF6B47 (days 1 and 8) and #8B5CF6 (day 6) sit close enough to
+  // MAX_L that the top of the walk clamped, and the last stops of a long day
+  // came out at identical lightness — one pin colour repeated, no order to read.
+  // Narrowing the spread instead keeps every step distinct and keeps the day
+  // colour at the midpoint, so the set still reads as one day.
+  const centre = Math.min(MAX_L, Math.max(MIN_L, base.l));
+  const spread = Math.min(SPREAD_L, Math.min(centre - MIN_L, MAX_L - centre) * 2);
   return Array.from({ length: count }, (_, i) => {
     const t = i / (count - 1);              // 0 … 1 across the day
-    const l = base.l - SPREAD_L / 2 + SPREAD_L * t;
     return hslToHex({
       h: base.h - DRIFT_H / 2 + DRIFT_H * t,
       s: base.s,
-      l: Math.min(MAX_L, Math.max(MIN_L, l)),
+      l: centre - spread / 2 + spread * t,
     });
   });
 }
