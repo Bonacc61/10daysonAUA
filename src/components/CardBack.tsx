@@ -142,8 +142,18 @@ export default function CardBack(props: Props) {
   }
 
   // Nothing sourced: fall back to our own voice rather than a borrowed one.
-  // `localsSay` is written for every local pick and was rendered nowhere.
-  const localTip = isActivity ? props.activity.localsSay : props.bestSeller.description;
+  // `localsSay` is the first choice — it was written for most picks and rendered
+  // nowhere — but 7 of the 26 have it empty, so this must chain rather than
+  // trust it. An unguarded read here rendered a headed, full-height, EMPTY panel
+  // on arashi-beach, palm-beach-strip, boca-catalina-shore, alto-vista-chapel,
+  // california-dunes-sunset, bushiribana-loop and san-nicolas-murals.
+  const tip = isActivity
+    ? (props.activity.localsSay?.trim() || props.activity.description?.trim())
+    : props.bestSeller.description?.trim();
+  // Group cards fall back to Viator's marketing copy, which is not a local tip.
+  const tipHeading = isActivity && props.activity.localsSay?.trim()
+    ? 'What locals say'
+    : 'About this';
 
   return (
     <div className="chunky flip-face flip-back itin-card-back"
@@ -163,19 +173,19 @@ export default function CardBack(props: Props) {
         }}>
           {blocks}
         </div>
-      ) : (
+      ) : tip ? (
         <div style={{ background: 'var(--sand-100)', border: '2px solid var(--ink)',
                       borderRadius: 12, padding: 14, flex: 1, minHeight: 0,
                       display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--ink)' }}>What locals say</span>
+          <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--ink)' }}>{tipHeading}</span>
           <p style={{ fontSize: 12.5, lineHeight: 1.45, color: 'var(--sand-700)',
                       margin: 0, fontStyle: 'italic', overflow: 'hidden',
                       display: '-webkit-box',
                       WebkitLineClamp: 6, WebkitBoxOrient: 'vertical' }}>
-            {localTip}
+            {tip}
           </p>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

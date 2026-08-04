@@ -115,7 +115,7 @@ function ActivityCardFront({
         <button
           className="itin-card-image-btn"
           onClick={onFlip}
-          aria-label="See ratings"
+          aria-label="See more about this"
           style={{
             flex: '0 0 200px', height: '100%',
             background: 'var(--sand-100)',
@@ -128,7 +128,10 @@ function ActivityCardFront({
             position: 'absolute', bottom: 10, left: 10,
             background: 'rgba(26,26,26,0.85)', color: 'var(--cream)',
             fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 999,
-          }}>Tap for ratings ↻</span>
+            // Not "Tap for ratings": only 12 of 26 picks have a sourced quote and
+            // only a matched pick can have a rating, so the back is often a local
+            // tip instead. The label must not promise a rating that isn't there.
+          }}>Tap to flip ↻</span>
         </button>
 
         <div className="itin-card-body"

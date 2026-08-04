@@ -59,6 +59,28 @@ describe('mergeLocalMatches — only a real Viator rating earns a star', () => {
   });
 });
 
+describe('the card back always has something to show', () => {
+  // 7 picks ship `localsSay: ''` (arashi-beach, palm-beach-strip,
+  // boca-catalina-shore, alto-vista-chapel, california-dunes-sunset,
+  // bushiribana-loop, san-nicolas-murals). Reading it unguarded rendered a
+  // headed, full-height, EMPTY panel — and 4 of the 7 reach real itineraries.
+  // CardBack chains localsSay -> description, so the invariant is that the
+  // chain resolves, not that localsSay is populated.
+  it.each(ACTIVITIES.map((a) => [a.id, a] as const))(
+    '%s resolves a non-empty card-back tip',
+    (_id, a) => {
+      expect((a.localsSay?.trim() || a.description?.trim() || '').length).toBeGreaterThan(0);
+    },
+  );
+
+  it('documents how many picks depend on the description fallback', () => {
+    const viaDescription = ACTIVITIES.filter((a) => !a.localsSay?.trim());
+    // Not asserting a fixed count — this is a canary. If it ever hits every
+    // pick, localsSay has silently stopped being written.
+    expect(viaDescription.length).toBeLessThan(ACTIVITIES.length);
+  });
+});
+
 // ---------------------------------------------------------------------------
 
 function sourceFiles(dir: string): string[] {
@@ -105,26 +127,44 @@ function stripComments(src: string): string {
 describe('every activity star is gated on ratingSource', () => {
   const files = sourceFiles(SRC).map((f) => [f, readFileSync(f, 'utf8')] as const);
 
-  it('no file renders a local pick rating without consulting ratingSource', () => {
+  it('no local-pick rating renders without a nearby ratingSource guard', () => {
     // Matches JSX render sites for a local pick's rating — `{a.rating}`,
     // `{activity.rating}`, `{pick.activity.rating}`. Viator items are exempt:
     // `item.rating` / `bestSeller.rating` are real API values.
-    // File-level rather than line-level: a guard is often an enclosing
-    // conditional, and pinning exact line shapes made this fail on formatting.
-    const ACTIVITY_RATING = /\{\s*(?:[a-zA-Z]+\.)?(?:a|activity)\.rating\s*\}|\.activity\.rating\s*\}/;
-    const offenders = files
-      .filter(([, src]) => {
-        const code = stripComments(src);
-        return ACTIVITY_RATING.test(code) && !code.includes('ratingSource');
-      })
-      .map(([f]) => f);
-    expect(offenders).toEqual([]);
+    //
+    // Per-site with a proximity window, NOT per-file. A file-level check
+    // (`src.includes('ratingSource')`) exempted the whole file once any guard
+    // existed anywhere in it, so a new ungated star added to an already-gated
+    // file passed silently — the single most likely regression.
+    expect(ungatedRatingSites(files)).toEqual([]);
   });
 
-  it('detects an ungated star if the guard is removed (the test can actually fail)', () => {
-    const ACTIVITY_RATING = /\{\s*(?:[a-zA-Z]+\.)?(?:a|activity)\.rating\s*\}|\.activity\.rating\s*\}/;
-    const regressed = 'export const X = () => <span>{a.rating}</span>;';
-    expect(ACTIVITY_RATING.test(stripComments(regressed))).toBe(true);
-    expect(stripComments(regressed).includes('ratingSource')).toBe(false);
+  it('CAN fail: an ungated star in an already-gated file is caught', () => {
+    // Proves the check above is not vacuous. Explore.tsx really does contain a
+    // ratingSource guard, so this is exactly the case the old check missed.
+    const gated = readFileSync(join(SRC, 'pages/Explore.tsx'), 'utf8');
+    expect(gated).toContain('ratingSource');
+    const sabotaged = `${gated}\nexport const Regression = () => <span>{a.rating}</span>;\n`;
+    expect(ungatedRatingSites([['pages/Explore.tsx', sabotaged]])).toHaveLength(1);
   });
 });
+
+/**
+ * Render sites for a local pick's rating that have no `ratingSource` guard
+ * within GUARD_WINDOW lines above them (covering both an inline `&&` guard and
+ * an enclosing conditional a few lines up).
+ */
+const GUARD_WINDOW = 6;
+function ungatedRatingSites(files: ReadonlyArray<readonly [string, string]>): string[] {
+  const ACTIVITY_RATING = /\{\s*(?:[a-zA-Z]+\.)?(?:a|activity)\.rating\s*\}|\.activity\.rating\s*\}/;
+  const out: string[] = [];
+  for (const [file, src] of files) {
+    const lines = stripComments(src).split('\n');
+    lines.forEach((line, i) => {
+      if (!ACTIVITY_RATING.test(line)) return;
+      const window = lines.slice(Math.max(0, i - GUARD_WINDOW), i + 1).join('\n');
+      if (!window.includes('ratingSource')) out.push(`${file}:${i + 1}  ${line.trim().slice(0, 80)}`);
+    });
+  }
+  return out;
+}
