@@ -23,6 +23,17 @@ export const ACTIVITY_COORDS: Record<string, Coord> = {
   'mangel-halto':                 { lng: -69.9695, lat: 12.4649 },  // Wikipedia Mangel Halto
   'rodgers-beach':                { lng: -69.8841, lat: 12.4172 },  // Wikipedia Beaches of Aruba
   'boca-grandi':                  { lng: -69.8739, lat: 12.4402 },  // Wikipedia Beaches of Aruba
+  // The curated cards added for the Balanced template. Without an entry here a
+  // card renders everywhere except the map, where its pin is silently dropped.
+  // Coordinates lifted from tools/places.ts, which sourced them from OSM.
+  'arashi-beach':                 { lng: -70.0536, lat: 12.6099 },  // OpenStreetMap way/461766965, verified 2026-08-03
+  'boca-catalina-shore':          { lng: -70.0519, lat: 12.6049 },  // OpenStreetMap way/690840582, verified 2026-08-03
+  'palm-beach-strip':             { lng: -70.0490, lat: 12.5748 },  // OpenStreetMap way/23060047, verified 2026-08-03
+  'alto-vista-chapel':            { lng: -70.0109, lat: 12.5760 },  // OpenStreetMap node/540115823, verified 2026-08-03
+  'bushiribana-loop':             { lng: -69.9766, lat: 12.5537 },  // OpenStreetMap way/79210010, verified 2026-08-03
+  'san-nicolas-murals':           { lng: -69.9090, lat: 12.4364 },  // OpenStreetMap node/13111662192, verified 2026-08-03
+  // california-dunes-sunset has no pin: no verified coordinate for the dunes in
+  // tools/places.ts, and the card is also missing its photo. Both need sourcing.
   // Curated lunch spots (kept out of the catalog) — coordinates so their pins +
   // cards render on the Map, whether added via the "Suggest lunch spot" button or
   // the en-route auto-suggestion. Town-level approximations.
