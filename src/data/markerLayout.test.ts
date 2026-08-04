@@ -100,11 +100,15 @@ describe('tetherLines', () => {
     expect(out).toHaveLength(2);
   });
 
-  it('connects the DRAWN positions, so the line meets the markers', () => {
-    // Both activities sit at A, so both get displaced; the tether must follow.
+  it('returns TRUE coordinates, because these get routed against roads', () => {
+    // Both places of activity 0 sit at A, so both markers are displaced. The
+    // tether must still report the real point — a router asked to start 175m
+    // out to sea returns a worse road route, and the day route line already
+    // uses true coordinates for exactly this reason.
     const markers = layoutMarkers([entry('a', A, pin(A, [A])), entry('b', B, pin(B))]);
     const [t] = tetherLines(markers);
+    expect(t.coords).toEqual([[A.lng, A.lat], [A.lng, A.lat]]);
     const drawn = markers.filter(m => m.idx === 0).map(m => [m.coord.lng, m.coord.lat]);
-    expect(t.coords).toEqual(drawn);
+    expect(t.coords).not.toEqual(drawn);
   });
 });

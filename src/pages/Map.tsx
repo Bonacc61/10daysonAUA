@@ -182,9 +182,35 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   // consuming stop numbers) are exactly where this goes quietly wrong.
   const locatedEntries = useMemo(() => layoutMarkers(dayEntries), [dayEntries]);
 
-  // Dashed lines joining each multi-stop activity's markers, so three pins for
-  // one jeep safari read as one activity rather than three separate outings.
+  // The places each multi-stop activity visits, in order — one jeep safari's
+  // three stops rather than three separate outings.
   const tethers = useMemo(() => tetherLines(locatedEntries), [locatedEntries]);
+
+  // Road-snapped geometry for each tether. A straight dashed line said the
+  // activity teleports between its stops; a jeep safari from Arikok to Baby
+  // Beach follows the coast road, and the tether should show the road.
+  // Keyed by activity index, and cleared FIRST on every change — the same stale
+  // -geometry trap the day route had, where a previous day's roads rendered
+  // against the current day's activities until the fetch returned.
+  const [tetherRoutes, setTetherRoutes] = useState<Record<number, [number, number][]>>({});
+  useEffect(() => {
+    setTetherRoutes({});
+    if (!TOKEN || tethers.length === 0) return;
+    let alive = true;
+    Promise.all(tethers.map(async (t) => {
+      const coordStr = t.coords.map(([lng, lat]) => `${lng},${lat}`).join(';');
+      try {
+        const r = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coordStr}?geometries=geojson&overview=full&access_token=${TOKEN}`);
+        const data = await r.json() as { routes?: Array<{ geometry?: { coordinates: [number, number][] } }> };
+        const line = data.routes?.[0]?.geometry?.coordinates;
+        return line?.length ? ([t.idx, line] as const) : null;
+      } catch { return null; }        // fall back to the straight line
+    })).then((pairs) => {
+      if (!alive) return;
+      setTetherRoutes(Object.fromEntries(pairs.filter(Boolean) as Array<readonly [number, [number, number][]]>));
+    });
+    return () => { alive = false; };
+  }, [tethers, TOKEN]);
 
   // Route waypoints come from TRUE coordinates — dayEntries, before the marker
   // displacement above — with consecutive duplicates dropped. Routing on the

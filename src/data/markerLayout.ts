@@ -83,9 +83,16 @@ export function layoutMarkers<T extends MarkerInput>(entries: T[]): Array<LaidOu
 }
 
 /**
- * Dashed lines joining each multi-stop activity's markers, in the order the
- * activity visits them. Drawn between the DISPLACED positions, because the
- * tether's job is to connect the markers a traveller can see.
+ * The places each multi-stop activity visits, in visit order, as TRUE
+ * coordinates.
+ *
+ * True rather than displaced because these are fed to the Directions API to be
+ * snapped to roads — a router asked to route from a point shifted 175m into the
+ * sea gives a worse answer, and the day's route line already works this way.
+ *
+ * A straight line between two stops would say the activity teleports; a jeep
+ * safari from Arikok to Baby Beach follows the coast road, and the tether should
+ * show that.
  */
 export function tetherLines<T extends MarkerInput>(
   markers: Array<LaidOutMarker<T>>,
@@ -96,6 +103,6 @@ export function tetherLines<T extends MarkerInput>(
     .filter(([, ms]) => ms.length > 1)
     .map(([idx, ms]) => ({
       idx,
-      coords: ms.map((m) => [m.coord.lng, m.coord.lat] as [number, number]),
+      coords: ms.map((m) => [m.trueCoord.lng, m.trueCoord.lat] as [number, number]),
     }));
 }
