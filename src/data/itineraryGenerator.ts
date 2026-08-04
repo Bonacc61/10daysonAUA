@@ -28,6 +28,7 @@ import { pinFor } from './itemCoords';
 import { pickEnRouteStop, foodPlaceKey, distanceKm } from './enRoute';
 import { budgetTag, adventureBandTag } from './classify';
 import { resolveStaples } from './staples';
+import { isBalancedTraveller, resolveBalancedTemplate } from './balancedTemplate';
 
 export const DAY_COLORS = ['#FF6B47', '#3B82F6', '#22C55E', '#EAB308', '#E63946', '#8B5CF6', '#0EA5E9'];
 
@@ -1096,6 +1097,49 @@ export function generatePlan(
   }
   // ---------------------------------------------------------------------------
 
+  // --- Curated "Balanced" template pre-pass ----------------------------------
+  // For the middle of both sliders only. A hand-built shape claims its days and
+  // slots BEFORE the staples and the fill ladder, so the curated distribution
+  // survives; everything the template leaves alone is filled normally, which is
+  // what keeps other trip lengths and every other persona unchanged.
+  //
+  // Placed like a staple rather than a pin: no group is retired, and the badge
+  // is the same island-default one, because these are our choices and not the
+  // traveller's. Runs AFTER pins so an explicit shortlist choice still wins the
+  // slot, and BEFORE staples so it is not crowded out by them.
+  const templateSlots = new Map<number, Map<Slot, PinPlacement>>();
+  if (isBalancedTraveller(tags)) {
+    // The template may claim the arrival/departure afternoon that slotAvail keeps
+    // open. That rule exists to keep those days light — and the template's answer
+    // there is a free beach, which is exactly that. A curated choice outranks a
+    // heuristic about pacing. Everything else slotAvail enforces still applies.
+    const templateAvail = (day: number, slot: Slot): boolean => {
+      if (slot === 'morning' && flags.has('no-early-mornings')) return false;
+      return !pinClaimed.get(day)?.has(slot);
+    };
+    for (const { day, slot, activity } of resolveBalancedTemplate(filteredCatalog, nDays)) {
+      if (!templateAvail(day, slot)) continue;
+      // Already the traveller's own pick — placing it again ourselves would put
+      // the same card in the plan twice. Same principle as the revisit rule: a
+      // pin is one explicit choice, not licence to repeat it.
+      if (ctx.pinnedIds.has(activity.id)) continue;
+      const entry: CardEntry = { kind: 'activity', activity };
+      if (!pinClaimed.has(day)) pinClaimed.set(day, new Set());
+      pinClaimed.get(day)!.add(slot);
+      // Retired trip-wide up front, exactly as pins and staples are, so normal
+      // fill on an EARLIER day cannot place the same card before the loop
+      // reaches the template's day. `lastUsedDay` holds the LATEST day a card is
+      // used, which is what the revisit gap is measured against.
+      ctx.lastUsedDay.set(entryId(entry), day);
+      { const rf = routeFamilyOf(entry); if (rf) ctx.usedRouteFamilies.add(rf); }
+      if (!templateSlots.has(day)) templateSlots.set(day, new Map());
+      templateSlots.get(day)!.set(slot, {
+        cardEntry: entry, slotEntry: { ...toSlotEntry(entry), staple: true },
+      });
+    }
+  }
+  // ---------------------------------------------------------------------------
+
   // --- Beach-staple pre-pass -------------------------------------------------
   // Reserve a slot for each of Aruba's four universal experiences (sunrise
   // beach, catamaran sail, beach at sunset, dinner by the water) BEFORE persona fill, so
@@ -1335,7 +1379,12 @@ export function generatePlan(
     const openAfternoon = nDays > 1 && (d === 1 || d === nDays);
 
     for (const slot of SECTIONS) {
-      if (slot === 'afternoon' && openAfternoon) {
+      // Arrival/departure afternoons stay open — UNLESS something deliberate has
+      // already claimed the slot. The skip used to run before the pre-placed
+      // lookups below, so a template entry on day 1 afternoon was claimed and
+      // then silently never placed.
+      const claimedHere = pinnedSlots.get(d)?.has(slot) || templateSlots.get(d)?.has(slot);
+      if (slot === 'afternoon' && openAfternoon && !claimedHere) {
         emit?.({ type: 'skipped', day: d, slot, reason: 'open-afternoon' });
         continue;
       }
@@ -1387,7 +1436,7 @@ export function generatePlan(
       // catamaran the same day. Those two score Jaccard 0.500 against each other,
       // twice the 0.35 threshold; nothing was ever asked to compare them.
       const premium = premiumSlots.get(d)?.get(slot);
-      const autoPlaced = premium ?? stapleSlots.get(d)?.get(slot);
+      const autoPlaced = premium ?? templateSlots.get(d)?.get(slot) ?? stapleSlots.get(d)?.get(slot);
       if (autoPlaced) {
         const { cardEntry: pick, slotEntry } = autoPlaced;
         emit?.({
