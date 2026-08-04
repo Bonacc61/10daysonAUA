@@ -241,6 +241,12 @@ const BUFFER_MIN  = 60;    // travel/rest gap counted between consecutive activi
 // Wall-clock length of each slot. An activity longer than its slot "spreads"
 // into the next slot (which is then left free) — see the day loop.
 const SLOT_WINDOW_MIN: Record<Slot, number> = { morning: 240, afternoon: 240, evening: 180 };
+// What has to be LEFT of the next slot for it to be worth filling. An overrun
+// eats into the following window rather than deleting it: a 4.5h afternoon
+// leaves 150 of the evening's 180 minutes, which is a dinner. Blocking the whole
+// slot for any overrun at all cost real suggestions — 31 of the 80 catalog items
+// longer than an afternoon window overrun by an hour or less.
+const SLOT_MIN_USEFUL_MIN = 90;
 
 // Parse a human duration string into minutes for the maths above. Ranges
 // collapse to their midpoint; "Full day" is treated as 7h; an unparseable value
@@ -1309,9 +1315,16 @@ export function generatePlan(
       if (slot !== 'evening') dayMin += (picks.length > 0 ? BUFFER_MIN : 0) + dur;
       // Spread still applies across the boundary: a 5h afternoon tour really
       // does eat the evening, and that is a physical fact rather than a budget.
+      // But it eats it PROPORTIONALLY — block the next slot only when too little
+      // of it survives to hold anything. A 6h afternoon leaves 60 minutes and is
+      // correctly blocked; a 4.5h afternoon leaves 150 and should still get a
+      // dinner.
       if (dur > SLOT_WINDOW_MIN[slot]) {
         const next = SECTIONS[SECTIONS.indexOf(slot) + 1];
-        if (next) blocked.add(next);
+        if (next) {
+          const remaining = SLOT_WINDOW_MIN[next] - (dur - SLOT_WINDOW_MIN[slot]);
+          if (remaining < SLOT_MIN_USEFUL_MIN) blocked.add(next);
+        }
       }
     };
 
