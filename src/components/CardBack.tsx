@@ -29,22 +29,26 @@ const ACTIVITY_TA: Record<string, string> = {
   'antilla-wreck-dive':        'Top dive of our trip. Visibility was incredible.',
 };
 
-const FALLBACK_REDDIT = { rating: 4.2, mentions: 60, quote: 'Solid pick. Goes on most r/Aruba shortlists.' };
-const FALLBACK_TA     = 'Highly recommended by recent visitors.';
+/* Each panel attributes what it shows to a named third party, so each renders
+   only where there is an entry above to attribute it to. There is deliberately
+   no fallback: cards without an entry show our own note instead. */
 
 export default function CardBack(props: Props) {
   const isActivity = props.kind === 'activity';
   const id = isActivity ? props.activity.id : props.bestSeller.id;
   const title = isActivity ? props.activity.title : props.bestSeller.title;
 
-  const reddit = isActivity
-    ? (ACTIVITY_REDDIT[id] ?? FALLBACK_REDDIT)
-    : (props.bestSeller.reddit_quote ?? FALLBACK_REDDIT);
-
-  const ta = isActivity ? (ACTIVITY_TA[id] ?? FALLBACK_TA) : (props.bestSeller.ta_quote ?? FALLBACK_TA);
+  const reddit = isActivity ? ACTIVITY_REDDIT[id] : props.bestSeller.reddit_quote;
+  const ta     = isActivity ? ACTIVITY_TA[id]     : props.bestSeller.ta_quote;
 
   const taCount = isActivity ? props.activity.reviewCount : props.bestSeller.review_count;
   const taRating = isActivity ? props.activity.rating : props.bestSeller.rating;
+
+  // Our own words, for the cards with nothing sourced to show. Guarded on being
+  // non-empty: most of the curated picks ship `localsSay: ''`, and a Viator
+  // description is optional, so an unguarded block renders an empty box.
+  const ownNote = (isActivity ? props.activity.localsSay : props.bestSeller.description)?.trim();
+  const panels = (reddit ? 1 : 0) + (ta ? 1 : 0);
 
   return (
     <div className="chunky flip-face flip-back itin-card-back"
@@ -57,10 +61,24 @@ export default function CardBack(props: Props) {
         </h3>
       </div>
       <div className="itin-card-back-grid" style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr',
+        display: 'grid', gridTemplateColumns: panels === 2 ? '1fr 1fr' : '1fr',
         gap: 10, flex: 1, minHeight: 0,
       }}>
+        {panels === 0 && ownNote && (
+          <div style={{ background: 'var(--sand-50)', border: '2px solid var(--sand-200)',
+                        borderRadius: 12, padding: 12,
+                        display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--sand-700)' }}>Why we picked it</span>
+            <p style={{ fontSize: 12, lineHeight: 1.45, color: 'var(--sand-700)',
+                        margin: 0, overflow: 'hidden', display: '-webkit-box',
+                        WebkitLineClamp: 5, WebkitBoxOrient: 'vertical' }}>
+              {ownNote}
+            </p>
+          </div>
+        )}
+
         {/* r/Aruba */}
+        {reddit && (
         <div style={{ background: '#FFF4E6', border: '2px solid #FF4500',
                       borderRadius: 12, padding: 12,
                       display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -93,8 +111,10 @@ export default function CardBack(props: Props) {
             "{reddit.quote}"
           </p>
         </div>
+        )}
 
         {/* TripAdvisor */}
+        {ta && (
         <div style={{ background: '#E9F7EF', border: '2px solid #22C55E',
                       borderRadius: 12, padding: 12,
                       display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -127,6 +147,7 @@ export default function CardBack(props: Props) {
             "{ta}"
           </p>
         </div>
+        )}
       </div>
     </div>
   );
