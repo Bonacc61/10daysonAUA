@@ -94,6 +94,10 @@ const PLAN_VARIANTS = [
   { label: 'Chill',      description: 'Slow mornings, easy afternoons' },
 ];
 
+/** Cache key for a tether: the exact Directions request it stands for. */
+const tetherKey = (coords: [number, number][]) =>
+  coords.map(([lng, lat]) => `${lng},${lat}`).join(';');
+
 type Props = { answers: Answers; canSeeItinerary: boolean; setPage: (p: PageId) => void };
 
 export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
@@ -186,30 +190,43 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   // three stops rather than three separate outings.
   const tethers = useMemo(() => tetherLines(locatedEntries), [locatedEntries]);
 
-  // Road-snapped geometry for each tether. A straight dashed line said the
-  // activity teleports between its stops; a jeep safari from Arikok to Baby
-  // Beach follows the coast road, and the tether should show the road.
-  // Keyed by activity index, and cleared FIRST on every change — the same stale
-  // -geometry trap the day route had, where a previous day's roads rendered
-  // against the current day's activities until the fetch returned.
-  const [tetherRoutes, setTetherRoutes] = useState<Record<number, [number, number][]>>({});
+  // Road-snapped geometry for each tether, cached BY COORDINATE STRING.
+  //
+  // The first attempt keyed this on the activity index and cleared the whole map
+  // at the top of the effect, copying the day route's stale-geometry guard. That
+  // threw every result away: a re-render changed the `tethers` array identity,
+  // the effect re-ran, its cleanup set `alive = false`, and the in-flight
+  // response was dropped. Visible as duplicate Directions requests and a tether
+  // that stayed a straight line through Arikok National Park while the day's
+  // route curved along real roads.
+  //
+  // A coordinate-keyed cache cannot go stale the way that clearing was guarding
+  // against, because the key IS the request: an entry is only ever reused for
+  // the identical pair of points. So nothing is cleared, results merge in as
+  // they arrive, and a re-render costs nothing.
+  const [tetherGeo, setTetherGeo] = useState<Record<string, [number, number][]>>({});
+  // Which keys have been requested. A REF, not state, and not an effect
+  // dependency: putting the cache in the dependency array made every write
+  // re-run the effect, and the cleanup then set `alive = false` on responses
+  // still in flight — so the geometry arrived, was discarded, and the tether
+  // stayed straight. There is also no cleanup flag at all now: a late response
+  // writes a coordinate-keyed entry that is correct whenever it lands, so there
+  // is nothing to cancel.
+  const tetherAsked = useRef<Set<string>>(new Set());
   useEffect(() => {
-    setTetherRoutes({});
-    if (!TOKEN || tethers.length === 0) return;
-    let alive = true;
-    Promise.all(tethers.map(async (t) => {
-      const coordStr = t.coords.map(([lng, lat]) => `${lng},${lat}`).join(';');
-      try {
-        const r = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${coordStr}?geometries=geojson&overview=full&access_token=${TOKEN}`);
-        const data = await r.json() as { routes?: Array<{ geometry?: { coordinates: [number, number][] } }> };
-        const line = data.routes?.[0]?.geometry?.coordinates;
-        return line?.length ? ([t.idx, line] as const) : null;
-      } catch { return null; }        // fall back to the straight line
-    })).then((pairs) => {
-      if (!alive) return;
-      setTetherRoutes(Object.fromEntries(pairs.filter(Boolean) as Array<readonly [number, [number, number][]]>));
-    });
-    return () => { alive = false; };
+    if (!TOKEN) return;
+    for (const t of tethers) {
+      const key = tetherKey(t.coords);
+      if (tetherAsked.current.has(key)) continue;
+      tetherAsked.current.add(key);
+      fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${key}?geometries=geojson&overview=full&access_token=${TOKEN}`)
+        .then(r => r.json())
+        .then((data: { routes?: Array<{ geometry?: { coordinates: [number, number][] } }> }) => {
+          const line = data.routes?.[0]?.geometry?.coordinates;
+          if (line?.length) setTetherGeo(prev => ({ ...prev, [key]: line }));
+        })
+        .catch(() => { tetherAsked.current.delete(key); });   // allow a retry
+    }
   }, [tethers, TOKEN]);
 
   // Route waypoints come from TRUE coordinates — dayEntries, before the marker
@@ -315,6 +332,12 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
     }));
   });
 
+  const tetherFeatures = tethers.map(t => ({
+    type: 'Feature' as const,
+    properties: { color: hueFor(t.idx), tether: true },
+    geometry: { type: 'LineString' as const, coordinates: tetherGeo[tetherKey(t.coords)] ?? t.coords },
+  }));
+
   return (
     <div style={{ height: 'calc(100vh - 70px)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       {/* Map fills remaining space above the bottom panel */}
@@ -341,30 +364,28 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
               can belong to a named activity — including one with no coordinate,
               which owns the leg spanning it and would otherwise be invisible. */}
           {planDay && routeFeatures.length > 0 && (
-            <Source type="geojson" data={{ type: 'FeatureCollection', features: routeFeatures }}>
+            <Source type="geojson" data={{ type: 'FeatureCollection', features: [...routeFeatures, ...tetherFeatures] }}>
               <Layer
                 id="route-line"
                 type="line"
+                filter={['!', ['to-boolean', ['get', 'tether']]]}
                 layout={{ 'line-cap': 'round', 'line-join': 'round' }}
                 paint={{ 'line-width': 4, 'line-opacity': 0.9, 'line-color': ['get', 'color'] }}
               />
-            </Source>
-          )}
-
-          {/* Dashed tethers: one per multi-stop activity, in its own hue. Drawn
-              under the route line so the day's path stays the dominant thread. */}
-          {planDay && tethers.length > 0 && (
-            <Source id="tethers" type="geojson" data={{
-              type: 'FeatureCollection',
-              features: tethers.map(t => ({
-                type: 'Feature' as const,
-                properties: { color: hueFor(t.idx) },
-                geometry: { type: 'LineString' as const, coordinates: t.coords },
-              })),
-            }}>
-              <Layer id="tether-line" type="line"
+              {/* The stops of ONE activity, dashed, so a jeep safari's three pins
+                  read as one tour. Shares the route's source deliberately: a
+                  second <Source> was silently never updated by react-map-gl —
+                  React handed it 1001 road points and the map kept the 2-point
+                  straight line, which drew a tether through Arikok National Park.
+                  One source that provably updates is worth more than two that
+                  look tidier. */}
+              <Layer
+                id="tether-line"
+                type="line"
+                filter={['to-boolean', ['get', 'tether']]}
                 layout={{ 'line-cap': 'round' }}
-                paint={{ 'line-color': ['get', 'color'], 'line-width': 2, 'line-opacity': 0.75, 'line-dasharray': [2, 1.6] }} />
+                paint={{ 'line-color': ['get', 'color'], 'line-width': 2, 'line-opacity': 0.75, 'line-dasharray': [2, 1.6] }}
+              />
             </Source>
           )}
 
