@@ -3,7 +3,8 @@ import RMap, { Marker, Popup, Source, Layer, NavigationControl, type MapRef } fr
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useCatalog } from '../data/useCatalog';
 import { generatePlan } from '../data/itineraryGenerator';
-import { pinFor, pinPlaces, type Pin } from '../data/itemCoords';
+import { pinFor, type Pin } from '../data/itemCoords';
+import { layoutMarkers, tetherLines } from '../data/markerLayout';
 import { LUNCHSPOTS } from '../data/lunchspots';
 import { viatorLink } from '../data/exploreItems';
 import type { Answers, PageId } from '../App';
@@ -111,7 +112,7 @@ function softenTrafficGreen(map: StyleMap): void {
   }
 }
 
-type AnyPopup = { lng: number; lat: number; title: string; sub: string; price?: string | null; duration?: string | null; image?: string | null; url?: string | null; pin?: Pin | null };
+type AnyPopup = { lng: number; lat: number; title: string; sub: string; price?: string | null; duration?: string | null; image?: string | null; url?: string | null; pin?: Pin | null; place?: string };
 // Display labels only — the underlying variant order/indices (activePlanIdx) are
 // unchanged. Three parallel adjectives; "Your trip"/"-leaning" dropped.
 const PLAN_VARIANTS = [
@@ -201,30 +202,16 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   // group centroid) are fanned out on a small circle so all of them stay visible
   // instead of stacking into a single pin. Coordless entries are excluded here
   // (still listed in the photo strip below) — not silently dropped from the day.
-  const locatedEntries = useMemo(() => {
-    const located = dayEntries
-      .map((e, idx) => ({ ...e, idx }))
-      .filter((e): e is typeof e & { coord: Coord } => !!e.coord);
-    const buckets = new Map<string, number>();
-    for (const e of located) {
-      const k = `${e.coord.lng.toFixed(5)},${e.coord.lat.toFixed(5)}`;
-      buckets.set(k, (buckets.get(k) ?? 0) + 1);
-    }
-    const seen = new Map<string, number>();
-    return located.map((e, i) => {
-      const k = `${e.coord.lng.toFixed(5)},${e.coord.lat.toFixed(5)}`;
-      const total = buckets.get(k)!;
-      let coord = e.coord;
-      if (total > 1) {
-        const pos = seen.get(k) ?? 0;
-        seen.set(k, pos + 1);
-        const angle = (2 * Math.PI * pos) / total;
-        const R = 0.0016; // ~180m — enough to separate pins at our zoom levels
-        coord = { lng: coord.lng + R * Math.cos(angle), lat: coord.lat + R * Math.sin(angle) };
-      }
-      return { ...e, coord, num: i + 1 };
-    });
-  }, [dayEntries]);
+  // Markers for the day: every activity's primary location plus the further
+  // places a multi-stop activity visits, fanned apart where they share a point.
+  // See src/data/markerLayout.ts — the layout is pure and tested there, because
+  // the interesting cases (a stop landing on another activity's pin, stops not
+  // consuming stop numbers) are exactly where this goes quietly wrong.
+  const locatedEntries = useMemo(() => layoutMarkers(dayEntries), [dayEntries]);
+
+  // Dashed lines joining each multi-stop activity's markers, so three pins for
+  // one jeep safari read as one activity rather than three separate outings.
+  const tethers = useMemo(() => tetherLines(locatedEntries), [locatedEntries]);
 
   // Route waypoints come from TRUE coordinates — dayEntries, before the marker
   // displacement above — with consecutive duplicates dropped. Routing on the
@@ -366,12 +353,29 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
             </Source>
           )}
 
+          {/* Dashed tethers: one per multi-stop activity, in its own hue. Drawn
+              under the route line so the day's path stays the dominant thread. */}
+          {planDay && tethers.length > 0 && (
+            <Source id="tethers" type="geojson" data={{
+              type: 'FeatureCollection',
+              features: tethers.map(t => ({
+                type: 'Feature' as const,
+                properties: { color: hueFor(t.idx) },
+                geometry: { type: 'LineString' as const, coordinates: t.coords },
+              })),
+            }}>
+              <Layer id="tether-line" type="line"
+                layout={{ 'line-cap': 'round' }}
+                paint={{ 'line-color': ['get', 'color'], 'line-width': 2, 'line-opacity': 0.75, 'line-dasharray': [2, 1.6] }} />
+            </Source>
+          )}
+
           {/* Photo pin markers for active day — every located stop, numbered to
               match the card order, de-stacked so shared coordinates stay visible */}
           {planDay && locatedEntries.map((e, i) => (
             <Marker key={e.key} longitude={e.coord.lng} latitude={e.coord.lat} anchor="bottom"
-              onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url, pin: e.pin }); }}>
-              <PhotoPin image={e.image} color={hueFor(e.idx)} label={String(e.num)} />
+              onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url, pin: e.pin, place: e.place }); }}>
+              <PhotoPin image={e.image} color={hueFor(e.idx)} label={String(e.num)} secondary={!e.primary} />
             </Marker>
           ))}
 
@@ -618,19 +622,24 @@ function PickupBlock({ pin }: { pin: Pin | null }) {
 }
 
 // Photo pin marker: circular photo above a coloured triangle tail.
-function PhotoPin({ image, color, label }: { image: string | null; color: string; label: string }) {
+//
+// `secondary` marks a further place a multi-stop activity visits. It keeps the
+// activity's number and hue but is drawn smaller with a dashed ring, and a
+// dashed tether joins it to the primary — so "Arikok + Conchi + Baby Beach"
+// reads as one jeep safari with three stops, not three separate outings.
+function PhotoPin({ image, color, label, secondary = false }: { image: string | null; color: string; label: string; secondary?: boolean }) {
+  const size = secondary ? 34 : 50;
+  const ring = secondary ? 2.5 : 3;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.3))' }}>
-      <div style={{ width: 50, height: 50, borderRadius: '50%', border: `3px solid ${color}`, background: '#e0dbd0', overflow: 'hidden', position: 'relative' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.3))', opacity: secondary ? 0.9 : 1 }}>
+      <div style={{ width: size, height: size, borderRadius: '50%', border: `${ring}px ${secondary ? 'dashed' : 'solid'} ${color}`, background: '#e0dbd0', overflow: 'hidden', position: 'relative' }}>
         {image
           ? <img src={image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={ev => { (ev.target as HTMLImageElement).style.display = 'none'; }} />
-          : <div style={{ width: '100%', height: '100%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, fontWeight: 700, fontFamily: 'Inter,sans-serif' }}>{label}</div>
+          : <div style={{ width: '100%', height: '100%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: secondary ? 11 : 14, fontWeight: 700, fontFamily: 'Inter,sans-serif' }}>{label}</div>
         }
-        {/* Number badge overlay — only when photo fills the circle, so label isn't shown twice */}
-        {image && <div style={{ position: 'absolute', bottom: 2, right: 2, width: 16, height: 16, borderRadius: '50%', background: color, border: '1.5px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 9, fontWeight: 700, fontFamily: 'Inter,sans-serif' }}>{label}</div>}
+        {image && <div style={{ position: 'absolute', bottom: 2, right: 2, width: secondary ? 13 : 16, height: secondary ? 13 : 16, borderRadius: '50%', background: color, border: '1.5px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: secondary ? 8 : 9, fontWeight: 700, fontFamily: 'Inter,sans-serif' }}>{label}</div>}
       </div>
-      {/* Triangle tail */}
-      <div style={{ width: 0, height: 0, borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: `9px solid ${color}`, marginTop: -1 }} />
+      <div style={{ width: 0, height: 0, borderLeft: `${secondary ? 5 : 7}px solid transparent`, borderRight: `${secondary ? 5 : 7}px solid transparent`, borderTop: `${secondary ? 7 : 9}px solid ${color}`, marginTop: -1 }} />
     </div>
   );
 }
