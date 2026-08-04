@@ -75,8 +75,6 @@ function urlFor(entry: SlotEntry, catalog: Catalog): string | null {
 type StyleMap = {
   getStyle: () => { layers?: { id: string }[] } | undefined;
   setLayoutProperty: (id: string, name: string, value: unknown) => void;
-  getPaintProperty: (id: string, name: string) => unknown;
-  setPaintProperty: (id: string, name: string, value: unknown) => void;
 };
 const SHIELD_LAYER_RE = /shield|road-number|road-exit|motorway-junction/i;
 function hideRoadShields(map: StyleMap): void {
@@ -84,31 +82,6 @@ function hideRoadShields(map: StyleMap): void {
     if (SHIELD_LAYER_RE.test(layer.id)) {
       try { map.setLayoutProperty(layer.id, 'visibility', 'none'); } catch { /* layer already absent */ }
     }
-  }
-}
-
-// navigation-day-v1 paints live traffic congestion onto the road network, and its
-// free-flowing green — hsl(120, 70%, 60%) on the surface, hsl(120, 65%, 75%) in
-// tunnels — is saturated enough to compete with the day's route line, which runs
-// along those same roads. We soften only the green to a pastel; moderate, heavy
-// and severe keep their colours, so the route stays the loudest thing on the map.
-// The colours live inside a ["match", ["get","congestion"], …] expression, so we
-// walk the expression tree rather than assuming its shape.
-const HSL_HUE_RE = /^hsla?\(\s*(\d+(?:\.\d+)?)\s*,/;
-const PASTEL_TRAFFIC_GREEN = 'hsl(120, 45%, 84%)';
-function pastelGreens(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(pastelGreens);
-  if (typeof value !== 'string') return value;
-  const hue = Number(HSL_HUE_RE.exec(value)?.[1]);
-  return hue >= 90 && hue <= 150 ? PASTEL_TRAFFIC_GREEN : value;
-}
-function softenTrafficGreen(map: StyleMap): void {
-  for (const layer of map.getStyle()?.layers ?? []) {
-    if (!layer.id.startsWith('traffic')) continue;
-    try {
-      const color = map.getPaintProperty(layer.id, 'line-color');
-      if (color !== undefined) map.setPaintProperty(layer.id, 'line-color', pastelGreens(color));
-    } catch { /* layer carries no line-color */ }
   }
 }
 
@@ -325,12 +298,11 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
           mapboxAccessToken={TOKEN}
           initialViewState={ARUBA_CENTER}
           style={{ width: '100%', height: '100%' }}
-          mapStyle="mapbox://styles/mapbox/navigation-day-v1"
+          mapStyle="mapbox://styles/mapbox/streets-v12"
           onLoad={() => {
             const m = mapRef.current?.getMap();
             if (m) {
               hideRoadShields(m as unknown as StyleMap);
-              softenTrafficGreen(m as unknown as StyleMap);
             }
             setMapReady(true);
           }}
