@@ -57,7 +57,7 @@ Accumulates trip-wide state across the day loop:
 
 Four tiers, best → worst. Every tier is gated by `unused` (no id repeats, except a free local beach after a 2-day gap),
 `notSimilar` (semantic dedup) and `feasible` — the day/evening time budget AND
-the day shape (<=2 outings, <=1 meal, <=3 cards); when
+the day shape (<=2 outings, <=1 meal, <=3 non-meal cards); when
 `maxPrice === 0` (the free-only arrival day) it returns before tiers 3-4. `kindOk` runs the whole ladder for
 variety-introducing picks first, then relaxes for same-kind picks:
 
@@ -689,8 +689,11 @@ a rule can fire constantly and cost nothing while alternatives remain.
 - **Group type is still almost inert**: `classifyTags` emits only budget,
   interest and adventure-band tags, so `solo` / `couple` / `friends` /
   `multi-gen` never match anything in `fitItem`. `isKidsOriented` (2026-08-05)
-  is the only rule that reads Q2, and it is a single exclusion rather than a
-  scoring dimension. Building a real one needs a per-item family signal the feed
+  is the only ITEM-LEVEL rule that reads Q2, and it is a single exclusion rather
+  than a scoring dimension. Group type does reach the plan two other ways —
+  `flagAppliesTo` uses it to decide which Q8 pills apply, and live groups carry
+  'couple'/'friends' in `matched_by`, which `candidatesFor` filters on. What it
+  never does is score an individual item. Building a real one needs a per-item family signal the feed
   does not provide — Viator's "Kid-Friendly" tag covers 2 of 337 live products.
 
 - **Evening pool depth**: with one evening cruise per trip (2026-08-05),

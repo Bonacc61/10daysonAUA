@@ -41,9 +41,10 @@ feeds the engine is in `docs/matching-engine/geography.md`:
 - **The en-route food post-pass still has no TIME accounting.** It appends a
   second afternoon card (`day.afternoon.push`) after the day loop, outside
   `feasible`, so a day can exceed the 8h daytime cap: measured on the live
-  catalog, 52 of 558 days ran past 12h, worst 14.6h. Since 2026-08-05 it does
-  honour the card ceiling and the one-meal rule, which bounds the damage, but it
-  still does not check DAY_CAP_MIN.
+  catalog, 52 of 558 days ran past 12h, worst 14.6h. Since 2026-08-05 it enforces
+  the one-meal rule by displacing any curated restaurant on the day, and cannot
+  breach the non-meal ceiling because the stop is itself a meal — but it performs
+  no ceiling check of its own and does not check DAY_CAP_MIN.
 - **Pre-pass ORDER is load-bearing and undocumented in the code's structure.**
   Pins → balanced template (mid-slider personas only) → premium splurge →
   staples → fill ladder. Whichever pass runs first claims a route family, and
@@ -54,8 +55,8 @@ feeds the engine is in `docs/matching-engine/geography.md`:
 - **Day shape is enforced in four separate places.** Two outings + one meal + a
   three-card ceiling is applied by the fill ladder (`withinDayShape`) and
   re-applied by the staple pre-pass, the premium pre-pass (both via
-  `fitsDayShape`) and the en-route post-pass; the balanced template satisfies it
-  by construction. None of the three AUTO-PLACEMENT paths goes through the
+  `fitsDayShape`); the en-route post-pass enforces the one-meal half only, and
+  the balanced template satisfies the shape by construction. None of the three AUTO-PLACEMENT paths goes through the
   ladder, so a new one has to opt in by hand or it will silently break the shape
   — that is exactly how a staple was landing a third outing on a template-filled
   day until 2026-08-05.

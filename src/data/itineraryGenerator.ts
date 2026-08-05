@@ -1882,16 +1882,11 @@ export function generatePlan(
 
     // Seed with food places already in the plan so we never double-book one.
     const usedPlaceKeys = new Set<string>();
-    const placeLastDay = new Map<string, number>();
-    days.forEach((day, i) => {
+    for (const day of days)
       for (const slot of SECTIONS)
-        for (const e of day[slot]) {
-          const k = entryFoodKey(e);
-          if (k) { usedPlaceKeys.add(k); placeLastDay.set(k, i + 1); }
-        }
-    });
+        for (const e of day[slot]) { const k = entryFoodKey(e); if (k) usedPlaceKeys.add(k); }
 
-    days.forEach((day, dayIdx) => {
+    days.forEach((day) => {
       // A day that already carries a roadside stop is done — one meal per day,
       // and this pass is the thing that places them.
       const existingStops = SECTIONS
@@ -1923,20 +1918,22 @@ export function generatePlan(
       // the day keeps its two outings and its one meal, and the empty evening
       // is the "Drop an activity here" zone, which is the honest thing to show
       // when our suggestion was the weaker of the two.
+      // ONLY a curated restaurant card, never a Viator group card. `entryIsFood`
+      // also matches anything filed under 'food-drink-experiences', which on the
+      // live feed includes the Caribbean Cooking Class, the distillery tours and
+      // a sunset dinner sail — paid, bookable OUTINGS that every other rule in
+      // this engine counts as outings (see isMealEntry). Displacing one of those
+      // for a $12 roadside lunch deletes an affiliate booking and quietly drops
+      // the day's outing count; measured at 21 cooking classes over 1,920 trips
+      // before this was narrowed.
       const dinners = SECTIONS.flatMap((s) => day[s].map((e) => ({ s, e })))
-        .filter(({ e }) => entryIsFood(e));
+        .filter(({ e }) => e.kind === 'activity' && isFoodActivityId(e.id));
 
-      // Outside the day loop, so the card ceiling is this pass's to honour —
-      // appending a fourth card here is exactly the day that was reported
-      // (sail, Boca Grandi, Zeerover, plus an evening). Checked BEFORE anything
-      // is removed, and net of the removal, so a day that cannot take the stop
-      // never loses its dinner for nothing.
       // The stop is a MEAL, so the non-meal ceiling cannot block it — it only
       // has to respect the one-meal rule, which the dinner removal below serves.
 
       for (const { s, e } of dinners) day[s] = day[s].filter((x) => x !== e);
       usedPlaceKeys.add(pick.placeKey);
-      placeLastDay.set(pick.placeKey, dayIdx + 1);
       day.afternoon.push({ kind: 'activity', id: pick.id });
     });
   }

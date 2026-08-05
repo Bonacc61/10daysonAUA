@@ -184,14 +184,9 @@ function ActivityCardFront({
             {staple && !pinned && <span className="itin-staple-badge">◑ Island classic</span>}
           </div>
           <div style={{ marginTop: 'auto' }}>
+            {/* "Book now" leads, "Swap this" follows: the primary action sits
+                where the eye lands first. */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {onSwap && (
-                <button onClick={onSwap} className="btn-ghost"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
-                           padding: '8px 13px', fontSize: 13 }}>
-                  <Swap size={13} aria-hidden /> Swap this
-                </button>
-              )}
               {bookUrl ? (
                 <a href={bookUrl} target="_blank" rel="noopener noreferrer" className="itin-book-btn">
                   Book now ↗
@@ -199,6 +194,13 @@ function ActivityCardFront({
               ) : parseActivityCost(a.cost) === 0 ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '8px 13px', fontSize: 13, fontWeight: 700, borderRadius: 10, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)' }}>✓ Free</span>
               ) : null}
+              {onSwap && (
+                <button onClick={onSwap} className="btn-ghost"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
+                           padding: '8px 13px', fontSize: 13 }}>
+                  <Swap size={13} aria-hidden /> Swap this
+                </button>
+              )}
             </div>
             <SwapReasons open={!!showReasons} onPick={(r) => onPickReason?.(r)} />
           </div>

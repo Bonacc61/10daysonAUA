@@ -488,8 +488,14 @@ export function refaceForAnswers(
     // The rendered "Other suggestions" are filtered at DISPLAY time in
     // resolveSlotEntry — the plan only stores the face id, so that's the one
     // place that controls every item the card shows.
+    // itemSlotOkForFill, not itemSlotOk: this is a SUGGESTION path (the swap
+    // pool), so it should honour a time of day the product states in its own
+    // title. Safe to tighten here — refaceForAnswers is not the display
+    // chokepoint, so it cannot re-face a stored plan the way resolveSlotEntry
+    // can. Before this it was offering the "Premium Catamaran Morning Sail" as
+    // an afternoon swap.
     const pool = [e.bestSeller, ...e.others].filter(
-      (i) => (!slot || itemSlotOk(i, slot)) && !excludeIds?.has(i.id),
+      (i) => (!slot || itemSlotOkForFill(i, slot)) && !excludeIds?.has(i.id),
     );
     const face = bestItemForAnswers(pool, tags);
     if (!face) continue;
