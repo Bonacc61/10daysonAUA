@@ -104,7 +104,8 @@ function AppShell() {
   const [qInitialStep, setQInitialStep] = useState(1);
   const [shareId, setShareId] = useState<string | null>(shareIdFromUrl);
   const [initialExploreSection, setInitialExploreSection] = useState<Section | null>(null);
-  const [shortlist, setShortlist] = useState<Set<string>>(new Set());
+  // The shortlist used to live here as session-only state. It is localStorage-backed
+  // in `lib/shortlist.ts` since 2026-08-05, so each page reads it directly.
   // Set once the questionnaire is completed; persisted so a refresh doesn't re-lock.
   const [qDone, setQDone] = useState<boolean>(() => {
     try { return localStorage.getItem('qDone') === '1'; } catch { return false; }
@@ -167,8 +168,8 @@ function AppShell() {
       <Nav page={page} setPage={setPage} onLogin={() => setLoginOpen(true)} canSeeItinerary={canSeeItinerary} />
       {page === 'landing'       && <Landing       setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onPlanClick={() => { setQInitialStep(2); setPage('questionnaire'); }} />}
       {page === 'questionnaire' && <Questionnaire setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onComplete={markQuestionnaireDone} initialStep={qInitialStep} />}
-      {page === 'explore'       && <Explore       setPage={setPage} answers={answers} canSeeItinerary={canSeeItinerary} initialSection={initialExploreSection ?? undefined} shortlist={shortlist} setShortlist={setShortlist} />}
-      {page === 'itinerary'     && (canSeeItinerary || shareId) && <Itinerary setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onLogin={() => setLoginOpen(true)} shareId={shareId} onNavigateToExplore={navigateToExplore} shortlist={shortlist} />}
+      {page === 'explore'       && <Explore       setPage={setPage} answers={answers} canSeeItinerary={canSeeItinerary} initialSection={initialExploreSection ?? undefined} />}
+      {page === 'itinerary'     && (canSeeItinerary || shareId) && <Itinerary setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onLogin={() => setLoginOpen(true)} shareId={shareId} onNavigateToExplore={navigateToExplore} />}
       {page === 'map'           && <TripMap setPage={setPage} answers={answers} canSeeItinerary={canSeeItinerary} />}
       {page === 'privacy'       && <Privacy       setPage={setPage} />}
       {page === 'terms'         && <Terms         setPage={setPage} />}

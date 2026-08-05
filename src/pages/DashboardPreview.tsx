@@ -18,7 +18,7 @@ type Props = { setPage: (p: PageId) => void };
 
 const SECTIONS_META = [
   { id: 'surprise',   label: 'Surprise me',         short: 'Surprise',   emoji: '🎲' },
-  { id: 'starred',    label: 'Favourite Activities', short: 'Favourites', emoji: '♡'  },
+  { id: 'starred',    label: 'Shortlisted Activities', short: 'Shortlisted', emoji: '✓'  },
   { id: 'itinerary',  label: 'Itineraries',          short: 'Itinerary',  emoji: '🗓'  },
   { id: 'bookings',   label: 'Bookings',             short: 'Bookings',   emoji: '✓'  },
   { id: 'practical',  label: 'Practical Info',       short: 'Practical',  emoji: 'ℹ'  },
@@ -60,7 +60,6 @@ function SurpriseContent() {
         <div style={{ height: 200, overflow: 'hidden', position: 'relative', background: 'var(--sand-100)' }}>
           <img src={MOCK_STARRED[1].img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           <span style={{ position: 'absolute', top: 12, right: 12, background: 'var(--ink)', color: 'var(--yellow)', padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700 }}>★ 4.8</span>
-          <button className="a-star-btn active" style={{ top: 12, left: 12, right: 'unset' }} aria-label="">♥</button>
         </div>
         <div style={{ padding: '18px 20px 20px' }}>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-500)', marginBottom: 4 }}>Watersports</div>
@@ -89,7 +88,6 @@ function StarredContent() {
             <div className="a-img">
               <img src={a.img} alt={a.title} />
               <span className="a-rating">★ 4.8</span>
-              <button className="a-star-btn active" aria-label="">♥</button>
             </div>
             <div style={{ padding: '12px 14px 14px', flex: 1, display: 'flex', flexDirection: 'column' }}>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-500)', marginBottom: 3 }}>{a.category}</div>
@@ -246,7 +244,7 @@ function DesignA() {
 
 const HUB_CARDS: { id: SectionId; label: string; tagline: string; bg: string; emoji: string }[] = [
   { id: 'surprise',  label: 'Surprise me',         tagline: 'One tap. A random favourite. Go.',              bg: 'var(--yellow-bg)', emoji: '🎲' },
-  { id: 'starred',   label: 'Favourite Activities', tagline: '3 saved · 2 match your budget',                bg: 'var(--cream)',     emoji: '♡'  },
+  { id: 'starred',   label: 'Shortlisted Activities', tagline: '3 saved · 2 match your budget',              bg: 'var(--cream)',     emoji: '✓'  },
   { id: 'itinerary', label: 'Itineraries',          tagline: '9-day trip · 27 activities planned',           bg: 'var(--cream)',     emoji: '🗓'  },
   { id: 'bookings',  label: 'Bookings',             tagline: '2 confirmed · tap to export calendar',         bg: 'var(--cream)',     emoji: '✓'  },
   { id: 'practical', label: 'Practical Info',       tagline: 'Money, driving, sunscreen & 8 more',           bg: 'var(--cream)',     emoji: 'ℹ'  },

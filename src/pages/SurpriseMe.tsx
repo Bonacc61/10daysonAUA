@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Clock, Dice, Dollar, Heart, MapPin, Star } from '../components/Icons';
+import { Clock, Dice, Dollar, MapPin, Star } from '../components/Icons';
 import Footer from '../components/Footer';
 import { useCatalog } from '../data/useCatalog';
-import { useStarred } from '../lib/starred';
+import { useShortlist } from '../lib/shortlist';
+import AddButton from '../components/AddButton';
 import { viatorLink, productUrlFor, sectionLabel, primarySection } from '../data/exploreItems';
 import { matchPool, blendPools, parseActivityCost } from '../data/matcher';
 import { answersToTags } from '../data/answerTags';
@@ -31,9 +32,9 @@ const SLOT_GREETING = {
   evening:   'Good evening',
 };
 
-function resolvePool(starred: Set<string>, catalog: Catalog): Suggestion[] {
+function resolvePool(shortlist: Set<string>, catalog: Catalog): Suggestion[] {
   const pool: Suggestion[] = [];
-  for (const sid of starred) {
+  for (const sid of shortlist) {
     if (sid.startsWith('item:')) {
       const itemId = sid.slice(5);
       const item = catalog.items.find((i) => i.id === itemId);
@@ -100,7 +101,7 @@ function drawFrom(pool: Suggestion[], skipId: string | null, slotTod: string): S
 
 export default function SurpriseMe({ setPage, answers }: Props) {
   const { catalog, loading } = useCatalog();
-  const { starred, toggle: toggleStar } = useStarred();
+  const { shortlist, toggle: toggleAdd } = useShortlist();
   const [pick, setPick]       = useState<Suggestion | null>(null);
   const [skipId, setSkipId]   = useState<string | null>(null);
   const [animKey, setAnimKey] = useState(0);
@@ -114,16 +115,16 @@ export default function SurpriseMe({ setPage, answers }: Props) {
   const slotTod = slot === 'morning' ? 'Morning' : slot === 'afternoon' ? 'Afternoon' : 'Evening';
 
   const starredPool = useMemo(
-    () => resolvePool(starred, catalog),
+    () => resolvePool(shortlist, catalog),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [starred.size, catalog.activities.length, catalog.items.length],
+    [shortlist.size, catalog.activities.length, catalog.items.length],
   );
 
   const matchedPool = useMemo(() => {
     if (answers.interests.length === 0) return [];
-    return resolveMatchedPool(answers, catalog, starred);
+    return resolveMatchedPool(answers, catalog, shortlist);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [answers, starred.size, catalog.activities.length, catalog.items.length]);
+  }, [answers, shortlist.size, catalog.activities.length, catalog.items.length]);
 
   const pool = useMemo(() => [...starredPool, ...matchedPool], [starredPool, matchedPool]);
 
@@ -149,7 +150,7 @@ export default function SurpriseMe({ setPage, answers }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, pool.length]);
 
-  // Re-pick when a starred item is un-hearted and isn't reachable via questionnaire matches either.
+  // Re-pick when a shortlisted item is removed and isn't reachable via questionnaire matches either.
   useEffect(() => {
     if (pick && !pool.some((p) => p.id === pick.id)) {
       const next = drawFrom(pool, null, slotTod);
@@ -157,7 +158,7 @@ export default function SurpriseMe({ setPage, answers }: Props) {
       else { setPick(null); setSkipId(null); }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [starred.size]);
+  }, [shortlist.size]);
 
   // Shake-to-spin (works on Android and pre-13 iOS without permissions).
   useEffect(() => {
@@ -185,12 +186,12 @@ export default function SurpriseMe({ setPage, answers }: Props) {
           <p style={{ fontStyle: 'italic', fontSize: 15, color: 'rgba(0,0,0,0.65)', margin: 0 }}>
             {pool.length > 0
               ? [
-                  starredPool.length > 0 && `${starredPool.length} starred`,
+                  starredPool.length > 0 && `${starredPool.length} shortlisted`,
                   matchedPool.length > 0 && `${matchedPool.length} questionnaire match${matchedPool.length === 1 ? '' : 'es'}`,
                 ].filter(Boolean).join(' + ') + '.'
               : answers.interests.length > 0
-                ? 'No matches found. Try hearting activities in Explore.'
-                : 'Heart activities or complete the questionnaire to get suggestions.'}
+                ? 'No matches found. Try adding activities in Explore.'
+                : 'Add activities or complete the questionnaire to get suggestions.'}
           </p>
         </div>
       </div>
@@ -204,14 +205,14 @@ export default function SurpriseMe({ setPage, answers }: Props) {
 
           {!loading && pool.length === 0 && (
             <div className="chunky" style={{ padding: '36px 32px', textAlign: 'center', maxWidth: 480, marginTop: 24 }}>
-              <div style={{ fontSize: 40, marginBottom: 16 }}>♡</div>
+              <div style={{ fontSize: 40, marginBottom: 16 }}>＋</div>
               <p className="font-display" style={{ fontSize: 22, margin: '0 0 10px', color: 'var(--ink)' }}>
                 {answers.interests.length > 0 ? 'Nothing to show yet.' : 'Tell us what you like.'}
               </p>
               <p style={{ fontSize: 14, color: 'var(--sand-700)', margin: '0 0 24px' }}>
                 {answers.interests.length > 0
-                  ? 'Heart activities in Explore to save them here.'
-                  : 'Fill out the questionnaire so we can suggest activities, or heart activities in Explore.'}
+                  ? 'Add activities in Explore to save them here.'
+                  : 'Fill out the questionnaire so we can suggest activities, or add activities in Explore.'}
               </p>
               <button className="btn-red" onClick={() => setPage('explore')} style={{ padding: '12px 24px', fontSize: 15 }}>
                 Browse Explore →
@@ -241,15 +242,6 @@ export default function SurpriseMe({ setPage, answers }: Props) {
                       <Star size={11} aria-hidden /> {pick.kind === 'activity' ? pick.activity.rating : pick.item.rating}
                     </span>
                   )}
-                  {/* Heart toggle */}
-                  <button
-                    className={`a-star-btn${starred.has(pick.id) ? ' active' : ''}`}
-                    style={{ top: 12, left: 12, right: 'unset' }}
-                    onClick={() => toggleStar(pick.id)}
-                    aria-label={starred.has(pick.id) ? 'Remove from favourites' : 'Add to favourites'}
-                  >
-                    <Heart size={15} fill="currentColor" />
-                  </button>
                 </div>
 
                 {/* Body */}
@@ -290,6 +282,7 @@ export default function SurpriseMe({ setPage, answers }: Props) {
                         Book now
                       </a>
                     )}
+                    <AddButton added={shortlist.has(pick.id)} onAdd={() => toggleAdd(pick.id)} />
                     <button
                       onClick={async () => {
                         if (!shakeReady) await requestShakePermission();

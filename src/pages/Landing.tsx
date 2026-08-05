@@ -2,7 +2,7 @@ import React, { type CSSProperties, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { capture } from '../lib/analytics';
 import {
-  Clock, Users, Sparkle, Chev, Share, Calendar, Mail, Heart,
+  Clock, Users, Sparkle, Chev, Share, Calendar, Mail, Heart, Check,
 } from '../components/Icons';
 import Footer from '../components/Footer';
 import GoodToKnowTimeline from '../components/GoodToKnowTimeline';
@@ -161,7 +161,7 @@ function ShortlistSlot() {
       <div className="itin-shortlist-toggle" style={{ cursor: 'default' }}>
         <span className="itin-shortlist-toggle-spacer" />
         <span className="itin-shortlist-toggle-label">
-          <span className="itin-shortlist-heart">♥</span>
+          <span className="itin-shortlist-heart">✓</span>
           Add from shortlist
         </span>
         <span className="itin-shortlist-toggle-icon end">▼</span>
@@ -242,7 +242,7 @@ function SampleSection({ days, goPlan, goExplore }: { days: string; goPlan: () =
                 Our AI sequences activities intelligently — beach in the morning before the crowds, nature at golden hour, dinner spots that aren't tourist traps.
               </p>
               <p style={{ fontSize: 14.5, lineHeight: 1.55, color: 'rgba(255,255,255,0.9)', margin: '0 0 20px', maxWidth: 520 }}>
-                Every plan starts with the island classics a local would put in front of anyone — a beach at sunrise, a catamaran sail, a beach at sunset, dinner by the water. Whatever you answered. From there it's yours: <strong style={{ fontWeight: 700 }}>heart anything in Explore and drop it straight into a day</strong>, swap what doesn't fit, drag days around, delete the rest.
+                Every plan starts with the island classics a local would put in front of anyone — a beach at sunrise, a catamaran sail, a beach at sunset, dinner by the water. Whatever you answered. From there it's yours: <strong style={{ fontWeight: 700 }}>add anything in Explore and drop it straight into a day</strong>, swap what doesn't fit, drag days around, delete the rest.
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, margin: '0 0 18px' }}>
                 <span className="chip-outline" style={{ border: '2px solid rgba(255,255,255,0.9)', color: 'var(--cream)', background: 'transparent' }}><Clock size={13} /> Optimized by time of day</span>
@@ -274,7 +274,7 @@ function SampleSection({ days, goPlan, goExplore }: { days: string; goPlan: () =
                     draft you edit. Sends you to Explore to "+ Add" things, which
                     is where the real picker draws from. */}
                 <button type="button" className="btn-coral" onClick={goExplore} style={{ fontSize: 13, padding: '9px 16px', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                  <Heart size={14} /> Add from shortlist
+                  <Check size={14} /> Add from shortlist
                 </button>
                 <button type="button" disabled className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'rgba(255,255,255,0.7)', fontSize: 13, padding: '9px 16px', display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'default', opacity: 0.85 }}>
                   <Calendar size={14} /> Export calendar

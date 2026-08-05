@@ -1,6 +1,8 @@
 import { useState, type CSSProperties, type MouseEvent } from 'react';
-import { Search, Star, MapPin, Clock, Dollar, Plus, Check, X } from '../components/Icons';
+import { Search, Star, MapPin, Clock, Dollar, X } from '../components/Icons';
+import AddButton from '../components/AddButton';
 import Footer from '../components/Footer';
+import { useShortlist } from '../lib/shortlist';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
 import { filterExploreEntries, bookingUrl, viatorLink, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint } from '../data/exploreItems';
@@ -10,7 +12,7 @@ import type { ViatorItem } from '../types';
 import type { Answers } from '../App';
 import type { PageId } from '../App';
 
-type Props = { setPage: (p: PageId) => void; answers: Answers; canSeeItinerary: boolean; initialSection?: Section; shortlist: Set<string>; setShortlist: (s: Set<string>) => void; };
+type Props = { setPage: (p: PageId) => void; answers: Answers; canSeeItinerary: boolean; initialSection?: Section; };
 
 // Vibe pill copy/colour from an adventure value (mirrors vibePass thresholds).
 function vibePill(adventure: number): { label: string; bg: string } {
@@ -75,7 +77,8 @@ function SkeletonCard() {
   );
 }
 
-export default function Explore({ setPage, answers, canSeeItinerary, initialSection, shortlist, setShortlist }: Props) {
+export default function Explore({ setPage, answers, canSeeItinerary, initialSection }: Props) {
+  const { shortlist, toggle: toggleAdd } = useShortlist();
   const { catalog, loading } = useCatalog();
 
   const [section, setSection] = useState<string>(initialSection ?? 'All');
@@ -89,9 +92,9 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   const [price, setPrice] = useState<number>(50);
   // No ♥ on Explore's cards since 2026-08-05 — "+ Add" is the one way to keep an
   // activity here, so a card offers one action instead of two that read alike.
-  // `10doa:starred` itself is untouched: Surprise Me and the dashboard still
-  // toggle it, existing favourites still load, and the My Aruba > Favourites tab
-  // still reads them.
+  // Since the same date it writes the single shortlist store (localStorage,
+  // '10doa:starred'), so what you add here is what My Aruba > Shortlisted shows
+  // and what survives a refresh.
 
   // Region per Viator item: its own override, else its group's region (coarse for
   // now; precise per-item locations are the planned backend follow-up).
@@ -101,12 +104,6 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   };
   // Every individual Viator item URL + local pick, as its own filterable tile.
   const entries = filterExploreEntries(catalog, { section, search, vibe, price });
-
-  const toggleAdd = (id: string) => {
-    const next = new Set(shortlist);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    setShortlist(next);
-  };
 
   const totalCount = entries.length;
 
@@ -192,17 +189,6 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
 
       <Footer setPage={setPage} />
     </>
-  );
-}
-
-function AddButton({ added, onAdd, fill }: { added: boolean; onAdd: () => void; fill?: boolean }) {
-  return (
-    <button
-      onClick={onAdd}
-      style={{ ...(fill ? { flex: 1 } : null), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 14px', borderRadius: 12, border: '2px solid var(--ink)', fontWeight: 700, fontFamily: 'inherit', fontSize: 13, cursor: 'pointer', background: added ? 'var(--green)' : 'var(--yellow-bg)', color: added ? 'var(--cream)' : 'var(--ink)', boxShadow: '3px 3px 0 var(--ink)' }}
-    >
-      {added ? <><Check size={13} /> Added</> : <><Plus size={13} /> Add</>}
-    </button>
   );
 }
 

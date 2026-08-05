@@ -17,7 +17,7 @@ import { matchPool, blendPools, constrainBySwapReason, entryPrice, parseActivity
 import { fitItem, refaceForAnswers, itemSlotOkForFill } from '../data/itemFit';
 import { answersToTags } from '../data/answerTags';
 import { generatePlan, resolvePinId } from '../data/itineraryGenerator';
-import { useStarred } from '../lib/starred';
+import { useShortlist } from '../lib/shortlist';
 import { logEvent } from '../data/feedback';
 import { useAuth } from '../lib/auth';
 import { useBooked } from '../lib/booked';
@@ -35,7 +35,7 @@ import { suggestLunchspot, cardRegion, isLunchspot, LUNCHSPOTS } from '../data/l
 import type { CardEntry, SlotEntry, Slot, SwapReason, ViatorItem, Section } from '../types';
 import type { PageId, Answers } from '../App';
 
-type Props = { setPage: (p: PageId) => void; answers: Answers; setAnswers: (a: Answers) => void; onLogin: () => void; shareId: string | null; onNavigateToExplore?: (section: Section) => void; shortlist?: Set<string> };
+type Props = { setPage: (p: PageId) => void; answers: Answers; setAnswers: (a: Answers) => void; onLogin: () => void; shareId: string | null; onNavigateToExplore?: (section: Section) => void };
 
 const SECTION_META: { id: Slot; label: string }[] = [
   { id: 'morning',   label: 'Morning' },
@@ -43,38 +43,19 @@ const SECTION_META: { id: Slot; label: string }[] = [
   { id: 'evening',   label: 'Evening' },
 ];
 
-export default function Itinerary({ setPage, answers, setAnswers, onLogin, shareId, onNavigateToExplore, shortlist = new Set<string>() }: Props) {
-  const { catalog, loading: catalogLoading } = useCatalog();
+export default function Itinerary({ setPage, answers, setAnswers, onLogin, shareId, onNavigateToExplore }: Props) {
+  const { catalog } = useCatalog();
   const tags    = useMemo(() => answersToTags(answers), [answers]);
 
   // Build the initial itinerary from the answers + the live catalog (Viator
   // groups + local picks), honoring the requested day count (1–14). Generated
   // once on mount; user edits (approve/swap/drag) then own the plan.
-  // Shortlisted picks are pre-placed with pinned=true so they always land.
-  const [plan, setPlan] = useState<PlannedDay[]>(() =>
-    seedPlan(generatePlan(answers, catalog, { pinned: [...shortlist] }))
-  );
-
-  // When the live Viator catalog lands (stub→live swap), regenerate the plan so
-  // shortlisted picks can be pinned in. Stub IDs (slug-style) don't match live
-  // Viator item IDs, so the initial generation can't resolve or place any pins.
-  // Guard: only fires once, only when there's a shortlist, and never for shared
-  // views or trips already hydrated from the user's saved data.
-  const catalogLiveRef = useRef(false);
-  useEffect(() => {
-    if (catalogLoading) return;
-    if (catalogLiveRef.current) return;
-    catalogLiveRef.current = true;
-    if (shortlist.size === 0) return;
-    if (shareId) return;
-    if (hydrated) return;
-    const hasPins = plan.some((d) =>
-      [...d.morning, ...d.afternoon, ...d.evening].some((c) => c.entry.pinned),
-    );
-    if (hasPins) return;
-    setPlan(seedPlan(generatePlan(answers, catalog, { pinned: [...shortlist] })));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogLoading]);
+  //
+  // The shortlist is NOT auto-pinned. Saving something is "keep this in mind",
+  // not "put it in my trip" — the traveller drops it into a slot themselves via
+  // the empty-slot picker below. (The generator still supports `opts.pinned`;
+  // nothing feeds it from the shortlist since 2026-08-05.)
+  const [plan, setPlan] = useState<PlannedDay[]>(() => seedPlan(generatePlan(answers, catalog)));
 
   const tripDays = plan.length;
 
@@ -326,25 +307,18 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   };
 
   // Resolved entries for the empty-slot picker: everything the traveller saved
-  // for themselves. Two sources, same id format ('item:<viatorId>' | activityId)
-  // so both resolve through resolvePinId:
-  //   • shortlist — Explore's "+ Add", in-memory for this session; these are
-  //     also pinned into the generated plan up front.
-  //   • starred  — Explore's ♥ favourites, persisted to '10doa:starred' and
-  //     surviving reloads. Favourites are NOT auto-pinned: hearting something is
-  //     "keep this in mind", not "put it in my trip", so they wait here until
-  //     the traveller drops one into a slot.
-  // Read once on mount (localStorage) — Explore and Itinerary are separate
-  // pages, so there is no live cross-page sync to maintain.
-  const { starred } = useStarred();
+  // via "+ Add", in id format 'item:<viatorId>' | activityId so each resolves
+  // through resolvePinId. Saved items wait here until the traveller drops one
+  // into a slot — nothing is placed for them.
+  const { shortlist } = useShortlist();
   const shortlistEntries = useMemo((): { rawId: string; entry: CardEntry }[] => {
-    return [...new Set([...shortlist, ...starred])]
+    return [...shortlist]
       .map((rawId) => {
         const entry = resolvePinId(rawId, catalog);
         return entry ? { rawId, entry } : null;
       })
       .filter((x): x is { rawId: string; entry: CardEntry } => x !== null);
-  }, [shortlist, starred, catalog]);
+  }, [shortlist, catalog]);
 
   // Add a shortlist entry to a specific day+section (used from the empty-slot picker).
   const onAddSlotEntry = (dayNum: number, section: Slot, entry: CardEntry) => {
@@ -873,7 +847,7 @@ function Section({
               >
                 <span className="itin-shortlist-toggle-spacer" aria-hidden />
                 <span className="itin-shortlist-toggle-label">
-                  <span className="itin-shortlist-heart" aria-hidden>♥</span>
+                  <span className="itin-shortlist-heart" aria-hidden>✓</span>
                   Add from shortlist
                 </span>
                 <span className="itin-shortlist-toggle-icon end" aria-hidden>{shortlistOpen ? '▲' : '▼'}</span>

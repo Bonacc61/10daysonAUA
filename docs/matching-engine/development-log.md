@@ -21,7 +21,7 @@ Supporting modules:
 answersToTags(answers)
   → applyCatalogFlags(catalog, flags)     // no-boats / mobility / intense-hikes
   → isAutoFillExcluded + championsByExperience   // one well-reviewed champion per experience
-  → pin pre-pass                          // claim slots for shortlisted picks
+  → pin pre-pass                          // claim slots for `opts.pinned` (see note)
   → balanced template pre-pass            // mid-slider personas only
   → premium splurge pre-pass              // money-no-object; runs BEFORE staples
   → staple pre-pass                       // stands down on a family the splurge took
@@ -52,6 +52,12 @@ Accumulates trip-wide state across the day loop:
 | `day` / `nDays` | current day and trip length; day-level eligibility (Conchi avoids the first and last day on trips longer than 2 days) |
 | `trace?` | opt-in diagnostic callback; undefined in the app |
 | `groupById` | group lookup for per-item candidates |
+
+**Note on pins:** the pre-pass and `opts.pinned` are intact and still covered by
+tests, but **no caller passes them since 2026-08-05**. The shortlist used to be fed
+in as pins, so anything saved in Explore was auto-placed. Saving now means "keep this
+in mind" only — the traveller drops it into a slot from the empty-slot picker in
+`Itinerary.tsx`. Treat the pin path as available, not live.
 
 ### Fill ladder (`pickForSlot`)
 

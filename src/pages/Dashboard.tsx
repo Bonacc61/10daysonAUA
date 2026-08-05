@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
-import { Calendar, Check, Chev, Clock, Dice, Doc, Dollar, Download, Heart, Info, IOSShare, Mail, MapPin, Star } from '../components/Icons';
+import { Calendar, Check, Chev, Clock, Dice, Doc, Dollar, Download, Info, IOSShare, Mail, MapPin, Star } from '../components/Icons';
 import GoodToKnowTimeline from '../components/GoodToKnowTimeline';
 import { useCatalog } from '../data/useCatalog';
 import { filterExploreEntries, bookingUrl, vibeHint, priceHint } from '../data/exploreItems';
@@ -9,7 +9,8 @@ import { INFO_TOPICS } from '../data/activities';
 import { answersToTags } from '../data/answerTags';
 import { resolveSlotEntry } from '../data/activitySource';
 import { buildIcs, downloadIcs } from '../lib/icsExport';
-import { useStarred } from '../lib/starred';
+import { useShortlist } from '../lib/shortlist';
+import AddButton from '../components/AddButton';
 import { useBooked } from '../lib/booked';
 import { useAuth } from '../lib/auth';
 import { loadTrip } from '../lib/trips';
@@ -32,7 +33,7 @@ type DashSection = 'surprise' | 'starred' | 'itinerary' | 'bookings' | 'practica
 
 type IconFC = (p: { size?: number }) => JSX.Element;
 const SECTIONS: { id: DashSection; label: string; NavIcon: IconFC }[] = [
-  { id: 'starred',    label: 'Activities',             NavIcon: Heart    },
+  { id: 'starred',    label: 'Activities',             NavIcon: Check    },
   { id: 'itinerary',  label: 'Itineraries',           NavIcon: Calendar },
   { id: 'bookings',   label: 'Bookings',              NavIcon: Check    },
   { id: 'surprise',   label: 'Surprise me',           NavIcon: Dice     },
@@ -143,7 +144,7 @@ function drawFrom(pool: Suggestion[], skipId: string | null, slotTod: string): S
 
 function SurprisePanel({ setPage, trip, answers }: { setPage: (p: PageId) => void; trip: TripLoadState; answers: Answers }) {
   const { catalog, loading } = useCatalog();
-  const { starred, toggle: toggleStar } = useStarred();
+  const { shortlist, toggle: toggleAdd } = useShortlist();
   const [pick, setPick]     = useState<Suggestion | null>(null);
   const [skipId, setSkipId] = useState<string | null>(null);
   const [animKey, setAnimKey] = useState(0);
@@ -157,15 +158,15 @@ function SurprisePanel({ setPage, trip, answers }: { setPage: (p: PageId) => voi
   }, [trip, answers]);
 
   const starredPool = useMemo(
-    () => resolveStarredPool(starred, catalog),
+    () => resolveStarredPool(shortlist, catalog),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [starred.size, catalog.activities.length, catalog.items.length],
+    [shortlist.size, catalog.activities.length, catalog.items.length],
   );
 
   const matchedPool = useMemo(
-    () => resolveMatchedPool(tags, catalog, starred),
+    () => resolveMatchedPool(tags, catalog, shortlist),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tags, starred.size, catalog.activities.length, catalog.items.length],
+    [tags, shortlist.size, catalog.activities.length, catalog.items.length],
   );
 
   const pool = useMemo(() => [...starredPool, ...matchedPool], [starredPool, matchedPool]);
@@ -181,7 +182,7 @@ function SurprisePanel({ setPage, trip, answers }: { setPage: (p: PageId) => voi
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, pool.length]);
 
-  // Only auto-advance when a starred item is un-hearted AND it's not in the questionnaire pool.
+  // Only auto-advance when a shortlisted item is removed AND it's not in the questionnaire pool.
   useEffect(() => {
     if (pick && !pool.some((p) => p.id === pick.id)) {
       const next = drawFrom(pool, null, slotTod);
@@ -189,7 +190,7 @@ function SurprisePanel({ setPage, trip, answers }: { setPage: (p: PageId) => voi
       else { setPick(null); setSkipId(null); }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [starred.size]);
+  }, [shortlist.size]);
 
   // iOS 13+ requires DeviceMotionEvent.requestPermission() from a user gesture
   // before accelerometer values are non-null. We detect the need, ask on tap,
@@ -228,12 +229,12 @@ function SurprisePanel({ setPage, trip, answers }: { setPage: (p: PageId) => voi
         <p style={{ fontStyle: 'italic', fontSize: 14, color: 'var(--sand-700)', margin: 0 }}>
           {pool.length > 0
             ? [
-                starredPool.length > 0 && `${starredPool.length} hearted`,
+                starredPool.length > 0 && `${starredPool.length} shortlisted`,
                 matchedPool.length > 0 && `${matchedPool.length} questionnaire match${matchedPool.length === 1 ? '' : 'es'}`,
               ].filter(Boolean).join(' + ') + ' — shake or tap to roll.'
             : tags.size > 0
-              ? 'No matches found yet — try hearting activities in Explore.'
-              : 'Complete the questionnaire or heart activities in Explore.'}
+              ? 'No matches found yet — try adding activities in Explore.'
+              : 'Complete the questionnaire or add activities in Explore.'}
         </p>
         {needsMotionPermission && !motionGranted && (
           <button
@@ -261,8 +262,8 @@ function SurprisePanel({ setPage, trip, answers }: { setPage: (p: PageId) => voi
           </p>
           <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: '0 0 20px' }}>
             {tags.size > 0
-              ? 'Heart activities in Explore to save them here, or they\'ll appear automatically once we load your matches.'
-              : 'Complete the questionnaire and we\'ll suggest activities. You can also heart things in Explore — we\'ll pick for you when you can\'t decide.'}
+              ? 'Add activities in Explore to save them here, or they\'ll appear automatically once we load your matches.'
+              : 'Complete the questionnaire and we\'ll suggest activities. You can also add things in Explore — we\'ll pick for you when you can\'t decide.'}
           </p>
           <button className="btn-red" onClick={() => setPage('explore')} style={{ padding: '11px 22px', fontSize: 14 }}>
             Browse Explore →
@@ -290,10 +291,6 @@ function SurprisePanel({ setPage, trip, answers }: { setPage: (p: PageId) => voi
                   <Star size={11} /> {pick.kind === 'activity' ? pick.activity.rating : pick.item.rating}
                 </span>
               )}
-              <button className={`a-star-btn${starred.has(pick.id) ? ' active' : ''}`} style={{ top: 12, left: 12, right: 'unset' }}
-                onClick={() => toggleStar(pick.id)} aria-label={starred.has(pick.id) ? 'Remove from favourites' : 'Add to favourites'}>
-                <Heart size={15} fill="currentColor" />
-              </button>
             </div>
             <div style={{ padding: '18px 20px 20px' }}>
               {pick.kind === 'activity' && (
@@ -325,6 +322,7 @@ function SurprisePanel({ setPage, trip, answers }: { setPage: (p: PageId) => voi
                     Book now
                   </a>
                 )}
+                <AddButton added={shortlist.has(pick.id)} onAdd={() => toggleAdd(pick.id)} />
                 <button onClick={spin} disabled={pool.length <= 1}
                   style={{ flex: 1, padding: '10px 14px', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, border: '2px solid var(--ink)', background: 'var(--yellow-bg)', color: 'var(--ink)', boxShadow: '3px 3px 0 var(--ink)', cursor: pool.length > 1 ? 'pointer' : 'not-allowed', opacity: pool.length > 1 ? 1 : 0.4 }}>
                   <Dice size={14} /> Nope, roll again
@@ -341,9 +339,14 @@ function SurprisePanel({ setPage, trip, answers }: { setPage: (p: PageId) => voi
   );
 }
 
-// ─────────────────────────────────────────────── Starred cards ───────────── //
+// ─────────────────────────────────────────────── Shortlist cards ───────────── //
 
-function StarredActivityCard({ entry, onStar }: { entry: ExploreEntry & { kind: 'activity' }; onStar?: () => void }) {
+// No ♥ on these cards since 2026-08-05, when the heart was retired everywhere in
+// favour of one control: "+ Add" / "Added", the same button Explore and Surprise
+// use, writing the same shortlist store. On a card that is already shortlisted it
+// reads "Added" and clicking it is how you take it back out.
+
+function StarredActivityCard({ entry, added, onAdd }: { entry: ExploreEntry & { kind: 'activity' }; added: boolean; onAdd: () => void }) {
   const a = entry.activity;
   const bUrl = bookingUrl(entry);
   return (
@@ -351,11 +354,6 @@ function StarredActivityCard({ entry, onStar }: { entry: ExploreEntry & { kind: 
       <div className="a-img">
         <img src={a.image} alt={a.title} />
         {a.ratingSource === 'viator' && <span className="a-rating"><Star size={10} /> {a.rating}</span>}
-        {onStar && (
-          <button className="a-star-btn active" onClick={onStar} aria-label="Remove from favourites">
-            <Heart size={14} fill="currentColor" />
-          </button>
-        )}
       </div>
       <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-500)', marginBottom: 4 }}>{a.category}</div>
@@ -366,24 +364,27 @@ function StarredActivityCard({ entry, onStar }: { entry: ExploreEntry & { kind: 
         <p style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--sand-700)', margin: '0 0 12px', flex: 1 }}>
           {a.description.length > 110 ? a.description.slice(0, 107) + '…' : a.description}
         </p>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: (bUrl || parseActivityCost(a.cost) === 0) ? 12 : 0 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
           <span className="chip-outline" style={{ fontSize: 10, padding: '2px 8px' }}><Clock size={10} /> {a.duration}</span>
           <span className="chip-outline" style={{ fontSize: 10, padding: '2px 8px' }}><Dollar size={10} /> {a.cost}</span>
         </div>
-        {bUrl ? (
-          <a href={bUrl} target="_blank" rel="noopener noreferrer"
-             style={{ display: 'block', padding: '8px 12px', fontSize: 12, fontWeight: 700, textDecoration: 'none', textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '2px 2px 0 var(--ink)' }}>
-            Book now
-          </a>
-        ) : parseActivityCost(a.cost) === 0 ? (
-          <span style={{ display: 'block', padding: '8px 12px', fontSize: 12, fontWeight: 700, textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)' }}>✓ Free</span>
-        ) : null}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {bUrl ? (
+            <a href={bUrl} target="_blank" rel="noopener noreferrer"
+               style={{ flex: 1, padding: '8px 12px', fontSize: 12, fontWeight: 700, textDecoration: 'none', textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '2px 2px 0 var(--ink)' }}>
+              Book now
+            </a>
+          ) : parseActivityCost(a.cost) === 0 ? (
+            <span style={{ flex: 1, padding: '8px 12px', fontSize: 12, fontWeight: 700, textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)' }}>✓ Free</span>
+          ) : null}
+          <AddButton added={added} onAdd={onAdd} fill={!bUrl && parseActivityCost(a.cost) !== 0} />
+        </div>
       </div>
     </div>
   );
 }
 
-function StarredItemCard({ entry, onStar }: { entry: ExploreEntry & { kind: 'item' }; onStar?: () => void }) {
+function StarredItemCard({ entry, added, onAdd }: { entry: ExploreEntry & { kind: 'item' }; added: boolean; onAdd: () => void }) {
   const { item } = entry;
   const bUrl = bookingUrl(entry);
   const sec  = sectionLabel(primarySection(entry.sections));
@@ -392,11 +393,6 @@ function StarredItemCard({ entry, onStar }: { entry: ExploreEntry & { kind: 'ite
       <div className="a-img">
         <img src={item.image_url} alt={item.title} />
         <span className="a-rating"><Star size={10} /> {item.rating}</span>
-        {onStar && (
-          <button className="a-star-btn active" onClick={onStar} aria-label="Remove from favourites">
-            <Heart size={14} fill="currentColor" />
-          </button>
-        )}
       </div>
       <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-500)', marginBottom: 4 }}>{sec}</div>
@@ -404,18 +400,21 @@ function StarredItemCard({ entry, onStar }: { entry: ExploreEntry & { kind: 'ite
         <p style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--sand-700)', margin: '0 0 12px', flex: 1 }}>
           {(item.description ?? '').length > 110 ? (item.description ?? '').slice(0, 107) + '…' : (item.description ?? '')}
         </p>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: (bUrl || item.price_usd === 0) ? 12 : 0 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
           <span className="chip-outline" style={{ fontSize: 10, padding: '2px 8px' }}><Clock size={10} /> {item.duration}</span>
           <span className="chip-outline" style={{ fontSize: 10, padding: '2px 8px' }}><Dollar size={10} /> ${item.price_usd}</span>
         </div>
-        {bUrl ? (
-          <a href={bUrl} target="_blank" rel="noopener noreferrer"
-             style={{ display: 'block', padding: '8px 12px', fontSize: 12, fontWeight: 700, textDecoration: 'none', textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '2px 2px 0 var(--ink)' }}>
-            Book now
-          </a>
-        ) : item.price_usd === 0 ? (
-          <span style={{ display: 'block', padding: '8px 12px', fontSize: 12, fontWeight: 700, textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)' }}>✓ Free</span>
-        ) : null}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {bUrl ? (
+            <a href={bUrl} target="_blank" rel="noopener noreferrer"
+               style={{ flex: 1, padding: '8px 12px', fontSize: 12, fontWeight: 700, textDecoration: 'none', textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '2px 2px 0 var(--ink)' }}>
+              Book now
+            </a>
+          ) : item.price_usd === 0 ? (
+            <span style={{ flex: 1, padding: '8px 12px', fontSize: 12, fontWeight: 700, textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)' }}>✓ Free</span>
+          ) : null}
+          <AddButton added={added} onAdd={onAdd} fill={!bUrl && item.price_usd !== 0} />
+        </div>
       </div>
     </div>
   );
@@ -425,7 +424,7 @@ function StarredItemCard({ entry, onStar }: { entry: ExploreEntry & { kind: 'ite
 
 function StarredPanel({ setPage }: { setPage: (p: PageId) => void }) {
   const { catalog, loading } = useCatalog();
-  const { starred, toggle: toggleStar } = useStarred();
+  const { shortlist, toggle: toggleAdd } = useShortlist();
   const [vibe,  setVibe]  = useState(50);
   const [price, setPrice] = useState(50);
 
@@ -436,20 +435,20 @@ function StarredPanel({ setPage }: { setPage: (p: PageId) => void }) {
 
   const entries = useMemo(
     () => allEntries.filter((e) =>
-      e.kind === 'item' ? starred.has(`item:${e.item.id}`) : starred.has(e.activity.id)
+      e.kind === 'item' ? shortlist.has(`item:${e.item.id}`) : shortlist.has(e.activity.id)
     ),
-    [allEntries, starred],
+    [allEntries, shortlist],
   );
 
-  if (!loading && starred.size === 0) {
+  if (!loading && shortlist.size === 0) {
     return (
       <div>
-        <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Favourite Activities</h2>
+        <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Shortlisted Activities</h2>
         <div className="chunky" style={{ padding: '32px 28px', textAlign: 'center', maxWidth: 440 }}>
-          <div style={{ fontSize: 36, marginBottom: 14 }}>♡</div>
-          <p className="font-display" style={{ fontSize: 20, margin: '0 0 8px', color: 'var(--ink)' }}>Nothing starred yet.</p>
+          <div style={{ fontSize: 36, marginBottom: 14 }}>＋</div>
+          <p className="font-display" style={{ fontSize: 20, margin: '0 0 8px', color: 'var(--ink)' }}>Nothing shortlisted yet.</p>
           <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: '0 0 20px' }}>
-            Tap the heart on any activity in Explore to save it here.
+            Tap “+ Add” on any activity in Explore to save it here.
           </p>
           <button className="btn-red" onClick={() => setPage('explore')} style={{ padding: '11px 22px', fontSize: 14 }}>
             Browse Explore →
@@ -461,7 +460,7 @@ function StarredPanel({ setPage }: { setPage: (p: PageId) => void }) {
 
   return (
     <div>
-      <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Favourite Activities</h2>
+      <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Shortlisted Activities</h2>
       <div className="dash-filter-row">
         <Slider label="Vibe" value={vibe} onChange={setVibe} lo="🌴 Chill" hi="Adrenaline 🪂" hint={vibeHint(vibe)} />
         <Slider label="Price" value={price} onChange={setPrice} lo="✨ Free" hi="Splurge 💸" hint={priceHint(price)} />
@@ -476,13 +475,13 @@ function StarredPanel({ setPage }: { setPage: (p: PageId) => void }) {
       ) : (
         <>
           <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: '0 0 16px' }}>
-            <strong style={{ color: 'var(--ink)' }}>{entries.length}</strong> starred activit{entries.length === 1 ? 'y' : 'ies'}
+            <strong style={{ color: 'var(--ink)' }}>{entries.length}</strong> shortlisted activit{entries.length === 1 ? 'y' : 'ies'}
           </p>
           <div className="explore-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20 }}>
             {entries.map((e) =>
               e.kind === 'item'
-                ? <StarredItemCard     key={`item:${e.item.id}`} entry={e} onStar={() => toggleStar(`item:${e.item.id}`)} />
-                : <StarredActivityCard key={e.activity.id}       entry={e} onStar={() => toggleStar(e.activity.id)} />
+                ? <StarredItemCard     key={`item:${e.item.id}`} entry={e} added onAdd={() => toggleAdd(`item:${e.item.id}`)} />
+                : <StarredActivityCard key={e.activity.id}       entry={e} added onAdd={() => toggleAdd(e.activity.id)} />
             )}
           </div>
         </>
@@ -495,7 +494,7 @@ function StarredPanel({ setPage }: { setPage: (p: PageId) => void }) {
 
 function PersonalizedPanel({ setPage, trip }: { setPage: (p: PageId) => void; trip: TripLoadState }) {
   const { catalog, loading } = useCatalog();
-  const { starred } = useStarred();
+  const { shortlist, toggle: toggleAdd } = useShortlist();
   const [vibe,  setVibe]  = useState(50);
   const [price, setPrice] = useState(50);
 
@@ -560,8 +559,8 @@ function PersonalizedPanel({ setPage, trip }: { setPage: (p: PageId) => void; tr
           <div className="explore-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20 }}>
             {entries.map((e) =>
               e.kind === 'item'
-                ? <StarredItemCard     key={`item:${e.item.id}`} entry={e} />
-                : <StarredActivityCard key={e.activity.id}       entry={e} />
+                ? <StarredItemCard     key={`item:${e.item.id}`} entry={e} added={shortlist.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />
+                : <StarredActivityCard key={e.activity.id}       entry={e} added={shortlist.has(e.activity.id)}       onAdd={() => toggleAdd(e.activity.id)} />
             )}
           </div>
         </>
@@ -1246,7 +1245,7 @@ function PracticalPanel() {
 
 export default function Dashboard({ setPage, initialSection = 'starred', onLogin, answers }: Props) {
   const [section, setSection] = useState<DashSection>(initialSection);
-  const [activitiesTab, setActivitiesTab] = useState<'favourite' | 'personalized'>('favourite');
+  const [activitiesTab, setActivitiesTab] = useState<'shortlisted' | 'personalized'>('shortlisted');
   const [activitiesOpen, setActivitiesOpen] = useState(initialSection === 'starred');
   const { user, loading: authLoading } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
@@ -1314,13 +1313,13 @@ export default function Dashboard({ setPage, initialSection = 'starred', onLogin
                 {/* Activities sub-nav */}
                 {s.id === 'starred' && activitiesOpen && section === 'starred' && !sidebarCollapsed && (
                   <div className="dashboard-nav-sub">
-                    {(['favourite', 'personalized'] as const).map((tab) => (
+                    {(['shortlisted', 'personalized'] as const).map((tab) => (
                       <button
                         key={tab}
                         className={`dashboard-nav-sub-btn${activitiesTab === tab ? ' active' : ''}`}
                         onClick={() => setActivitiesTab(tab)}
                       >
-                        {tab === 'favourite' ? 'Favourite' : 'Personalized'}
+                        {tab === 'shortlisted' ? 'Shortlisted' : 'Personalized'}
                       </button>
                     ))}
                   </div>
@@ -1331,7 +1330,7 @@ export default function Dashboard({ setPage, initialSection = 'starred', onLogin
 
           <div className="dashboard-content">
             {section === 'surprise'  && <SurprisePanel      setPage={setPage} trip={trip} answers={answers} />}
-            {section === 'starred'   && activitiesTab === 'favourite'    && <StarredPanel       setPage={setPage} />}
+            {section === 'starred'   && activitiesTab === 'shortlisted'  && <StarredPanel       setPage={setPage} />}
             {section === 'starred'   && activitiesTab === 'personalized' && <PersonalizedPanel  setPage={setPage} trip={trip} />}
             {section === 'itinerary' && <ItineraryPanel   setPage={setPage} trip={trip} onLogin={onLogin} />}
             {section === 'bookings'  && <BookingsPanel    trip={trip} onLogin={onLogin} />}
