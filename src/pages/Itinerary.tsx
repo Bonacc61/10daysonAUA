@@ -849,7 +849,7 @@ function Section({
         <div ref={setNodeRef} className={`itin-section-zone${isOver ? ' over' : ''}${cards.length === 0 ? ' empty' : ''}`}>
           {cards.length === 0 && !hasShortlist && (
             <div className="itin-section-empty">
-              {h.readOnly ? 'Nothing planned.' : `Drop an activity here, add one from a card's "Other suggestions", or ♥ a few in Explore and pick from your favourites.`}
+              {h.readOnly ? 'Nothing planned.' : `Drop an activity here, add one from a card's "Other suggestions", or "+ Add" a few in Explore and pick from your shortlist.`}
             </div>
           )}
           {cards.map((card) => {
@@ -874,7 +874,7 @@ function Section({
                 <span className="itin-shortlist-toggle-spacer" aria-hidden />
                 <span className="itin-shortlist-toggle-label">
                   <span className="itin-shortlist-heart" aria-hidden>♥</span>
-                  Add from favourites
+                  Add from shortlist
                 </span>
                 <span className="itin-shortlist-toggle-icon end" aria-hidden>{shortlistOpen ? '▲' : '▼'}</span>
               </button>

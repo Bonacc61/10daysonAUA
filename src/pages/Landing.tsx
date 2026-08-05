@@ -162,7 +162,7 @@ function ShortlistSlot() {
         <span className="itin-shortlist-toggle-spacer" />
         <span className="itin-shortlist-toggle-label">
           <span className="itin-shortlist-heart">♥</span>
-          Add from favourites
+          Add from shortlist
         </span>
         <span className="itin-shortlist-toggle-icon end">▼</span>
       </div>
@@ -271,10 +271,10 @@ function SampleSection({ days, goPlan, goExplore }: { days: string; goPlan: () =
                 {/* Live control, unlike the three illustrative buttons beside it
                     and unlike the pickers drawn inside the days: this is the one
                     action that explains the page's point — the plan is a starting
-                    draft you edit. Sends you to Explore to heart things, which is
-                    where the real picker draws from. */}
+                    draft you edit. Sends you to Explore to "+ Add" things, which
+                    is where the real picker draws from. */}
                 <button type="button" className="btn-coral" onClick={goExplore} style={{ fontSize: 13, padding: '9px 16px', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                  <Heart size={14} /> Add from favourites
+                  <Heart size={14} /> Add from shortlist
                 </button>
                 <button type="button" disabled className="btn-ghost" style={{ color: 'var(--cream)', borderColor: 'rgba(255,255,255,0.7)', fontSize: 13, padding: '9px 16px', display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'default', opacity: 0.85 }}>
                   <Calendar size={14} /> Export calendar

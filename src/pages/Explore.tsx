@@ -1,6 +1,5 @@
 import { useState, type CSSProperties, type MouseEvent } from 'react';
-import { Search, Star, Heart, MapPin, Clock, Dollar, Plus, Check, X } from '../components/Icons';
-import { useStarred } from '../lib/starred';
+import { Search, Star, MapPin, Clock, Dollar, Plus, Check, X } from '../components/Icons';
 import Footer from '../components/Footer';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
@@ -88,12 +87,11 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   // everything surface, and the plan is where answers are meant to bite.
   const [vibe, setVibe] = useState<number>(50);
   const [price, setPrice] = useState<number>(50);
-  // Favourites are deliberately NOT login-gated. `10doa:starred` is pure
-  // localStorage — signing in syncs nothing — so the gate cost a first-time
-  // visitor an account prompt in exchange for a browser-local bookmark, on the
-  // very first tap, before they had seen a plan. SurpriseMe and Dashboard
-  // already toggled freely, so it was also the odd one out.
-  const { starred, toggle: toggleStar } = useStarred();
+  // No ♥ on Explore's cards since 2026-08-05 — "+ Add" is the one way to keep an
+  // activity here, so a card offers one action instead of two that read alike.
+  // `10doa:starred` itself is untouched: Surprise Me and the dashboard still
+  // toggle it, existing favourites still load, and the My Aruba > Favourites tab
+  // still reads them.
 
   // Region per Viator item: its own override, else its group's region (coarse for
   // now; precise per-item locations are the planned backend follow-up).
@@ -177,8 +175,8 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
                   ? Array.from({ length: 12 }, (_, i) => <SkeletonCard key={i} />)
                   : entries.map((e) => (
                     e.kind === 'item'
-                      ? <ItemTile key={`item:${e.item.id}`} item={e.item} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} region={regionOf(e.item)} adventure={e.adventure} bookNow={bookingUrl(e)} added={shortlist.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} starred={starred.has(`item:${e.item.id}`)} onStar={() => toggleStar(`item:${e.item.id}`)} />
-                      : <ActivityTile key={e.activity.id} a={e.activity} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} adventure={e.adventure} bookNow={bookingUrl(e)} added={shortlist.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} starred={starred.has(e.activity.id)} onStar={() => toggleStar(e.activity.id)} />
+                      ? <ItemTile key={`item:${e.item.id}`} item={e.item} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} region={regionOf(e.item)} adventure={e.adventure} bookNow={bookingUrl(e)} added={shortlist.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />
+                      : <ActivityTile key={e.activity.id} a={e.activity} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} adventure={e.adventure} bookNow={bookingUrl(e)} added={shortlist.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} />
                   ))}
               </div>
               {!loading && totalCount === 0 && (
@@ -229,7 +227,7 @@ function openItem(url: string, e: MouseEvent) {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-function ItemTile({ item, section, sectionUrl: _sectionUrl, region, adventure, bookNow, added, onAdd, starred, onStar }: { item: ViatorItem; section: string; sectionUrl: string | null; region: string; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void; starred: boolean; onStar: () => void }) {
+function ItemTile({ item, section, sectionUrl: _sectionUrl, region, adventure, bookNow, added, onAdd }: { item: ViatorItem; section: string; sectionUrl: string | null; region: string; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
   const url = item.viator_item_url ? viatorLink(item.viator_item_url) : null;
   const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><HeaderVibePill adventure={adventure} /></>;
   return (
@@ -238,9 +236,6 @@ function ItemTile({ item, section, sectionUrl: _sectionUrl, region, adventure, b
       <div className="a-img">
         <img src={item.image_url} alt={item.title} loading="lazy" />
         <span className="a-rating"><Star size={12} aria-hidden /> {item.rating}</span>
-        <button className={`a-star-btn${starred ? ' active' : ''}`} onClick={(e) => { e.stopPropagation(); onStar(); }} aria-label={starred ? 'Remove from favourites' : 'Save to favourites'}>
-          <Heart size={15} fill={starred ? 'currentColor' : 'none'} />
-        </button>
       </div>
       <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
         <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{item.title}</h3>
@@ -262,7 +257,7 @@ function ItemTile({ item, section, sectionUrl: _sectionUrl, region, adventure, b
   );
 }
 
-function ActivityTile({ a, section, sectionUrl: _sectionUrl, adventure, bookNow, added, onAdd, starred, onStar }: { a: Activity; section: string; sectionUrl: string | null; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void; starred: boolean; onStar: () => void }) {
+function ActivityTile({ a, section, sectionUrl: _sectionUrl, adventure, bookNow, added, onAdd }: { a: Activity; section: string; sectionUrl: string | null; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
   const url = a.viator_item_url ? viatorLink(a.viator_item_url) : null;
   const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><HeaderVibePill adventure={adventure} /><LocalMark /></>;
   return (
@@ -271,9 +266,6 @@ function ActivityTile({ a, section, sectionUrl: _sectionUrl, adventure, bookNow,
       <div className="a-img">
         <img src={a.image} alt={a.title} loading="lazy" />
         {a.ratingSource === 'viator' && <span className="a-rating"><Star size={12} aria-hidden /> {a.rating}</span>}
-        <button className={`a-star-btn${starred ? ' active' : ''}`} onClick={(e) => { e.stopPropagation(); onStar(); }} aria-label={starred ? 'Remove from favourites' : 'Save to favourites'}>
-          <Heart size={15} fill={starred ? 'currentColor' : 'none'} />
-        </button>
       </div>
       <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
         <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{a.title}</h3>
