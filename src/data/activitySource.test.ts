@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolveSlotEntry, isTransportOnly, isPartyBus, isExcludedFromCatalog, regroupItems, type Catalog } from './activitySource';
+import { isRetailProduct } from './itemFit';
 import type { ViatorGroup, ViatorItem } from '../types';
 import type { Activity } from './activities';
 
@@ -87,6 +88,33 @@ describe('isPartyBus — kept out of the catalog entirely', () => {
   it('is a catalog-level drop, so a transfer and a party bus are both excluded', () => {
     expect(isExcludedFromCatalog(titled('Private Airport Pickup'))).toBe(true);
     expect(isExcludedFromCatalog(titled('Sunset Dinner Cruise'))).toBe(false);
+  });
+});
+
+describe('isRetailProduct — a shopping errand is not an outing', () => {
+  it('drops the diamond showroom, duty-free and timeshare pitches', () => {
+    for (const t of [
+      'Diamond Shopping Experience with Champagne',
+      'Aruba Duty-Free Shopping Tour',
+      'Oranjestad Jewelry Showroom Visit',
+      'Timeshare Presentation with Free Breakfast',
+    ]) {
+      expect(isRetailProduct(titled(t)), t).toBe(true);
+      expect(isExcludedFromCatalog(titled(t)), t).toBe(true);
+    }
+  });
+
+  it('does not fire on "Small-Group", which contains "mall"', () => {
+    // Five live products are named this way. Word boundaries are the whole
+    // reason the pattern is safe.
+    for (const t of [
+      'Aruba Small-Group UTV Adventure',
+      'Small Group Snorkeling at Mangel Halto Aruba',
+      'Aruba North Coastline: Small-Group Horseback Riding Tour',
+    ]) {
+      expect(isRetailProduct(titled(t)), t).toBe(false);
+      expect(isExcludedFromCatalog(titled(t)), t).toBe(false);
+    }
   });
 });
 

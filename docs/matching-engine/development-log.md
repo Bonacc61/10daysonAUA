@@ -571,6 +571,30 @@ needs a deliberate decision rather than being inferred from this one.
 
 ---
 
+### 2026-08-05 — Retail leaves the catalog too
+
+**Reported:** party buses and the Diamond Shopping card still visible in Explore.
+
+Half of that was already fixed: `isPartyBus` had shipped and the live catalog
+carried 0 party products. Anyone still seeing them is on a cached bundle — the
+footer's `build <sha>` is the ground truth for what a browser is actually
+running.
+
+The Diamond Shopping card was real, and by design: `isAutoFillExcluded` means
+"we won't suggest this unasked", NOT "you can't have it", so retail stayed in
+Explore, in search and in the swap pool. That was a deliberate distinction and
+it was the wrong one for retail — a diamond showroom is not an outing on any
+surface. `isRetailProduct` moved to `isExcludedFromCatalog`, alongside
+transport-only and party buses. Catalog 328 -> 327.
+
+The pattern stays word-boundary anchored, which matters more than it looks:
+**"Small-Group" contains "mall"**, and five live products are named that way.
+`isAutoFillExcluded` keeps its retail branch as the guard for the offline stub
+and for any future path that builds a catalog without going through
+`loadCatalog`.
+
+---
+
 ## Current state — embedding clustering
 
 Present-tense. The dated entries above are records of what was built on the day;

@@ -243,10 +243,13 @@ const CROWD_PLEASER_EVENING = /sunset|dinner/i;
 // the niche listings this lever exists to suppress lead the plan instead.
 const EVENING_VESSEL_RE = /\b(sail|sails|sailing|cruise|cruises|catamaran|boat|yacht)\b/i;
 // Products that are a purchase or a service rather than a thing you do with a
-// slot in your day. These are excluded from AUTO-FILL only: they stay in
-// Explore, stay searchable, and still land in the plan if the traveller hearts
-// one, because a pin resolves against the un-narrowed catalog. The rule is
-// "we won't suggest this unasked", not "you can't have it".
+// slot in your day. Photo services and vehicle hire are excluded from AUTO-FILL
+// only: they stay in Explore, stay searchable, and still land in the plan if the
+// traveller hearts one, because a pin resolves against the un-narrowed catalog.
+// The rule for those is "we won't suggest this unasked", not "you can't have it".
+//
+// RETAIL is different — see isRetailProduct below, which activitySource drops
+// from the catalog outright.
 //
 // Measured on the live catalog before this existed: "Diamond Shopping
 // Experience with Champagne" (216 reviews, so the review gate waves it through)
@@ -254,6 +257,22 @@ const EVENING_VESSEL_RE = /\b(sail|sails|sailing|cruise|cruises|catamaran|boat|y
 // Review count cannot catch these — they are well-reviewed, they are simply not
 // an outing.
 const RETAIL_RE = /\b(shopping|diamonds?|jewel\w*|duty[- ]free|timeshare)\b/i;
+
+/**
+ * Shopping trips, diamond showrooms, duty-free and timeshare pitches. Not an
+ * outing at all — a retail errand with a booking page.
+ *
+ * `isExcludedFromCatalog` (activitySource) drops these before the catalog is
+ * built, so they never reach Explore, search, the swap pool or a plan. Kept in
+ * `isAutoFillExcluded` too: that is the guard for the offline stub and for any
+ * future path that builds a catalog without going through loadCatalog.
+ *
+ * Word-boundary anchored, which matters more than it looks — "Small-Group"
+ * contains "mall", and there are five such products on the live catalog.
+ */
+export function isRetailProduct(item: ViatorItem): boolean {
+  return RETAIL_RE.test(item.title);
+}
 // Anchored on the SHOOT, not on the word 'photographer': a dive listed as
 // "Private Dive + videographer/Photographer" is a dive, not a photo service.
 const PHOTO_SERVICE_RE = /\b(photoshoot|photography)\b|\bphoto shoot\b/i;

@@ -1,7 +1,7 @@
 import { ACTIVITIES, type Activity } from './activities';
 import { VIATOR_GROUPS, VIATOR_ITEMS } from './viator-stub';
 import { LUNCHSPOTS } from './lunchspots';
-import { fitItem, bestItemForAnswers, itemSlotOk, matchingSection } from './itemFit';
+import { fitItem, bestItemForAnswers, itemSlotOk, matchingSection, isRetailProduct } from './itemFit';
 import { budgetTag } from './classify';
 import type { ViatorGroup, ViatorItem, SlotEntry, CardEntry, MatchTag, Slot, Section } from '../types';
 
@@ -48,9 +48,13 @@ export function isPartyBus(item: ViatorItem): boolean {
   return PARTY_BUS_RE.test(item.title);
 }
 
-// Everything the catalog refuses to carry at all.
+// Everything the catalog refuses to carry at all: pure transfers, party buses and
+// bar crawls, and retail errands (the diamond showroom, duty-free, timeshare
+// pitches). One chokepoint, applied at ingest, so Explore, search, the swap pool
+// and the generator all see the same catalog — there is no surface where a
+// dropped product can still turn up.
 export function isExcludedFromCatalog(item: ViatorItem): boolean {
-  return isTransportOnly(item) || isPartyBus(item);
+  return isTransportOnly(item) || isPartyBus(item) || isRetailProduct(item);
 }
 
 // --- Group reassignment (the live feed's group_id is not trustworthy) -------
