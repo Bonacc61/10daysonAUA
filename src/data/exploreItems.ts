@@ -293,3 +293,26 @@ export function productUrlFor(item: { id?: string; viator_item_url?: string }): 
   }
   return null;
 }
+
+// --- Filter hint copy -------------------------------------------------------
+// The caption under each slider. Lives here, beside the filter it describes,
+// because Explore and the My Aruba dashboard both show these sliders and they
+// must read identically — the dashboard had its own coarse copy ("Leaning
+// adrenaline.") while Explore told you what the filter was actually doing at
+// the extremes, so the same slider position explained itself two ways.
+//
+// Five states, not three: the ends of the range are a genuinely different
+// filter (ONLY the calmest / ONLY the priciest), and a slider that says the
+// same thing at 70 and at 100 gives no reason to keep sliding.
+export function vibeHint(v: number): string {
+  const t = (v - 50) / 50;
+  if (Math.abs(t) < 0.06) return 'Showing every vibe — slide either way to narrow.';
+  if (t > 0) return v >= 94 ? 'Adrenaline only — just the most intense activities.' : 'Leaning adrenaline — filtering out the chillest picks.';
+  return v <= 6 ? 'Chill only — just the calmest activities.' : 'Leaning chill — filtering out the most intense picks.';
+}
+export function priceHint(p: number): string {
+  const t = (p - 50) / 50;
+  if (Math.abs(t) < 0.06) return 'Any price — slide for free-only or splurge-only.';
+  if (t > 0) return p >= 94 ? 'Splurge only — the priciest experiences.' : 'Leaning splurge — filtering out cheaper picks.';
+  return p <= 6 ? 'Free only — no-cost activities.' : 'Leaning cheap — filtering out pricier picks.';
+}

@@ -4,7 +4,7 @@ import { useStarred } from '../lib/starred';
 import Footer from '../components/Footer';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
-import { filterExploreEntries, bookingUrl, viatorLink, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL } from '../data/exploreItems';
+import { filterExploreEntries, bookingUrl, viatorLink, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint } from '../data/exploreItems';
 import { parseActivityCost } from '../data/matcher';
 import type { Section } from '../types';
 import type { ViatorItem } from '../types';
@@ -58,19 +58,6 @@ function Slider({ label, value, onChange, lo, hi, hint }: {
       <div style={{ fontSize: 12, color: 'var(--sand-700)', marginTop: 6, fontStyle: 'italic', minHeight: 32 }}>{hint}</div>
     </div>
   );
-}
-
-function vibeHint(v: number): string {
-  const t = (v - 50) / 50;
-  if (Math.abs(t) < 0.06) return 'Showing every vibe — slide either way to narrow.';
-  if (t > 0) return v >= 94 ? 'Adrenaline only — just the most intense activities.' : 'Leaning adrenaline — filtering out the chillest picks.';
-  return v <= 6 ? 'Chill only — just the calmest activities.' : 'Leaning chill — filtering out the most intense picks.';
-}
-function priceHint(p: number): string {
-  const t = (p - 50) / 50;
-  if (Math.abs(t) < 0.06) return 'Any price — slide for free-only or splurge-only.';
-  if (t > 0) return p >= 94 ? 'Splurge only — the priciest experiences.' : 'Leaning splurge — filtering out cheaper picks.';
-  return p <= 6 ? 'Free only — no-cost activities.' : 'Leaning cheap — filtering out pricier picks.';
 }
 
 function SkeletonCard() {

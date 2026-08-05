@@ -4,7 +4,7 @@ import ItineraryCard from '../components/ItineraryCard';
 import { Calendar, Check, Chev, Clock, Dice, Doc, Dollar, Download, Heart, Info, IOSShare, Mail, MapPin, Star } from '../components/Icons';
 import GoodToKnowTimeline from '../components/GoodToKnowTimeline';
 import { useCatalog } from '../data/useCatalog';
-import { filterExploreEntries, bookingUrl } from '../data/exploreItems';
+import { filterExploreEntries, bookingUrl, vibeHint, priceHint } from '../data/exploreItems';
 import { INFO_TOPICS } from '../data/activities';
 import { answersToTags } from '../data/answerTags';
 import { resolveSlotEntry } from '../data/activitySource';
@@ -56,7 +56,7 @@ function Slider({ label, value, onChange, lo, hi, hint }: {
 }) {
   const sliderStyle = { ['--pct' as string]: value + '%' } as CSSProperties;
   return (
-    <div className="chunky" style={{ padding: 16, marginBottom: 14 }}>
+    <div className="chunky" style={{ padding: 16 }}>
       <h3 style={{ fontWeight: 700, fontSize: 12, margin: '0 0 8px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{label}</h3>
       <input type="range" min={0} max={100} value={value} className="trip-slider" style={sliderStyle}
         onChange={(e) => onChange(Number(e.target.value))} aria-label={label} />
@@ -66,17 +66,6 @@ function Slider({ label, value, onChange, lo, hi, hint }: {
       <div style={{ fontSize: 11, color: 'var(--sand-700)', marginTop: 5, fontStyle: 'italic' }}>{hint}</div>
     </div>
   );
-}
-
-function vibeHint(v: number): string {
-  const t = (v - 50) / 50;
-  if (Math.abs(t) < 0.06) return 'All vibes — slide to narrow.';
-  return t > 0 ? 'Leaning adrenaline.' : 'Leaning chill.';
-}
-function priceHint(p: number): string {
-  const t = (p - 50) / 50;
-  if (Math.abs(t) < 0.06) return 'Any price — slide to filter.';
-  return t > 0 ? 'Leaning splurge.' : 'Leaning cheap.';
 }
 
 // ─────────────────────────────────────────── Surprise Me logic ───────────── //
@@ -473,7 +462,7 @@ function StarredPanel({ setPage }: { setPage: (p: PageId) => void }) {
   return (
     <div>
       <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Favourite Activities</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14, marginBottom: 28 }}>
+      <div className="dash-filter-row">
         <Slider label="Vibe" value={vibe} onChange={setVibe} lo="🌴 Chill" hi="Adrenaline 🪂" hint={vibeHint(vibe)} />
         <Slider label="Price" value={price} onChange={setPrice} lo="✨ Free" hi="Splurge 💸" hint={priceHint(price)} />
       </div>
@@ -555,7 +544,7 @@ function PersonalizedPanel({ setPage, trip }: { setPage: (p: PageId) => void; tr
       <p style={{ fontSize: 13, color: 'var(--sand-700)', fontStyle: 'italic', margin: '0 0 24px' }}>
         Based on your questionnaire — {trip.answers.days} days, {trip.answers.groupType || 'your group'}, {trip.answers.budget || 'any budget'}.
       </p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '0 0 24px', maxWidth: 500 }}>
+      <div className="dash-filter-row">
         <Slider label="Vibe"  value={vibe}  onChange={setVibe}  lo="🌴 Chill" hi="Adrenaline 🪂" hint={vibeHint(vibe)} />
         <Slider label="Price" value={price} onChange={setPrice} lo="✨ Free"   hi="Splurge 💸"    hint={priceHint(price)} />
       </div>

@@ -1261,3 +1261,21 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   .itin-lunch-btn:hover,
   .itin-lunch-btn:active { animation: none; }
 }
+
+/* My Aruba — the vibe + price filters above Favourite / Personalized activities.
+   Both sections previously rolled their own layout: one an auto-fill grid that
+   sized the sliders to a 200px track and left the rest of a wide screen empty,
+   the other a permanently stacked column capped at 500px. Same two controls,
+   two different shapes, and only on desktop — phones collapsed both to one
+   column, which is why they looked right there and wrong here.
+   Side by side and wider on desktop, stacked on phones. */
+.dash-filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  max-width: 780px;
+  margin: 0 0 28px;
+}
+@media (max-width: 640px) {
+  .dash-filter-row { grid-template-columns: 1fr; gap: 12px; }
+}
