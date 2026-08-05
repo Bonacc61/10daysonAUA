@@ -11,8 +11,9 @@ import type { Answers, PageId } from '../App';
 import { dayHues } from '../data/dayHues';
 import { planLegs, splitLeg } from '../data/routeLegs';
 import { distanceKm } from '../data/coordValidate';
-import type { SlotEntry } from '../types';
-import type { Catalog } from '../data/activitySource';
+import type { SlotEntry, MatchTag, Slot, ViatorItem } from '../types';
+import { resolveSlotEntry, type Catalog } from '../data/activitySource';
+import { answersToTags } from '../data/answerTags';
 
 const TOKEN = (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined) ?? '';
 const ARUBA_CENTER = { longitude: -70.0164, latitude: 12.5211, zoom: 11.5 };
@@ -33,37 +34,62 @@ function localActivity(id: string, catalog: Catalog) {
 // Returns null — never a fallback — for an item with no researched coordinate.
 // Such an activity draws no marker; it owns a stretch of the day's route instead,
 // so it stays visible without the map claiming a point nobody verified.
-function pinForEntry(entry: SlotEntry): Pin | null {
-  return pinFor(entry.kind === 'activity' ? entry.id : entry.bestSellerId) ?? null;
+// The item a stored card ACTUALLY renders as. The plan stores only ids, and the
+// live catalog moves under them — product codes churn, and we drop whole classes
+// of product (transfers, party buses, retail) at ingest. `resolveSlotEntry` is
+// the display chokepoint that heals that: a stored id no longer in the catalog
+// re-faces to the best-fitting item in the same group, which is why a card whose
+// product has gone still shows something sensible in the itinerary.
+//
+// The map used to look the stored id up in `catalog.items` directly, so it saw
+// none of that. A saved plan holding a since-removed product rendered on the
+// itinerary as (say) "Luxury Four-Course Caribbean Dinner Cruise Experience"
+// with its photo, and on the map as a photo-less, price-less pin whose title had
+// quietly fallen back to the GROUP name. Same plan, same catalog, two answers.
+//
+// Resolving through the same function means the two surfaces agree by
+// construction rather than by both being kept in step by hand.
+function faceOf(entry: SlotEntry, catalog: Catalog, tags: Set<MatchTag>, slot?: Slot): ViatorItem | null {
+  if (entry.kind === 'activity') return null;
+  const resolved = resolveSlotEntry(entry, catalog, tags, slot);
+  return resolved?.kind === 'group' ? resolved.bestSeller : null;
 }
 
-function imageFor(entry: SlotEntry, catalog: Catalog): string | null {
+// Coordinates follow the RESOLVED item too — a pin for a product that is no
+// longer in the plan is worse than no pin.
+function pinForEntry(entry: SlotEntry, catalog: Catalog, tags: Set<MatchTag>, slot?: Slot): Pin | null {
+  if (entry.kind === 'activity') return pinFor(entry.id) ?? null;
+  const face = faceOf(entry, catalog, tags, slot);
+  return (face ? pinFor(face.id) : null) ?? pinFor(entry.bestSellerId) ?? null;
+}
+
+function imageFor(entry: SlotEntry, catalog: Catalog, tags: Set<MatchTag>, slot?: Slot): string | null {
   if (entry.kind === 'activity') return localActivity(entry.id, catalog)?.image ?? null;
-  return catalog.items.find(i => i.id === entry.bestSellerId)?.image_url ?? null;
+  return faceOf(entry, catalog, tags, slot)?.image_url ?? null;
 }
 
-function priceFor(entry: SlotEntry, catalog: Catalog): string | null {
+function priceFor(entry: SlotEntry, catalog: Catalog, tags: Set<MatchTag>, slot?: Slot): string | null {
   if (entry.kind === 'activity') return localActivity(entry.id, catalog)?.cost ?? null;
-  const item = catalog.items.find(i => i.id === entry.bestSellerId);
+  const item = faceOf(entry, catalog, tags, slot);
   return item?.price_usd ? `From $${Math.round(item.price_usd)}` : null;
 }
 
-function durationFor(entry: SlotEntry, catalog: Catalog): string | null {
+function durationFor(entry: SlotEntry, catalog: Catalog, tags: Set<MatchTag>, slot?: Slot): string | null {
   if (entry.kind === 'activity') return localActivity(entry.id, catalog)?.duration ?? null;
-  return catalog.items.find(i => i.id === entry.bestSellerId)?.duration ?? null;
+  return faceOf(entry, catalog, tags, slot)?.duration ?? null;
 }
 
-function titleFor(entry: SlotEntry, catalog: Catalog): string {
+function titleFor(entry: SlotEntry, catalog: Catalog, tags: Set<MatchTag>, slot?: Slot): string {
   if (entry.kind === 'activity') return localActivity(entry.id, catalog)?.title ?? entry.id;
-  return catalog.items.find(i => i.id === entry.bestSellerId)?.title
+  return faceOf(entry, catalog, tags, slot)?.title
     ?? catalog.groups.find(g => g.id === entry.groupId)?.name
     ?? entry.groupId;
 }
 
-function urlFor(entry: SlotEntry, catalog: Catalog): string | null {
+function urlFor(entry: SlotEntry, catalog: Catalog, tags: Set<MatchTag>, slot?: Slot): string | null {
   const raw = entry.kind === 'activity'
     ? localActivity(entry.id, catalog)?.viator_item_url
-    : catalog.items.find(i => i.id === entry.bestSellerId)?.viator_item_url;
+    : faceOf(entry, catalog, tags, slot)?.viator_item_url;
   return raw ? viatorLink(raw) : null;
 }
 
@@ -102,6 +128,9 @@ type Props = { answers: Answers; canSeeItinerary: boolean; setPage: (p: PageId) 
 
 export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   const { catalog } = useCatalog();
+  // Same tags the itinerary resolves with, so both surfaces pick the same face
+  // for a card whose stored product has left the catalog.
+  const tags = useMemo(() => answersToTags(answers), [answers]);
   const [popup, setPopup] = useState<AnyPopup | null>(null);
   const [activeDay, setActiveDay] = useState(1);
   const [activePlanIdx, setActivePlanIdx] = useState(0);
@@ -153,25 +182,25 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   // Build the entries for the active day with image + coord
   const dayEntries = useMemo((): DayEntry[] => {
     if (!planDay) return [];
-    const slots: Array<[string, SlotEntry[]]> = [
-      ['Morning', planDay.morning],
-      ['Afternoon', planDay.afternoon],
-      ['Evening', planDay.evening],
+    const slots: Array<[string, Slot, SlotEntry[]]> = [
+      ['Morning', 'morning', planDay.morning],
+      ['Afternoon', 'afternoon', planDay.afternoon],
+      ['Evening', 'evening', planDay.evening],
     ];
-    return slots.flatMap(([slot, entries]) =>
+    return slots.flatMap(([slot, slotId, entries]) =>
       entries.map((entry, i) => ({
         key: `${slot}-${i}`,
         slot,
-        title: titleFor(entry, catalog),
-        image: imageFor(entry, catalog),
-        coord: pinForEntry(entry)?.coord ?? null,
-        pin: pinForEntry(entry),
-        price: priceFor(entry, catalog),
-        duration: durationFor(entry, catalog),
-        url: urlFor(entry, catalog),
+        title: titleFor(entry, catalog, tags, slotId),
+        image: imageFor(entry, catalog, tags, slotId),
+        coord: pinForEntry(entry, catalog, tags, slotId)?.coord ?? null,
+        pin: pinForEntry(entry, catalog, tags, slotId),
+        price: priceFor(entry, catalog, tags, slotId),
+        duration: durationFor(entry, catalog, tags, slotId),
+        url: urlFor(entry, catalog, tags, slotId),
       }))
     );
-  }, [planDay, catalog]);
+  }, [planDay, catalog, tags]);
 
   // Located stops for the map: every entry that has a coordinate, numbered 1..N
   // in chronological (morning→afternoon→evening) order so the markers match the

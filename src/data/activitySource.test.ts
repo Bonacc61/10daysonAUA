@@ -188,6 +188,42 @@ const taggedItem = (id: string, title: string, group_id: string, tags: number[])
 
 const groupOf = (items: ViatorItem[], id: string) => items.find((i) => i.id === id)!.group_id;
 
+describe('resolveSlotEntry — a stored id that has left the catalog', () => {
+  // The plan stores only ids, and the catalog moves under them: product codes
+  // churn, and whole classes of product are dropped at ingest (transfers, party
+  // buses, retail). Every SURFACE that renders a stored card has to go through
+  // this function, or the same plan renders two different ways.
+  //
+  // Reported: a card showed its photo in the itinerary and no photo on the map.
+  // The map was looking the stored id up in catalog.items directly, so a card
+  // whose product had been removed rendered as a photo-less, price-less pin
+  // whose title had quietly fallen back to the GROUP name.
+  const g = group('sightseeing-tours');
+  const survivor: ViatorItem = {
+    ...item('kept', 'sightseeing-tours', true),
+    title: 'Luxury Four-Course Caribbean Dinner Cruise Experience',
+    image_url: 'https://example.test/dinner-cruise.jpg',
+    price_usd: 172,
+  };
+  const cat: Catalog = { activities: [], groups: [g], items: [survivor] };
+
+  it('re-faces to a surviving item in the same group, with its photo', () => {
+    const stored = { kind: 'group' as const, groupId: 'sightseeing-tours', bestSellerId: 'removed-party-bus' };
+    const resolved = resolveSlotEntry(stored, cat, undefined, 'evening');
+    expect(resolved?.kind).toBe('group');
+    if (resolved?.kind !== 'group') return;
+    expect(resolved.bestSeller.id).toBe('kept');
+    expect(resolved.bestSeller.image_url).toBe('https://example.test/dinner-cruise.jpg');
+    expect(resolved.bestSeller.price_usd).toBe(172);
+  });
+
+  it('keeps the stored item when it is still in the catalog', () => {
+    const stored = { kind: 'group' as const, groupId: 'sightseeing-tours', bestSellerId: 'kept' };
+    const resolved = resolveSlotEntry(stored, cat, undefined, 'evening');
+    expect(resolved?.kind === 'group' && resolved.bestSeller.id).toBe('kept');
+  });
+});
+
 describe('regroupItems — re-files items the feed put in the wrong bucket', () => {
   it('moves an off-road tour out of Sailing & Cruises', () => {
     // 12035 = 4WD/Jeep. This is the live catalog's actual shape: 68 of Aruba's

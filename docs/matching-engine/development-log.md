@@ -595,6 +595,38 @@ and for any future path that builds a catalog without going through
 
 ---
 
+### 2026-08-05 — The map bypassed the display chokepoint
+
+**Symptom (reported):** the "Luxury Four-Course Caribbean Dinner Cruise
+Experience" card shows its photo in the itinerary and no photo on the map.
+
+**Root cause:** two surfaces, two ways of turning a stored id into a product.
+The plan stores only ids. `resolveSlotEntry` is the display chokepoint that
+heals a stale one — a stored id no longer in the catalog re-faces to the
+best-fitting item in the same group, which is why the itinerary still shows
+something sensible. The map looked the stored id up in `catalog.items` directly
+and got nothing: no photo, no price, no duration, no affiliate link, and a title
+that quietly fell back to the GROUP name.
+
+Self-inflicted, and recently: the same session's `isExcludedFromCatalog` work
+removed 9 party buses and the retail products, all of which are ids sitting in
+saved plans and in `shared_itineraries` rows. Reproduced exactly — a plan
+holding party bus `404788P3` (group `sightseeing-tours`) renders as the dinner
+cruise with its photo in the itinerary, and as a bare pin on the map.
+
+**Fix:** the map resolves through `resolveSlotEntry` too, so the two surfaces
+agree by construction rather than by being kept in step by hand. Coordinates
+follow the resolved item as well — a pin for a product that is no longer in the
+plan is worse than no pin. Freshly generated plans are unchanged (168 Viator
+cards, 0 differences before and after); only stale stored ids move.
+
+**The general lesson**, worth more than this bug: any code that turns a stored
+`SlotEntry` into something a traveller sees must go through `resolveSlotEntry`.
+Two places now do (Itinerary, Map). A third that forgets will not fail loudly —
+it will render a slightly different plan.
+
+---
+
 ## Current state — embedding clustering
 
 Present-tense. The dated entries above are records of what was built on the day;
