@@ -38,7 +38,11 @@ export const BALANCED_TEMPLATE: TemplateEntry[] = [
   { day: 3,  slot: 'morning',   id: 'mangel-halto' },
   { day: 3,  slot: 'afternoon', id: 'baby-beach-snorkel' },
   { day: 4,  slot: 'morning',   id: 'natural-pool-jeep' },
-  { day: 4,  slot: 'afternoon', id: 'arashi-beach' },
+  // day 4 afternoon — deliberately empty since 2026-08-05. An Arikok day is the
+  // whole day: you drive across the island, the park road is rough and you come
+  // back tired, so the afternoon stays free for the traveller to fill. This used
+  // to carry arashi-beach, which put a north-tip beach after a south-east park
+  // run and made day 4 the plan's busiest.
   { day: 5,  slot: 'morning',   id: 'palm-beach-strip' },
   // day 5 afternoon — sunset sail, no curated card; engine fills
   { day: 6,  slot: 'morning',   id: 'eagle-beach-morning' },

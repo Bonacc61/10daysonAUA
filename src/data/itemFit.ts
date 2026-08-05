@@ -111,10 +111,50 @@ export function isNaturalPool(item: { title: string }): boolean {
   return NATURAL_POOL_RE.test(item.title);
 }
 
+// Some products say when they run in their own title — "Premium Catamaran
+// Afternoon Sail", "UTV Morning Tour". 14 live products do. The engine used to
+// read only evening-vs-daytime, so the Jolly Pirate AFTERNOON sail was being
+// suggested as a morning card: the itinerary contradicted the product name it
+// was printing.
+//
+// "morning or afternoon" means the operator runs both and the traveller picks,
+// so it must NOT pin — a naive first-match rule would read it as morning-only.
+// "or midday/noon" is in there for "Sea Glass Island Kayak Tour Aruba in Morning
+// or Midday", which is the same offer worded differently.
+const TOD_BOTH_RE = /\b(morning|afternoon)\s+or\s+(morning|afternoon|midday|noon)\b/i;
+const TOD_TITLE_RE = /\b(morning|afternoon)\b/i;
+export function titleTimeOfDay(item: { title: string }): 'morning' | 'afternoon' | undefined {
+  if (TOD_BOTH_RE.test(item.title)) return undefined;
+  const m = item.title.match(TOD_TITLE_RE);
+  return m ? (m[1].toLowerCase() as 'morning' | 'afternoon') : undefined;
+}
+
+// Correctness-level slot suitability: an evening product belongs in an evening,
+// Conchi belongs in a morning. This is what the DISPLAY chokepoint
+// (`resolveSlotEntry`) reads, so it must stay a statement about what would be
+// wrong — never a preference — or every stored plan re-faces the moment the
+// preference changes.
 export function itemSlotOk(item: ViatorItem, slot: Slot): boolean {
   if (isNaturalPool(item)) return slot === 'morning'; // Arikok shuts at 16:00
   if (slot === 'evening') return isEveningItem(item);
   return !isEveningItem(item); // morning/afternoon: never surface evening-only items
+}
+
+// The stricter rule used when CHOOSING what to suggest: also honour a time of
+// day the product states in its own name, so the "Jolly Pirate Afternoon Sail"
+// is never offered as a morning card.
+//
+// Deliberately separate from `itemSlotOk`. Folding this in there reached
+// `resolveSlotEntry`, which re-faces a stored card whose id is not in the
+// slot-filtered pool — so ~5% of Viator cards in already-saved and
+// already-SHARED itineraries silently became a different product. A shared link
+// showing something other than what was shared is a worse outcome than an
+// imperfectly-slotted card in an old plan.
+export function itemSlotOkForFill(item: ViatorItem, slot: Slot): boolean {
+  if (!itemSlotOk(item, slot)) return false;
+  if (slot === 'evening') return true;
+  const tod = titleTimeOfDay(item);
+  return tod === undefined || tod === slot;
 }
 
 // --- Activity kind (for same-day variety) -----------------------------------
@@ -246,6 +286,56 @@ export function isAutoFillExcluded(item: ViatorItem): boolean {
   return RETAIL_RE.test(t)
     || PHOTO_SERVICE_RE.test(t)
     || (HIRE_RE.test(t) && (VEHICLE_RE.test(t) || SELF_DRIVE_RE.test(t)));
+}
+
+// Products whose whole proposition is "somewhere to take the children" — an
+// island water-park day pass, a kids' parasail. They are perfectly good
+// products, they are simply the wrong thing to hand a couple or a solo
+// traveller unasked, and the De Palm Island Day Pass (370 reviews, popularity
+// 0.86, and a crowd-pleaser by kind because it carries a snorkelling tag) was
+// scoring its way into every persona's plan.
+//
+// Signal, in order of trust:
+//  1. Viator tag 12043 "Water Parks" — the feed's own classification. One
+//     product in the app's catalog carries it, and it is De Palm Island. (The
+//     raw feed has a second, "De Palm Island All-Inclusive Day Trip with
+//     Transport" — 1,428 reviews — which isTransportOnly drops in the app,
+//     because its title says "Transport" and EXPERIENCE_RE has no "trip". Note
+//     that filter runs in loadCatalog, NOT in e2e-engine.test.ts, which builds
+//     its catalog straight from the edge-function payload — so the e2e suite
+//     does see that product even though production never does.)
+//  2. A title net, because tag coverage is thin and churns: "day pass",
+//     "water park", "kids".
+//
+// Viator's 11919 "Kid-Friendly" tag is deliberately NOT used. It is applied to
+// 2 of 337 live products, and one of them is the 1,584-review "Full-Day Aruba
+// History and Must-See Landmarks Tour" — a general tour that belongs in
+// anyone's plan. The tag marks "children are welcome", not "this is for
+// children", and gating on it would drop good products from adult plans.
+//
+// This gates AUTO-FILL only, like isAutoFillExcluded: the product stays in
+// Explore, stays searchable, and a hearted one still lands in the plan.
+const WATER_PARK_TAG = 12043;
+const KIDS_TITLE_RE = /\bday pass\b|\bwater ?parks?\b|\bkids?\b|\bchildren'?s?\b/i;
+export function isKidsOriented(item: ViatorItem): boolean {
+  return (item.tags ?? []).includes(WATER_PARK_TAG) || KIDS_TITLE_RE.test(item.title);
+}
+
+// A product that takes the whole daytime, whatever duration the feed reports.
+// "Aruba De Palm Island Day Pass" says 6 hrs, which the slot maths reads as a
+// long morning still leaving 120 minutes of the afternoon — but you take a
+// ferry to an island and stay there; the day is spent. `entryDurationMin`
+// floors these at FULL_DAY_MIN so the existing overrun rule clears the rest of
+// the day on its own.
+//
+// Title-matched on "day pass", NOT on Viator's 11928 "Full-day Tours" tag. That
+// tag is on 20 live products and is not trustworthy for this: it is applied to
+// "Aruba Half day Private Jeep Tour" and to a 3-hour sightseeing boat tour.
+// A pass IS the day; a tag that says so while the title says "half day" is not
+// something to block an afternoon on.
+const DAY_PASS_RE = /\bday pass\b/i;
+export function isFullDayProduct(item: ViatorItem): boolean {
+  return DAY_PASS_RE.test(item.title);
 }
 
 export function isCrowdPleaser(item: ViatorItem): boolean {

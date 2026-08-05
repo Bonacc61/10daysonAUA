@@ -21,12 +21,36 @@ export type Catalog = {
 // A product is transport-only when its title names a transfer/shuttle AND names
 // no actual experience. The experience guard keeps hybrids where the trip (not
 // the ride) is the point — a sunset cruise "with hotel pickup", a "Jeep Safari
-// (Natural Pool Transfer)". Jeep tours and the party bus are always kept.
+// (Natural Pool Transfer)". Jeep tours are always kept; party buses used to be
+// too, and are now dropped by isPartyBus below instead.
 const TRANSPORT_RE = /\b(airport|transfers?|shuttle|pick[\s-]?up|drop[\s-]?off|taxi|limo(?:usine)?|car service|transport(?:ation)?)\b/i;
 const EXPERIENCE_RE = /\b(tour|cruise|sail|snorkel|div(?:e|ing)|safari|adventure|dinner|lunch|breakfast|brunch|tasting|class|ride|hik(?:e|ing)|kayak|paddle|zipline|atv|utv|quad|horseback|sightseeing|excursion|jeep|party bus|catamaran|fishing|spa|show|sunset)\b/i;
 
 export function isTransportOnly(item: ViatorItem): boolean {
   return TRANSPORT_RE.test(item.title) && !EXPERIENCE_RE.test(item.title);
+}
+
+// Party buses and bar crawls: dropped from the catalog outright, so they never
+// reach Explore, search, the swap pool or a plan. This is a stronger exclusion
+// than `isAutoFillExcluded` (which only means "don't suggest this unasked") —
+// it is a judgement about what this site recommends at all, not about how a
+// product is surfaced.
+//
+// Nine live products match, including the 1,467-review "Aruba Nightlife Party
+// Bus Tour", so this is a deliberate choice to leave bookings on the table.
+//
+// Narrow on purpose: "party bus" and the crawls, never the bare word "bus".
+// Aruba's daytime sightseeing bus tours are ordinary products and stay —
+// "Best of Aruba by Bus" (642 reviews), "Colorful Beach Bus Sightseeing Tour",
+// "Half-Day Aruba Sightseeing Tour & Beach in an Air-condition Bus" among them.
+const PARTY_BUS_RE = /\bparty bus\b|\b(?:pub|bar|club) crawl\b|\bbooze cruise\b/i;
+export function isPartyBus(item: ViatorItem): boolean {
+  return PARTY_BUS_RE.test(item.title);
+}
+
+// Everything the catalog refuses to carry at all.
+export function isExcludedFromCatalog(item: ViatorItem): boolean {
+  return isTransportOnly(item) || isPartyBus(item);
 }
 
 // --- Group reassignment (the live feed's group_id is not trustworthy) -------
@@ -129,7 +153,7 @@ export function getCatalog(): Catalog {
     stubCatalog = {
       activities: ACTIVITIES,
       groups: VIATOR_GROUPS,
-      items: normalizePopularity(regroupItems(VIATOR_GROUPS, VIATOR_ITEMS.filter((i) => !isTransportOnly(i)))),
+      items: normalizePopularity(regroupItems(VIATOR_GROUPS, VIATOR_ITEMS.filter((i) => !isExcludedFromCatalog(i)))),
     };
   }
   return stubCatalog;
@@ -211,7 +235,7 @@ export function loadCatalog(): Promise<Catalog> {
       const activities = mergeLocalMatches(ACTIVITIES, data?.localMatches ?? {});
       liveCatalog = {
         activities, groups,
-        items: normalizePopularity(regroupItems(groups, items.filter((i) => !isTransportOnly(i)))),
+        items: normalizePopularity(regroupItems(groups, items.filter((i) => !isExcludedFromCatalog(i)))),
       };
       return liveCatalog;
     } catch {

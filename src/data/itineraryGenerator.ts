@@ -18,11 +18,11 @@ import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry, ViatorItem, ViatorGroup } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, entryPrice, parseActivityCost } from './matcher';
-import { fitItem, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, isAutoFillExcluded, isNaturalPool, offroadAdrenalineBonus, itemSlotOk, itemAdventure } from './itemFit';
+import { fitItem, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, isAutoFillExcluded, isKidsOriented, isFullDayProduct, titleTimeOfDay, isNaturalPool, offroadAdrenalineBonus, itemSlotOkForFill, itemAdventure } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 import { effectiveFlags } from './notesFlags';
-import { LUNCHSPOTS } from './lunchspots';
+import { LUNCHSPOTS, isLunchspot } from './lunchspots';
 import { coordForEntry, type Coord } from './coords';
 import { pinFor } from './itemCoords';
 import { pickEnRouteStop, foodPlaceKey, distanceKm } from './enRoute';
@@ -272,8 +272,19 @@ export function durationMinutes(raw: string | undefined): number {
   return Math.round(parts.length >= 2 ? (parts[0] + parts[1]) / 2 : parts[0]);
 }
 
+// What `durationMinutes` returns for the words "full day" — reused as the floor
+// for products that ARE the day whatever duration the feed prints on them.
+const FULL_DAY_MIN = 420;
+
 function entryDurationMin(e: CardEntry): number {
-  return durationMinutes(e.kind === 'group' ? e.bestSeller.duration : e.activity.duration);
+  if (e.kind !== 'group') return durationMinutes(e.activity.duration);
+  const mins = durationMinutes(e.bestSeller.duration);
+  // A day pass reports 6 hrs and leaves 120 minutes of afternoon on paper. In
+  // practice the 8h day cap already absorbs most of that, so this changes
+  // nothing on today's live catalog — it makes the behaviour a rule rather than
+  // an accident, so a short product entering the catalog (there are 30-minute
+  // ones) cannot be booked on the back of an island day.
+  return isFullDayProduct(e.bestSeller) ? Math.max(mins, FULL_DAY_MIN) : mins;
 }
 
 // The day's "anchor": its longest activity. The day theme (title) is named after
@@ -469,10 +480,11 @@ type Ctx = {
   usedRouteFamilies: Set<string>;
 };
 
-// The shared "route family" of an entry: a set of tours that visit the same
-// real-world circuit and so shouldn't both be recommended. Currently just Aruba's
-// off-road tours (Jeep / UTV / ATV / buggy — all the north-coast + Arikok +
-// Natural Pool run). undefined = no family (dedup by cluster/tag only).
+// The shared "route family" of an entry: tours that are the same real-world
+// experience and so shouldn't both be recommended, retired trip-wide after one
+// placement. Five families today, each defined below where it is matched:
+// 'natural-pool', 'offroad', 'kayak', 'day-sail' and 'evening-cruise'.
+// undefined = no family (dedup by cluster/tag only).
 // A free, unbookable local beach. These are the only things a traveller
 // genuinely returns to — you go back to Eagle Beach on Thursday, you do not do
 // the submarine tour twice — so they are the one exception to the trip-wide
@@ -489,6 +501,94 @@ function isRevisitableBeach(e: CardEntry): boolean {
 }
 
 const LOCAL_OFFROAD = /jeep|safari|4x4|4wd|off.?road|utv|atv|natural pool|conchi/i;
+// Kayaking is one experience on this island, not a category: every kayak
+// product paddles the same sheltered south-coast water — Mangel Halto, Spanish
+// Lagoon, Sea Glass Island — so a trip gets one at most, like off-road.
+//
+// Matched on the TITLE as well as the tag-kind, and both are needed. "Aruba
+// Kayak Explorers" also carries a snorkelling tag, which wins in KIND_BY_TAG
+// and makes its kind 'snorkel', so a kind-only test misses it; "Sea Glass
+// Island Aruba Tour" is tagged as kayaking with no kayak in its name, so a
+// title-only test misses that one.
+//
+// Nothing weaker caught this. The reported pair — "Aruba Glass Bottom Kayak
+// Tour" (day 3) and "Kayak Tour at Mangel Halto and Spanish Lagoon" (day 5) —
+// sits in different clusters, at tag Jaccard 0.31 against a 0.35 trip-wide
+// threshold, and kayak is not one of BOAT_KINDS so the boat day-gap never saw
+// it either. Lowering the Jaccard threshold to 0.31 to catch this one pair
+// would have thinned every other slot in the plan.
+const KAYAK_RE = /\bkayak/i;
+// Sailing, catamarans and Jolly Pirates are one experience sold by a dozen
+// operators — the same boat, the same coastal run, the same snorkel stops — so
+// a trip gets ONE, regardless of length. Snorkel-kind boats are in the same
+// family: "Aruba Sail and Snorkel with Turtles" and "Premium Catamaran
+// Afternoon Sail" differ only in which tag Viator happened to file first.
+//
+// Split day from evening, because they are genuinely different evenings out and
+// the plan deliberately carries one of each (the catamaran-sail and beach-dinner
+// staples). One daytime sail + one sunset/dinner cruise per trip.
+//
+// Neither existing net could do this. Measured on the live catalog, the trio
+// that shared a 14-day plan — Premium Catamaran Afternoon Sail, Sail and Snorkel
+// with Turtles, Morning Champagne and Lobster Sail — scores pairwise tag Jaccard
+// of 0.17-0.33 against a 0.35 threshold, and all three sit in DIFFERENT
+// embedding clusters. Clustering does group six other sails under 444239P2, and
+// championsByExperience already thins those to one; cross-cluster duplicates are
+// precisely what an embedding cannot see, so this has to be a family rule.
+//
+// Curated LOCAL picks stay out of it, as they do for the boat gap rule: a beach
+// snorkel the day after a catamaran was explicitly called fine. Note this
+// exemption covers local activities only — a Viator shore-snorkel product
+// ("Small Group Snorkeling at Mangel Halto", "Private Turtle Snorkel Tour") has
+// kind 'snorkel' and IS in the family, so it competes with the catamaran for
+// the trip's one slot. 36 live items land in this family; a south-coast shore
+// snorkel and a west-coast catamaran arguably are not the same outing, which is
+// the known rough edge of scoping the family by kind.
+const SAIL_KINDS = new Set(['sail', 'snorkel']);
+
+// Anything that takes the traveller into Arikok National Park — the guided
+// Natural Pool / Conchi runs, the park hike, the jeep safaris. Title-matched
+// because that is the only signal shared by all of them: the 21 live Natural
+// Pool products classify three different ways, and the curated locals
+// ('arikok-hiking', 'natural-pool-jeep') are activities, not Viator items.
+const ARIKOK_RE = /\barikok\b|\bnatural pool\b|\bconchi\b/i;
+function isArikok(e: CardEntry): boolean {
+  const title = e.kind === 'group' ? e.bestSeller.title : e.activity.title;
+  if (ARIKOK_RE.test(title)) return true;
+  return e.kind === 'activity' && ARIKOK_RE.test(e.activity.location ?? '');
+}
+
+// How many real activities a day may carry, excluding food. Two outings is a
+// full day on an island this size, and a plan that leaves room is worth more
+// than one that fills every slot: the traveller still has favourites to drop in
+// and a day of their own to shape. Meals do not count — a lunch stop or a
+// dinner is the "on the side" card, and there is at most one of those per day.
+const MAX_ACTIVITIES_PER_DAY = 2;
+// ...and a hard ceiling on NON-MEAL cards, so the free-beach exemption below
+// cannot stack back up into the crowded day this exists to prevent.
+//
+// Counts activities, not cards, because the meal was specified as being "on the
+// side": a day may therefore show two outings, a free beach and a lunch. The
+// ceiling was briefly on raw cards instead, which blocked the south-coast food
+// stop on 3-card days — and Zeerover and O'Neil's are close to the only decent
+// options down there, so that stop is worth more than the strict count.
+const MAX_NON_MEAL_CARDS_PER_DAY = 3;
+// A food card: the curated restaurants ('Dinner at Gasparito', 'Zeerovers Fish
+// Fry') and every lunchspot, all of which carry category 'Food'. A Viator
+// dinner cruise or sunset sail is deliberately NOT a meal — it is an outing you
+// booked, so it counts as one of the two.
+function isMealEntry(e: CardEntry): boolean {
+  return e.kind === 'activity' && e.activity.category === 'Food';
+}
+// Same trap the kayak family hit: `activityKind` falls back to the Explore
+// section when the feed gives an item no defining tag, so a dozen real snorkel
+// sails land in the generic 'sec:cruises-water' bucket — including the
+// 527-review "Antilla Shipwreck and Catalina Bay Snorkel Sail". A splurge plan
+// was carrying a catamaran sail plus two of these. Applied ONLY to that generic
+// bucket, so a dive, jet ski, parasail or kayak keeps its own kind and its own
+// rules; on the live catalog it pulls in 12 boat trips and leaves the dives,
+// submarines, seabobs and bus tours where they were.
+const DAY_SAIL_TITLE_RE = /\b(catamaran|snorkel(?:ing)?|sail(?:s|ing)?)\b/i;
 function routeFamilyOf(e: CardEntry): string | undefined {
   const title = e.kind === 'group' ? e.bestSeller.title : e.activity.title;
   // Conchi gets its OWN family, retired after one visit however it is reached.
@@ -497,8 +597,33 @@ function routeFamilyOf(e: CardEntry): string | undefined {
   // ways — 17 off-road, 3 hike, 1 cruise — so a Natural Pool hike and a Natural
   // Pool jeep safari were free to appear in the same trip. It is one place.
   if (isNaturalPool({ title })) return 'natural-pool';
-  if (e.kind === 'group') return activityKind(e.bestSeller) === 'offroad' ? 'offroad' : undefined;
-  return LOCAL_OFFROAD.test(title) ? 'offroad' : undefined;
+  if (e.kind === 'group') {
+    const kind = activityKind(e.bestSeller);
+    // An island day pass is a destination, not a boat trip, even though Viator
+    // files it under snorkelling (De Palm carries tag 11912 among 19 others, so
+    // activityKind calls it 'snorkel'). Without this it joins the day-sail
+    // family and the catamaran staple retires it from every trip — including
+    // the family trips it is meant for. Checked FIRST so the claim holds
+    // whatever else the title says: a "Kayak Day Pass" is still a destination.
+    if (isFullDayProduct(e.bestSeller)) return undefined;
+    if (kind === 'kayak' || KAYAK_RE.test(title)) return 'kayak';
+    // Any evening outing on the water is one family — a sunset sail, a dinner
+    // cruise and a celestial cruise are the same evening. isWaterBased rather
+    // than SAIL_KINDS: three live evening products classify as neither sail nor
+    // snorkel ('sec:cruises-water'), and the traveller cannot tell the
+    // difference from the deck.
+    //
+    // Falls THROUGH for a non-water evening item rather than returning: an
+    // evening off-road product ("Sunset Island Tour in Aruba on Electric
+    // Scooter", 48 reviews — above the champion floor) has to reach the offroad
+    // check below, or this silently weakens the one-off-road-per-trip rule.
+    if (isEveningItem(e.bestSeller) && isWaterBased(e.bestSeller)) return 'evening-cruise';
+    if (SAIL_KINDS.has(kind)) return 'day-sail';
+    if (kind === 'sec:cruises-water' && DAY_SAIL_TITLE_RE.test(title)) return 'day-sail';
+    return kind === 'offroad' ? 'offroad' : undefined;
+  }
+  if (LOCAL_OFFROAD.test(title)) return 'offroad';
+  return KAYAK_RE.test(title) ? 'kayak' : undefined;
 }
 
 // Boat outings, treated as ONE family for the minimum-gap rule below. Two
@@ -557,7 +682,7 @@ function candidatesFor(ctx: Ctx, slot: Slot, useTags: Set<MatchTag> | null): Car
   // level, now per item. Empty matched_by = wildcard (matches everyone), as before.
   const itemEntries: CardEntry[] = [];
   for (const item of ctx.catalog.items) {
-    if (!itemSlotOk(item, slot)) continue;
+    if (!itemSlotOkForFill(item, slot)) continue;
     // Conchi is a full morning that starts with a drive across the island, so it
     // belongs in the middle of a trip rather than on the day you land or the day
     // you fly out. itemSlotOk has already pinned it to a morning.
@@ -942,16 +1067,40 @@ export function resolvePinId(rawId: string, catalog: Catalog): CardEntry | null 
 }
 
 // Preferred and fallback slot lists for a resolved pin.
-export function getPinSlotPrefs(entry: CardEntry): { preferred: Slot[]; fallback: Slot[] } {
+export function getPinSlotPrefs(
+  entry: CardEntry,
+  opts: { strictTimeOfDay?: boolean } = {},
+): { preferred: Slot[]; fallback: Slot[] } {
   // Arikok's gates shut at 16:00, so Conchi is a morning even when the traveller
   // pinned it themselves. A pin overrides our TASTE, not the opening hours — an
   // afternoon departure physically cannot get in and back out.
   const title = entry.kind === 'group' ? entry.bestSeller.title : entry.activity.title;
   if (isNaturalPool({ title })) return { preferred: ['morning'], fallback: [] };
   if (entry.kind === 'group') {
-    return isEveningItem(entry.bestSeller)
-      ? { preferred: ['evening'], fallback: ['morning', 'afternoon'] }
-      : { preferred: ['morning', 'afternoon'], fallback: [] };
+    if (isEveningItem(entry.bestSeller)) {
+      return { preferred: ['evening'], fallback: ['morning', 'afternoon'] };
+    }
+    // A product that names its own time of day gets that slot. Staples and
+    // splurges are placed through here without ever consulting itemSlotOk,
+    // which is how the "Jolly Pirate Afternoon Sail" and the "Premium Catamaran
+    // Afternoon Sail" were landing as morning cards — the card contradicted the
+    // product name printed on it.
+    //
+    // For a PIN the other daytime slot stays as a fallback, never empty.
+    // `findPinSlot` only consults it once the stated slot has failed on every
+    // day of the trip, so the title still wins in every ordinary case — but an
+    // explicit shortlist choice can never silently vanish. It could: on a 2-day
+    // trip both afternoons are held open for arrival/departure, so an
+    // "Afternoon" pin had nowhere to go and was dropped with no card and no
+    // badge. Same for a "Morning" pin under the no-early-mornings flag.
+    //
+    // `strictTimeOfDay` is for the auto-placed paths, which have alternatives a
+    // pin does not: the premium pass simply moves to its next-best candidate.
+    // Better a different splurge than a card that says Afternoon Sail sitting in
+    // the morning — that contradiction is what this whole rule exists to stop.
+    const tod = titleTimeOfDay(entry.bestSeller);
+    if (tod) return { preferred: [tod], fallback: opts.strictTimeOfDay ? [] : ['morning', 'afternoon'] };
+    return { preferred: ['morning', 'afternoon'], fallback: [] };
   }
   const tod = entry.activity.timeOfDay;
   if (tod === 'Morning')   return { preferred: ['morning'],   fallback: [] };
@@ -1002,7 +1151,17 @@ export function generatePlan(
   // photoshoot that won its cluster would otherwise take the whole experience
   // out of the pool with it. Applies at every catalog size — this is a quality
   // rule, not a long-tail one.
-  const eligible = filteredCatalog.items.filter((i) => !isAutoFillExcluded(i));
+  //
+  // Kids-oriented products (water-park day passes, kids' parasails) are dropped
+  // on the same pass, for anyone who did not tell us they have children with
+  // them. Q2 group type is the only signal we have for this — and note it is
+  // the FIRST thing in the plan that group type actually affects: MatchTags
+  // like 'couple' and 'family-young-kids' never appear in classifyTags output,
+  // so fitItem's interest loop can never match one against a live Viator item.
+  const withChildren = tags.has('family-young-kids') || tags.has('family-teens');
+  const autoFillOk = (i: ViatorItem) =>
+    !isAutoFillExcluded(i) && (withChildren || !isKidsOriented(i));
+  const eligible = filteredCatalog.items.filter(autoFillOk);
   const floorApplies = eligible.length >= MIN_CATALOG_TO_FLOOR;
   const champions = !floorApplies ? eligible : championsByExperience(eligible);
   // Absolute gate, unlike the percentile it replaced, CAN empty the pool — a
@@ -1140,6 +1299,172 @@ export function generatePlan(
   }
   // ---------------------------------------------------------------------------
 
+  // Both slot maps are declared ahead of BOTH pre-passes, because the
+  // day-shape and Arikok helpers below close over them. Populated by the
+  // premium and staple passes respectively, in that order.
+  const premiumSlots = new Map<number, Map<Slot, PinPlacement>>();
+  const stapleSlots = new Map<number, Map<Slot, PinPlacement>>();
+
+  // Everything already promised to a day by any pre-pass — read by the day-shape
+  // and Arikok helpers, and by the passes themselves. Order is pins → premium →
+  // staples, so each pass sees every earlier one, and the premium pass's second
+  // splurge (a fortnight gets two) sees its first.
+  const claimedOn = (day: number): CardEntry[] => SECTIONS
+    .map((s) => pinnedSlots.get(day)?.get(s) ?? premiumSlots.get(day)?.get(s)
+      ?? templateSlots.get(day)?.get(s) ?? stapleSlots.get(day)?.get(s))
+    .filter((p): p is PinPlacement => !!p)
+    .map((p) => p.cardEntry);
+
+  const arikokMorningOn = (day: number): boolean => {
+    const m = pinnedSlots.get(day)?.get('morning') ?? premiumSlots.get(day)?.get('morning')
+      ?? templateSlots.get(day)?.get('morning') ?? stapleSlots.get(day)?.get('morning');
+    return m ? isArikok(m.cardEntry) : false;
+  };
+  const afternoonClaimedOn = (day: number): boolean => !!(pinnedSlots.get(day)?.get('afternoon')
+    ?? premiumSlots.get(day)?.get('afternoon') ?? templateSlots.get(day)?.get('afternoon')
+    ?? stapleSlots.get(day)?.get('afternoon'));
+
+  // The Arikok afternoon rule, in BOTH directions: nothing else in the
+  // afternoon of an Arikok morning, and no Arikok morning on a day whose
+  // afternoon is already taken (there is always another day for it).
+  const freeArikokAfternoon = (entry: CardEntry, day: number, slot: Slot): boolean => {
+    if (slot === 'afternoon') return !arikokMorningOn(day);
+    if (slot === 'morning' && isArikok(entry)) return !afternoonClaimedOn(day);
+    return true;
+  };
+
+  // The day shape, for the pre-passes. They place unconditionally and never
+  // reach `withinDayShape`, so without this a staple lands on a day the template
+  // has already filled — measured as three outings and no meal on the balanced
+  // persona's day 2 (snorkel cruise + Alto Vista + sunset sail).
+  const fitsDayShape = (entry: CardEntry, day: number): boolean => {
+    const claimed = claimedOn(day);
+    if (isMealEntry(entry)) return claimed.filter(isMealEntry).length < 1;
+    if (claimed.filter((e) => !isMealEntry(e)).length >= MAX_NON_MEAL_CARDS_PER_DAY) return false;
+    if (isRevisitableBeach(entry)) return true;
+    const outings = claimed.filter((e) => !isMealEntry(e) && !isRevisitableBeach(e)).length;
+    return outings < MAX_ACTIVITIES_PER_DAY;
+  };
+
+  // --- Premium splurge pre-pass ---------------------------------------------
+  // A money-no-object traveller on a week-plus trip should get an aspirational
+  // premium experience (a private charter) IN ADDITION to the universal crowd-
+  // pleasers, not instead of them. Item-level fill alone won't guarantee it: a $65
+  // crowd-pleaser often out-scores a $1,450 charter on within-tier popularity, so the
+  // cheap pick wins every slot. We place the top premium pick(s) here and badge them.
+  // Because dedup is by cluster (not group), the group's crowd-pleaser still lands on
+  // another day — a charter and a party cruise are different clusters. Shorter trips
+  // skip this (one cruise is plenty); non-splurge budgets never trigger it.
+  //
+  // Runs BEFORE the staples, which is the whole point for a splurge traveller.
+  // With one daytime sail per trip, whichever pass goes first owns that slot —
+  // and when someone has put the budget slider on "money no object", the yacht
+  // charter is the thing they came for, not the group catamaran. Staples run
+  // after and skip any family this pass has taken, so the sail slot is spent
+  // once, on the better card. (Ordering the other way round is what made every
+  // splurge trip come back with the same fallback island tour.)
+  if (tags.has('money-no-object') && nDays >= PREMIUM_MIN_DAYS) {
+    const maxPremium = Math.floor(nDays / DAYS_PER_PREMIUM); // 1 for a week, 2 for a fortnight
+    // Everything the pin and template pre-passes have already claimed — both
+    // register in `lastUsedDay`, and both run before this. Registering our own
+    // ids there in turn is what lets the staple pass (below) see these picks;
+    // the day loop would be far too late.
+    const claimedItemIds = new Set<string>(ctx.lastUsedDay.keys());
+
+    // Best premium-tier item per group (one splurge per group), highest fit first.
+    // Sourced from filteredCatalog, NOT the champion-narrowed fill pool: premium
+    // products are structurally thin on reviews (median 8 for items >= $500 on the
+    // live catalog, and a $1,450 private charter can never out-review the $65 group
+    // cruise it shares a cluster with), so the 25-review gate and the shrunk-rating
+    // champion score both select against exactly what this pass exists to surface.
+    // It has its own narrowing already: premium tier only, one per group, top N by
+    // fit, capped by trip length.
+    const bestPerGroup = new Map<string, { item: ViatorItem; group: ViatorGroup; score: number }>();
+    for (const item of filteredCatalog.items) {
+      // Sourcing from filteredCatalog deliberately skips the champion narrowing
+      // (see above), but must NOT skip the retail/service or kids-product rules
+      // — this is an auto-suggestion path like any other. Latent today (no
+      // retail or kids product is >= $500) and closed before it isn't.
+      if (!autoFillOk(item)) continue;
+      if (budgetTag(item.price_usd) !== 'money-no-object') continue; // premium tier only
+      if (claimedItemIds.has(item.id)) continue;                     // already pinned or a staple
+      // Off-road is a single-per-trip route family, not a "splurge in addition"
+      // experience — a money-no-object traveller gets ONE off-road tour (chosen by
+      // adrenaline × budget in normal fill), never a premium jeep plus a
+      // crowd-pleaser UTV on the same circuit.
+      if (activityKind(item) === 'offroad') continue;
+      const fit = fitItem(item, tags);
+      if (fit.rejected) continue;
+      const group = fillCatalog.groups.find((g) => g.id === item.group_id);
+      if (!group) continue;
+      const cur = bestPerGroup.get(group.id);
+      // Tiebreak on id so equal-score picks are stable across catalog orderings.
+      if (!cur || fit.score > cur.score || (fit.score === cur.score && item.id < cur.item.id)) {
+        bestPerGroup.set(group.id, { item, group, score: fit.score });
+      }
+    }
+    // NOT truncated to maxPremium here — the loop below counts what it actually
+    // places. Slicing first meant a candidate rejected inside the loop (its
+    // route family already claimed, no slot free, a duplicate cluster) took the
+    // whole splurge with it instead of falling through to the next-best premium
+    // experience. On the live catalog that killed the feature outright: there
+    // are only 6 Viator groups, so a 7-day trip considered exactly one
+    // candidate — the "Luxury Private Yacht Charter", whose day-sail family the
+    // catamaran staple has always already claimed. Splurges went 90/90 trips to
+    // 0/90 before this was caught.
+    const ranked = [...bestPerGroup.values()]
+      .sort((a, b) => b.score - a.score || (a.item.id < b.item.id ? -1 : 1));
+
+    let premCursor = nDays > 1 ? 2 : 1; // bias away from the arrival (day 1) chill day
+    let premPlaced = 0;
+    const usedPremiumClusters = new Set<string>(); // no two identical splurges
+    for (const { item, group } of ranked) {
+      if (premPlaced >= maxPremium) break;
+      const cid = item.experience_cluster_id;
+      if (cid && usedPremiumClusters.has(cid)) continue; // same experience as an earlier splurge
+      // A splurge is placed unconditionally — it never passes through
+      // `similarReason` — so the trip-wide route families have to be honoured
+      // here explicitly, or a money-no-object traveller gets two sailing trips.
+      // Only pins have run before this pass, so the set is normally empty —
+      // this now mostly stops a fortnight's SECOND splurge repeating the
+      // first's family.
+      const prf = routeFamilyOf({ kind: 'group', group, bestSeller: item, others: [] });
+      if (prf && ctx.usedRouteFamilies.has(prf)) continue;
+      // `others` from the full FILTERED catalog (not the popularity-floored fill
+      // pool) so the card's swap alternatives match a pinned card's, and sorted
+      // by display_order via the shared helper.
+      const others = otherItemsInGroup(group.id, item.id, filteredCatalog);
+      const cardEntry: CardEntry = { kind: 'group', group, bestSeller: item, others };
+      const { preferred, fallback } = getPinSlotPrefs(cardEntry, { strictTimeOfDay: true });
+      const premAvail = (day: number, slot: Slot): boolean =>
+        slotAvail(day, slot) && avoidsBoatClash(cardEntry)(day)
+        && freeArikokAfternoon(cardEntry, day, slot) && fitsDayShape(cardEntry, day);
+      const placement = findPinSlot(preferred, fallback, nDays, premCursor, premAvail);
+      if (!placement) continue;
+      const { day, slot } = placement;
+      if (!pinClaimed.has(day)) pinClaimed.set(day, new Set());
+      pinClaimed.get(day)!.add(slot);
+      if (cid) usedPremiumClusters.add(cid);
+      premPlaced += 1;
+      // Claim the family so a second splurge (a fortnight gets two) can't be
+      // another boat, and so the staple pass and normal fill both see it.
+      if (prf) ctx.usedRouteFamilies.add(prf);
+      // Register the id and cluster NOW, not when the day loop reaches this day
+      // — the staple pass runs next and reads `lastUsedDay` to know what is
+      // already spoken for. Without this the catamaran staple would happily
+      // re-place the very yacht this pass just chose.
+      ctx.lastUsedDay.set(entryId(cardEntry), day);
+      if (cid) ctx.usedClusterIds.add(cid);
+      if (dayCapFamilyOf(cardEntry) === 'boat') boatDays.add(day);
+      // `splurge: true` (not `pinned`) — auto-suggested aspirational pick, shown
+      // with a "Signature splurge" badge rather than the "★ Your pick" pin badge.
+      if (!premiumSlots.has(day)) premiumSlots.set(day, new Map());
+      premiumSlots.get(day)!.set(slot, { cardEntry, slotEntry: { ...toSlotEntry(cardEntry), splurge: true } });
+      premCursor = (day % nDays) + 1;
+    }
+  }
+  // ---------------------------------------------------------------------------
+
   // --- Beach-staple pre-pass -------------------------------------------------
   // Reserve a slot for each of Aruba's four universal experiences (sunrise
   // beach, catamaran sail, beach at sunset, dinner by the water) BEFORE persona fill, so
@@ -1147,31 +1472,60 @@ export function generatePlan(
   // the curation rules; resolveStaples reads the flag-filtered catalog, so a
   // no-boats traveller finds no sail to place and the staple silently drops.
   //
-  // Runs AFTER pins (an explicit shortlist choice outranks a default) and
-  // BEFORE the premium pass, so a splurge never squeezes out a staple.
+  // Runs AFTER pins (an explicit shortlist choice outranks a default) and AFTER
+  // the premium splurge, which is deliberate: for a money-no-object traveller
+  // the yacht charter is the trip's one sail, so the catamaran staple stands
+  // down rather than making it two sailing days. A staple whose route family the
+  // splurge has taken is skipped below.
   //
   // Placement uses the premium branch in the day loop, NOT the pin branch:
   // a staple must not retire its whole group. On live Viator data 64% of the
   // catalog is filed under `sailing-cruises` (their group ids are unreliable —
   // UTV tours land there too), so retiring it after placing the sail would
   // starve every remaining slot in the trip.
-  const stapleSlots = new Map<number, Map<Slot, PinPlacement>>();
   let stapleCursor = 1;
   // Own PRNG stream (seed + 2) rather than ctx.rand, so varying the staples
   // doesn't shift the draw sequence normal fill sees.
   const stapleRand = rng(seed + 2);
-  // Whatever the pin pre-pass already claimed is off-limits to the staples —
-  // lastUsedDay is the authoritative record of that (pins register there above).
+  // Whatever the pin and premium pre-passes already claimed is off-limits to the
+  // staples — lastUsedDay is the authoritative record, and both register there.
   const takenByPins = new Set(ctx.lastUsedDay.keys());
-  for (const { entry, preferred, fallback, free } of
+  for (const { entry: firstChoice, alternatives, preferred, fallback, free } of
        resolveStaples(filteredCatalog, tags, nDays, stapleRand, takenByPins)) {
-    // Paid staples skip the arrival day — day 1 is the free/chill settle-in day
-    // normal fill also honours (see `freeOnly` below).
-    const stapleAvail = (day: number, slot: Slot): boolean =>
-      slotAvail(day, slot) && (free || nDays === 1 || day !== 1)
-      && avoidsBoatClash(entry)(day);
-    const placement = findPinSlot(preferred, fallback, nDays, stapleCursor, stapleAvail);
-    if (!placement) continue;
+    // Try the chosen product, then the runners-up from the same pool. A staple
+    // whose product cannot be placed must NOT take its whole category with it:
+    // a product that names its own time of day ("Premium Catamaran MORNING
+    // Sail") has no valid day at all for a traveller who ticked "no early
+    // mornings", and the trip was losing its only boat trip rather than falling
+    // through to the afternoon sailing. Measured before this loop existed: the
+    // family persona had a daytime sail in 1 of 6 seeds on a 4-day trip, against
+    // 6 of 6 before any of these rules.
+    let entry: CardEntry | null = null;
+    let placement: { day: number; slot: Slot } | null = null;
+    for (const candidate of [firstChoice, ...alternatives]) {
+      // A staple never gets a route family the splurge has already taken. For a
+      // money-no-object traveller the yacht charter IS the trip's sail, so the
+      // catamaran staple stands down rather than making it two sailing days.
+      const rf = routeFamilyOf(candidate);
+      if (rf && ctx.usedRouteFamilies.has(rf)) break; // whole category is spoken for
+      // Paid staples skip the arrival day — day 1 is the free/chill settle-in
+      // day normal fill also honours (see `freeOnly` below).
+      const avail = (day: number, slot: Slot): boolean =>
+        slotAvail(day, slot) && (free || nDays === 1 || day !== 1)
+        && avoidsBoatClash(candidate)(day) && freeArikokAfternoon(candidate, day, slot)
+        && fitsDayShape(candidate, day);
+      // A staple spec names broad slots ('morning' or 'afternoon' for the
+      // catamaran), but the PRODUCT filling it may name its own time of day.
+      // Honour the product — the "Premium Catamaran Afternoon Sail" was landing
+      // as a morning card, contradicting the title printed on it. There is
+      // deliberately no fallback into the slot the title denies; that is what
+      // the candidate loop is for.
+      const tod = candidate.kind === 'group' ? titleTimeOfDay(candidate.bestSeller) : undefined;
+      const slots = tod && preferred.includes(tod) ? [tod] : preferred;
+      const found = findPinSlot(slots, fallback, nDays, stapleCursor, avail);
+      if (found) { entry = candidate; placement = found; break; }
+    }
+    if (!entry || !placement) continue;
 
     const { day, slot } = placement;
     if (!pinClaimed.has(day)) pinClaimed.set(day, new Set());
@@ -1204,91 +1558,6 @@ export function generatePlan(
     // arrival evening empty. Paid staples still spread, so the sail and the
     // dinner cruise never stack two long boat trips onto the same day.
     if (!free) stapleCursor = (day % nDays) + 1;
-  }
-  // ---------------------------------------------------------------------------
-
-  // --- Premium splurge pre-pass ---------------------------------------------
-  // A money-no-object traveller on a week-plus trip should get an aspirational
-  // premium experience (a private charter) IN ADDITION to the universal crowd-
-  // pleasers, not instead of them. Item-level fill alone won't guarantee it: a $65
-  // crowd-pleaser often out-scores a $1,450 charter on within-tier popularity, so the
-  // cheap pick wins every slot. We place the top premium pick(s) here and badge them.
-  // Because dedup is by cluster (not group), the group's crowd-pleaser still lands on
-  // another day — a charter and a party cruise are different clusters. Shorter trips
-  // skip this (one cruise is plenty); non-splurge budgets never trigger it.
-  const premiumSlots = new Map<number, Map<Slot, PinPlacement>>();
-  if (tags.has('money-no-object') && nDays >= PREMIUM_MIN_DAYS) {
-    const maxPremium = Math.floor(nDays / DAYS_PER_PREMIUM); // 1 for a week, 2 for a fortnight
-    // Everything already claimed by the pin OR staple pre-pass. Both register
-    // their entry id in lastUsedDay up front (the day loop would be too late —
-    // it runs after this), so it is the single authoritative set. Deriving this
-    // from pinnedSlots alone missed staples, and a staple that was also the best
-    // premium-tier pick for its group got placed twice: once badged "◑ Island
-    // classic", once "✨ Signature splurge".
-    const claimedItemIds = new Set<string>(ctx.lastUsedDay.keys());
-
-    // Best premium-tier item per group (one splurge per group), highest fit first.
-    // Sourced from filteredCatalog, NOT the champion-narrowed fill pool: premium
-    // products are structurally thin on reviews (median 8 for items >= $500 on the
-    // live catalog, and a $1,450 private charter can never out-review the $65 group
-    // cruise it shares a cluster with), so the 25-review gate and the shrunk-rating
-    // champion score both select against exactly what this pass exists to surface.
-    // It has its own narrowing already: premium tier only, one per group, top N by
-    // fit, capped by trip length.
-    const bestPerGroup = new Map<string, { item: ViatorItem; group: ViatorGroup; score: number }>();
-    for (const item of filteredCatalog.items) {
-      // Sourcing from filteredCatalog deliberately skips the champion narrowing
-      // (see above), but must NOT skip the retail/service rule — this is an
-      // auto-suggestion path like any other. Latent today (no retail product is
-      // >= $500) and closed before it isn't.
-      if (isAutoFillExcluded(item)) continue;
-      if (budgetTag(item.price_usd) !== 'money-no-object') continue; // premium tier only
-      if (claimedItemIds.has(item.id)) continue;                     // already pinned or a staple
-      // Off-road is a single-per-trip route family, not a "splurge in addition"
-      // experience — a money-no-object traveller gets ONE off-road tour (chosen by
-      // adrenaline × budget in normal fill), never a premium jeep plus a
-      // crowd-pleaser UTV on the same circuit.
-      if (activityKind(item) === 'offroad') continue;
-      const fit = fitItem(item, tags);
-      if (fit.rejected) continue;
-      const group = fillCatalog.groups.find((g) => g.id === item.group_id);
-      if (!group) continue;
-      const cur = bestPerGroup.get(group.id);
-      // Tiebreak on id so equal-score picks are stable across catalog orderings.
-      if (!cur || fit.score > cur.score || (fit.score === cur.score && item.id < cur.item.id)) {
-        bestPerGroup.set(group.id, { item, group, score: fit.score });
-      }
-    }
-    const ranked = [...bestPerGroup.values()]
-      .sort((a, b) => b.score - a.score || (a.item.id < b.item.id ? -1 : 1))
-      .slice(0, maxPremium);
-
-    let premCursor = nDays > 1 ? 2 : 1; // bias away from the arrival (day 1) chill day
-    const usedPremiumClusters = new Set<string>(); // no two identical splurges
-    for (const { item, group } of ranked) {
-      const cid = item.experience_cluster_id;
-      if (cid && usedPremiumClusters.has(cid)) continue; // same experience as an earlier splurge
-      // `others` from the full FILTERED catalog (not the popularity-floored fill
-      // pool) so the card's swap alternatives match a pinned card's, and sorted
-      // by display_order via the shared helper.
-      const others = otherItemsInGroup(group.id, item.id, filteredCatalog);
-      const cardEntry: CardEntry = { kind: 'group', group, bestSeller: item, others };
-      const { preferred, fallback } = getPinSlotPrefs(cardEntry);
-      const premAvail = (day: number, slot: Slot): boolean =>
-        slotAvail(day, slot) && avoidsBoatClash(cardEntry)(day);
-      const placement = findPinSlot(preferred, fallback, nDays, premCursor, premAvail);
-      if (!placement) continue;
-      const { day, slot } = placement;
-      if (!pinClaimed.has(day)) pinClaimed.set(day, new Set());
-      pinClaimed.get(day)!.add(slot);
-      if (cid) usedPremiumClusters.add(cid);
-      if (dayCapFamilyOf(cardEntry) === 'boat') boatDays.add(day);
-      // `splurge: true` (not `pinned`) — auto-suggested aspirational pick, shown
-      // with a "Signature splurge" badge rather than the "★ Your pick" pin badge.
-      if (!premiumSlots.has(day)) premiumSlots.set(day, new Map());
-      premiumSlots.get(day)!.set(slot, { cardEntry, slotEntry: { ...toSlotEntry(cardEntry), splurge: true } });
-      premCursor = (day % nDays) + 1;
-    }
   }
   // ---------------------------------------------------------------------------
 
@@ -1352,6 +1621,14 @@ export function generatePlan(
     // between consecutive activities (none before the day's first).
     const commit = (pick: CardEntry, slot: Slot) => {
       const dur = entryDurationMin(pick);
+      // An Arikok day is a whole undertaking: you drive across the island, the
+      // park road is rough, and you come back tired. The afternoon stays free
+      // whatever the product's stated duration claims — the 8h "Island Jeep
+      // Safari" already blocked it by overrun, but the 4h Natural Pool tours
+      // did not, and those were producing the four-card days. The en-route food
+      // post-pass still runs (you drive past Zeerover on the way home), and the
+      // evening is untouched.
+      if (slot === 'morning' && isArikok(pick)) blocked.add('afternoon');
       // Only DAYTIME time accrues to dayMin; the evening is capped per-item
       // instead (see `feasible`), because a slot holds exactly one pick and a
       // pre-placed evening skips the ladder entirely — an evening accumulator
@@ -1377,6 +1654,94 @@ export function generatePlan(
     // morning and evening cards. Single-day trips stay full (no arrival/departure
     // split). Mirrors the original hand-curated itinerary's pacing.
     const openAfternoon = nDays > 1 && (d === 1 || d === nDays);
+
+    // Activities this day has already promised to slots the ladder hasn't
+    // reached yet — a pin, a staple, a splurge. They are placed unconditionally
+    // when their slot comes round, so unless the ladder counts them UP FRONT it
+    // spends the day's two activities on the morning and afternoon and the
+    // evening dinner-cruise staple lands as a third. Counting them here is what
+    // makes a staple day read as "one outing plus the sunset cruise".
+    const reservedAhead = (from: Slot): CardEntry[] =>
+      SECTIONS.slice(SECTIONS.indexOf(from))
+        .map((s) => pinnedSlots.get(d)?.get(s) ?? premiumSlots.get(d)?.get(s)
+          ?? templateSlots.get(d)?.get(s) ?? stapleSlots.get(d)?.get(s))
+        .filter((p): p is PinPlacement => !!p)
+        .map((p) => p.cardEntry);
+
+    // The fill ladder for one slot. A closure rather than inline code so the
+    // empty-day rescue below can run it a second time — see there for why a
+    // day can otherwise come back with nothing at all on it.
+    const fillSlot = (slot: Slot): void => {
+    // Arrival day (day 1) is a free/chill settle-in day — no paid tours.
+    // Single-day trips are exempted (the traveller has no other day).
+    const freeOnly = nDays > 1 && d === 1;
+    const maxP = freeOnly ? 0 : Math.max(0, budgetLeft);
+    // Reject any candidate that would push the day past its 8h activity budget
+    // (buffer counted only when something is already booked today).
+    // The evening is capped on its own, but the crossover buffer IS charged:
+    // getting from an afternoon tour to dinner costs the same hour as any
+    // other hop, so after a busy day only a <=3h evening fits.
+    // Two activities is a full day. Once the day has them — from the ladder,
+    // a staple, a splurge or a pin alike — the only thing that may still be
+    // added is food, so an evening dinner still lands on a two-outing day.
+    // `reservedAhead(slot)` is what this day has already promised to THIS slot
+    // and later ones (a pin, staple or splurge). Counted up front, because
+    // those are placed unconditionally when their slot arrives — without it
+    // the ladder spends the day's two outings on the morning and afternoon and
+    // the evening dinner-cruise staple lands as a third.
+    const ahead = reservedAhead(slot);
+    const isOuting = (e: CardEntry) => !isMealEntry(e) && !isRevisitableBeach(e);
+    const outingsToday = [...picks, ...ahead].filter(isOuting).length;
+    const mealsToday = [...picks, ...ahead].filter(isMealEntry).length;
+    const cardsToday = picks.length + ahead.length;
+    // A free local beach is where to BE, not a thing you booked, and it does
+    // not spend the day's outing budget — the traveller's read of "too much in
+    // one day" is about tours, not about being told to go to Eagle Beach.
+    // Without this exemption a one-day trip came back as two free beach
+    // staples and nothing bookable at all, which is the opposite of useful.
+    // An Arikok morning clears the afternoon via `commit`, but a pre-placed
+    // afternoon card (staple, template, pin) is placed unconditionally and
+    // would survive that block. So don't start an Arikok day here at all when
+    // the afternoon is already spoken for — there is always another day to
+    // put it on, and this way the "free afternoon" promise is not quietly
+    // broken by whichever pre-pass got there first.
+    const afternoonClaimed = slot === 'morning' && afternoonClaimedOn(d);
+    const withinDayShape = (e: CardEntry) => {
+      if (afternoonClaimed && isArikok(e)) return false;
+      if (isMealEntry(e)) return mealsToday < 1;
+      if (cardsToday >= MAX_NON_MEAL_CARDS_PER_DAY) return false;
+      if (isRevisitableBeach(e)) return true;
+      return outingsToday < MAX_ACTIVITIES_PER_DAY;
+    };
+    const feasible = (e: CardEntry) => withinDayShape(e) && (slot === 'evening'
+      ? (picks.length > 0 ? BUFFER_MIN : 0) + entryDurationMin(e) <= EVENING_CAP_MIN
+      : dayMin + (picks.length > 0 ? BUFFER_MIN : 0) + entryDurationMin(e) <= DAY_CAP_MIN);
+    // Theme-first: the day's anchor (first placed) slot is biased toward the
+    // day theme; later slots fill freely (variety).
+    const themeId = picks.length === 0 ? dayTheme?.id : undefined;
+    const pick = pickForSlot(ctx, slot, anchor, anchorCoord, maxP, usedKinds, feasible, themeId);
+    if (!pick) return;
+    budgetLeft -= entryPrice(pick);
+    ctx.lastUsedDay.set(entryId(pick), d);
+    bumpPlacement(ctx, entryId(pick));
+    { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }
+    { const gf = gapFamilyOf(pick); if (gf) ctx.lastFamilyDay.set(gf, d); }
+    { const df = dayCapFamilyOf(pick); if (df) ctx.dayFamilies.add(df); }
+    { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
+    if (pick.kind === 'group') {
+      ctx.usedGroupIds.add(pick.group.id);
+      const cid = pick.bestSeller.experience_cluster_id;
+      if (cid) ctx.usedClusterIds.add(cid);
+      const tags = pick.bestSeller.tags ?? [];
+      if (tags.length > 0) ctx.usedTagSets.push(tags);
+    }
+    usedKinds.add(entryKind(pick));
+    if (!anchor) anchor = entryRegion(pick);
+    if (!anchorCoord) anchorCoord = entryCoord(pick);
+    commit(pick, slot);
+    picks.push(pick);
+    slots[slot].push(toSlotEntry(pick));
+    };
 
     for (const slot of SECTIONS) {
       // Arrival/departure afternoons stay open — UNLESS something deliberate has
@@ -1473,43 +1838,21 @@ export function generatePlan(
         continue;
       }
 
-      // Arrival day (day 1) is a free/chill settle-in day — no paid tours.
-      // Single-day trips are exempted (the traveller has no other day).
-      const freeOnly = nDays > 1 && d === 1;
-      const maxP = freeOnly ? 0 : Math.max(0, budgetLeft);
-      // Reject any candidate that would push the day past its 8h activity budget
-      // (buffer counted only when something is already booked today).
-      // The evening is capped on its own, but the crossover buffer IS charged:
-      // getting from an afternoon tour to dinner costs the same hour as any
-      // other hop, so after a busy day only a <=3h evening fits.
-      const feasible = (e: CardEntry) => (slot === 'evening'
-        ? (picks.length > 0 ? BUFFER_MIN : 0) + entryDurationMin(e) <= EVENING_CAP_MIN
-        : dayMin + (picks.length > 0 ? BUFFER_MIN : 0) + entryDurationMin(e) <= DAY_CAP_MIN);
-      // Theme-first: the day's anchor (first placed) slot is biased toward the
-      // day theme; later slots fill freely (variety).
-      const themeId = picks.length === 0 ? dayTheme?.id : undefined;
-      const pick = pickForSlot(ctx, slot, anchor, anchorCoord, maxP, usedKinds, feasible, themeId);
-      if (!pick) continue;
-      budgetLeft -= entryPrice(pick);
-      ctx.lastUsedDay.set(entryId(pick), d);
-      bumpPlacement(ctx, entryId(pick));
-      { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }
-      { const gf = gapFamilyOf(pick); if (gf) ctx.lastFamilyDay.set(gf, d); }
-      { const df = dayCapFamilyOf(pick); if (df) ctx.dayFamilies.add(df); }
-      { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
-      if (pick.kind === 'group') {
-        ctx.usedGroupIds.add(pick.group.id);
-        const cid = pick.bestSeller.experience_cluster_id;
-        if (cid) ctx.usedClusterIds.add(cid);
-        const tags = pick.bestSeller.tags ?? [];
-        if (tags.length > 0) ctx.usedTagSets.push(tags);
-      }
-      usedKinds.add(entryKind(pick));
-      if (!anchor) anchor = entryRegion(pick);
-      if (!anchorCoord) anchorCoord = entryCoord(pick);
-      commit(pick, slot);
-      picks.push(pick);
-      slots[slot].push(toSlotEntry(pick));
+      fillSlot(slot);
+    }
+
+    // Empty-day rescue. A day is allowed to be thin — that is the whole point of
+    // the two-outing shape — but it must never render as three empty drop zones
+    // and nothing else. That combination is reachable: on a DEPARTURE day the
+    // afternoon is deliberately held open, a `no-early-mornings` traveller has
+    // no morning either, and if the evening pool is exhausted the day comes back
+    // blank. Measured at 72 of 3,024 days once party buses left the catalog and
+    // took the last evening candidates with them.
+    //
+    // The open afternoon exists for PACING, so it is the right thing to give up
+    // here — better a departure-day beach than a page with nothing on it.
+    if (picks.length === 0 && !blocked.has('afternoon') && !pinClaimed.get(d)?.has('afternoon')) {
+      fillSlot('afternoon');
     }
 
     const title = titleFor(picks, d);
@@ -1539,23 +1882,63 @@ export function generatePlan(
 
     // Seed with food places already in the plan so we never double-book one.
     const usedPlaceKeys = new Set<string>();
-    for (const day of days)
+    const placeLastDay = new Map<string, number>();
+    days.forEach((day, i) => {
       for (const slot of SECTIONS)
-        for (const e of day[slot]) { const k = entryFoodKey(e); if (k) usedPlaceKeys.add(k); }
+        for (const e of day[slot]) {
+          const k = entryFoodKey(e);
+          if (k) { usedPlaceKeys.add(k); placeLastDay.set(k, i + 1); }
+        }
+    });
 
-    for (const day of days) {
-      // An existing lunch/daytime food card blocks the stop; an evening dinner
-      // doesn't — a roadside lunch and a night-out dinner happily coexist.
-      if (day.morning.some(entryIsFood) || day.afternoon.some(entryIsFood)) continue;
+    days.forEach((day, dayIdx) => {
+      // A day that already carries a roadside stop is done — one meal per day,
+      // and this pass is the thing that places them.
+      const existingStops = SECTIONS
+        .flatMap((s) => day[s])
+        .filter((e) => e.kind === 'activity' && isLunchspot(e.id));
+      if (existingStops.length > 0) return;
+
       const coords = SECTIONS
         .flatMap((slot) => day[slot])
         .map(coordForEntry)
         .filter((c): c is Coord => !!c);
+      // No-repeat stands: a place is offered once per trip. That caps south-coast
+      // coverage at roughly 6 in 10 days, because the coast has essentially two
+      // decent stops and a fortnight can hold four south-coast days. Lifting it
+      // would mean letting a restaurant repeat — which the trip-wide no-repeat
+      // guarantee currently forbids for everything except a free beach.
       const pick = pickEnRouteStop(coords, usedPlaceKeys);
-      if (!pick) continue;
+      if (!pick) return;
+
+      // The stop OUTRANKS a restaurant the ladder placed. On a day that drives
+      // the south coast, Zeerover and O'Neil's are close to the only decent
+      // options and you pass them anyway; the dinner it displaces is in Noord,
+      // where the traveller has a plethora of choices and needs no suggestion
+      // from us. Before this, the dinner won on nothing but placement order —
+      // the evening ladder simply runs before this pass — and the stop was
+      // offered on 17 days where 33 qualified.
+      //
+      // A displaced dinner leaves its slot empty rather than being replaced:
+      // the day keeps its two outings and its one meal, and the empty evening
+      // is the "Drop an activity here" zone, which is the honest thing to show
+      // when our suggestion was the weaker of the two.
+      const dinners = SECTIONS.flatMap((s) => day[s].map((e) => ({ s, e })))
+        .filter(({ e }) => entryIsFood(e));
+
+      // Outside the day loop, so the card ceiling is this pass's to honour —
+      // appending a fourth card here is exactly the day that was reported
+      // (sail, Boca Grandi, Zeerover, plus an evening). Checked BEFORE anything
+      // is removed, and net of the removal, so a day that cannot take the stop
+      // never loses its dinner for nothing.
+      // The stop is a MEAL, so the non-meal ceiling cannot block it — it only
+      // has to respect the one-meal rule, which the dinner removal below serves.
+
+      for (const { s, e } of dinners) day[s] = day[s].filter((x) => x !== e);
       usedPlaceKeys.add(pick.placeKey);
+      placeLastDay.set(pick.placeKey, dayIdx + 1);
       day.afternoon.push({ kind: 'activity', id: pick.id });
-    }
+    });
   }
   // ---------------------------------------------------------------------------
 

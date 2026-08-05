@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveSlotEntry, isTransportOnly, regroupItems, type Catalog } from './activitySource';
+import { resolveSlotEntry, isTransportOnly, isPartyBus, isExcludedFromCatalog, regroupItems, type Catalog } from './activitySource';
 import type { ViatorGroup, ViatorItem } from '../types';
 import type { Activity } from './activities';
 
@@ -53,6 +53,40 @@ describe('isTransportOnly — drops pure transfers, keeps experiences', () => {
     for (const t of ['Sunset Dinner Cruise', 'Arikok Hiking Tour', 'Rum Distillery Tasting']) {
       expect(isTransportOnly(titled(t)), t).toBe(false);
     }
+  });
+});
+
+describe('isPartyBus — kept out of the catalog entirely', () => {
+  it('drops party buses and drink crawls', () => {
+    for (const t of [
+      'Aruba Nightlife Party Bus Tour, Free Cocktails, Live DJ & Host',
+      'Aruba Happy Hour Party Bus Pub Crawl',
+      "One Happy Bar Crawl Explore Aruba's Palm Beach Nightlife",
+      'Open-air Party Bus Tour with Dutch Pancake or American Breakfast',
+      'Halloween Party Bus',
+      'Sunset Party Bus tour with Champagne toast on the beach & Karaoke',
+    ]) {
+      expect(isPartyBus(titled(t)), t).toBe(true);
+      expect(isExcludedFromCatalog(titled(t)), t).toBe(true);
+    }
+  });
+
+  it('keeps ordinary sightseeing bus tours — the bare word "bus" is not the signal', () => {
+    for (const t of [
+      'Best of Aruba by Bus',
+      'Colorful Beach Bus Sightseeing Tour of Aruba',
+      'Half-Day Aruba Sightseeing Tour & Beach in an Air-condition Bus',
+      'Open Air Beach Bus Tour of Aruba',
+      'Aruba open bus Shore Excursion',
+    ]) {
+      expect(isPartyBus(titled(t)), t).toBe(false);
+      expect(isExcludedFromCatalog(titled(t)), t).toBe(false);
+    }
+  });
+
+  it('is a catalog-level drop, so a transfer and a party bus are both excluded', () => {
+    expect(isExcludedFromCatalog(titled('Private Airport Pickup'))).toBe(true);
+    expect(isExcludedFromCatalog(titled('Sunset Dinner Cruise'))).toBe(false);
   });
 });
 

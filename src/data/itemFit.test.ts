@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fitItem, bestItemForAnswers, itemTags, refaceForAnswers, isEveningItem, itemSlotOk, activityKind, isCrowdPleaser, isWaterBased, itemAdventure, matchingSection } from './itemFit';
+import { fitItem, bestItemForAnswers, itemTags, refaceForAnswers, isEveningItem, itemSlotOk, activityKind, isCrowdPleaser, isWaterBased, itemAdventure, matchingSection, isKidsOriented, isFullDayProduct, itemSlotOkForFill } from './itemFit';
 import type { CardEntry, MatchTag, Section, ViatorItem } from '../types';
 
 function item(over: Partial<ViatorItem>): ViatorItem {
@@ -121,6 +121,76 @@ describe('isCrowdPleaser — curated high-bookability picks', () => {
   it('does NOT flag niche activities (kayak photo shoot, submarine)', () => {
     expect(isCrowdPleaser(item({ title: 'Sunrise Kayak Photo Shoot', tags: [12047] }))).toBe(false);
     expect(isCrowdPleaser(item({ title: 'Atlantis Submarine Expedition', tags: [] }))).toBe(false);
+  });
+});
+
+describe('isKidsOriented — products only a group with children should be offered', () => {
+  it('flags the water-park day pass by its Viator tag (De Palm Island)', () => {
+    // 2455P18 on the live catalog: tag 12043 "Water Parks", 370 reviews.
+    expect(isKidsOriented(item({ title: 'Aruba De Palm Island Day Pass', tags: [11912, 12043] }))).toBe(true);
+  });
+  it('flags a day pass / water park / kids product by title', () => {
+    expect(isKidsOriented(item({ title: 'Island Day Pass with Lunch', tags: [] }))).toBe(true);
+    expect(isKidsOriented(item({ title: 'Aruba Water Park Entry', tags: [] }))).toBe(true);
+    expect(isKidsOriented(item({ title: 'Kids Parasailing Experience Aruba', tags: [13209] }))).toBe(true);
+  });
+  it('does NOT flag the mainstream experiences every group gets offered', () => {
+    expect(isKidsOriented(item({ title: 'Jolly Pirates Snorkel Cruise', tags: [11912] }))).toBe(false);
+    expect(isKidsOriented(item({ title: 'Champagne Sunset Sail', tags: [11963] }))).toBe(false);
+    expect(isKidsOriented(item({ title: 'Arikok 4x4 Jeep Safari to Natural Pool', tags: [12035] }))).toBe(false);
+  });
+  it('does NOT flag a family-suitable tour that is not a kids product', () => {
+    // 12431P3 carries Viator's "Kid-Friendly" tag (11919) but is a general
+    // history tour with 1,584 reviews — gating it would be wrong. Which is why
+    // 11919 is deliberately NOT the signal.
+    expect(isKidsOriented(item({ title: 'Full-Day Aruba History and Must-See Landmarks Tour', tags: [11919] }))).toBe(false);
+  });
+});
+
+describe('itemSlotOkForFill — a product that names its time of day', () => {
+  it('keeps an "Afternoon" product out of the morning', () => {
+    // Reported: the Jolly Pirate AFTERNOON sail suggested as a morning card.
+    const pm = item({ title: 'Aruba Jolly Pirate Afternoon Sail with Snorkeling', tags: [11888] });
+    expect(itemSlotOkForFill(pm, 'morning')).toBe(false);
+    expect(itemSlotOkForFill(pm, 'afternoon')).toBe(true);
+  });
+  it('keeps a "Morning" product out of the afternoon', () => {
+    const am = item({ title: 'Premium Catamaran Morning Sail: Snorkeling, Mimosas and Brunch', tags: [11888] });
+    expect(itemSlotOkForFill(am, 'afternoon')).toBe(false);
+    expect(itemSlotOkForFill(am, 'morning')).toBe(true);
+  });
+  it('does NOT pin a product that offers both ("morning or afternoon")', () => {
+    // The one live title that says both words. Reading it as morning-only would
+    // halve where a perfectly flexible product can go.
+    const both = item({ title: '4-seater UTV Island 4hr Tour in Aruba, morning or afternoon', tags: [21421] });
+    expect(itemSlotOkForFill(both, 'morning')).toBe(true);
+    expect(itemSlotOkForFill(both, 'afternoon')).toBe(true);
+  });
+  it('leaves products that name no time of day free to take either slot', () => {
+    const any = item({ title: 'Aruba Snorkel Sail', tags: [11888] });
+    expect(itemSlotOkForFill(any, 'morning')).toBe(true);
+    expect(itemSlotOkForFill(any, 'afternoon')).toBe(true);
+  });
+  it('does NOT leak into itemSlotOk, which the display chokepoint reads', () => {
+    // resolveSlotEntry re-faces a stored card whose id is missing from the
+    // slot-filtered pool. If the naming preference lived in itemSlotOk, every
+    // saved and SHARED itinerary holding an "Afternoon Sail" in a morning slot
+    // would quietly render as a different product.
+    const pm = item({ title: 'Aruba Jolly Pirate Afternoon Sail with Snorkeling', tags: [11888] });
+    expect(itemSlotOk(pm, 'morning')).toBe(true);
+    expect(itemSlotOk(pm, 'afternoon')).toBe(true);
+    expect(itemSlotOk(pm, 'evening')).toBe(false);
+  });
+});
+
+describe('isFullDayProduct — products that consume the whole daytime', () => {
+  it('flags an island day pass', () => {
+    expect(isFullDayProduct(item({ title: 'Aruba De Palm Island Day Pass', duration: '6 hrs' }))).toBe(true);
+  });
+  it('does NOT flag half-day products that merely say "day"', () => {
+    expect(isFullDayProduct(item({ title: 'Half-Day Snorkel Sail Tour with Caribbean Lunch' }))).toBe(false);
+    expect(isFullDayProduct(item({ title: 'Aruba Half day Private Jeep Tour - Sightseeing and more' }))).toBe(false);
+    expect(isFullDayProduct(item({ title: 'Full-Day Aruba History and Must-See Landmarks Tour' }))).toBe(false);
   });
 });
 

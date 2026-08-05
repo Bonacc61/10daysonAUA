@@ -183,8 +183,13 @@ describe('generatePlan — pacing + no unintended empty slots', () => {
       id: `nightlife-${n}`, name: `nightlife-${n}`, tagline: '', viator_taxonomy: '', viator_group_url: '',
       display_order: n, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: ['evening' as const],
     }));
+    // Ten DISTINCT evening experiences. These used to be ten "Sunset Dinner
+    // Cruise N" items, which no longer proves anything: a trip now gets one
+    // evening cruise however many operators sell it (see routeFamilyOf), so ten
+    // copies of one boat is a pool of depth 1, not 10. The property under test —
+    // a deep enough pool fills every evening — is unchanged.
     const eveItems: ViatorItem[] = eveGroups.map((g, n) => ({
-      id: `eve-${n}`, group_id: g.id, title: `Sunset Dinner Cruise ${n}`,
+      id: `eve-${n}`, group_id: g.id, title: `Evening Experience ${n}`,
       image_url: '', price_usd: 0, duration: '2 hrs', rating: 4.6, review_count: 100,
       viator_item_url: '', is_best_seller: true, display_order: 0, sections: ['food-drink' as const],
     }));
@@ -199,7 +204,15 @@ describe('generatePlan — pacing + no unintended empty slots', () => {
     }));
     const rich: Catalog = { activities: [], groups: [...dayGroups, ...eveGroups], items: [...dayItems, ...eveItems] };
     const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 10 }, rich);
-    plan.forEach((d) => expect(d.evening.length).toBeGreaterThanOrEqual(1));
+    // Was "every evening is filled". Since 2026-08-05 a day carries at most two
+    // activities, so a day that spends both on the morning and afternoon leaves
+    // the evening open BY DESIGN — the "Drop an activity here" zone is the point,
+    // not a gap to plug. What a deep pool must still guarantee is that no day is
+    // left short of the shape it is allowed: two activities, every day.
+    plan.forEach((d) => {
+      const cards = [...d.morning, ...d.afternoon, ...d.evening];
+      expect(cards.length).toBe(2);
+    });
   });
 
   it('never places two items sharing an experience_cluster_id (embedding dedup)', () => {
@@ -287,9 +300,15 @@ describe('generatePlan — pacing + no unintended empty slots', () => {
   });
 
   it('places two different items from the SAME group (dedup is per-cluster, not per-group)', () => {
-    // A private charter and a Jolly Pirates cruise are both in the "sailing" group
-    // but are distinct experiences (different cluster ids, no shared tags). The old
+    // Both items sit in the "sailing" group but are different experiences. The old
     // per-group dedup (usedGroupIds) let only one land; item-level planning places both.
+    //
+    // The pair used to be a catamaran charter and a Jolly Pirates cruise. That no
+    // longer holds and should not: those two ARE one experience sold by two
+    // operators, and a trip now gets one (see routeFamilyOf's 'day-sail'). The
+    // jeep tour below keeps the test honest AND realistic — the live feed files
+    // 68 of Aruba's 85 off-road products under "Sailing & Cruises", so a group
+    // holding a sail and a jeep safari is the normal case, not a contrived one.
     const sailing: ViatorGroup = {
       id: 'sailing', name: 'Sailing & Cruises', tagline: '', viator_taxonomy: '', viator_group_url: '',
       display_order: 0, matched_by: ['watersports'] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
@@ -302,15 +321,15 @@ describe('generatePlan — pacing + no unintended empty slots', () => {
       experience_cluster_id: 'cluster-charter',
     };
     const jolly: ViatorItem = {
-      id: 'jolly', group_id: 'sailing', title: 'Jolly Pirates Snorkel Cruise',
+      id: 'jolly', group_id: 'sailing', title: 'Rugged Jeep Safari to Indian Cave',
       image_url: '', price_usd: 65, duration: '', rating: 4.7, review_count: 900,
       viator_item_url: '', is_best_seller: false, display_order: 1,
-      tags: [11912],                        // 11912 = snorkel -> 'snorkel' kind (crowd-pleaser)
+      tags: [12035],                        // 12035 = 4WD -> 'offroad' kind
       experience_cluster_id: 'cluster-jolly',
     };
-    // Both are placeable crowd-pleasers; different kinds + tag-Jaccard 0 (no shared
-    // tags) + different clusters => notSimilar allows BOTH. is_best_seller:false on
-    // jolly proves a non-face item still surfaces.
+    // Different kinds + tag-Jaccard 0 (no shared tags) + different clusters =>
+    // notSimilar allows BOTH. is_best_seller:false on the second proves a
+    // non-face item still surfaces.
     const padGroups: ViatorGroup[] = Array.from({ length: 12 }, (_, n) => ({
       id: `pad-${n}`, name: `pad-${n}`, tagline: '', viator_taxonomy: '', viator_group_url: '',
       display_order: n + 1, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
@@ -649,8 +668,21 @@ describe('generatePlan — champion-per-experience fill pool', () => {
   // on the day you land or fly out.
   it('places Natural Pool once, in a morning, and never on the first or last day', () => {
     const cat = clusteredCatalog({ clusters: 30, reviews: () => 400 });
+    // The Natural Pool items are the most-booked in the pool, as they are on the
+    // live catalog (the Arikok/Conchi tours are among the island's top
+    // products). Without that they are indistinguishable from 87 identical
+    // filler items, and once a day carries two outings instead of three there
+    // are too few slots for a coin-flip to reliably seat them — the test then
+    // fails on its own non-vacuousness guard while the rule it exists to check
+    // is perfectly intact. Verified on the live catalog at the same time: a
+    // Natural Pool card appears in 72 of 72 adventure trips, always in a
+    // morning, never on the first or last day.
+    // 12035 = 4WD, so these classify as off-road and `isCrowdPleaser` scores
+    // them like the real thing. Without a scoring edge they are 3 of 90
+    // identical items competing by coin-flip for a shrinking number of slots.
     cat.items = cat.items.map((i, n) => (n < 3
-      ? { ...i, id: `aaa-np-${n}`, title: `Aruba Natural Pool Safari ${n}`, experience_cluster_id: `NP-${n}` }
+      ? { ...i, id: `aaa-np-${n}`, title: `Aruba Natural Pool Safari ${n}`,
+          review_count: 900, tags: [12035], experience_cluster_id: `NP-${n}` }
       : i));
     const days = 10;
     const plan = generatePlan({ ...DEFAULT_ANSWERS, days }, cat, { seed: 6 });
@@ -875,14 +907,49 @@ describe('generatePlan — en-route food suggestion', () => {
   const EN_ROUTE_FOOD = ['zeerovers-fresh-catch', 'lunch-oniels', 'lunch-hadicurari',
     'lunch-pikas-corner', 'lunch-don-jacinto'];
 
-  it('offers an en-route food stop on a day that drives out to the far south (Boca Grandi pinned)', () => {
-    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 6 }, cat, { seed: 1, pinned: ['boca-grandi'] });
-    const bocaDay = plan.find((d) => [...d.morning, ...d.afternoon, ...d.evening]
-      .some((e) => e.kind === 'activity' && e.id === 'boca-grandi'));
-    expect(bocaDay).toBeDefined();
-    const dayIds = [...bocaDay!.morning, ...bocaDay!.afternoon, ...bocaDay!.evening]
-      .flatMap((e) => (e.kind === 'activity' ? [e.id] : []));
-    expect(dayIds.some((id) => EN_ROUTE_FOOD.includes(id))).toBe(true);
+  // Scoped down on 2026-08-05, when a day became "two activities and ONE meal".
+  // This used to assert the pinned Boca Grandi day itself picks up a roadside
+  // stop. It no longer does — on the stub that day reliably draws the Gasparito
+  // dinner first, and a day may not carry both a lunch and a dinner — so the
+  // assertion moved to the trip. The stop is still offered on days that have no
+  // other meal (33 days across the five live personas × 6 seeds); what changed
+  // is which meal wins when a day would have had two, and that is placement
+  // order: the evening ladder runs before the en-route post-pass.
+  it('offers the stop on a far-south day, and only on one with room for it', () => {
+    // Asserted on the DAY the stop lands on, not on the trip: a trip-wide
+    // assertion passes on almost any behaviour change. Two things must hold —
+    // the stop appears at all, and it sits on a day that actually drives south
+    // (Baby Beach, Boca Grandi, Rodger's Beach are all bottom-of-the-island),
+    // which is the whole premise of an "en-route" suggestion.
+    //
+    // Since the one-meal rule the stop skips days that are full or already have
+    // a dinner, so it now lands on the roomier far-south day rather than the
+    // pinned Boca Grandi one. That is the day shape working, not a miss.
+    const FAR_SOUTH = ['baby-beach-snorkel', 'boca-grandi', 'rodgers-beach', 'zeerovers-fresh-catch'];
+    let daysWithStop = 0;
+    for (const seed of [4, 5, 7]) {
+      const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 6 }, cat, { seed, pinned: ['boca-grandi'] });
+      for (const d of plan) {
+        const ids = [...d.morning, ...d.afternoon, ...d.evening]
+          .flatMap((e) => (e.kind === 'activity' ? [e.id] : []));
+        if (!ids.some((id) => EN_ROUTE_FOOD.includes(id))) continue;
+        daysWithStop += 1;
+        expect(ids.some((id) => FAR_SOUTH.includes(id))).toBe(true);
+      }
+    }
+    expect(daysWithStop).toBeGreaterThan(0);
+  });
+
+  it('never gives a day both a lunch stop and a dinner', () => {
+    for (let seed = 0; seed < 6; seed += 1) {
+      const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 8 }, cat, { seed, pinned: ['boca-grandi'] });
+      for (const d of plan) {
+        const foodCards = [...d.morning, ...d.afternoon, ...d.evening]
+          .filter((e) => e.kind === 'activity'
+            && (EN_ROUTE_FOOD.includes(e.id) || e.id === 'gasparito-restaurant'));
+        expect(foodCards.length).toBeLessThanOrEqual(1);
+      }
+    }
   });
 
   it('never offers an en-route food stop to a no-car traveller', () => {
@@ -936,6 +1003,512 @@ describe('generatePlan — one off-road tour per trip (shared route family)', ()
     const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 12, interests: ['adventure'] }, cat));
     const offroadCount = ids.filter((id) => /off-item-/.test(id)).length;
     expect(offroadCount).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('generatePlan — one kayak outing per trip', () => {
+  // Aruba's kayak tours all paddle the same south-coast mangrove/lagoon water
+  // (Mangel Halto, Spanish Lagoon, Sea Glass Island), so a trip gets one at
+  // most. Reported live: "Aruba Glass Bottom Kayak Tour" on day 3 and "Kayak
+  // Tour at Mangel Halto and Spanish Lagoon" on day 5 of a 7-day plan.
+  //
+  // Tag sets here are deliberately near-disjoint (Jaccard 0.07) so they clear
+  // BOTH the trip-wide 0.35 and same-day 0.08 similarity gates — exactly like
+  // the live pair, whose Jaccard is 0.31. Nothing but the kayak family can
+  // separate these, which is what makes this a regression test and not a
+  // restatement of the Jaccard rule.
+  const KAYAK = 12047;
+  const mkGroup = (n: number): ViatorGroup => ({
+    id: `kay-${n}`, name: `kay-${n}`, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: n, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  const mkItem = (n: number, title: string, tags: number[]): ViatorItem => ({
+    id: `kay-item-${n}`, group_id: `kay-${n}`, title,
+    image_url: '', price_usd: 80, duration: '', rating: 4.6, review_count: 200,
+    viator_item_url: '', is_best_seller: true, display_order: 0,
+    tags, experience_cluster_id: `kay-cluster-${n}`,
+  });
+  const pad: { g: ViatorGroup[]; i: ViatorItem[] } = { g: [], i: [] };
+  for (let n = 0; n < 20; n += 1) {
+    pad.g.push({ id: `pad-${n}`, name: `pad-${n}`, tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: n + 5, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const });
+    pad.i.push({ id: `pad-item-${n}`, group_id: `pad-${n}`, title: `Beach ${n}`,
+      image_url: '', price_usd: 0, duration: '', rating: 4.0, review_count: 50,
+      viator_item_url: '', is_best_seller: true, display_order: 0, tags: [90000 + n], experience_cluster_id: `pad-c-${n}` });
+  }
+
+  it('places at most one kayak tour on a long trip, across groups and clusters', () => {
+    const cat: Catalog = {
+      activities: [],
+      groups: [mkGroup(1), mkGroup(2), mkGroup(3), ...pad.g],
+      items: [
+        mkItem(1, 'Aruba Glass Bottom Kayak Tour through the Mangrove Forest', [KAYAK, 1, 2, 3, 4, 5, 6]),
+        mkItem(2, 'Kayak Tour at Mangel Halto and Spanish Lagoon', [KAYAK, 11, 12, 13, 14, 15, 16]),
+        // Kind is 'snorkel' (11912 wins over 12047 in KIND_BY_TAG), so a
+        // kind-only rule would let this one through — "Aruba Kayak Explorers"
+        // is exactly this shape on live data.
+        mkItem(3, 'Aruba Kayak Explorers', [11912, 21, 22, 23, 24, 25, 26]),
+        ...pad.i,
+      ],
+    };
+    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 12, interests: ['watersports'] }, cat));
+    expect(ids.filter((id) => /kay-item-/.test(id)).length).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('generatePlan — one daytime sail per trip, one evening cruise', () => {
+  // Catamaran sails, Jolly Pirates and snorkel sails are one experience sold by
+  // different operators, so a trip gets one — but a SUNSET/dinner cruise is a
+  // different evening and still gets its own slot. Measured on the live catalog
+  // before this rule: a 14-day friends plan carried "Premium Catamaran
+  // Afternoon Sail", "Aruba Sail and Snorkel with Turtles" and "Morning
+  // Champagne and Lobster Sail" in one itinerary.
+  //
+  // Pairwise tag Jaccard of that real trio is 0.17-0.33, all UNDER the 0.35
+  // trip-wide threshold, and all three sit in different embedding clusters —
+  // which is why neither existing net caught them. The fixtures mirror that:
+  // near-disjoint tags, distinct clusters.
+  const SAIL = 11888, SNORKEL = 11912;
+  const mkGroup = (id: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  const mkItem = (id: string, title: string, tags: number[]): ViatorItem => ({
+    id, group_id: `g-${id}`, title,
+    image_url: '', price_usd: 90, duration: '3 hrs', rating: 4.7, review_count: 300,
+    viator_item_url: '', is_best_seller: true, display_order: 0,
+    tags, experience_cluster_id: `c-${id}`,
+  });
+  const boats = [
+    mkItem('sail-a', 'Premium Catamaran Afternoon Sail: Snorkeling and Lunch', [SAIL, 1, 2, 3, 4, 5]),
+    mkItem('sail-b', 'Aruba Jolly Pirate Afternoon Sail with Snorkeling', [SAIL, 11, 12, 13, 14, 15]),
+    mkItem('sail-c', 'Aruba Sail and Snorkel with Turtles at WW2 Shipwreck', [SNORKEL, 21, 22, 23, 24, 25]),
+    mkItem('eve-a', 'Aruba Sunset Cruise plus Seaside Dinner', [SAIL, 31, 32, 33, 34, 35]),
+    mkItem('eve-b', 'An Astronomical Moment: Aruba Celestial Sunset Cruise', [SAIL, 41, 42, 43, 44, 45]),
+  ];
+  const pad: { g: ViatorGroup[]; i: ViatorItem[] } = { g: [], i: [] };
+  for (let n = 0; n < 20; n += 1) {
+    pad.g.push(mkGroup(`pad-${n}`));
+    pad.i.push({ id: `pad-item-${n}`, group_id: `pad-${n}`, title: `Beach ${n}`,
+      image_url: '', price_usd: 0, duration: '2 hrs', rating: 4.0, review_count: 50,
+      viator_item_url: '', is_best_seller: true, display_order: 0, tags: [90000 + n], experience_cluster_id: `pad-c-${n}` });
+  }
+  const cat: Catalog = {
+    activities: [],
+    groups: [...boats.map((b) => mkGroup(b.group_id)), ...pad.g],
+    items: [...boats, ...pad.i],
+  };
+  const countOf = (ids: string[], prefix: string) => ids.filter((id) => id.startsWith(prefix)).length;
+
+  it('places at most one DAYTIME sail/snorkel trip, however long the stay', () => {
+    for (const days of [7, 14]) {
+      const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days, interests: ['watersports'] }, cat));
+      expect(countOf(ids, 'sail-')).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('places at most one EVENING cruise, however long the stay', () => {
+    for (const days of [7, 14]) {
+      const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days, interests: ['watersports'] }, cat));
+      expect(countOf(ids, 'eve-')).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('still allows a daytime sail AND an evening cruise in the same trip', () => {
+    // The rule must not collapse the two into one boat outing — the daytime
+    // catamaran and the sunset dinner cruise are the curated staple pairing.
+    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 14, interests: ['watersports'] }, cat));
+    expect(countOf(ids, 'sail-')).toBe(1);
+    expect(countOf(ids, 'eve-')).toBe(1);
+  });
+});
+
+describe('generatePlan — day shape: two activities, one meal', () => {
+  // A plan that leaves room is worth more than one that fills every slot — the
+  // traveller still has favourites to drop in. Reported: a day carrying a
+  // morning sail, Boca Grandi, Zeerover AND an evening card.
+  const mkGroup = (id: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  const mk = (id: string, title: string, tags: number[], evening = false): ViatorItem => ({
+    id, group_id: `g-${id}`, title: evening ? `${title} at Sunset` : title,
+    image_url: '', price_usd: 60, duration: '2 hrs', rating: 4.6, review_count: 200,
+    viator_item_url: '', is_best_seller: true, display_order: 0, tags, experience_cluster_id: `c-${id}`,
+  });
+  const items: ViatorItem[] = [];
+  for (let n = 0; n < 24; n += 1) items.push(mk(`day-${n}`, `Island Experience ${n}`, [80000 + n]));
+  for (let n = 0; n < 12; n += 1) items.push(mk(`eve-${n}`, `Evening Outing ${n}`, [70000 + n], true));
+  const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
+
+  it('never puts more than two activities on one day', () => {
+    for (const days of [7, 14]) {
+      const plan = generatePlan({ ...DEFAULT_ANSWERS, days }, cat);
+      for (const d of plan) {
+        expect([...d.morning, ...d.afternoon, ...d.evening].length).toBeLessThanOrEqual(2);
+      }
+    }
+  });
+
+  it('never puts more than three NON-MEAL cards on one day, on any catalog', () => {
+    // The ceiling that makes the free-beach exemption safe: without it a day
+    // could stack beach + beach + outing + outing. It counts activities, not
+    // cards, because a meal is "on the side" — so a day may legitimately show
+    // two outings, a free beach and a lunch stop. Counting raw cards instead
+    // blocked the south-coast food stop, and Zeerover and O'Neil's are close to
+    // the only decent options down there.
+    const isMeal = (e: SlotEntry) => e.kind === 'activity'
+      && (e.id.startsWith('lunch-') || e.id === 'zeerovers-fresh-catch' || e.id === 'gasparito-restaurant');
+    for (const days of [1, 5, 7, 10, 14]) {
+      for (let seed = 0; seed < 4; seed += 1) {
+        for (const c of [cat, getCatalog()]) {
+          const plan = generatePlan({ ...DEFAULT_ANSWERS, days }, c, { seed });
+          for (const d of plan) {
+            const cards = [...d.morning, ...d.afternoon, ...d.evening];
+            expect(cards.filter((e) => !isMeal(e)).length).toBeLessThanOrEqual(3);
+            expect(cards.filter(isMeal).length).toBeLessThanOrEqual(1);
+          }
+        }
+      }
+    }
+  });
+
+  it('leaves the evening open rather than making a third outing of it', () => {
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 7 }, cat);
+    const full = plan.filter((d) => d.morning.length > 0 && d.afternoon.length > 0);
+    expect(full.length).toBeGreaterThan(0);
+    for (const d of full) expect(d.evening).toHaveLength(0);
+  });
+});
+
+describe('generatePlan — a staple falls through to another product, and no day is blank', () => {
+  const mkGroup = (id: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  const mk = (id: string, title: string, tags: number[], reviews: number): ViatorItem => ({
+    id, group_id: `g-${id}`, title, image_url: '', price_usd: 90, duration: '3 hrs',
+    rating: 4.8, review_count: reviews, viator_item_url: '', is_best_seller: true,
+    display_order: 0, tags, experience_cluster_id: `c-${id}`,
+  });
+
+  it('places the afternoon sail when the top-reviewed sail is morning-only and mornings are blocked', () => {
+    // A morning-titled catamaran has NO valid day for a traveller who ticked
+    // "no early mornings", and resolveStaples picks one product. Without a
+    // fall-through the trip lost its only boat trip entirely rather than taking
+    // the afternoon sailing sitting right behind it in the same pool.
+    const items = [
+      mk('am-sail', 'Premium Catamaran Morning Sail: Snorkeling and Brunch', [11888, 1], 714),
+      mk('pm-sail', 'Premium Catamaran Afternoon Sail: Snorkeling and Lunch', [11888, 2], 621),
+    ];
+    for (let n = 0; n < 16; n += 1) items.push(mk(`pad-${n}`, `Beach Walk ${n}`, [90000 + n], 50));
+    const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
+    for (let seed = 0; seed < 4; seed += 1) {
+      const ids = entryIds(generatePlan(
+        { ...DEFAULT_ANSWERS, days: 5, flags: ['no-early-mornings'] }, cat, { seed },
+      ));
+      expect(ids.some((id) => id === 'pm-sail' || id === 'am-sail'), `seed ${seed}`).toBe(true);
+    }
+  });
+
+  it('never renders a day with nothing on it at all', () => {
+    // A day may be thin — that is the two-outing shape working — but three empty
+    // drop zones and no content is a broken page. Reachable on a DEPARTURE day
+    // for a no-early-mornings traveller: morning flag-blocked, afternoon held
+    // open for pacing, evening pool exhausted.
+    // Deep enough that an empty day means the RULE failed, not that the pool ran
+    // dry — a 10-day trip can seat 20 outings, so a 10-item catalog would go
+    // blank on merit and prove nothing.
+    const items = [];
+    for (let n = 0; n < 30; n += 1) items.push(mk(`day-${n}`, `Island Experience ${n}`, [80000 + n], 200));
+    // Free content, because day 1 is the arrival day and takes no paid tours.
+    // The live catalog always has free local beaches; a fixture without any
+    // leaves day 1 legitimately empty and would be testing the wrong thing.
+    for (let n = 0; n < 20; n += 1) {
+      items.push({ ...mk(`free-${n}`, `Beach Stroll ${n}`, [70000 + n], 120), price_usd: 0 });
+    }
+    const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
+    for (const days of [3, 5, 7, 10]) {
+      for (const flags of [[], ['no-early-mornings']]) {
+        for (let seed = 0; seed < 3; seed += 1) {
+          const plan = generatePlan({ ...DEFAULT_ANSWERS, days, flags }, cat, { seed });
+          plan.forEach((d, i) => {
+            const n = d.morning.length + d.afternoon.length + d.evening.length;
+            expect(n, `${days}d flags=${flags} seed ${seed} day ${i + 1}`).toBeGreaterThan(0);
+          });
+        }
+      }
+    }
+  });
+});
+
+describe('generatePlan — a splurge traveller gets the premium experience, not the staple', () => {
+  // Someone who put the budget slider on "money no object" wants the yacht. With
+  // one daytime sail per trip, whichever pre-pass runs first owns that slot — so
+  // the premium pass runs BEFORE the staples, and the catamaran staple stands
+  // down rather than making it two sailing days. Run the other way round, every
+  // splurge trip came back with the same fallback island tour and no yacht.
+  const mkGroup = (id: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  const mk = (id: string, title: string, price: number, tags: number[], reviews = 200): ViatorItem => ({
+    id, group_id: `g-${id}`, title, image_url: '', price_usd: price, duration: '3 hrs',
+    rating: 4.8, review_count: reviews, viator_item_url: '', is_best_seller: true,
+    display_order: 0, tags, experience_cluster_id: `c-${id}`,
+  });
+  const items = [
+    mk('yacht', 'Luxury Private Yacht Charter Aruba', 2300, [11888, 1, 2], 226),
+    // Far more reviewed, so it wins the staple slot on merit — and must still
+    // yield the sail to the yacht for this traveller.
+    mk('catamaran', 'Premium Catamaran Sail: Snorkeling and Lunch', 120, [11888, 5, 6], 2600),
+  ];
+  for (let n = 0; n < 16; n += 1) items.push(mk(`pad-${n}`, `Beach Walk ${n}`, 0, [90000 + n], 50));
+  const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
+
+  it('places the yacht charter for a money-no-object traveller', () => {
+    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 7, budget: 'Money no object' }, cat));
+    expect(ids).toContain('yacht');
+  });
+
+  it('does not also place the catamaran — a trip still gets one sail', () => {
+    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 7, budget: 'Money no object' }, cat));
+    expect(ids.filter((id) => id === 'yacht' || id === 'catamaran')).toHaveLength(1);
+  });
+
+  it('leaves a mid-range traveller with the catamaran and no yacht (over budget)', () => {
+    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 7, budget: 'Mid-range' }, cat));
+    expect(ids).toContain('catamaran');
+    expect(ids).not.toContain('yacht');
+  });
+});
+
+describe('generatePlan — a pinned time-of-day product always lands', () => {
+  // Pinning a product to the slot its title names must never make it
+  // unplaceable. On a 2-day trip BOTH afternoons are held open for
+  // arrival/departure, so an "Afternoon" pin had no slot at all and was dropped
+  // silently — no card, no badge, an explicit shortlist choice simply gone.
+  const group: ViatorGroup = {
+    id: 'sail-g', name: 'sail-g', tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  };
+  const pm: ViatorItem = {
+    id: 'pm-sail', group_id: 'sail-g', title: 'Aruba Jolly Pirate Afternoon Sail with Snorkeling',
+    image_url: '', price_usd: 89, duration: '3 hrs', rating: 4.7, review_count: 528,
+    viator_item_url: '', is_best_seller: true, display_order: 0, tags: [11888], experience_cluster_id: 'pm-c',
+  };
+  const am: ViatorItem = { ...pm, id: 'am-sail', title: 'Premium Catamaran Morning Sail: Snorkeling and Brunch', experience_cluster_id: 'am-c' };
+  const cat: Catalog = { activities: [], groups: [group], items: [pm, am] };
+
+  it('places an "Afternoon" pin on a 2-day trip, where both afternoons are held open', () => {
+    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 2 }, cat, { pinned: ['item:pm-sail'] }));
+    expect(ids).toContain('pm-sail');
+  });
+
+  it('places a "Morning" pin for a traveller who asked for no early mornings', () => {
+    const ids = entryIds(generatePlan(
+      { ...DEFAULT_ANSWERS, days: 7, flags: ['no-early-mornings'] }, cat, { pinned: ['item:am-sail'] },
+    ));
+    expect(ids).toContain('am-sail');
+  });
+
+  it('still puts it in the slot its title names when that slot is available', () => {
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 7 }, cat, { pinned: ['item:pm-sail'] });
+    const day = plan.find((d) => [...d.morning, ...d.afternoon].some((e) => e.kind === 'group' && e.bestSellerId === 'pm-sail'));
+    expect(day).toBeDefined();
+    expect(day!.afternoon.some((e) => e.kind === 'group' && e.bestSellerId === 'pm-sail')).toBe(true);
+  });
+});
+
+describe('generatePlan — an Arikok day keeps its afternoon free', () => {
+  // Driving across the island into the park is the day. The 8h Island Jeep
+  // Safari already blocked the afternoon by overrunning its slot; the 4h
+  // Natural Pool tours did not, and those produced the four-card days.
+  const mkGroup = (id: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  const mk = (id: string, title: string, duration: string, tags: number[]): ViatorItem => ({
+    id, group_id: `g-${id}`, title, image_url: '', price_usd: 90, duration,
+    rating: 4.8, review_count: 400, viator_item_url: '', is_best_seller: true,
+    display_order: 0, tags, experience_cluster_id: `c-${id}`,
+  });
+  // 4 hrs — fits a morning with afternoon time to spare, so only the Arikok
+  // rule can clear the afternoon here.
+  const items = [mk('arikok', 'Aruba Natural Pool and Indian Cave Rugged Jeep Safari', '4 hrs', [12035])];
+  for (let n = 0; n < 20; n += 1) items.push(mk(`filler-${n}`, `Beach Walk ${n}`, '1 hr', [90000 + n]));
+  const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
+
+  it('places nothing else in the daytime once the Natural Pool tour is in', () => {
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 8, interests: ['adventure'] }, cat);
+    const day = plan.find((d) => d.morning.some((e) => e.kind === 'group' && e.bestSellerId === 'arikok'));
+    expect(day).toBeDefined();
+    expect(day!.afternoon).toHaveLength(0);
+  });
+
+  it('keeps the afternoon free for a balanced traveller, whose Arikok day is curated', () => {
+    // The reported case came from the balanced template (med-adventure +
+    // mid-range), which hand-places natural-pool-jeep on day 4. The template
+    // paired it with arashi-beach, and the staple/splurge pre-passes would
+    // happily refill the slot once that was removed — none of them go through
+    // the fill ladder, so each needed the rule applied separately.
+    const balanced: Answers = {
+      ...DEFAULT_ANSWERS, days: 10, budget: 'Mid-range', adventureLevel: 50,
+      interests: ['Beach & chill', 'Watersports'],
+    };
+    for (let seed = 0; seed < 4; seed += 1) {
+      const plan = generatePlan(balanced, getCatalog(), { seed });
+      for (const d of plan) {
+        const arikokMorning = d.morning.some((e) => e.kind === 'activity'
+          && (e.id === 'natural-pool-jeep' || e.id === 'arikok-hiking'));
+        if (!arikokMorning) continue;
+        // A food stop is still allowed — you drive past Zeerover on the way home.
+        const nonFood = d.afternoon.filter((e) => !(e.kind === 'activity'
+          && (e.id.startsWith('lunch-') || e.id === 'zeerovers-fresh-catch')));
+        expect(nonFood).toHaveLength(0);
+      }
+    }
+  });
+});
+
+describe('generatePlan — the premium splurge survives a claimed route family', () => {
+  // The splurge pre-pass honours the trip-wide route families, so its top
+  // candidate can be rejected (the catamaran staple always claims 'day-sail'
+  // first). It must then fall through to the next-best premium experience
+  // rather than placing nothing: `ranked` was briefly truncated to maxPremium
+  // BEFORE that check, and because the live feed has only 6 Viator groups a
+  // 7-day trip considered exactly one candidate — splurges went 90/90 trips to
+  // 0/90 with no test noticing.
+  const mkGroup = (id: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  const mk = (id: string, title: string, price: number, tags: number[]): ViatorItem => ({
+    id, group_id: `g-${id}`, title, image_url: '', price_usd: price, duration: '3 hrs',
+    rating: 4.8, review_count: 200, viator_item_url: '', is_best_seller: true,
+    display_order: 0, tags, experience_cluster_id: `c-${id}`,
+  });
+  // The yacht scores highest (a snorkel-kind crowd-pleaser, so it is in the
+  // day-sail family) but is NOT eligible for the catamaran staple, whose
+  // itemMatch requires kind 'sail' exactly. That leaves the catamaran as the
+  // only staple candidate, so it deterministically claims 'day-sail' before the
+  // premium pass runs — which is what makes this test discriminate.
+  const items = [
+    mk('yacht', 'Luxury Private Yacht Charter Aruba', 2300, [11912, 1, 2]),
+    mk('bus', 'Aruba Private Island Tour by Air-Conditioned Bus', 900, [70, 71, 72]),
+    mk('catamaran', 'Premium Catamaran Afternoon Sail: Snorkeling and Lunch', 120, [11888, 5, 6]),
+  ];
+  for (let n = 0; n < 16; n += 1) items.push(mk(`pad-${n}`, `Beach Walk ${n}`, 0, [90000 + n]));
+  const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
+
+  it('falls through to the next premium pick when the top one\'s family is claimed', () => {
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 7, budget: 'Money no object' }, cat);
+    const splurges = plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening])
+      .filter((e) => e.kind === 'group' && e.splurge);
+    expect(splurges.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('generatePlan — a day pass consumes the whole daytime', () => {
+  // "Aruba De Palm Island Day Pass" reports 6 hrs, which the slot maths reads as
+  // a long morning that still leaves 120 minutes of the afternoon — so the
+  // engine booked a second activity after it. You ferry to an island; the day is
+  // gone. Treated as a full day (420 min), the existing overrun rule blocks the
+  // afternoon on its own.
+  const mk = (id: string, title: string, duration: string, tags: number[]): ViatorItem => ({
+    id, group_id: `g-${id}`, title, image_url: '', price_usd: 100, duration,
+    rating: 4.5, review_count: 300, viator_item_url: '', is_best_seller: true,
+    display_order: 0, tags, experience_cluster_id: `c-${id}`,
+  });
+  const mkGroup = (id: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  // 30-minute fillers, deliberately: at the reported 6 hrs the day pass leaves
+  // 60 minutes of the 8h cap, so only a very short product can follow it — and
+  // the live catalog has several (the 30-min clear-kayak listings). With 2-hour
+  // fillers this test would pass without the rule and prove nothing.
+  const items = [mk('daypass', 'Aruba De Palm Island Day Pass', '6 hrs', [11912, 12043])];
+  for (let n = 0; n < 20; n += 1) items.push(mk(`filler-${n}`, `Beach Walk ${n}`, '30 min', [90000 + n]));
+  const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
+
+  it('leaves the rest of the daytime free on the day it is placed', () => {
+    // Family group type: the day pass is kids-gated (see isKidsOriented).
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 10, groupType: 'Family with young kids' }, cat);
+    const day = plan.find((d) => [...d.morning, ...d.afternoon].some((e) => e.kind === 'group' && e.bestSellerId === 'daypass'));
+    expect(day).toBeDefined();
+    expect([...day!.morning, ...day!.afternoon]).toHaveLength(1);
+  });
+});
+
+describe('generatePlan — kids-oriented products need a group with children', () => {
+  // A water-park day pass is not a thing to hand a couple unasked. Auto-fill
+  // only: it stays in Explore and a pinned one still places (see isKidsOriented).
+  const mkPad = (n: number): { g: ViatorGroup; i: ViatorItem } => ({
+    g: { id: `pad-${n}`, name: `pad-${n}`, tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: n + 5, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const },
+    i: { id: `pad-item-${n}`, group_id: `pad-${n}`, title: `Beach ${n}`,
+      image_url: '', price_usd: 0, duration: '', rating: 4.0, review_count: 50,
+      viator_item_url: '', is_best_seller: true, display_order: 0, tags: [90000 + n], experience_cluster_id: `pad-c-${n}` },
+  });
+  const pads = Array.from({ length: 12 }, (_, n) => mkPad(n));
+  const cat: Catalog = {
+    activities: [],
+    groups: [
+      { id: 'wp', name: 'wp', tagline: '', viator_taxonomy: '', viator_group_url: '',
+        display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const },
+      ...pads.map((p) => p.g),
+    ],
+    items: [
+      { id: 'daypass', group_id: 'wp', title: 'Aruba De Palm Island Day Pass',
+        image_url: '', price_usd: 135, duration: '6 hrs', rating: 4.2, review_count: 370,
+        viator_item_url: '', is_best_seller: true, display_order: 0,
+        tags: [11912, 12043], experience_cluster_id: 'wp-c' },
+      ...pads.map((p) => p.i),
+    ],
+  };
+
+  it('never auto-places the water-park day pass for a couple', () => {
+    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 10, groupType: 'Couple' }, cat));
+    expect(ids).not.toContain('daypass');
+  });
+
+  it('never auto-places it when no group type was answered', () => {
+    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 10, groupType: '' }, cat));
+    expect(ids).not.toContain('daypass');
+  });
+
+  it('does place it for a family with young kids', () => {
+    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 10, groupType: 'Family with young kids' }, cat));
+    expect(ids).toContain('daypass');
+  });
+
+  it('does place it for a family with teens', () => {
+    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 10, groupType: 'Family with teens' }, cat));
+    expect(ids).toContain('daypass');
+  });
+
+  it('still places it for a family whose trip already has a catamaran sail', () => {
+    // The day pass carries Viator's snorkelling tag (11912), so activityKind
+    // calls it 'snorkel' — which briefly put it in the one-per-trip day-sail
+    // family, and the catamaran staple then retired it from every plan. An
+    // island day pass is a destination, not a boat trip.
+    const sailGroup: ViatorGroup = {
+      id: 'sail-g', name: 'sail-g', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    };
+    const sailItem: ViatorItem = {
+      id: 'catamaran', group_id: 'sail-g', title: 'Premium Catamaran Afternoon Sail: Snorkeling and Lunch',
+      image_url: '', price_usd: 120, duration: '3 hrs', rating: 4.8, review_count: 600,
+      viator_item_url: '', is_best_seller: true, display_order: 0,
+      tags: [11888, 51, 52, 53], experience_cluster_id: 'cat-c',
+    };
+    const withSail: Catalog = {
+      ...cat, groups: [...cat.groups, sailGroup], items: [...cat.items, sailItem],
+    };
+    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 10, groupType: 'Family with young kids' }, withSail));
+    expect(ids).toContain('catamaran');
+    expect(ids).toContain('daypass');
   });
 });
 

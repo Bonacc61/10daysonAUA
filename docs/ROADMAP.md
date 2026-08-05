@@ -21,21 +21,50 @@ feeds the engine is in `docs/matching-engine/geography.md`:
   `experience_cluster_id`). Over-clustering was investigated and ranks third
   behind the pool rule and catalog size — see "What actually limits plan variety"
   in the dev log.
-- **Catalog size still bounds distinct Viator variety, but 14-day plans now
-  fill.** 72 of 155 eligible experiences (after retail, photo-service and
-  vehicle-hire exclusion) have a member with 25+ reviews (champion pool ~81),
-  which is why long trips used to run out of picks. Since free local beaches
-  became revisitable after a clear day (`REVISITABLE_MIN_DAY_GAP = 2`), a 14-day
-  trip fills every ladder slot on all five trace personas — 0 open, measured
-  2026-08-03; the same runs before that change left 5-9 open. Broader Viator
-  taxonomy ingestion is still the fix for *distinct-experience* variety; no
-  constant will do it.
-- **The en-route food post-pass has no time accounting.** It appends a second
-  afternoon card (`day.afternoon.push`) after the day loop, outside `feasible`,
-  so a day can exceed the 8h daytime cap: measured on the live catalog, 52 of
-  558 days run past 12h and the worst is 14.6h. Pre-dates the evening budget,
-  but filling evenings made it visible (>12h days went 6 -> 52). Budget the post-pass
-  against DAY_CAP_MIN, or drop the stop when the day is already full.
+- **Catalog size still bounds distinct Viator variety, and 14-day plans no
+  longer fill every slot — deliberately.** 72 of 155 eligible experiences (after
+  retail, photo-service and vehicle-hire exclusion) have a member with 25+
+  reviews (champion pool ~81), which is why long trips used to run out of picks.
+  Free local beaches becoming revisitable after a clear day
+  (`REVISITABLE_MIN_DAY_GAP = 2`) got a 14-day trip to 0 open slots on all five
+  trace personas, measured 2026-08-03. The 2026-08-05 curation rules (one kayak,
+  one daytime sail and one evening cruise per trip; two outings and one meal per
+  day) traded that back deliberately: **roughly 300-350 of 1,260 slots open** —
+  the five personas from `tools/itinerary-trace.ts` at 14 days, seeds 0-5,
+  measured 2026-08-05 (301 before these rules; 304 after, and it moved between
+  343 and 349 within an hour as the catalog and rules churned, so treat the
+  precision as noise and the order of magnitude as the point). Most of those open slots are the CAP, not a shortage: a day that
+  has had its two outings is finished by design. Fill is therefore no longer the
+  health metric it was — a plan of highly bookable picks with room to
+  personalise beats a full one padded with near-duplicates. Broader Viator taxonomy ingestion is still the fix for
+  *distinct-experience* variety; no constant will do it.
+- **The en-route food post-pass still has no TIME accounting.** It appends a
+  second afternoon card (`day.afternoon.push`) after the day loop, outside
+  `feasible`, so a day can exceed the 8h daytime cap: measured on the live
+  catalog, 52 of 558 days ran past 12h, worst 14.6h. Since 2026-08-05 it does
+  honour the card ceiling and the one-meal rule, which bounds the damage, but it
+  still does not check DAY_CAP_MIN.
+- **Pre-pass ORDER is load-bearing and undocumented in the code's structure.**
+  Pins → balanced template (mid-slider personas only) → premium splurge →
+  staples → fill ladder. Whichever pass runs first claims a route family, and
+  the later ones stand down. That ordering is the
+  only reason a money-no-object traveller gets the yacht instead of the
+  catamaran staple (2026-08-05). Reordering these passes changes which products
+  reach the itinerary, so treat the sequence as an interface.
+- **Day shape is enforced in four separate places.** Two outings + one meal + a
+  three-card ceiling is applied by the fill ladder (`withinDayShape`) and
+  re-applied by the staple pre-pass, the premium pre-pass (both via
+  `fitsDayShape`) and the en-route post-pass; the balanced template satisfies it
+  by construction. None of the three AUTO-PLACEMENT paths goes through the
+  ladder, so a new one has to opt in by hand or it will silently break the shape
+  — that is exactly how a staple was landing a third outing on a template-filled
+  day until 2026-08-05.
+- **South-coast food coverage is capped at ~6 in 10 days by the no-repeat rule.**
+  Zeerover and O'Neil's are close to the only decent stops down there, and each
+  is offered once per trip, so a fortnight with four south-coast days cannot
+  cover them all. Letting a restaurant repeat after a gap reaches ~73% but
+  breaks the "nothing repeats except a free beach" guarantee (4 tests guard it).
+  Needs a product decision, not a constant.
 - Same-day cross-slot (largely addressed): `SAME_DAY_SIMILARITY_THRESHOLD = 0.08`
   plus a hard one-boat-per-day cap now govern within a day. What remains: two items
   from one Viator group can still land on the same day when neither rule fires.

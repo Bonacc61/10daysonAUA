@@ -108,6 +108,14 @@ const STAPLE_CANDIDATE_POOL = 3;
 export type ResolvedStaple = {
   key: string;
   entry: CardEntry;
+  // The runners-up from the same candidate pool, best first. The caller places
+  // `entry` if it can and works down this list if it cannot — a staple whose
+  // chosen product happens to be unplaceable must not take the whole category
+  // with it. That is not hypothetical: once a product's own title pins it to a
+  // slot ("Premium Catamaran MORNING Sail"), a traveller who ticked "no early
+  // mornings" has no valid day for it, and the trip lost its only boat trip
+  // entirely rather than falling through to the afternoon sailing.
+  alternatives: CardEntry[];
   preferred: Slot[];
   fallback: Slot[];
   // Free staples may sit on the arrival day; paid ones must not (day 1 is the
@@ -140,6 +148,7 @@ export function resolveStaples(
     if (nDays < spec.minDays) continue;
 
     let entry: CardEntry | null = null;
+    let alternatives: CardEntry[] = [];
     let free = true;
 
     if (spec.itemMatch) {
@@ -156,16 +165,36 @@ export function resolveStaples(
         .sort((a, b) => b.review_count - a.review_count || (a.id < b.id ? -1 : 1))
         .slice(0, STAPLE_CANDIDATE_POOL);
       const item = candidates[Math.floor(rand() * candidates.length)];
-      const group = item && catalog.groups.find((g) => g.id === item.group_id);
-      if (item && group) {
-        entry = {
+      const asEntry = (i: ViatorItem): CardEntry | null => {
+        const g = catalog.groups.find((x) => x.id === i.group_id);
+        if (!g) return null;
+        return {
           kind: 'group',
-          group,
-          bestSeller: item,
-          others: catalog.items.filter((i) => i.group_id === group.id && i.id !== item.id),
+          group: g,
+          bestSeller: i,
+          others: catalog.items.filter((x) => x.group_id === g.id && x.id !== i.id),
         };
-        free = item.price_usd === 0;
-        if (item.experience_cluster_id) usedClusters.add(item.experience_cluster_id);
+      };
+      if (item) {
+        entry = asEntry(item);
+        if (entry) {
+          // Runners-up in review order, so a fall-through still lands on
+          // something people actually book.
+          alternatives = candidates
+            .filter((c) => c.id !== item.id)
+            .map(asEntry)
+            .filter((e): e is CardEntry => !!e);
+          // `free` and the cluster claim cover the WHOLE candidate set, not just
+          // the first choice, because the caller may place any of them. Reading
+          // them off `item` alone left `free` describing a product that was not
+          // placed — and `free` decides whether a staple may sit on the arrival
+          // day. Latent today (no $0 Viator items) and cheap to close.
+          free = [item, ...candidates.filter((c) => c.id !== item.id)]
+            .every((c) => c.price_usd === 0);
+          for (const c of candidates) {
+            if (c.experience_cluster_id) usedClusters.add(c.experience_cluster_id);
+          }
+        }
       }
     }
 
@@ -188,7 +217,7 @@ export function resolveStaples(
       }
     }
 
-    if (entry) out.push({ key: spec.key, entry, preferred: spec.preferred, fallback: spec.fallback, free });
+    if (entry) out.push({ key: spec.key, entry, alternatives, preferred: spec.preferred, fallback: spec.fallback, free });
   }
 
   return out;

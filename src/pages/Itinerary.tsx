@@ -14,7 +14,7 @@ import ItineraryCard from '../components/ItineraryCard';
 import { resolveSlotEntry } from '../data/activitySource';
 import { useCatalog } from '../data/useCatalog';
 import { matchPool, blendPools, constrainBySwapReason, entryPrice, parseActivityCost } from '../data/matcher';
-import { fitItem, refaceForAnswers, itemSlotOk } from '../data/itemFit';
+import { fitItem, refaceForAnswers, itemSlotOkForFill } from '../data/itemFit';
 import { answersToTags } from '../data/answerTags';
 import { generatePlan, resolvePinId } from '../data/itineraryGenerator';
 import { useStarred } from '../lib/starred';
@@ -440,7 +440,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
       nextRejected.add(entry.bestSeller.id);
       let pool = catalog.items.filter(
         (i) => i.group_id === entry.group.id && !nextRejected.has(i.id)
-          && !fitItem(i, tags).rejected && itemSlotOk(i, slot),
+          && !fitItem(i, tags).rejected && itemSlotOkForFill(i, slot),
       );
       if (reason === 'too-pricey') {
         // Cheapest item that's strictly cheaper than the current one. If none,

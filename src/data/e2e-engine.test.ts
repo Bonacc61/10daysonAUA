@@ -7,6 +7,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'fs';
 import { generatePlan } from './itineraryGenerator';
 import { ACTIVITIES } from './activities';
+import type { Day } from './activities';
 import type { Catalog } from './activitySource';
 import type { Answers } from '../App';
 import type { ViatorGroup, ViatorItem, SlotEntry } from '../types';
@@ -52,21 +53,47 @@ describe.skipIf(skip)('matching engine — live catalog', () => {
     const coordOf = (e: SlotEntry): Coord | undefined =>
       pinFor(e.kind === 'activity' ? e.id : e.bestSellerId)?.coord;
     const answers: Answers = { days: 7, groupType: 'Couple', budget: 'mid-range', interests: ['Beach & chill', 'Watersports'], adventureLevel: 40, startOffset: 7, lodging: 'Palm Beach', flags: [], specialNotes: '' };
-    let sum = 0;
-    let cnt = 0;
-    for (let seed = 0; seed < 6; seed += 1) {
-      const plan = generatePlan(answers, catalog, { seed });
-      for (const d of plan) {
-        const cs = [...d.morning, ...d.afternoon, ...d.evening].map(coordOf).filter((c): c is Coord => !!c);
-        let spread = 0;
-        for (let i = 0; i < cs.length; i += 1)
-          for (let j = i + 1; j < cs.length; j += 1) spread = Math.max(spread, distanceKm(cs[i], cs[j]));
-        sum += spread;
-        cnt += 1;
+    const spreads = (slots: (d: Day) => SlotEntry[]) => {
+      let sum = 0;
+      let cnt = 0;
+      for (let seed = 0; seed < 6; seed += 1) {
+        for (const d of generatePlan(answers, catalog, { seed })) {
+          const cs = slots(d).map(coordOf).filter((c): c is Coord => !!c);
+          let spread = 0;
+          for (let i = 0; i < cs.length; i += 1)
+            for (let j = i + 1; j < cs.length; j += 1) spread = Math.max(spread, distanceKm(cs[i], cs[j]));
+          sum += spread;
+          cnt += 1;
+        }
       }
-    }
-    // Live catalog measures ~7.9 km with the geo penalty active; 11 km is a stable guard.
-    expect(sum / cnt).toBeLessThan(11);
+      return sum / cnt;
+    };
+
+    // DAYTIME is where the geo penalty is supposed to do its work, and it is the
+    // tight guard. Measured 2026-08-05, after the day-shape rules: avg 1.96 km,
+    // max 18.2 km, 1 day of 42 past 15 km. (An earlier note here said "2.5 km and
+    // not one day past 15" — accurate the hour it was written, stale by the end
+    // of the same session. Re-measure before trusting these, or read the printed
+    // value rather than the pass.)
+    expect(spreads((d) => [...d.morning, ...d.afternoon])).toBeLessThan(6);
+
+    // The whole-day number, evenings included, is much looser and always was —
+    // it mostly measures Aruba, not the engine. Every sunset spot and dinner
+    // cruise on the island is on the WEST coast, so any day spent on the south
+    // coast (Mangel Halto, Savaneta, Baby Beach) ends 15-24 km from where it
+    // was, and no amount of clustering can change that.
+    //
+    // Measured 10.29 km on 2026-08-05 (max 25.5, 14 of 42 days past 15 km). It
+    // went 10.1 -> 11.9 when repeat kayak outings were retired, then back down
+    // as the day-shape rules removed the second and third outings that were
+    // stretching days. The rise was never the daytime leg — that stayed under
+    // 2.5 km throughout.
+    //
+    // 12, not 14: a guard set 36% above the current measurement gives up the
+    // headroom it exists to protect. This comment claimed ~7.9 while the live
+    // catalog had quietly drifted to 10.1, so watch the printed value rather
+    // than trusting the pass.
+    expect(spreads((d) => [...d.morning, ...d.afternoon, ...d.evening])).toBeLessThan(12);
   });
 
   const personas: Array<{ name: string; answers: Answers }> = [

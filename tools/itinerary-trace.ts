@@ -26,12 +26,19 @@ const BASE: Answers = {
 
 // Deliberately spread across the answer space — the personas whose plans diverge
 // most are the ones that expose dedup and fill-ladder edges.
+//
+// Every string here MUST be one the questionnaire can actually produce (see the
+// maps in src/data/answerTags.ts). Three of these were silently wrong until
+// 2026-08-05 — 'Water sports', 'Beaches & relaxation' and 'Family with kids'
+// map to no tag at all, so `splurge` ran with no interest and `family` with no
+// family group type. A trace persona that cannot exist is worse than no
+// persona: it reads as evidence.
 const PERSONAS: Record<string, Answers> = {
   default: BASE,
   foodie: { ...BASE, interests: ['Food & drink', 'Culture & history'], budget: 'Budget-conscious', adventureLevel: 10, groupType: 'Couple' },
-  adventurer: { ...BASE, interests: ['Adventure & adrenaline', 'Water sports'], budget: 'Mid-range', adventureLevel: 95, groupType: 'Friends' },
-  splurge: { ...BASE, interests: ['Water sports'], budget: 'Money no object', adventureLevel: 60, groupType: 'Couple' },
-  family: { ...BASE, interests: ['Beaches & relaxation'], budget: 'Mid-range', adventureLevel: 25, groupType: 'Family with kids', flags: ['no-early-mornings'] },
+  adventurer: { ...BASE, interests: ['Adventure & adrenaline', 'Watersports'], budget: 'Mid-range', adventureLevel: 95, groupType: 'Friends' },
+  splurge: { ...BASE, interests: ['Watersports'], budget: 'Money no object', adventureLevel: 60, groupType: 'Couple' },
+  family: { ...BASE, interests: ['Beach & chill'], budget: 'Mid-range', adventureLevel: 25, groupType: 'Family with young kids', flags: ['no-early-mornings'] },
 };
 
 // ---- args -----------------------------------------------------------------
