@@ -1241,9 +1241,14 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
      label while the bar behind it sat at full strength the whole way up the
      page, which looked more broken than having no animation at all. The green
      bar is `.itin-section-empty.has-shortlist`, so that is what reveals. */
+  /* `.is-static` opts out: the landing page's "Sample output" is a picture of
+     the itinerary, not the itinerary. Everything else in that block is inline-
+     styled and so never joined the timeline, which left this one bar fading in
+     on scroll while the mock around it sat still — the sample read as a live,
+     half-loaded page instead of a screenshot. */
   .itin-sortable:not(.dragging):not(.appearing):not(.removing),
   .itin-lunch-btn,
-  .itin-section-empty.has-shortlist {
+  .itin-section-empty.has-shortlist:not(.is-static) {
     animation: reveal linear both;
     animation-timeline: view();
     animation-range: entry 0% cover 32%;  /* fade in over first third */

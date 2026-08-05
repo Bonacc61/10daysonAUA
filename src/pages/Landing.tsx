@@ -157,7 +157,7 @@ function ShortlistSlot() {
   // name would be six ways to get thrown off the page you're reading. The
   // live route to favourites is the coral button below the preview.
   return (
-    <div className="itin-section-empty has-shortlist" style={{ marginTop: 10 }} aria-hidden>
+    <div className="itin-section-empty has-shortlist is-static" style={{ marginTop: 10 }} aria-hidden>
       <div className="itin-shortlist-toggle" style={{ cursor: 'default' }}>
         <span className="itin-shortlist-toggle-spacer" />
         <span className="itin-shortlist-toggle-label">
