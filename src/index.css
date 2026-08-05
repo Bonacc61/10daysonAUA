@@ -1234,9 +1234,16 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
      "Add from favourites" below them — so without this they popped in fully
      opaque between cards that were still fading, which read as a rendering
      glitch rather than a different kind of element. */
+  /* Attach to whatever element actually PAINTS the control, not to the thing
+     that happens to be called a button. `.itin-lunch-btn` is the blue bar
+     itself, so it is right. `.itin-shortlist-toggle` is a transparent
+     (background:none) button INSIDE the green bar — animating it faded the
+     label while the bar behind it sat at full strength the whole way up the
+     page, which looked more broken than having no animation at all. The green
+     bar is `.itin-section-empty.has-shortlist`, so that is what reveals. */
   .itin-sortable:not(.dragging):not(.appearing):not(.removing),
   .itin-lunch-btn,
-  .itin-shortlist-toggle {
+  .itin-section-empty.has-shortlist {
     animation: reveal linear both;
     animation-timeline: view();
     animation-range: entry 0% cover 32%;  /* fade in over first third */
@@ -1245,8 +1252,12 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
      would be dead while the reveal is attached — same fix as
      .itin-shortlist-item:active. Once the control is fully in view the
      animation sits at 100% (no transform, full opacity), so dropping it here is
-     invisible. */
+     invisible.
+     The shortlist toggle needs no such guard now: its feedback is
+     `opacity: 0.85` on the CHILD, and a parent's animated opacity composites
+     with it rather than overriding it. Had the animation stayed on the toggle
+     itself, the animation's own opacity would have won and killed that hover
+     permanently — not just during the scroll. */
   .itin-lunch-btn:hover,
-  .itin-lunch-btn:active,
-  .itin-shortlist-toggle:active { animation: none; }
+  .itin-lunch-btn:active { animation: none; }
 }
