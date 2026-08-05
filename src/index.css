@@ -1229,9 +1229,24 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 }
 
 @supports (animation-timeline: view()) {
-  .itin-sortable:not(.dragging):not(.appearing):not(.removing) {
+  /* The two section controls ride the same timeline as the cards. They sit in
+     the same vertical flow — "Suggest lunch spot" above the afternoon's cards,
+     "Add from favourites" below them — so without this they popped in fully
+     opaque between cards that were still fading, which read as a rendering
+     glitch rather than a different kind of element. */
+  .itin-sortable:not(.dragging):not(.appearing):not(.removing),
+  .itin-lunch-btn,
+  .itin-shortlist-toggle {
     animation: reveal linear both;
     animation-timeline: view();
     animation-range: entry 0% cover 32%;  /* fade in over first third */
   }
+  /* An animation's transform beats a hover/active one, so the press-in feedback
+     would be dead while the reveal is attached — same fix as
+     .itin-shortlist-item:active. Once the control is fully in view the
+     animation sits at 100% (no transform, full opacity), so dropping it here is
+     invisible. */
+  .itin-lunch-btn:hover,
+  .itin-lunch-btn:active,
+  .itin-shortlist-toggle:active { animation: none; }
 }
