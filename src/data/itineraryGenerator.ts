@@ -1934,7 +1934,14 @@ export function generatePlan(
 
       for (const { s, e } of dinners) day[s] = day[s].filter((x) => x !== e);
       usedPlaceKeys.add(pick.placeKey);
-      day.afternoon.push({ kind: 'activity', id: pick.id });
+      // FIRST in the afternoon, not appended. You eat before you spend the rest
+      // of the afternoon somewhere — a card order of "Rodger's Beach, then
+      // O'Neil's" reads as a late-afternoon meal at the end of the day, which is
+      // not what a lunch stop is. The manual "Suggest lunch spot" button has
+      // always inserted at the start (addCard's `atStart`); this pass was the
+      // one place that did not, so the same stop appeared in a different
+      // position depending on how it got there.
+      day.afternoon.unshift({ kind: 'activity', id: pick.id });
     });
   }
   // ---------------------------------------------------------------------------

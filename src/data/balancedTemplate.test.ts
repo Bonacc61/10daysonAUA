@@ -14,10 +14,13 @@ const BALANCED: Answers = {
   budget: 'Mid-range', adventureLevel: 50,
 };
 
-const idAt = (plan: ReturnType<typeof generatePlan>, day: number, slot: Slot) => {
-  const e = plan[day - 1]?.[slot][0];
-  return e ? (e.kind === 'activity' ? e.id : e.bestSellerId) : null;
-};
+// Every id in that slot, not just the first. The template's contract is that
+// its entry lands on that DAY and SLOT — never that it is the leading card.
+// Reading index 0 was fine until the en-route food stop began inserting itself
+// ahead of the afternoon's activity (you eat, then you go to the beach), which
+// broke these tests without breaking the thing they check.
+const idsAt = (plan: ReturnType<typeof generatePlan>, day: number, slot: Slot) =>
+  (plan[day - 1]?.[slot] ?? []).map((e) => (e.kind === 'activity' ? e.id : e.bestSellerId));
 
 describe('balanced template', () => {
   it('applies to the middle of BOTH sliders and nothing else', () => {
@@ -33,7 +36,7 @@ describe('balanced template', () => {
   it('places every template entry on its own day and slot', () => {
     const plan = generatePlan(BALANCED, cat, { seed: 0 });
     for (const t of BALANCED_TEMPLATE) {
-      expect(idAt(plan, t.day, t.slot), `day ${t.day} ${t.slot}`).toBe(t.id);
+      expect(idsAt(plan, t.day, t.slot), `day ${t.day} ${t.slot}`).toContain(t.id);
     }
   });
 
@@ -41,7 +44,7 @@ describe('balanced template', () => {
     // Day 1 afternoon is normally kept open for pacing; the template's answer
     // there is a free beach, which is exactly the light thing that rule wants.
     const plan = generatePlan(BALANCED, cat, { seed: 0 });
-    expect(idAt(plan, 1, 'afternoon')).toBe('eagle-beach-morning');
+    expect(idsAt(plan, 1, 'afternoon')).toContain('eagle-beach-morning');
   });
 
   it('leaves the template alone for other personas', () => {
@@ -49,7 +52,7 @@ describe('balanced template', () => {
     const plan = generatePlan(
       { ...BALANCED, budget: 'Money no object', adventureLevel: 95 }, cat, { seed: 0 },
     );
-    const exact = BALANCED_TEMPLATE.filter((t) => idAt(plan, t.day, t.slot) === t.id).length;
+    const exact = BALANCED_TEMPLATE.filter((t) => idsAt(plan, t.day, t.slot).includes(t.id)).length;
     expect(exact).toBeLessThan(BALANCED_TEMPLATE.length / 2);
   });
 
@@ -57,7 +60,7 @@ describe('balanced template', () => {
     const plan = generatePlan({ ...BALANCED, days: 5 }, cat, { seed: 0 });
     expect(plan).toHaveLength(5);
     for (const t of BALANCED_TEMPLATE.filter((x) => x.day <= 5)) {
-      expect(idAt(plan, t.day, t.slot), `day ${t.day} ${t.slot}`).toBe(t.id);
+      expect(idsAt(plan, t.day, t.slot), `day ${t.day} ${t.slot}`).toContain(t.id);
     }
   });
 

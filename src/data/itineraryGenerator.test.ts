@@ -940,6 +940,22 @@ describe('generatePlan — en-route food suggestion', () => {
     expect(daysWithStop).toBeGreaterThan(0);
   });
 
+  it('puts the food stop FIRST in the afternoon, ahead of the activity', () => {
+    // You eat, then you spend the afternoon somewhere. "Rodger's Beach, then
+    // O'Neil's" reads as a meal tacked onto the end of the day. The manual
+    // "Suggest lunch spot" button has always inserted at the start; the
+    // generator's post-pass appended, so the same stop sat in a different
+    // position depending on how it got there.
+    for (let seed = 0; seed < 6; seed += 1) {
+      const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 8 }, cat, { seed, pinned: ['boca-grandi'] });
+      for (const d of plan) {
+        const idx = d.afternoon.findIndex((e) => e.kind === 'activity' && EN_ROUTE_FOOD.includes(e.id));
+        if (idx === -1) continue;
+        expect(idx, `seed ${seed}: food card should lead the afternoon`).toBe(0);
+      }
+    }
+  });
+
   it('never gives a day both a lunch stop and a dinner', () => {
     for (let seed = 0; seed < 6; seed += 1) {
       const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 8 }, cat, { seed, pinned: ['boca-grandi'] });
