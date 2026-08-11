@@ -4,7 +4,7 @@ import type { CardEntry, SwapReason, ViatorItem, Section } from '../types';
 import { Star, MapPin, Clock, Dollar, Swap } from './Icons';
 import GroupCard from './GroupCard';
 import CardBack from './CardBack';
-import SwapReasons, { SWAP_REASONS_OPEN_PX } from './SwapReasons';
+import SwapReasons, { SWAP_REASONS_OPEN_PX, SWAP_REASONS_TEXT_OPEN_PX, type SwapTextProps } from './SwapReasons';
 import { otherSuggestionsExpandedPx } from './OtherSuggestionsList';
 import { productUrlFor, viatorLink, primarySection } from '../data/exploreItems';
 import { parseActivityCost } from '../data/matcher';
@@ -20,6 +20,7 @@ type Props = {
   onSwap?: () => void;
   showReasons?: boolean;
   onPickReason?: (reason: SwapReason) => void;
+} & SwapTextProps & {
   onAddItem?: (item: ViatorItem) => void;
   onNavigateToSection?: (section: Section) => void;
 };
@@ -31,10 +32,13 @@ const BASE_HEIGHT = 284;
 // Card growth when the chip strip is open = strip height + its 8px margin-top.
 // Must equal the strip's open footprint so the action row stays put.
 const REASONS_EXTRA = SWAP_REASONS_OPEN_PX;
+// The applied-constraint caption is one line under the action row.
+const ECHO_EXTRA = 18;
 
 export default function ItineraryCard({
   entry, flipped, swapping, pinned, splurge, staple, onFlip, onSwap,
   showReasons = false, onPickReason, onAddItem, onNavigateToSection,
+  onSubmitReasonText, reasonPending, reasonFailed, echo,
 }: Props) {
   // Per-card state for the group's "Other suggestions" expand/collapse.
   // Lives here (not in OtherSuggestionsList) so the card's fixed height —
@@ -50,7 +54,8 @@ export default function ItineraryCard({
   const otherCount = entry.kind === 'group' ? entry.others.length : 0;
   const height = BASE_HEIGHT
     + (suggestionsOpen ? otherSuggestionsExpandedPx(otherCount) : 0)
-    + (showReasons ? REASONS_EXTRA : 0);
+    + (showReasons ? (onSubmitReasonText ? SWAP_REASONS_TEXT_OPEN_PX : REASONS_EXTRA) : 0)
+    + (echo?.length ? ECHO_EXTRA : 0);
 
   const classes = ['flip-card', 'fade-in'];
   if (flipped)  classes.push('flipped');
@@ -64,6 +69,8 @@ export default function ItineraryCard({
     ? <ActivityCardFront a={entry.activity} bookUrl={bookUrl} pinned={pinned} staple={staple}
                          onFlip={onFlip} onSwap={onSwap}
                          showReasons={showReasons} onPickReason={onPickReason}
+                         onSubmitReasonText={onSubmitReasonText} reasonPending={reasonPending}
+                         reasonFailed={reasonFailed} echo={echo}
                          onNavigateToSection={onNavigateToSection} />
     : <GroupCard group={entry.group} bestSeller={entry.bestSeller}
                  others={entry.others} bookUrl={bookUrl} pinned={pinned} splurge={splurge} staple={staple}
@@ -88,6 +95,7 @@ export default function ItineraryCard({
 // inline CardFront in Itinerary.tsx, with the same look and behavior.
 function ActivityCardFront({
   a, bookUrl, pinned, staple, onFlip, onSwap, showReasons, onPickReason, onNavigateToSection,
+  onSubmitReasonText, reasonPending, reasonFailed, echo,
 }: {
   a: Activity;
   bookUrl: string | null;
@@ -98,7 +106,7 @@ function ActivityCardFront({
   showReasons?: boolean;
   onPickReason?: (reason: SwapReason) => void;
   onNavigateToSection?: (section: Section) => void;
-}) {
+} & SwapTextProps) {
   const headerContent = (
     <>
       <div className="chb-title">{a.category}</div>
@@ -202,7 +210,9 @@ function ActivityCardFront({
                 </button>
               )}
             </div>
-            <SwapReasons open={!!showReasons} onPick={(r) => onPickReason?.(r)} />
+            <SwapReasons open={!!showReasons} onPick={(r) => onPickReason?.(r)}
+              onSubmitText={onSubmitReasonText} pending={reasonPending} failed={reasonFailed} />
+            {!!echo?.length && <div className="swap-echo">Swapped for: {echo.join(', ')}</div>}
           </div>
         </div>
       </div>

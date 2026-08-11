@@ -1,5 +1,5 @@
 import type { Activity } from './activities';
-import type { ViatorGroup, ViatorItem, MatchTag, CardEntry, Slot, SwapReason } from '../types';
+import type { ViatorGroup, ViatorItem, MatchTag, CardEntry, Slot } from '../types';
 
 type PoolFilters = {
   rejectedIds: Set<string>;
@@ -65,10 +65,11 @@ export function blendPools(
   return out;
 }
 
-// --- Reason-aware swap constraints -----------------------------------------
-// "Why swap?" chips must actually constrain the replacement, not just reject
-// the current pick (otherwise the rating-sorted, group-first pool can answer
-// "too pricey" with the most expensive tour). Pure + unit-tested.
+// --- Price ------------------------------------------------------------------
+// Narrowing a swap pool by a "Why swap?" chip used to live here as
+// constrainBySwapReason. It moved to editConstraint.ts, where the chips and a
+// traveller's own words resolve to the same EditConstraint and run the same
+// code. These two readers stay because half the app prices a card with them.
 
 // Parse a "from" price out of a local activity cost string.
 // "Free" / "Free + $10 rental" → 0; "$65 guided" → 65; "$8–15 pp" → 8.
@@ -80,48 +81,4 @@ export function parseActivityCost(cost: string): number {
 
 export function entryPrice(e: CardEntry): number {
   return e.kind === 'group' ? e.bestSeller.price_usd : parseActivityCost(e.activity.cost);
-}
-
-function entryCategory(e: CardEntry): string {
-  return e.kind === 'group' ? e.group.id : e.activity.category;
-}
-
-function entryRegion(e: CardEntry): string | undefined {
-  return e.kind === 'group' ? e.group.region : undefined;
-}
-
-// Filter candidates by the swap reason. If a constraint would empty the pool,
-// fall back to the unconstrained candidates so a swap always yields something.
-export function constrainBySwapReason(
-  candidates: CardEntry[],
-  reason: SwapReason,
-  current: CardEntry,
-): CardEntry[] {
-  const narrow = (pred: (c: CardEntry) => boolean) => {
-    const kept = candidates.filter(pred);
-    return kept.length ? kept : candidates;
-  };
-  switch (reason) {
-    case 'too-pricey': {
-      // Only strictly-cheaper options, cheapest first. Unlike the other reasons,
-      // this does NOT fall back to the full pool when empty — surfacing a pricier
-      // pick for "too pricey" is exactly the bug. Empty => caller does not swap.
-      const cap = entryPrice(current);
-      return candidates
-        .filter((c) => entryPrice(c) < cap)
-        .sort((a, b) => entryPrice(a) - entryPrice(b));
-    }
-    case 'too-far': {
-      const r = entryRegion(current);
-      return r ? narrow((c) => entryRegion(c) !== r) : candidates;
-    }
-    case 'not-our-vibe': {
-      const cat = entryCategory(current);
-      return narrow((c) => entryCategory(c) !== cat);
-    }
-    case 'done-it':
-    case 'just-show-another':
-    default:
-      return candidates;
-  }
 }

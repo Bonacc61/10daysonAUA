@@ -75,6 +75,24 @@ const KIND_ADVENTURE: Record<string, number> = {
 // Cruises"). Exported so the contraindication caps can filter per item instead
 // of per group; a group-level cap let a 4x4 Natural Pool jeep tour through to a
 // traveller who told us they have mobility limits.
+// Contraindication flag → the adventure ceiling it imposes, in the order the
+// generator has always resolved them. FIRST MATCH WINS, not the tightest: a
+// traveller who ticks both `mobility` and `with-baby` gets 30, not 25. That is
+// existing behaviour, preserved here deliberately — this table was extracted so
+// applyCatalogFlags (the plan) and constrainByEdit (a swap) cannot drift apart,
+// not to change what either one does. Whether first-match is the right rule for
+// two stacked contraindications is a real question, and a separate one.
+export const FLAG_ADVENTURE_CAP: ReadonlyArray<readonly [flag: string, cap: number]> = [
+  ['mobility', 30],       // excludes arikok, natural pool, kitesurfing
+  ['intense-hikes', 52],  // excludes arikok ~55, natural pool ~70, kitesurfing ~85
+  ['with-baby', 25],      // keeps beaches, food, sunsets; drops snorkel, hikes, watersports
+];
+
+export function adventureCapForFlags(flags: Set<string>): number | null {
+  for (const [flag, cap] of FLAG_ADVENTURE_CAP) if (flags.has(flag)) return cap;
+  return null;
+}
+
 export function itemAdventure(item: ViatorItem): number {
   if (item.adventure !== undefined) return item.adventure;
   const byKind = KIND_ADVENTURE[activityKind(item)];

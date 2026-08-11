@@ -90,10 +90,38 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
 }
 .swap-reason-chip.danger { background: #FEE2E2; }
 
+/* Free-text row (VITE_NL_EDIT only). Takes a full row under the chips, so the
+   open wrapper is taller — SWAP_REASONS_TEXT_OPEN_PX mirrors this. */
+.swap-reasons-wrap.open.with-text { height: 84px; }
+.swap-text-row { display: flex; gap: 6px; width: 100%; margin-top: 2px; }
+.swap-text-input {
+  flex: 1; min-width: 0;
+  font-family: inherit; font-size: 11px; padding: 4px 8px;
+  border: 1px solid var(--ink); border-radius: 999px;
+  background: #fff; color: var(--ink);
+}
+.swap-text-input::placeholder { color: var(--sand-700); }
+.swap-text-input:disabled { background: var(--sand-50); }
+.swap-text-go {
+  font-family: inherit; font-size: 10px; font-weight: 800; padding: 3px 10px;
+  border: 1px solid var(--ink); border-radius: 999px;
+  background: var(--yellow); color: var(--ink); cursor: pointer;
+}
+.swap-text-go:disabled { opacity: 0.45; cursor: default; }
+
+/* What the swap actually applied, shown on the new card. */
+.swap-echo {
+  font-size: 10px; color: var(--sand-700); font-style: italic;
+  margin-top: 4px;
+}
+
 /* On mobile the flip-card is height:auto and the chip strip can wrap to 2-3
    rows, so let the wrapper grow naturally rather than clipping at 44px. */
 @media (max-width: 768px) {
-  .swap-reasons-wrap.open { height: auto; }
+  /* .with-text is listed explicitly: it is a 3-class selector above, so it
+     would out-specify a bare `.swap-reasons-wrap.open` here and clip. */
+  .swap-reasons-wrap.open,
+  .swap-reasons-wrap.open.with-text { height: auto; }
 }
 
 /* "Other suggestions" drawer — height animates in lockstep with the card so

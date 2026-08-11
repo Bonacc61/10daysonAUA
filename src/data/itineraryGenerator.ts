@@ -18,7 +18,7 @@ import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry, ViatorItem, ViatorGroup } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, entryPrice, parseActivityCost } from './matcher';
-import { fitItem, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, isAutoFillExcluded, isKidsOriented, isFullDayProduct, titleTimeOfDay, isNaturalPool, offroadAdrenalineBonus, contentCreatorBonus, itemSlotOkForFill, itemAdventure } from './itemFit';
+import { fitItem, budgetCap, activityKind, adventureCapForFlags, isEveningItem, isWaterBased, isCrowdPleaser, isAutoFillExcluded, isKidsOriented, isFullDayProduct, titleTimeOfDay, isNaturalPool, offroadAdrenalineBonus, contentCreatorBonus, itemSlotOkForFill, itemAdventure } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 import { effectiveFlags } from './notesFlags';
@@ -995,13 +995,9 @@ function applyCatalogFlags(catalog: Catalog, flags: Set<string>): Catalog {
     // Viator tours include hotel pickup — no group filtering needed.
   }
 
-  // mobility: cap at adventure ~30 (excludes arikok, natural pool, kitesurfing)
-  // intense-hikes: cap at adventure ~52 (excludes arikok ~55, natural pool ~70, kitesurfing ~85)
-  // with-baby: cap at adventure ~25 (keeps beaches, food, sunsets; drops snorkel, hikes, watersports)
-  const adventureCap = flags.has('mobility') ? 30
-    : flags.has('intense-hikes') ? 52
-    : flags.has('with-baby') ? 25
-    : null;
+  // Caps and their precedence live in FLAG_ADVENTURE_CAP (itemFit.ts) so this
+  // pass and constrainByEdit — the swap path — cannot drift apart.
+  const adventureCap = adventureCapForFlags(flags);
   if (adventureCap !== null) {
     activities = activities.filter(a => (a.adventure ?? 20) <= adventureCap);
     const excludeTags: MatchTag[] = adventureCap <= 30

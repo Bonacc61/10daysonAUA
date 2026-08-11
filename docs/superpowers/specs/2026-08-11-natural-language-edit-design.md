@@ -1,7 +1,7 @@
 # Natural-language itinerary editing — design
 
 **Date:** 2026-08-11
-**Status:** Draft — assumptions stated inline, awaiting approval
+**Status:** Implemented behind `VITE_NL_EDIT` (default off) — awaiting the Privacy Policy decision
 **Scope:** A free-text box beside the "Why swap?" chips that turns a traveller's own words
 into a *constraint object*, executed by the existing swap machinery. Adds
 `src/data/editConstraint.ts`, a `supabase/functions/itinerary-edit` edge function, a text
@@ -65,9 +65,12 @@ export type EditConstraint = {
   interests?: MatchTag[];       // the questionnaire's interest tags, unchanged
   flags?: string[];             // the Q8 flag vocabulary, unchanged
   adventure?: 'lower' | 'higher';
-  slot?: Slot;                  // "make it an evening thing"
 };
 ```
+
+**Corrected during implementation:** an earlier draft included `slot` ("make it an
+evening thing"). It is wrong here — a swap replaces a card in a slot the plan has already
+fixed, so changing the slot is a *move*, not a swap. It belongs to day-level editing.
 
 Every field maps to something the engine already computes, and every value is drawn from a
 vocabulary that already exists in `src/types.ts` — `MatchTag`, `Region`, `Slot`, and the Q8
@@ -88,11 +91,15 @@ current)`, and the five chips become constant `EditConstraint`s:
 | `done-it` | `{}` |
 | `just-show-another` | `{}` |
 
-`constrainBySwapReason(candidates, reason, current)` stays as a thin adapter over
-`constrainByEdit(candidates, CHIP_CONSTRAINTS[reason], current)`, so the four existing tests
-in `matcher.test.ts` keep asserting the same behaviour through the new path. This is a
-simplification, not an addition: after it, there is one place where "narrow the pool" is
-implemented.
+**Corrected during implementation:** the plan was to keep `constrainBySwapReason` in
+`matcher.ts` as a thin adapter. That creates a `matcher ↔ editConstraint` import cycle
+(`editConstraint` needs `entryPrice`), so instead the function is **deleted** and
+`Itinerary.tsx` calls `constrainByEdit(pool, CHIP_CONSTRAINTS[reason], entry)` directly.
+Its four tests in `matcher.test.ts` were removed rather than ported, because
+`editConstraint.test.ts` already asserts all four behaviours — cheaper-first ordering, the
+no-fallback-on-price rule, same-category exclusion, and same-region exclusion — plus the
+chip→constraint mapping itself. Net: one place where "narrow the pool" is implemented, and
+more coverage of it than before.
 
 The two existing narrowing rules keep their asymmetry exactly as documented today: `cheaper`
 returns an empty pool rather than falling back (surfacing a pricier pick for "too pricey" is
@@ -102,10 +109,14 @@ candidates so a swap always yields something.
 ### Composition order
 
 Multiple fields in one constraint apply as an intersection, then relax in a fixed order if
-the pool empties: `slot` → `region` → `interests` → `adventure` → `differentKind` →
-`flags` → price. Price and flags relax last because they are the two the traveller is most
-likely to have meant literally — "under $50" and "not on a boat" are not preferences to be
-traded away. Relaxation is reported in the echo (below), never silent.
+the pool empties: `differentRegion` → `region` → `interests` → `adventure` →
+`differentKind` → then the hard rules, which never relax at all. Price and flags are the
+hard ones, because they are what a traveller most likely meant literally — "under $50" and
+"not on a boat" are not preferences to be traded away, and an empty result there means the
+caller must not swap. That is exactly the behaviour "too pricey" has always had.
+
+In the code this is simply the order rules are built in (`rulesFor`), each tagged `hard`
+or not; relaxation drops the frontmost soft rule and retries.
 
 ### What the traveller sees
 
@@ -115,8 +126,13 @@ swaps as it does today, and the new card carries a caption stating what was unde
 > Swapped for: **cheaper**, **not on the water**
 
 The caption is rendered from the constraint, not from the model's prose — it is a
-description of what the code actually did. If a constraint had to be relaxed, the caption
-says so ("couldn't find anything under $50 — showing the cheapest we have").
+description of what the code was asked to do.
+
+**Known gap:** the caption describes the *requested* constraint, not the *applied* one. When
+a soft rule is relaxed because the intersection was empty, the traveller is not told. Saying
+so requires `constrainByEdit` to return which rules it dropped, which is a small change to
+its return type and a handful of new tests — deliberately not done in this pass, and the
+first thing to fix if the echo proves misleading in use.
 
 **Assumption stated:** the edit applies immediately rather than asking for confirmation.
 Rationale: a swap is already a reversible, user-initiated action, and a confirm step on
@@ -245,6 +261,39 @@ today. That is the design's floor.
    prompt. The closed vocabulary is what makes this cheap to guarantee.
 5. **`npm test` green and `npm run build` clean** before any push, then `/code-review` per
    the ship gate.
+
+## Enable checklist — what must happen before `VITE_NL_EDIT=true`
+
+The feature is merged dark. Flipping the flag is the moment several things stop being
+hypothetical, so they are listed here rather than left to memory. From the 2026-08-11
+`/code-review`:
+
+1. **Privacy Policy entry** in `src/pages/Privacy.tsx` — the legal basis for interpreting
+   free text, and Anthropic named as a sub-processor. `.claude/CLAUDE.md` requires this for
+   any new data collection; grep confirms neither appears there today.
+2. **Update the data-flow block in `.claude/CLAUDE.md`** — add `itinerary-edit` to the edge
+   function list and Anthropic to the diagram. It holds today only because no traffic flows.
+3. **Set the server secrets** on the deployed function: `ANTHROPIC_API_KEY` and
+   `RATE_LIMIT_SALT`. Both fail closed with a 500 — the salt deliberately so, because
+   without it `caller_hash` is a brute-forceable SHA-256 of an IP rather than a pseudonym.
+4. **Apply `20260811120000_edit_requests.sql`** and confirm the `purge-old-edit-requests`
+   cron is scheduled. `deploy.yml` does not run migrations or deploy edge functions.
+5. **Run `node tools/run-edit-golden.cjs`** and read the adversarial section by hand. This
+   is also the evidence for the Opus-vs-Haiku decision — run it against both.
+
+### Known gaps at merge time (none blocking, all recorded)
+
+- **A swap is deliberately looser than a regenerate.** `applyCatalogFlags` drops water and
+  high-adventure candidates at *two* levels — per item and wholesale by group `matched_by`;
+  `constrainByEdit` implements the per-item half only. A swap can therefore surface a group
+  that a fresh plan would have excluded. `FLAG_ADVENTURE_CAP` was extracted so the numbers
+  cannot drift; the group-level halves are still two implementations.
+- **The echo describes the requested constraint, not the applied one** (see above).
+- **Rate-limit check-then-insert is not transactional** — N concurrent requests all read the
+  same count. Bounded by the global daily ceiling, so it is a cost smell, not a hole.
+- **`too-far` chip behaviour changed subtly**: `entryRegion` now reads an item's own region
+  override and applies to lunch-spot cards, where it was previously a no-op. This aligns
+  with the canonical reader in `lunchspots.ts`, but no test asserts it.
 
 ## Out of scope
 

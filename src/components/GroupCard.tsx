@@ -2,7 +2,7 @@ import type { ViatorGroup, ViatorItem, SwapReason, Region, Section } from '../ty
 import { Star, MapPin, Clock, Dollar, Check, Swap, Plus } from './Icons';
 import GroupHeader from './GroupHeader';
 import OtherSuggestionsList from './OtherSuggestionsList';
-import SwapReasons from './SwapReasons';
+import SwapReasons, { type SwapTextProps } from './SwapReasons';
 import { productUrlFor, primarySection } from '../data/exploreItems';
 import { itemSections } from '../data/itemFit';
 
@@ -32,6 +32,7 @@ type Props = {
   // "Why swap?" chip strip below the (still-visible) action row.
   showReasons?: boolean;
   onPickReason?: (reason: SwapReason) => void;
+} & SwapTextProps & {
   // Itinerary-only: controlled state for the "Other suggestions" expandable
   // list, so the parent can resize the fixed-height flip-card to fit it.
   suggestionsOpen?: boolean;
@@ -48,6 +49,7 @@ type Props = {
 export default function GroupCard({
   group, bestSeller, others, approved, onApprove, onSwap, onFlip,
   variant = 'itinerary', showReasons, onPickReason,
+  onSubmitReasonText, reasonPending, reasonFailed, echo,
   suggestionsOpen, onToggleSuggestions, onAddItem, bookUrl, onNavigateToSection, pinned, splurge, staple,
 }: Props) {
   const tourUrl = productUrlFor(bestSeller);
@@ -87,6 +89,10 @@ export default function GroupCard({
             onFlip={onFlip}
             showReasons={showReasons}
             onPickReason={onPickReason}
+            onSubmitReasonText={onSubmitReasonText}
+            reasonPending={reasonPending}
+            reasonFailed={reasonFailed}
+            echo={echo}
           />
       }
 
@@ -223,6 +229,7 @@ function ExploreBody({
 // The flip-to-back face is wired by the parent (ItineraryCard).
 function ItineraryBody({
   bestSeller, tourUrl, bookUrl, location, onSwap, onFlip, showReasons, onPickReason, pinned, splurge, staple,
+  onSubmitReasonText, reasonPending, reasonFailed, echo,
 }: {
   bestSeller: ViatorItem;
   tourUrl: string | null;
@@ -235,7 +242,7 @@ function ItineraryBody({
   pinned?: boolean;
   splurge?: boolean;
   staple?: boolean;
-}) {
+} & SwapTextProps) {
   return (
     <div className="itin-card-split" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
       {/* Bleeding-edge image — full card height; clicking flips to ratings */}
@@ -337,7 +344,9 @@ function ItineraryBody({
               </button>
             )}
           </div>
-          <SwapReasons open={!!showReasons} onPick={(r) => onPickReason?.(r)} />
+          <SwapReasons open={!!showReasons} onPick={(r) => onPickReason?.(r)}
+            onSubmitText={onSubmitReasonText} pending={reasonPending} failed={reasonFailed} />
+          {!!echo?.length && <div className="swap-echo">Swapped for: {echo.join(', ')}</div>}
         </div>
       </div>
     </div>

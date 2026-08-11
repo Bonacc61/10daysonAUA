@@ -13,7 +13,10 @@ import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
 import { resolveSlotEntry } from '../data/activitySource';
 import { useCatalog } from '../data/useCatalog';
-import { matchPool, blendPools, constrainBySwapReason, entryPrice, parseActivityCost } from '../data/matcher';
+import { matchPool, blendPools, entryPrice, parseActivityCost } from '../data/matcher';
+import { constrainByEdit, CHIP_CONSTRAINTS, describeConstraint, satisfiableByRotation } from '../data/editConstraint';
+import type { EditConstraint } from '../data/editConstraint';
+import { parseEdit, nlEditEnabled } from '../lib/edits';
 import { fitItem, refaceForAnswers, itemSlotOkForFill } from '../data/itemFit';
 import { answersToTags } from '../data/answerTags';
 import { generatePlan, resolvePinId } from '../data/itineraryGenerator';
@@ -65,6 +68,13 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   const [reasonOpen, setReasonOpen] = useState<Set<string>>(new Set());
   const [appearing,  setAppearing]  = useState<Set<string>>(new Set());
   const [removing,   setRemoving]   = useState<Set<string>>(new Set());
+  // Natural-language edit state (VITE_NL_EDIT only). `echo` is what the swap
+  // actually applied, rendered on the new card — built from the constraint, not
+  // from the model's prose, so it describes the code's behaviour rather than an
+  // interpretation of the sentence.
+  const [nlPending, setNlPending] = useState<Set<string>>(new Set());
+  const [nlFailed,  setNlFailed]  = useState<Set<string>>(new Set());
+  const [echo,      setEcho]      = useState<Record<string, string[]>>({});
   // Rejection memory feeds the swap matcher so it won't re-offer dismissed picks.
   const [rejected,       setRejected]       = useState<Set<string>>(new Set());
   const [rejectedGroups, setRejectedGroups] = useState<Set<string>>(new Set());
@@ -378,7 +388,12 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
     }, 240);
   };
 
-  const onSwap = (uid: string, slot: Slot, entry: CardEntry, reason: SwapReason) => {
+  // Chips and free text both arrive here as an EditConstraint — one path.
+  // `logReason` is what the telemetry records: a chip id, or 'nl'.
+  const applySwap = (
+    uid: string, slot: Slot, entry: CardEntry,
+    constraint: EditConstraint, logReason: string,
+  ) => {
     if (swapping.has(uid)) return;
     setReasonOpen((s) => { const n = new Set(s); n.delete(uid); return n; });
 
@@ -391,12 +406,12 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
         LUNCHSPOTS
           .filter((l) => l.id !== curId && !rej.has(l.id))
           .map((l): CardEntry => ({ kind: 'activity', activity: l }));
-      const freshLunch = constrainBySwapReason(pool(nextRej), reason, entry)[0]
-        ?? constrainBySwapReason(pool(new Set<string>()), reason, entry)[0];
+      const freshLunch = constrainByEdit(pool(nextRej), constraint, entry)[0]
+        ?? constrainByEdit(pool(new Set<string>()), constraint, entry)[0];
       setRejected(nextRej);
       if (!freshLunch || freshLunch.kind !== 'activity') return;
       const toId = freshLunch.activity.id;
-      logEvent({ action: 'swap', reason, slot, from_id: curId, from_kind: 'activity',
+      logEvent({ action: 'swap', reason: logReason, slot, from_id: curId, from_kind: 'activity',
                  from_price: entryPrice(entry), to_id: toId, to_kind: 'activity' });
       setSwapping((s) => new Set(s).add(uid));
       window.setTimeout(() => setPlan((p) => replaceCardEntry(p, uid, { kind: 'activity', id: toId })), 450);
@@ -408,7 +423,11 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
     const nextRejectedGroups = new Set(rejectedGroups);
     let next: SlotEntry | null = null;
 
-    if (entry.kind === 'group' && reason !== 'not-our-vibe') {
+    // Rotating within the group is a shortcut that bypasses constrainByEdit, so
+    // it is only safe for constraints another item in the same group could
+    // actually satisfy. Without this, "we get seasick" on a catamaran card
+    // rotates to a different boat while the caption claims otherwise.
+    if (entry.kind === 'group' && !constraint.differentKind && satisfiableByRotation(constraint)) {
       // Rotate within the same Viator group first. Skip over-budget items so
       // "show another" can't rotate to e.g. a $2300 yacht for a budget traveller.
       nextRejected.add(entry.bestSeller.id);
@@ -416,7 +435,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
         (i) => i.group_id === entry.group.id && !nextRejected.has(i.id)
           && !fitItem(i, tags).rejected && itemSlotOkForFill(i, slot),
       );
-      if (reason === 'too-pricey') {
+      if (constraint.cheaper || typeof constraint.maxPriceUsd === 'number') {
         // Cheapest item that's strictly cheaper than the current one. If none,
         // leave `next` null so the cross-pool fallback finds a cheaper option
         // elsewhere — never rotate to a pricier item in the same group.
@@ -455,7 +474,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
       const pool = refaceForAnswers(blendPools(activities, groups, catalog.items,
         { rejectedIds: excludeIds, rejectedGroupIds: excludeGroupIds }), tags, slot)
         .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId);
-      let fresh = constrainBySwapReason(pool, reason, entry)[0];
+      let fresh = constrainByEdit(pool, constraint, entry)[0];
       // The slot/vibe-matched pool can come up empty (or with nothing satisfying
       // the reason) — a niche slot, an already-cheap card, or after excluding
       // everything already in the plan (which also drops whole groups). Broaden
@@ -465,7 +484,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
         const widePool = refaceForAnswers(blendPools(catalog.activities, catalog.groups, catalog.items,
           { rejectedIds: excludeIds, rejectedGroupIds: excludeGroupIds }), tags, slot)
           .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId);
-        fresh = constrainBySwapReason(widePool, reason, entry)[0];
+        fresh = constrainByEdit(widePool, constraint, entry)[0];
       }
       if (!fresh) {
         // 2) Last resort: drop the "not already in the plan" exclusion (keep only
@@ -474,7 +493,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
         const anyPool = refaceForAnswers(blendPools(catalog.activities, catalog.groups, catalog.items,
           { rejectedIds: nextRejected, rejectedGroupIds: nextRejectedGroups }), tags, slot)
           .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId);
-        fresh = constrainBySwapReason(anyPool, reason, entry)[0];
+        fresh = constrainByEdit(anyPool, constraint, entry)[0];
       }
       if (fresh) next = fresh.kind === 'activity'
         ? { kind: 'activity', id: fresh.activity.id }
@@ -487,7 +506,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
     const newEntry = next;
 
     logEvent({
-      action: 'swap', reason, slot,
+      action: 'swap', reason: logReason, slot,
       from_id: entry.kind === 'activity' ? entry.activity.id : entry.bestSeller.id,
       from_kind: entry.kind, from_price: entryPrice(entry),
       to_id: newEntry.kind === 'activity' ? newEntry.id : newEntry.bestSellerId,
@@ -497,6 +516,39 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
     setSwapping((s) => new Set(s).add(uid));
     window.setTimeout(() => setPlan((p) => replaceCardEntry(p, uid, newEntry)), 450);
     window.setTimeout(() => setSwapping((s) => { const n = new Set(s); n.delete(uid); return n; }), 920);
+  };
+
+  // A chip is just a constant constraint.
+  const onSwap = (uid: string, slot: Slot, entry: CardEntry, reason: SwapReason) => {
+    setEcho((e) => { const n = { ...e }; delete n[uid]; return n; });
+    applySwap(uid, slot, entry, CHIP_CONSTRAINTS[reason], reason);
+  };
+
+  // Free text: parse remotely, then run the identical local path. Any failure
+  // leaves the chips working and says so — the traveller is never worse off
+  // than before they typed.
+  const onSwapFromText = async (uid: string, slot: Slot, entry: CardEntry, text: string) => {
+    if (nlPending.has(uid)) return;
+    setNlFailed((s) => { const n = new Set(s); n.delete(uid); return n; });
+    setNlPending((s) => new Set(s).add(uid));
+
+    const result = await parseEdit({
+      text,
+      current: {
+        title: entry.kind === 'group' ? entry.bestSeller.title : entry.activity.title,
+        priceUsd: entryPrice(entry),
+        region: entry.kind === 'group' ? (entry.bestSeller.region ?? entry.group.region) : entry.activity.region,
+        kind: entry.kind === 'group' ? entry.group.id : entry.activity.category,
+      },
+      tags: [...tags],
+    });
+
+    setNlPending((s) => { const n = new Set(s); n.delete(uid); return n; });
+    if (!result.ok) { setNlFailed((s) => new Set(s).add(uid)); return; }
+
+    const described = describeConstraint(result.constraint);
+    setEcho((e) => ({ ...e, [uid]: described }));
+    applySwap(uid, slot, entry, result.constraint, 'nl');
   };
 
   // Rename a day's theme title. The title lives on the plan, so the debounced
@@ -582,6 +634,10 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
                     onFlip={onFlip}
                     onOpenSwap={onOpenSwap}
                     onSwap={onSwap}
+                    onSwapFromText={onSwapFromText}
+                    nlPending={nlPending}
+                    nlFailed={nlFailed}
+                    echo={echo}
                     onAddItem={onAddItem}
                     onAddSlotEntry={onAddSlotEntry}
                     onRemove={onRemove}
@@ -704,6 +760,8 @@ type DayHandlers = {
   onFlip: (uid: string) => void;
   onOpenSwap: (uid: string) => void;
   onSwap: (uid: string, slot: Slot, e: CardEntry, reason: SwapReason) => void;
+  onSwapFromText: (uid: string, slot: Slot, e: CardEntry, text: string) => void;
+  nlPending: Set<string>; nlFailed: Set<string>; echo: Record<string, string[]>;
   onAddItem: (dayNum: number, section: Slot, item: ViatorItem) => void;
   onAddSlotEntry: (dayNum: number, section: Slot, entry: CardEntry) => void;
   onRemove: (uid: string) => void;
@@ -904,7 +962,7 @@ function Section({
 function SortableCard({
   card, entry, section, dayNum, readOnly,
   flipped, swapping, reasonOpen, appearing, removing,
-  onFlip, onOpenSwap, onSwap, onAddItem, onRemove,
+  onFlip, onOpenSwap, onSwap, onSwapFromText, nlPending, nlFailed, echo, onAddItem, onRemove,
   bookedIds, onToggleBooked, onNavigateToSection,
 }: { card: PlannedCard; entry: CardEntry; section: Slot; dayNum: number } & DayHandlers) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.uid });
@@ -967,6 +1025,11 @@ function SortableCard({
         onSwap={readOnly ? undefined : () => onOpenSwap(card.uid)}
         showReasons={!readOnly && reasonOpen.has(card.uid)}
         onPickReason={readOnly ? undefined : (reason) => onSwap(card.uid, section, entry, reason)}
+        onSubmitReasonText={!readOnly && nlEditEnabled
+          ? (text) => onSwapFromText(card.uid, section, entry, text) : undefined}
+        reasonPending={nlPending.has(card.uid)}
+        reasonFailed={nlFailed.has(card.uid)}
+        echo={echo[card.uid]}
         onAddItem={readOnly ? undefined : (item) => onAddItem(dayNum, section, item)}
         onNavigateToSection={onNavigateToSection}
       />
