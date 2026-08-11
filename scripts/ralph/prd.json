@@ -1,7 +1,7 @@
 {
   "project": "10daysonaruba.com",
   "branchName": "ralph/semantic-search",
-  "description": "Semantic search in Explore — persist the embeddings ingest already computes, embed the query server-side, and rank by meaning. Substring search is kept and always ranks first. Ships dark behind VITE_SEMANTIC_SEARCH.",
+  "description": "Semantic search in Explore \u2014 persist the embeddings ingest already computes, embed the query server-side, and rank by meaning. Substring search is kept and always ranks first. Ships dark behind VITE_SEMANTIC_SEARCH.",
   "userStories": [
     {
       "id": "US-001",
@@ -12,9 +12,10 @@
         "Migration runs `create extension if not exists vector`",
         "Creates public.item_embeddings with columns: item_id text primary key, embedding vector(256), model text not null, updated_at timestamptz not null default now()",
         "Creates an HNSW index on embedding using vector_cosine_ops",
-        "Runs `alter table public.item_embeddings enable row level security` and creates NO anon policy — service role only, matching catalog_cache",
+        "Runs `alter table public.item_embeddings enable row level security` and creates NO anon policy \u2014 service role only, matching catalog_cache",
         "Every statement uses `if not exists` so re-running the migration is safe",
         "A comment block at the top explains why `model` exists: a vector is only comparable to another produced by the same model",
+        "Write the migration FILE only. Do NOT run `supabase db push`, `supabase db reset`, or any command that touches the linked remote project \u2014 a human applies migrations to production",
         "Typecheck passes"
       ],
       "priority": 1,
@@ -30,8 +31,9 @@
         "Upsert is keyed on item_id so a re-ingest updates rather than duplicating",
         "The write only happens when activeProvider() returns 'openai' (256 dims); when it returns 'voyage' (512 dims) the write is skipped and a console.warn explains why",
         "Rows whose item_id is no longer present in the catalog are deleted in the same pass",
-        "A failure of the whole embedding-write block is caught and non-fatal — the catalog response is returned unchanged, matching how writeCache already behaves",
+        "A failure of the whole embedding-write block is caught and non-fatal \u2014 the catalog response is returned unchanged, matching how writeCache already behaves",
         "No vector is added to the JSON payload returned to the browser",
+        "Do NOT run `supabase functions deploy` \u2014 a human deploys edge functions",
         "Typecheck passes"
       ],
       "priority": 2,
@@ -44,7 +46,7 @@
       "description": "As a traveller, I want my typed phrase matched against what activities actually are, so I get results when my words do not appear in any listing.",
       "acceptanceCriteria": [
         "New supabase/functions/search/index.ts using the corsHeaders helper from ../_shared/cors.ts",
-        "JWT verification stays ON (anon key required) — do not make it a public proxy",
+        "JWT verification stays ON (anon key required) \u2014 do not make it a public proxy",
         "Accepts POST { query: string }; returns 400 for an empty query or one over 200 characters",
         "Embeds the query with the same model recorded in item_embeddings.model; if the active provider's model differs from the stored model, return 503 rather than ranking",
         "Returns { results: [{ id, score }] }, at most 30, ordered by cosine similarity descending",
@@ -52,6 +54,7 @@
         "The query text is NEVER passed to console.log or console.warn, and never included in any error response body",
         "Rate limited per caller and globally by reusing the edit_requests table and the callerHash/checkLimits approach from supabase/functions/itinerary-edit/index.ts, including failing closed when RATE_LIMIT_SALT is unset",
         "Returns 502 on embedding-provider failure with no partial results",
+        "Do NOT run `supabase functions deploy`; the function is verified by typecheck and review, not by deploying it",
         "Typecheck passes"
       ],
       "priority": 3,
@@ -105,7 +108,7 @@
         "Once the query contains a space, a hint reading 'press Enter to search by meaning' renders near the search box",
         "The hint appearing does NOT itself trigger a request",
         "Pressing Enter, or clicking the accompanying button, calls searchByMeaning exactly once",
-        "Substring results stay live and visible throughout — arming never blanks or delays existing results",
+        "Substring results stay live and visible throughout \u2014 arming never blanks or delays existing results",
         "While a semantic search is in flight a subtle in-progress state shows and a second submit is ignored",
         "When semanticSearchEnabled is false the hint never renders and searchByMeaning is never called",
         "Results are combined using blendSearchResults from US-005",
@@ -141,7 +144,7 @@
         "Includes name queries that must not regress: 'Zeerover', 'Arikok', 'Baby Beach'",
         "Includes adversarial entries: an empty query, a 200-character query, and a prompt-injection attempt",
         "tools/run-search-golden.cjs reads VITE_SEARCH_FN_URL and VITE_SUPABASE_ANON_KEY from ./.env.production the way tools/run-trace.cjs does, runs each query, and prints per-query recall plus an overall figure",
-        "The runner is NOT added to the vitest glob and NOT wired into npm test — CI must stay offline and free",
+        "The runner is NOT added to the vitest glob and NOT wired into npm test \u2014 CI must stay offline and free",
         "A comment at the top of the JSON states it needs a deployed function and burns real tokens",
         "Typecheck passes"
       ],

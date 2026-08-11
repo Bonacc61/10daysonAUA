@@ -1,0 +1,76 @@
+# Ralph progress — 10daysonaruba.com / ralph/semantic-search
+
+## Codebase Patterns
+
+Seeded 2026-08-11 from a working session on this repo. Read this before starting.
+
+### Never do these
+- **Never push to main.** Pushing to `main` auto-deploys to production via
+  `.github/workflows/deploy.yml` with no staging step and no manual gate. Commit to the
+  `ralph/semantic-search` branch only. The ship gate is `/code-review`, run by a human.
+- **Never run `supabase db push`, `supabase db reset`, or `supabase functions deploy`.**
+  The Supabase CLI is installed and linked to the production project. Migrations and edge
+  functions are applied by a human. Your job is to write the files.
+- **Never enable a feature flag in `.env.production` or `.env.local`.** Vite loads
+  `.env.local` in *every* mode, including `vite build`, so a flag left true there produces a
+  flag-on production bundle. Flags stay `false` in `.env.example` and absent from
+  `.env.production` until a human flips them.
+
+### Known-failing test — not yours, do not fix
+`npm test` reports **1 failed suite / N passed**. The failure is
+`supabase/functions/contact-notify/messages.test.ts`, a Deno test importing from
+`https://deno.land/std@0.224.0/assert/mod.ts`, which vitest's glob picks up and Node's ESM
+loader cannot resolve. It is pre-existing and unrelated to any story here. Treat "537 passed,
+1 failed suite" as green. Do not attempt to fix it and do not count it as a regression.
+
+### Verification commands
+- `npm test` — vitest, offline, must stay offline and free. Never add a test that needs a
+  network call or an API key.
+- `npm run build` — runs `tsc --noEmit -p tsconfig.app.json` then `vite build`. This is the
+  typecheck. A clean `npm run build` satisfies "Typecheck passes".
+- `npm run trace -- --persona splurge --days 10 --why "<text>"` — makes the itinerary
+  generator narrate why a candidate was or wasn't placed. Useful only for matching-engine
+  questions; irrelevant to search.
+
+### Conventions this repo actually follows
+- **Pure logic in `src/data/`, side effects at the edges.** Anything worth testing is a pure
+  function taking its inputs as parameters. Follow `src/data/editConstraint.ts` as the model:
+  it takes the constraint as an argument rather than importing global state, which is why its
+  tests can never be turned red by a data change.
+- **Tests pass fixtures, never import live data.** `mergeEnrichment(items, snapshot)` takes
+  the snapshot as a parameter precisely so `enrichment.json` can be regenerated without
+  touching the suite. Do the same for anything you add.
+- **Feature flags gate anything that costs money or sends user text off-site.** See
+  `src/lib/edits.ts` for the shape: a single exported boolean that is true only when the flag
+  AND the URL AND the anon key are all present, and a call function that returns a safe empty
+  value on every failure path rather than throwing.
+- **Edge functions keep JWT verification ON** (anon key required). `viator-cards` and
+  `itinerary-edit` both do. Do not create a public proxy.
+- **Rate-limited endpoints hash the caller IP with a server-side salt and fail closed when
+  the salt is missing.** `supabase/functions/itinerary-edit/index.ts` is the reference; the
+  `edit_requests` table and its 24h purge cron already exist — reuse them, do not duplicate.
+- **Never log user-typed text.** Not to `console.log`, not into an error body, not into a
+  database column. Log the parsed/derived result instead. This is a GDPR requirement, not a
+  style preference.
+- Comments explain *why*, and cite measurements where a number is involved. Match the
+  surrounding density — this codebase comments heavily and specifically.
+
+### Where things live
+- Open work: `docs/ROADMAP.md`. Durable facts that stay true across sprints:
+  `.claude/CLAUDE.md`. Keep mutable state out of the latter.
+- Designs: `docs/superpowers/specs/`. Historical once written — do not edit an old spec to
+  match new code; write a correction into the current one.
+- The search PRD this run implements: `tasks/prd-semantic-search.md`.
+
+### Gotchas found the hard way
+- `.env.production` is tracked in git and is what CI builds against. The Build step in
+  `deploy.yml` has no `env:` block, so it is the only source of `VITE_*` values in production.
+- The Explore search box currently does substring matching in
+  `filterExploreEntries` (`src/data/exploreItems.ts`). It is client-side and synchronous.
+  Keep it that way — semantic results are *added below* it, never replace it.
+- Embeddings exist at ingest (`supabase/functions/viator-cards/embeddings.ts`) and are
+  currently discarded. `activeProvider()` prefers OpenAI at **256 dimensions** and falls back
+  to Voyage at **512**. Only the 256 path is supported by this PRD; a mixed-model table makes
+  cosine similarity meaningless.
+
+---
