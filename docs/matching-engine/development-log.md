@@ -744,9 +744,13 @@ a rule can fire constantly and cost nothing while alternatives remain.
   a threshold — `SAME_DAY_SIMILARITY_THRESHOLD` (0.08) within one day, or
   `TAG_SIMILARITY_THRESHOLD` (0.35) across the trip. Observed as low-risk at current catalog size.
 
-- **Tag sparsity**: items with `tags: []` (e.g. stub local activities, or live
-  products where Viator returned no tags) bypass semantic dedup entirely and
-  rely on `usedGroupIds` + `lastUsedDay` only.
+- **Tag sparsity** (population is empty on live data, measured 2026-08-11):
+  GROUP entries with `tags: []` and no cluster id bypass semantic dedup and rely
+  on `usedGroupIds` + `lastUsedDay` only. Two corrections to the original
+  wording: local activities were never affected — `similarReason` returns at
+  `e.kind !== 'group'` before any of this — and no live Viator item is affected
+  either, since all 328 carry both tags and a cluster id. The branch is reachable
+  only from the offline stub catalog.
 
 - **Group type is still almost inert**: `classifyTags` emits only budget,
   interest and adventure-band tags, so `solo` / `couple` / `friends` /

@@ -72,8 +72,12 @@ feeds the engine is in `docs/matching-engine/geography.md`:
   `similarReason` consults `usedGroupIds` only for items with neither tags nor a
   cluster id, so two *tagged* items from one group are caught only if tag Jaccard
   clears the threshold.
-- Tag sparsity: items with `tags: []` and no cluster id fall back to
-  `usedGroupIds` + `lastUsedDay` only — no cluster or Jaccard dedup.
+- Tag sparsity (**no longer live**): the `usedGroupIds` + `lastUsedDay` fallback
+  for group entries with neither tags nor a cluster id still exists in
+  `similarReason`, but **every live item carries both** — measured 2026-08-11
+  across all 328 catalog items, and the code's own comment on that branch says
+  "Unreachable on live data". It applies only to the offline stub catalog, so it
+  is not an open item against plan quality.
 - `TAG_SIMILARITY_THRESHOLD = 0.35` set conservatively, never tuned against the
   live catalog.
 
