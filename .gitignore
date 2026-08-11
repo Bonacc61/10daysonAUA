@@ -22,3 +22,6 @@ yarn-error.log*
 
 # Supabase CLI link metadata
 supabase/.temp
+
+# Ralph run state (per-machine, not source)
+scripts/ralph/.last-branch
