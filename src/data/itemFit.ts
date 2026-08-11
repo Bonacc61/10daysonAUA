@@ -194,9 +194,17 @@ const KIND_BY_TAG: ReadonlyArray<readonly [readonly number[], string]> = [
   [[11973], 'horseback'],
   [[13143], 'zipline'],
 ];
+// Every kind KIND_BY_TAG can produce. Enrichment may only speak in this
+// vocabulary — a value outside it is a schema violation, not a new kind.
+export const KIND_VOCABULARY: ReadonlySet<string> = new Set(KIND_BY_TAG.map(([, kind]) => kind));
+
 export function activityKind(item: ViatorItem): string {
   const tags = new Set(item.tags ?? []);
   for (const [ids, kind] of KIND_BY_TAG) if (ids.some((t) => tags.has(t))) return kind;
+  // Enrichment speaks only where the tags do not — the 144 live items that
+  // would otherwise land in a generic `sec:` bucket. The 184 that KIND_BY_TAG
+  // resolves are measured and are never overridden.
+  if (item.enriched_kind) return item.enriched_kind;
   return `sec:${primarySection(itemSections(item))}`;
 }
 

@@ -12,7 +12,8 @@
     "resolve:coords": "node tools/run-resolve.cjs",
     "audit:coords": "node tools/run-audit.cjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "enrich": "node tools/run-enrich.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

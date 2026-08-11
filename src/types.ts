@@ -76,6 +76,17 @@ export type ViatorItem = {
   // Items sharing a cluster id represent the same real-world experience across
   // different operators/product codes. The generator deduplicates by this id.
   experience_cluster_id?: string;
+  // --- Enrichment (src/data/enrichment.json, merged at catalog load) --------
+  // Derived offline from the product's own listing and accepted by a human.
+  // All optional by design: an item without them behaves exactly as it did
+  // before enrichment existed.
+  enriched_kind?: string;   // read by activityKind() ONLY where tags say nothing
+  physical?: { demand: 'low' | 'moderate' | 'high'; mobility_ok: boolean };
+  kids?: { min_age: number; baby_ok: boolean };
+  // Verbatim span from the description backing `physical`/`kids`. The UI renders
+  // THIS, never a paraphrase — quoting the operator is not the site making a
+  // claim. No evidence, no copy.
+  evidence?: string;
   // Catalog-relative popularity percentile (0–1), computed at catalog load time
   // from review_count rank across all items. The most-reviewed item in the catalog
   // scores 1.0; the least scores 0.0. Self-normalising: rescales automatically

@@ -4,6 +4,8 @@ import { LUNCHSPOTS } from './lunchspots';
 import { fitItem, bestItemForAnswers, itemSlotOk, matchingSection, isRetailProduct } from './itemFit';
 import { budgetTag } from './classify';
 import type { ViatorGroup, ViatorItem, SlotEntry, CardEntry, MatchTag, Slot, Section } from '../types';
+import { mergeEnrichment, type EnrichmentSnapshot } from './enrichment';
+import ENRICHMENT from './enrichment.json';
 
 export type Catalog = {
   activities: Activity[];
@@ -239,7 +241,13 @@ export function loadCatalog(): Promise<Catalog> {
       const activities = mergeLocalMatches(ACTIVITIES, data?.localMatches ?? {});
       liveCatalog = {
         activities, groups,
-        items: normalizePopularity(regroupItems(groups, items.filter((i) => !isExcludedFromCatalog(i)))),
+        // Enrichment last: it only ever ADDS optional fields, so it must see the
+        // final item list, and nothing downstream of it can be affected by an
+        // item it has no record for.
+        items: mergeEnrichment(
+          normalizePopularity(regroupItems(groups, items.filter((i) => !isExcludedFromCatalog(i)))),
+          ENRICHMENT as EnrichmentSnapshot,
+        ),
       };
       return liveCatalog;
     } catch {
