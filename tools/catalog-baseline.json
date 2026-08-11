@@ -1,0 +1,14 @@
+{
+  "measured": "2026-08-11",
+  "metrics": {
+    "items": 328,
+    "kindResolved": 184,
+    "genericBucket": 144,
+    "distinctAdventure": 11,
+    "noTags": 0,
+    "noCluster": 0,
+    "distinctClusters": 153,
+    "overReviewFloor": 198,
+    "autoFillExcluded": 32
+  }
+}

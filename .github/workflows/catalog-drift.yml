@@ -1,0 +1,62 @@
+name: Catalog drift
+
+# The specs and docs/ROADMAP.md cite measurements of the LIVE Viator catalog —
+# "144 of 328 items fall into generic buckets", "11 distinct adventure values",
+# "72 of 155 eligible experiences clear the review floor". Those numbers justify
+# design decisions, and they measure a third party's data that changes without
+# telling us. No unit test can see that; this can.
+#
+# Runs weekly. Silent when nothing moved. The job FAILS when a metric moves
+# beyond tolerance, which is the notification — GitHub emails on a failed
+# scheduled run, so there is no bot to build.
+#
+# Reads VITE_VIATOR_FN_URL and VITE_SUPABASE_ANON_KEY from the tracked
+# .env.production, exactly as the deploy build does. No secrets needed: the anon
+# key is public by design.
+
+on:
+  schedule:
+    # Mondays 08:00 UTC — a fresh number to start the week, not a 3am page.
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+
+# Never run two of these at once; they only read, but a doubled report is noise.
+concurrency:
+  group: catalog-drift
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Measure the live catalog against the committed baseline
+        run: npm run drift
+
+      - name: What to do when this fails
+        if: failure()
+        run: |
+          echo "::notice::A catalog metric moved beyond tolerance."
+          echo ""
+          echo "This is not automatically a bug. Viator's catalog changes."
+          echo "The question is whether any reasoning that rests on the old number"
+          echo "is now wrong:"
+          echo ""
+          echo "  - docs/ROADMAP.md — the matching-engine open items"
+          echo "  - docs/superpowers/specs/2026-08-11-catalog-enrichment-design.md"
+          echo "    (its whole justification is 144/328 and 11 adventure values)"
+          echo ""
+          echo "If the shift is real and the reasoning still holds, accept it:"
+          echo "  npm run drift -- --update   # then commit tools/catalog-baseline.json"

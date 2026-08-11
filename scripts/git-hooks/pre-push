@@ -1,0 +1,48 @@
+#!/bin/bash
+# Refuse to push `main` unless a human says so out loud.
+#
+# WHY THIS EXISTS
+# Pushing to main deploys straight to production — .github/workflows/deploy.yml
+# builds and mirrors dist/ to TransIP with no staging step and no manual gate.
+# Autonomous agent runs (scripts/ralph/) work on a branch and are TOLD not to
+# push, but an instruction is a request, not a boundary. This is the boundary.
+#
+# It converts an accidental or incidental push into a deliberate one. It is not
+# a security control — anything with shell access can bypass it. The only real
+# boundary is server-side branch protection on GitHub; see the note at the end.
+#
+# TO PUSH MAIN YOURSELF:
+#   ALLOW_MAIN_PUSH=1 git push origin main
+#
+# INSTALL (per clone — core.hooksPath is local config, not committed):
+#   git config core.hooksPath scripts/git-hooks
+
+PROTECTED="refs/heads/main"
+
+# git feeds us one line per ref being pushed:
+#   <local ref> <local sha> <remote ref> <remote sha>
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  [ "$remote_ref" = "$PROTECTED" ] || continue
+
+  if [ "$ALLOW_MAIN_PUSH" = "1" ]; then
+    echo "pre-push: ALLOW_MAIN_PUSH=1 — pushing main (this deploys to production)." >&2
+    exit 0
+  fi
+
+  cat >&2 <<'MSG'
+
+  ✋ pre-push: refusing to push main.
+
+  Pushing main deploys to production immediately — no staging, no gate.
+
+  If you meant it:
+      ALLOW_MAIN_PUSH=1 git push origin main
+
+  If an agent hit this: you are on the wrong branch. The ralph run belongs on
+  the branch named in scripts/ralph/prd.json. Commit there; a human pushes.
+
+MSG
+  exit 1
+done
+
+exit 0

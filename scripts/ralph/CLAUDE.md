@@ -12,6 +12,10 @@ You are an autonomous coding agent working on a software project.
 6. Run quality checks (e.g., typecheck, lint, test - use whatever your project requires)
 7. Update CLAUDE.md files if you discover reusable patterns (see below)
 8. If checks pass, commit ALL changes with message: `feat: [Story ID] - [Story Title]`
+   **Commit only. NEVER run `git push`.** Pushing `main` deploys straight to
+   production with no staging step and no manual gate. A human pushes, after
+   reviewing your branch. A `pre-push` hook will refuse `main` anyway — do not
+   try to work around it, and do not use `--no-verify` or `ALLOW_MAIN_PUSH`.
 9. Update the PRD to set `passes: true` for the completed story
 10. Append your progress to `progress.txt`
 
@@ -77,6 +81,22 @@ Only update CLAUDE.md if you have **genuinely reusable knowledge** that would he
 - Keep changes focused and minimal
 - Follow existing code patterns
 
+### This project specifically
+- **Verify with `npm test` and `npm run build`.** `npm run build` runs `tsc --noEmit`
+  first, so a clean build IS the typecheck.
+- **`npm test` has ONE pre-existing failing suite**:
+  `supabase/functions/contact-notify/messages.test.ts`, a Deno test that vitest's glob
+  picks up and Node cannot load. It is not yours. Do not fix it. Treat
+  "N passed, 1 failed suite" as green, and check that N went UP, not that the
+  failure count is zero.
+- **Never run `supabase db push`, `supabase db reset`, or `supabase functions deploy`.**
+  The CLI on this machine is linked to the production project. You write migration and
+  function FILES; a human applies them.
+- **Never log user-typed text** — not to console, not into an error body, not into a
+  database column. Log derived results instead. This is a GDPR requirement.
+- Read `scripts/ralph/progress.txt` → "Codebase Patterns" before starting. It is seeded
+  with real traps from this repo.
+
 ## Browser Testing (If Available)
 
 For any story that changes UI, verify it works in the browser if you have browser testing tools configured (e.g., via MCP):
@@ -99,6 +119,7 @@ If there are still stories with `passes: false`, end your response normally (ano
 ## Important
 
 - Work on ONE story per iteration
-- Commit frequently
-- Keep CI green
+- Commit frequently — to the branch, never to `main`, and never `git push`
+- Keep the local checks green (`npm test`, `npm run build`). "Keep CI green" does NOT
+  mean push and watch the CI run; you cannot push
 - Read the Codebase Patterns section in progress.txt before starting

@@ -13,7 +13,8 @@
     "audit:coords": "node tools/run-audit.cjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "enrich": "node tools/run-enrich.cjs"
+    "enrich": "node tools/run-enrich.cjs",
+    "drift": "node tools/run-drift.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
