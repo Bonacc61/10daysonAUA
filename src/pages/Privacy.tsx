@@ -15,7 +15,7 @@ export default function Privacy({ setPage }: Props) {
             ← Back
           </button>
           <h1 className="font-display" style={{ fontSize: 40, margin: '0 0 6px' }}>Privacy Policy</h1>
-          <p style={{ fontSize: 13, color: 'var(--ink)', opacity: 0.45, margin: '0 0 48px' }}>Last updated: July 2026</p>
+          <p style={{ fontSize: 13, color: 'var(--ink)', opacity: 0.45, margin: '0 0 48px' }}>Last updated: August 2026</p>
 
           <p style={{ fontSize: 15, margin: '0 0 32px' }}>
             <strong>Controller:</strong> 10daysonaruba.com —{' '}
@@ -37,6 +37,8 @@ export default function Privacy({ setPage }: Props) {
                   ['Itinerary + questionnaire answers', 'Core service', 'Contract', 'Until you delete your account'],
                   ['Name, email, message (contact form)', 'To reply to you', 'Legitimate interest', '12 months'],
                   ['Shared itinerary snapshot', 'Powers your share link', 'Legitimate interest', 'Until you delete it or your account'],
+                  ['Text you type into an AI feature', 'To turn what you asked for into a change to your plan, or into search results', 'Contract', 'Not stored — see “AI features” below'],
+                  ['Your IP address, hashed (AI features only)', 'Rate-limiting, so nobody can run up our costs', 'Legitimate interest', '24 hours'],
                 ].map(([what, why, basis, kept]) => (
                   <tr key={what} style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
                     <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>{what}</td>
@@ -55,7 +57,41 @@ export default function Privacy({ setPage }: Props) {
               <li><strong>Supabase</strong> — EU-based database &amp; authentication provider. <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--red)' }}>supabase.com/privacy</a></li>
               <li><strong>TransIP</strong> — Netherlands-based hosting &amp; email provider. <a href="https://www.transip.nl/legal-and-security/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--red)' }}>transip.nl/legal-and-security</a></li>
               <li><strong>Viator</strong> — activity booking affiliate links. Their <a href="https://www.viator.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--red)' }}>privacy policy</a> applies if you click through and book.</li>
+              <li><strong>Anthropic</strong> — reads a free-text request and turns it into a change to your itinerary. United States. <a href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--red)' }}>anthropic.com/legal/privacy</a></li>
+              <li><strong>OpenAI</strong> — converts text into the numeric form used to spot duplicate activities and to search by meaning. United States. <a href="https://openai.com/policies/privacy-policy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--red)' }}>openai.com/policies/privacy-policy</a></li>
             </ul>
+          </Section>
+
+          <Section title="AI features">
+            <p style={{ fontSize: 14, lineHeight: 1.7, margin: '0 0 12px' }}>
+              Two places on this site let you type in your own words: the box that asks what you&rsquo;d rather do
+              when swapping an activity, and search. If you use either, we send what you typed to an outside
+              company to be interpreted. If you don&rsquo;t use them, nothing is sent &mdash; everything else on the
+              site works without them.
+            </p>
+            <p style={{ fontSize: 14, lineHeight: 1.7, margin: '0 0 12px' }}>
+              <strong>What we send:</strong> the words you typed. For a swap we also send the activity you&rsquo;re
+              replacing (its title, price and area) and the broad answers from your questionnaire &mdash; things like
+              &ldquo;mid-range&rdquo; or &ldquo;travelling as a couple&rdquo;.
+            </p>
+            <p style={{ fontSize: 14, lineHeight: 1.7, margin: '0 0 12px' }}>
+              <strong>What we never send:</strong> your name, your email, your account, your saved itinerary, or the
+              &ldquo;anything we should know?&rdquo; note from the questionnaire.
+            </p>
+            <p style={{ fontSize: 14, lineHeight: 1.7, margin: '0 0 12px' }}>
+              <strong>We don&rsquo;t keep it.</strong> What you type is not written to our database and not written to our
+              logs. It exists for the length of the request and then it&rsquo;s gone. We record only that a request
+              happened, against a one-way scrambled version of your IP address, so that nobody can flood the
+              feature and run up our bill. Those records are deleted after 24 hours.
+            </p>
+            <p style={{ fontSize: 14, lineHeight: 1.7, margin: '0 0 12px' }}>
+              <strong>These companies are in the United States</strong>, so using these features means your words leave
+              the EU. Both state that data sent through their business APIs is not used to train their models.
+            </p>
+            <p style={{ fontSize: 14, lineHeight: 1.7, margin: 0 }}>
+              Please don&rsquo;t type anything sensitive into these boxes. You never need to &mdash; &ldquo;somewhere quieter&rdquo;
+              works as well as an explanation of why.
+            </p>
           </Section>
 
           <Section title="Your rights (GDPR)">
