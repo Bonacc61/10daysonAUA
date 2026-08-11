@@ -58,6 +58,12 @@ export function answersToTags(a: Answers): Set<MatchTag> {
   // (so "I get seasick" forces low-adventure via the same path a pill would).
   const flags = effectiveFlags(a);
   if (flags.has('honeymoon')) tags.add('couple');
+  // Carried as a tag rather than read from the flags directly because the two
+  // places that act on it — the auto-fill gate and contentCreatorBonus — see
+  // only the tag set. Explore, Map and the Dashboard all derive their tags from
+  // here too, so the flag surfaces photo/video products on every surface, not
+  // just in the generated plan.
+  if (flags.has('influencer')) tags.add('influencer');
   if (flags.has('mobility')) {
     // Override adventure level — mobility-limited travellers only get easy picks
     tags.delete('med-adventure');

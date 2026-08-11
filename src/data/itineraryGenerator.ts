@@ -18,7 +18,7 @@ import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry, ViatorItem, ViatorGroup } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, entryPrice, parseActivityCost } from './matcher';
-import { fitItem, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, isAutoFillExcluded, isKidsOriented, isFullDayProduct, titleTimeOfDay, isNaturalPool, offroadAdrenalineBonus, itemSlotOkForFill, itemAdventure } from './itemFit';
+import { fitItem, budgetCap, activityKind, isEveningItem, isWaterBased, isCrowdPleaser, isAutoFillExcluded, isKidsOriented, isFullDayProduct, titleTimeOfDay, isNaturalPool, offroadAdrenalineBonus, contentCreatorBonus, itemSlotOkForFill, itemAdventure } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 import { effectiveFlags } from './notesFlags';
@@ -335,6 +335,7 @@ function scoreEntry(e: CardEntry, tags: Set<MatchTag>, prefSections: Set<Section
     let score = fitItem(e.bestSeller, tags).score;
     for (const t of e.group.matched_by) if (tags.has(t)) score += 2;
     score += offroadAdrenalineBonus(e.bestSeller, tags);
+    score += contentCreatorBonus(e.bestSeller, tags);
     return score;
   }
   // Local activity: wildcard matched_by, so the section affinity does the work.
@@ -1158,9 +1159,18 @@ export function generatePlan(
   // the FIRST thing in the plan that group type actually affects: MatchTags
   // like 'couple' and 'family-young-kids' never appear in classifyTags output,
   // so fitItem's interest loop can never match one against a live Viator item.
+  //
+  // The Q8 `influencer` flag lifts the photo/video half of the retail/service
+  // rule for this trip only — see isAutoFillExcluded. It runs here, BEFORE
+  // championsByExperience, which is the point: on the live catalog eight
+  // photoshoots share one experience cluster, so the flag buys one champion out
+  // of that cluster rather than eight near-identical listings. The 25-review
+  // floor below still applies to them, and deliberately — the same cluster holds
+  // 0-review, 0-rating listings that nobody should be handed unasked.
   const withChildren = tags.has('family-young-kids') || tags.has('family-teens');
+  const influencer = tags.has('influencer');
   const autoFillOk = (i: ViatorItem) =>
-    !isAutoFillExcluded(i) && (withChildren || !isKidsOriented(i));
+    !isAutoFillExcluded(i, influencer) && (withChildren || !isKidsOriented(i));
   const eligible = filteredCatalog.items.filter(autoFillOk);
   const floorApplies = eligible.length >= MIN_CATALOG_TO_FLOOR;
   const champions = !floorApplies ? eligible : championsByExperience(eligible);

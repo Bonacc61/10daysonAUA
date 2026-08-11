@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fitItem, bestItemForAnswers, itemTags, refaceForAnswers, isEveningItem, itemSlotOk, activityKind, isCrowdPleaser, isWaterBased, itemAdventure, matchingSection, isKidsOriented, isFullDayProduct, itemSlotOkForFill } from './itemFit';
+import { fitItem, bestItemForAnswers, itemTags, refaceForAnswers, isEveningItem, itemSlotOk, activityKind, isCrowdPleaser, isWaterBased, itemAdventure, matchingSection, isKidsOriented, isFullDayProduct, itemSlotOkForFill, isContentProduct, isAutoFillExcluded, contentCreatorBonus } from './itemFit';
 import type { CardEntry, MatchTag, Section, ViatorItem } from '../types';
 
 function item(over: Partial<ViatorItem>): ViatorItem {
@@ -216,6 +216,84 @@ describe('fitItem — crowd-pleaser boost', () => {
 
   it('never overrides the hard budget cap (crowd-pleaser still rejected if unaffordable)', () => {
     expect(fitItem(CHARTER, tags('budget')).rejected).toBe(true);
+  });
+});
+
+// Titles taken verbatim from the live Viator catalog (2026-08-06).
+describe('isContentProduct — the influencer net', () => {
+  it('catches photoshoots, video-included tours and photo stops', () => {
+    for (const title of [
+      'Professional Sunset Photoshoot in Aruba',
+      'Private Vacation Photoshoot with Photographer in Aruba',
+      'Award-Winning Private Turtle Snorkeling Aruba | Video Included',
+      'Private Turtle Snorkel Tour in Aruba +Professional video footage',
+      'Aruba Ecological & Coastline Horseback Ride with Beach Photo Stop',
+      'Aruba Bamboo Raft Photo| Videoshoot + Free Cocktails Edits 24Hrs',
+      'Private Dive + videographer/Photographer (Certified divers only)',
+    ]) expect(isContentProduct(item({ title }))).toBe(true);
+  });
+
+  // Substring, not word-anchored: two live products advertise the operator
+  // handle "@arubaphotoshootexperience", where a letter precedes "photo".
+  it('catches a photo product whose title has no word boundary before "photo"', () => {
+    expect(isContentProduct(item({ title: "50%OFF Aruba's #1Clear Kayak Experience@arubaphotoshootexperience" }))).toBe(true);
+  });
+
+  it('leaves ordinary experiences alone', () => {
+    for (const title of [
+      'Premium Morning Snorkel Sail with Champagne Brunch',
+      'Island Jeep Safari with Natural Pool Baby Beach and Lunch',
+      'Aruba De Palm Island Day Pass',
+    ]) expect(isContentProduct(item({ title }))).toBe(false);
+  });
+});
+
+describe('isAutoFillExcluded — the influencer lift', () => {
+  const SHOOT = item({ title: 'Professional Sunset Photoshoot in Aruba' });
+  const DIAMONDS = item({ title: 'Diamond Shopping Experience with Champagne' });
+  const HARLEY = item({ title: 'Harley-Davidson RENTALS ONLY 8 hrs' });
+
+  it('excludes a photoshoot by default', () => {
+    expect(isAutoFillExcluded(SHOOT)).toBe(true);
+  });
+
+  it('lets a photoshoot through for an influencer', () => {
+    expect(isAutoFillExcluded(SHOOT, true)).toBe(false);
+  });
+
+  // The lift is scoped to the photo branch only — a jewellery showroom is not an
+  // outing for anyone, and a bare motorbike is still not a plan for the day.
+  it('still excludes retail and self-drive hire for an influencer', () => {
+    expect(isAutoFillExcluded(DIAMONDS, true)).toBe(true);
+    expect(isAutoFillExcluded(HARLEY, true)).toBe(true);
+  });
+});
+
+describe('contentCreatorBonus', () => {
+  const SHOOT = item({ title: 'Professional Sunset Photoshoot in Aruba' });
+  const SAIL = item({ title: 'Premium Morning Snorkel Sail with Champagne Brunch' });
+
+  it('is zero without the influencer tag', () => {
+    expect(contentCreatorBonus(SHOOT, tags('couple', 'beach-chill'))).toBe(0);
+  });
+
+  it('is zero for a non-content product even with the tag', () => {
+    expect(contentCreatorBonus(SAIL, tags('influencer', 'beach-chill'))).toBe(0);
+  });
+
+  it('lifts a content product for an influencer', () => {
+    expect(contentCreatorBonus(SHOOT, tags('influencer'))).toBeGreaterThan(0);
+  });
+
+  it('makes a photoshoot the group face over a better-reviewed alternative', () => {
+    const shoot = item({ id: 'shoot', title: 'Professional Sunset Photoshoot in Aruba',
+      price_usd: 125, review_count: 56, popularity_score: 0.3, sections: ['culture-history'] });
+    const tour = item({ id: 'tour', title: 'Oranjestad Walking Tour',
+      price_usd: 125, review_count: 900, popularity_score: 0.6, sections: ['culture-history'] });
+    const t = tags('influencer', 'treat-yourself', 'culture-history');
+    expect(bestItemForAnswers([tour, shoot], t)?.id).toBe('shoot');
+    // …and without the flag the well-reviewed tour still wins.
+    expect(bestItemForAnswers([tour, shoot], tags('treat-yourself', 'culture-history'))?.id).toBe('tour');
   });
 });
 

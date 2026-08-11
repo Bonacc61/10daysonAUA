@@ -237,6 +237,61 @@ describe('generatePlan — no-early-mornings flag', () => {
 });
 
 // ---------------------------------------------------------------------------
+// generatePlan — influencer
+// ---------------------------------------------------------------------------
+
+describe('generatePlan — influencer flag', () => {
+  // A photoshoot the auto-fill rule normally suppresses, and a plain tour in the
+  // same group to prove the group itself is always reachable. Both are
+  // well-reviewed and identically priced, so only the flag separates them.
+  // NOT a "Sunset Photoshoot": isEveningItem() reads "sunset" and would pin it to
+  // evening slots, so a daytime title keeps this test about the flag alone.
+  const shoot = bestItem('culture-group');
+  shoot.id = 'vacation-photoshoot';
+  shoot.title = 'Private Vacation Photoshoot with Photographer in Aruba';
+  const tour = bestItem('culture-group');
+  tour.id = 'walking-tour';
+  tour.title = 'Oranjestad Walking Tour';
+
+  const catalog: Catalog = {
+    activities: fillerPool(),
+    groups: [grp('culture-group', ['culture-history'])],
+    items: [shoot, tour],
+  };
+  const itemIds = (plan: Day[]) => allEntries(plan)
+    .filter((e) => e.kind === 'group')
+    .map((e) => (e as { kind: 'group'; bestSellerId: string }).bestSellerId);
+  const sweep = (flags: string[]) => {
+    const seen = new Set<string>();
+    for (let s = 0; s < 12; s += 1) itemIds(generatePlan({ ...BASE, days: 7, flags }, catalog, { seed: s })).forEach((id) => seen.add(id));
+    return seen;
+  };
+
+  it('the photoshoot never appears without the flag', () => {
+    const seen = sweep([]);
+    expect(seen.has('vacation-photoshoot')).toBe(false);
+    // The group is reachable — so the absence above is the auto-fill rule, not
+    // an unreachable catalog.
+    expect(seen.has('walking-tour')).toBe(true);
+  });
+
+  it('the photoshoot appears once the influencer flag is set', () => {
+    expect(sweep(['influencer']).has('vacation-photoshoot')).toBe(true);
+  });
+
+  it('the flag adds the influencer tag', () => {
+    expect(answersToTags({ ...DEFAULT_ANSWERS, flags: ['influencer'] }).has('influencer')).toBe(true);
+    expect(answersToTags({ ...DEFAULT_ANSWERS, flags: [] }).has('influencer')).toBe(false);
+  });
+
+  // The flag opens a door; it does not hold every other one shut.
+  it('the rest of the plan still fills', () => {
+    const plan = generatePlan({ ...BASE, days: 7, flags: ['influencer'] }, catalog, { seed: 1 });
+    expect(allEntries(plan).length).toBeGreaterThanOrEqual(plan.length * 2);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Real catalog — spot-check high-adventure activities are filtered
 // ---------------------------------------------------------------------------
 

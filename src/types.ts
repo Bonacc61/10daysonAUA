@@ -20,7 +20,12 @@ export type MatchTag =
   // From `adventureLevel` (banded 0-100)
   | 'low-adventure' | 'med-adventure' | 'high-adventure'
   // From `lodging` (single-select) — maps to region
-  | 'palm-beach' | 'eagle-beach' | 'downtown' | 'noord' | 'cruise-day';
+  | 'palm-beach' | 'eagle-beach' | 'downtown' | 'noord' | 'cruise-day'
+  // From the Q8 `influencer` flag. Unlike every tag above it, nothing in
+  // classifyTags() ever emits this for a product — no group or activity carries
+  // it in matched_by, so it never scores through the normal overlap loop. It is
+  // read explicitly by contentCreatorBonus() and by the auto-fill gate.
+  | 'influencer';
 
 export type Region =
   | 'palm-beach' | 'eagle-beach' | 'noord' | 'oranjestad'

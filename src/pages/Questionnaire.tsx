@@ -308,9 +308,13 @@ const SKIP_FLAGS: FlagItem[] = [
   { flag: 'avoid-crowds',     label: 'Crowded spots' },
 ];
 const CONSTRAINT_FLAGS: FlagItem[] = [
-  { flag: 'mobility',  label: 'Mobility considerations' },
-  { flag: 'no-car',    label: 'No rental car' },
-  { flag: 'with-baby', label: 'Travelling with a baby' },
+  { flag: 'mobility',   label: 'Mobility considerations' },
+  { flag: 'no-car',     label: 'No rental car' },
+  { flag: 'with-baby',  label: 'Travelling with a baby' },
+  // Unlike its neighbours this one opens things up rather than ruling them out:
+  // it lets photo/video products into the plan, which the engine otherwise never
+  // suggests unasked. See isAutoFillExcluded / contentCreatorBonus.
+  { flag: 'influencer', label: "I'm an influencer" },
 ];
 const OCCASION_SET = new Set(OCCASION_FLAGS.map(f => f.flag));
 

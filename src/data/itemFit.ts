@@ -277,6 +277,26 @@ export function isRetailProduct(item: ViatorItem): boolean {
 // "Private Dive + videographer/Photographer" is a dive, not a photo service.
 const PHOTO_SERVICE_RE = /\b(photoshoot|photography)\b|\bphoto shoot\b/i;
 
+// Products that hand the traveller usable photo/video content — a sunset
+// photoshoot, a turtle snorkel with "Professional video footage", a clear-kayak
+// drone shoot. What most travellers treat as an upsell is the whole point of the
+// trip for someone who ticked "I'm an influencer" in Q8, so the flag both lifts
+// the auto-fill block above and boosts these in scoring.
+//
+// Deliberately BROADER than PHOTO_SERVICE_RE, and deliberately a substring test
+// rather than word-anchored. The two regexes answer opposite questions: the
+// exclusion is a quality floor, so it stays conservative; this one is opt-in by
+// an explicit request, so a miss is worse than a loose match. Word boundaries
+// cost real inventory here — two live products advertise the operator handle
+// "@arubaphotoshootexperience", where nothing precedes "photo" but a letter.
+// The substrings have no false friends in tour titles: everything containing
+// "photo" (photographer, photogenic) or "video" (videographer, videoshoot) is
+// the thing being asked for.
+const CONTENT_CREATOR_RE = /photo|video/i;
+export function isContentProduct(item: ViatorItem): boolean {
+  return CONTENT_CREATOR_RE.test(item.title);
+}
+
 // Self-drive vehicle hire: you are handed a vehicle for the day, with no guide,
 // no route and no content. "Harley-Davidson RENTALS ONLY 8 hrs" says so in its
 // own title, and at 8 hrs it equals DAY_CAP_MIN exactly — auto-placing it turns
@@ -299,11 +319,16 @@ const SELF_DRIVE_RE = /\brentals only\b|\bon your own\b|\bself[- ]drive\b/i;
  * True for products the generator must never suggest unasked. Auto-fill only —
  * Explore still lists them, search still finds them, and hearting one still
  * places it, because pins resolve against the un-narrowed catalog.
+ *
+ * `influencer` (the Q8 flag) lifts the PHOTO branch and only that branch: the
+ * whole rule is "we won't suggest this unasked", and a traveller who ticked
+ * "I'm an influencer" has asked. Retail and self-drive hire stay excluded —
+ * a diamond showroom is not an outing for anyone, influencer or not.
  */
-export function isAutoFillExcluded(item: ViatorItem): boolean {
+export function isAutoFillExcluded(item: ViatorItem, influencer = false): boolean {
   const t = item.title;
   return RETAIL_RE.test(t)
-    || PHOTO_SERVICE_RE.test(t)
+    || (!influencer && PHOTO_SERVICE_RE.test(t))
     || (HIRE_RE.test(t) && (VEHICLE_RE.test(t) || SELF_DRIVE_RE.test(t)));
 }
 
@@ -393,6 +418,24 @@ export function offroadAdrenalineBonus(item: ViatorItem, tags: Set<MatchTag>): n
   return 0;
 }
 
+// Content boost for the `influencer` flag — the same weight as CROWD_PLEASER_BOOST,
+// because that is what it is: a content product is to someone shooting the trip
+// what a catamaran is to everyone else. Lifting the auto-fill block alone is not
+// enough on its own; these listings are structurally low on reviews (median 9 on
+// the live catalog) and popularity is worth up to +3, so they lose the tiebreaks.
+//
+// Measured on the live catalog (4 personas × 10 seeds, 7-day trips): the outcome
+// is IDENTICAL for every value from 2 upward — 30/40 trips place a content
+// product, 1 per trip. The ceiling is structural, not a scoring question: all
+// four content products that clear the review floor sit in just two of the six
+// Viator groups, and the group/cluster dedup rules allow one apiece. So this
+// number only has to clear the knee at 2, and going higher buys nothing while
+// costing the plan its marquee picks. Do not raise it expecting more placements.
+const CONTENT_BOOST = 3;
+export function contentCreatorBonus(item: ViatorItem, tags: Set<MatchTag>): number {
+  return tags.has('influencer') && isContentProduct(item) ? CONTENT_BOOST : 0;
+}
+
 // Scoring bonus for a crowd-pleaser — comparable in weight to a strong interest
 // match (+3), so a universal favourite competes with, and usually beats, a
 // niche or narrowly-expensive option in the same slot, without erasing the
@@ -466,7 +509,7 @@ export function bestItemForAnswers(items: ViatorItem[], tags: Set<MatchTag>): Vi
   for (const it of items) {
     const f = fitItem(it, tags);
     if (f.rejected) continue;
-    const score = f.score + offroadAdrenalineBonus(it, tags);
+    const score = f.score + offroadAdrenalineBonus(it, tags) + contentCreatorBonus(it, tags);
     if (score > bestScore) { bestScore = score; best = it; }
   }
   return best;
