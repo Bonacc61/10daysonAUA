@@ -36,7 +36,26 @@ echo " next: $next"
 echo "─────────────────────────────────────────────────────────────"
 echo
 
-"$RALPH_DIR/ralph.sh" --tool claude 1 || true
+# Do NOT swallow this. A step that could not start is the single most useful
+# thing to be told, and upstream's `|| true` is exactly why the first run of
+# this loop reported success while implementing nothing.
+set +e
+"$RALPH_DIR/ralph.sh" --tool claude 1
+RALPH_STATUS=$?
+set -e
+
+if [ "$RALPH_STATUS" -ne 0 ]; then
+  echo
+  echo "─────────────────────────────────────────────────────────────"
+  echo " ✋ ralph.sh exited $RALPH_STATUS — the agent never ran."
+  echo "    Nothing was implemented and nothing is broken. Fix the cause"
+  echo "    above and step again. Common ones on this machine:"
+  echo "      • running as root — Claude Code refuses bypassPermissions."
+  echo "        Try: RALPH_PERMISSION_MODE=acceptEdits ./scripts/ralph/step.sh"
+  echo "      • expired CLI auth — run \`claude\` once interactively to log in."
+  echo "─────────────────────────────────────────────────────────────"
+  exit "$RALPH_STATUS"
+fi
 
 echo
 echo "─────────────────────────────────────────────────────────────"

@@ -87,12 +87,42 @@ for i in $(seq 1 $MAX_ITERATIONS); do
   echo "  Ralph Iteration $i of $MAX_ITERATIONS ($TOOL)"
   echo "==============================================================="
 
-  # Run the selected tool with the ralph prompt
+  # Run the selected tool with the ralph prompt.
+  #
+  # LOCAL CHANGE (2026-08-11): upstream wrapped both of these in `|| true`, and
+  # captured the exit code of `tee` rather than the tool's. A tool that failed
+  # instantly — wrong flag, expired auth, refusing to run as root — was
+  # indistinguishable from a successful iteration, so the loop would burn
+  # through every iteration in seconds and report "reached max iterations".
+  # Observed exactly that: `--dangerously-skip-permissions cannot be used with
+  # root/sudo privileges`, reported as "Iteration 1 complete".
+  #
+  # Now: capture the real status, and abort the whole run on the first failure.
+  # A loop whose steps can fail silently is worse than no loop.
+  #
+  # RALPH_PERMISSION_MODE exists because --dangerously-skip-permissions is
+  # refused under root. `acceptEdits` and `dontAsk` are accepted there.
+  PERM_MODE="${RALPH_PERMISSION_MODE:-bypassPermissions}"
+  # `set -e` is on at the top of this script, and would abort on the failed
+  # assignment before the check below could explain what happened. Turn it off
+  # just around the call.
+  set +e
+  set -o pipefail
   if [[ "$TOOL" == "amp" ]]; then
-    OUTPUT=$(cat "$SCRIPT_DIR/prompt.md" | amp --dangerously-allow-all 2>&1 | tee /dev/stderr) || true
+    OUTPUT=$(cat "$SCRIPT_DIR/prompt.md" | amp --dangerously-allow-all 2>&1 | tee /dev/stderr)
   else
-    # Claude Code: use --dangerously-skip-permissions for autonomous operation, --print for output
-    OUTPUT=$(claude --dangerously-skip-permissions --print < "$SCRIPT_DIR/CLAUDE.md" 2>&1 | tee /dev/stderr) || true
+    OUTPUT=$(claude --permission-mode "$PERM_MODE" --print < "$SCRIPT_DIR/CLAUDE.md" 2>&1 | tee /dev/stderr)
+  fi
+  STATUS=$?
+  set +o pipefail
+  set -e
+
+  if [ "$STATUS" -ne 0 ]; then
+    echo ""
+    echo "  ✋ $TOOL exited $STATUS on iteration $i. Stopping."
+    echo "     Nothing was implemented. Read the output above — a failure here is"
+    echo "     usually auth, a refused flag, or a missing prerequisite, not the story."
+    exit "$STATUS"
   fi
   
   # Check for completion signal
