@@ -80,6 +80,19 @@ feeds the engine is in `docs/matching-engine/geography.md`:
   is not an open item against plan quality.
 - `TAG_SIMILARITY_THRESHOLD = 0.35` set conservatively, never tuned against the
   live catalog.
+- **Display-time refacing has no cross-card dedup — two cards can show one
+  experience cluster.** The generator's cluster rule governs what it *places*;
+  `resolveSlotEntry` then re-picks every group card's face independently via
+  `refaceForAnswers`/`bestItemForAnswers`, which knows nothing about what the
+  other cards are showing. Measured 2026-08-11 on the live catalog: with no
+  flags at all, `food-drink-experiences` and `watersports` both face cluster
+  `444239P2`; with the Q8 `influencer` flag, `sailing-cruises` and `watersports`
+  both face `472918P1` (the two "private turtle snorkel + video" products,
+  observed in a real plan on day 2 and day 4). **Pre-existing and not caused by
+  the influencer flag** — the content bonus is simply a new input to the same
+  re-pick, so it changes which cluster collides, not whether one can. Fixing it
+  means giving the reface chokepoint a plan-wide view, which it does not
+  currently have.
 
 ## Shipped
 
