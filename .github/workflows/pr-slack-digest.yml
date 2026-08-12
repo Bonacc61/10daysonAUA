@@ -1,56 +1,44 @@
-name: PR Slack digest
+name: Slack digest
 
-# Posts a written summary of every change to Slack, so the state of the repo is
-# legible without opening GitHub.
+# Posts one short, plain-English note to Slack for every change that actually
+# lands on main, saying what is different for someone using the site.
 #
-# Not a notification bot. GitHub's own Slack app already posts event cards and
-# they are close to useless — "Bonacc61 opened #12" tells you nothing you would
-# act on. This reads the actual diff and says what changed and whether it looks
-# risky.
+# Only `push` to main. That is deliberate and it is what keeps this to one
+# message per change:
 #
-# Covers two things, with no overlap between them:
-#   pull_request  — opened, ready for review, new commits, merged/closed
-#   push to main  — commits that never went through a PR
+#   - A merged pull request IS a push to main, so merges are covered.
+#   - Subscribing to pull_request as well announced everything twice, once on
+#     open and again on merge, which is what this replaced.
+#   - It also deleted the merge-detection heuristic that used to suppress the
+#     duplicate. That heuristic silently dropped any hand-written commit whose
+#     message ended in "(#12)". No duplicate to suppress, no heuristic, no
+#     silently missing commits.
 #
-# The no-overlap part is load-bearing. Merging a PR fires BOTH a pull_request
-# `closed` event and a `push` to main, which would announce every merge twice.
-# The push branch bails out when the head commit looks merge-produced — GitHub
-# squashes as "Title (#12)" and merge-commits as "Merge pull request #12".
-# The cost of that heuristic: a hand-written commit ending in "(#12)" is
-# silently skipped. Judged worth it against doubling every merge.
+# The cost, stated plainly: work in an open pull request is invisible until it
+# merges. Proposing a change announces nothing. That is the trade for one
+# message per landed change rather than three.
 #
-# `synchronize` (commits pushed to an open PR) summarises ONLY the new commits,
-# not the whole PR again — otherwise every push re-announces the entire branch.
+# The prompt aims at one thing: a note a non-engineer reads in ten seconds and
+# learns something real from. It answers "what is different now" and stops.
+# Notes about internal plumbing get one sentence saying so — the reader does not
+# need bullets about a change they will never see.
 #
-# The prompt aims at one thing: a note a non-engineer reads in ten seconds.
-#
-# It started from the `deconstruct` skill, which says to define every term of art
-# at first use. That rule is right for a decision document and wrong here — it
-# adds a clause per term, and the digests came out at 250 words nobody finished.
-# Inverted instead: avoid the term, so there is nothing to define. "Makes search
-# faster" beats "adds an index — a lookup table that lets the database skip
-# rows". What survives from the skill is naming a concrete failure rather than a
-# category, and refusing to pad.
-#
-# The worked example in the prompt is doing real work. Length and register are
-# far better controlled by showing one than by asking for a word count.
-#
-# Claude writes the prose; a plain shell step delivers it. Keeping delivery out
-# of the model's hands means diff text containing quotes, backticks or newlines
-# cannot break the Slack payload — jq handles the escaping.
+# It began as the `deconstruct` skill, which says to define every term of art at
+# first use. Right for a decision document, wrong here: it adds a clause per
+# term and the notes came out at 250 words nobody finished. Inverted — avoid the
+# term so there is nothing to define. "Makes search faster" beats "adds an index
+# — a lookup table that lets the database skip rows".
 #
 # Uses the Claude Code CLI rather than anthropics/claude-code-action, because
-# that action rejects `push` outright — "Unsupported event type: push" — and the
-# push path is half the point of this workflow. The CLI has no such restriction
-# and takes the same subscription token, so one mechanism now covers both
-# triggers. `claude -p` prints the note on stdout, which removes the file the
-# model used to write and the Write tool it needed to do it.
+# that action rejects push outright — "Unsupported event type: push" — which
+# silently broke every direct commit to main. The CLI has no event restriction
+# and takes the same subscription token. `claude -p` prints the note on stdout,
+# so there is no intermediate file and no Write tool to grant.
 #
-# The summary step deliberately never fails the job. Anything that goes wrong
-# falls through to the Slack step, which posts the link with a note that the
-# summary is missing. Silence is the worst outcome available here: it is
-# indistinguishable from "no commits happened", so a failure that silences the
-# channel gets discovered weeks later, if ever.
+# The summary step never fails the job. Anything that goes wrong falls through
+# to the Slack step, which posts the link and says the summary is missing.
+# Silence is the worst outcome available: it is indistinguishable from "nothing
+# happened", so a broken digest hides indefinitely. It already did once.
 #
 # Secrets required:
 #   CLAUDE_CODE_OAUTH_TOKEN  — from `claude setup-token`, billed to the Claude
@@ -58,21 +46,15 @@ name: PR Slack digest
 #   SLACK_BOT_TOKEN          — the Slack app's xoxb- token (needs chat:write; the
 #                              app has no chat:write.public, so the bot must be a
 #                              member of the target channel or posting fails)
-#
-# Note: pull_request runs from forks do not receive secrets, by GitHub design.
-# Fork PRs will silently not post. Fine while this is a solo repo; revisit with
-# pull_request_target (carefully) if that changes.
 
 on:
-  pull_request:
-    types: [opened, ready_for_review, synchronize, closed]
   push:
     branches: [main]
 
-# Keyed on the commit, not the PR: two pushes in quick succession are two
-# distinct things to announce, so neither may cancel the other.
+# Keyed on the commit: two pushes in quick succession are two things to
+# announce, so neither may cancel the other.
 concurrency:
-  group: pr-slack-digest-${{ github.event_name }}-${{ github.sha }}
+  group: slack-digest-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -80,34 +62,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    # Drafts are not ready to be summarised; they get their digest when marked
-    # ready for review instead. Push events carry no draft flag, hence the OR.
-    if: github.event_name == 'push' || github.event.pull_request.draft == false
-
     permissions:
       contents: read
-      pull-requests: read
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          # Full history: the commit ranges below are meaningless on a shallow
+          # Full history: the commit range below is meaningless on a shallow
           # clone, and `git diff BEFORE..AFTER` fails outright.
           fetch-depth: 0
 
       - name: Work out what changed
         id: event
         env:
-          # Every field is held in env rather than inlined into the script, so a
-          # branch or commit message cannot execute as shell.
-          EVENT: ${{ github.event_name }}
-          ACTION: ${{ github.event.action }}
-          MERGED: ${{ github.event.pull_request.merged }}
-          PR_NUMBER: ${{ github.event.number }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          # Held in env rather than inlined into the script, so a commit message
+          # cannot execute as shell.
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.event.after }}
           HEAD_MSG: ${{ github.event.head_commit.message }}
@@ -118,138 +88,87 @@ jobs:
 
           out() { printf '%s<<__EOF__\n%s\n__EOF__\n' "$1" "$2" >> "$GITHUB_OUTPUT"; }
 
-          # A range is only usable if both ends exist locally. Force-pushes and
-          # first-pushes leave BEFORE dangling or all-zeroes, so fall back to the
-          # head commit alone rather than failing the job.
-          #
-          # The last resort is git's empty-tree hash, which is a real object in
-          # every repository representing "no files at all" — diffing against it
-          # renders the commit as pure additions. It covers the case where the
-          # head has no parent to fall back to, where `HEAD~1` would not resolve.
+          # A range is only usable if both ends exist locally. Force-pushes leave
+          # BEFORE dangling or all-zeroes, so fall back to the head commit alone.
+          # Last resort is git's empty-tree hash, a real object in every
+          # repository meaning "no files at all" — diffing against it renders the
+          # commit as pure additions, which covers a commit with no parent.
           EMPTY_TREE=4b825dc642cb6eb9a060e54bf8d69288fbee4904
-          safe_range() {
-            if git rev-list --count "$1..$2" >/dev/null 2>&1; then
-              printf '%s..%s' "$1" "$2"
-            elif git rev-parse --verify --quiet "$2~1" >/dev/null; then
-              printf '%s~1..%s' "$2" "$2"
-            else
-              printf '%s..%s' "$EMPTY_TREE" "$2"
-            fi
-          }
-
-          if [ "$EVENT" = "push" ]; then
-            FIRST_LINE="$(printf '%s' "$HEAD_MSG" | head -n 1)"
-            if printf '%s' "$FIRST_LINE" | grep -qE '\(#[0-9]+\)$|^Merge pull request #[0-9]+'; then
-              echo "The pull_request closed event already announced this merge."
-              out "skip" "true"
-              exit 0
-            fi
-
-            RANGE="$(safe_range "$BEFORE" "$AFTER")"
-            COUNT="$(git rev-list --count "$RANGE")"
-            [ "$COUNT" = "1" ] && NOUN="commit" || NOUN="commits"
-
-            out "skip" "false"
-            out "header" "$FIRST_LINE"
-            out "url" "$COMPARE_URL"
-            out "meta" "*${COUNT} ${NOUN} pushed to main* by ${ACTOR}"
-            out "brief" "${COUNT} ${NOUN} were just pushed directly to the main branch, without going through a pull request."
-            out "inspect" "\`git log --oneline ${RANGE}\` and \`git diff ${RANGE}\`"
-
-          elif [ "$ACTION" = "synchronize" ]; then
-            RANGE="$(safe_range "$BEFORE" "$AFTER")"
-            COUNT="$(git rev-list --count "$RANGE")"
-            [ "$COUNT" = "1" ] && NOUN="commit" || NOUN="commits"
-
-            out "skip" "false"
-            out "header" "#${PR_NUMBER} ${PR_TITLE}"
-            out "url" "$PR_URL"
-            out "meta" "*${COUNT} new ${NOUN}* by ${ACTOR}"
-            out "brief" "${COUNT} new ${NOUN} were just pushed to open pull request #${PR_NUMBER}."
-            out "inspect" "\`git log --oneline ${RANGE}\` and \`git diff ${RANGE}\` — summarise ONLY these new commits, not the whole pull request"
-
+          if git rev-list --count "$BEFORE..$AFTER" >/dev/null 2>&1; then
+            RANGE="$BEFORE..$AFTER"
+          elif git rev-parse --verify --quiet "$AFTER~1" >/dev/null; then
+            RANGE="$AFTER~1..$AFTER"
           else
-            if [ "$ACTION" = "closed" ] && [ "$MERGED" = "true" ]; then
-              HEADLINE="merged"
-            elif [ "$ACTION" = "closed" ]; then
-              HEADLINE="closed without merging"
-            elif [ "$ACTION" = "ready_for_review" ]; then
-              HEADLINE="ready for review"
-            else
-              HEADLINE="opened"
-            fi
-
-            out "skip" "false"
-            out "header" "#${PR_NUMBER} ${PR_TITLE}"
-            out "url" "$PR_URL"
-            out "meta" "*${HEADLINE}* by ${PR_AUTHOR}"
-            out "brief" "Pull request #${PR_NUMBER} in this repository was just ${HEADLINE}."
-            out "inspect" "\`gh pr view ${PR_NUMBER}\` and \`gh pr diff ${PR_NUMBER}\`"
+            RANGE="$EMPTY_TREE..$AFTER"
           fi
 
+          COUNT="$(git rev-list --count "$RANGE")"
+          FIRST_LINE="$(printf '%s' "$HEAD_MSG" | head -n 1)"
+
+          if [ "$COUNT" -le 1 ]; then
+            HEADER="$FIRST_LINE"
+          else
+            HEADER="${COUNT} changes — ${FIRST_LINE}"
+          fi
+
+          out "header" "$HEADER"
+          out "url" "$COMPARE_URL"
+          out "meta" "by ${ACTOR}"
+          out "range" "$RANGE"
+
       - name: Set up Node
-        if: steps.event.outputs.skip != 'true'
         uses: actions/setup-node@v6
         with:
           node-version: '20'
 
-      - name: Write the summary
-        if: steps.event.outputs.skip != 'true'
+      - name: Write the note
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BRIEF: ${{ steps.event.outputs.brief }}
-          INSPECT: ${{ steps.event.outputs.inspect }}
+          RANGE: ${{ steps.event.outputs.range }}
         # No `set -e`. Every failure below must fall through to the Slack step,
         # which posts a fallback — silence is the one outcome worse than a bad
-        # summary, and silence is indistinguishable from "nothing happened".
+        # note, because it looks exactly like nothing having happened.
         run: |
           set -uo pipefail
 
           npm install -g @anthropic-ai/claude-code >/dev/null 2>&1 || true
 
-          # The two dynamic lines are printed from env; the rules are a quoted
-          # heredoc so nothing in them expands. A commit message cannot reach
-          # the shell either way.
+          # The range is printed from env; the rules are a quoted heredoc so
+          # nothing in them expands.
           {
-          printf '%s\n\n' "$BRIEF"
-          printf 'Inspect it with %s. Read any source file you need in order to judge what the change actually does.\n\n' "$INSPECT"
+          printf 'Code just landed on the main branch of this repository. Inspect it with `git log --oneline %s` and `git diff %s`, and read any source file you need in order to judge what it actually does.\n\n' "$RANGE" "$RANGE"
           cat <<'RULES'
-          Then write a very short note for someone who does not write code and
-          wants to know what happened, and nothing more.
+          Then answer one question, for someone who uses this site but does not
+          write code and has thirty seconds:
 
-          Hard rules:
+              What is different now?
 
-          - Under 80 words. Shorter is always better. Most changes deserve two
-            sentences. A typo fix deserves one line.
-          - Avoid the jargon instead of explaining it. Do not name files,
-            functions, libraries, or technologies unless the note is meaningless
-            without them. Say what the change does for a person, not how it is
-            built. Write "Slack now gets a message when code goes straight into
-            the project" — never "adds a push trigger to the workflow".
-          - No line counts, no file paths, no percentages, unless that number is
-            the entire point of the change.
-          - Never restate the title. The reader can already see it.
+          Rules, in priority order:
 
-          Shape:
+          - Lead with what changed for a person using the site. Not what changed
+            in the code — what they would notice, or what now works that did not.
+          - If nothing user-visible changed, say in ONE sentence what internal
+            thing changed and stop there. No bullets. No closing line. A note
+            about plumbing does not deserve a paragraph.
+          - Under 50 words. Two sentences is usually right, one is often enough.
+          - Never name files, functions, libraries, tools or technologies.
+          - Never restate the commit message. The reader can already see it.
+          - Never write a sentence whose only content is that there is nothing to
+            say. No "nothing to watch out for", no "no risk", no "routine", no
+            "no user-facing changes" as a closing flourish. If there is nothing
+            more to add, the note simply ends.
+          - Only if a person could actually hit a problem, one final line
+            starting "Watch out:" naming what breaks and when. Most changes do
+            not get this line.
 
-          - One plain sentence: what changed, and why anyone should care.
-          - Then at most three short bullets, and only if they say something the
-            sentence did not. Fewer is better. For a small change, drop them.
-          - Only if something could genuinely go wrong for a person, one final
-            line starting `Watch out:`. Otherwise leave it out — never write "no
-            risk", "routine", or any other placeholder.
+          Two notes at the right length and register:
 
-          This is the right length and register:
+            Beaches now show the verified map pins, so directions stop sending
+            people to the wrong side of the island.
 
-            Jarvis now speaks up when code goes straight into the project, not
-            only when changes are proposed for review first.
-
-            • Announces new code added to an open proposal
-            • Stays quiet instead of repeating itself when one is approved
-
-            Watch out: a note ending in something like "(#4)" is mistaken for an
-            approval and stays silent.
+            Nothing changes on the site — this only fixes the Slack notifications
+            the team gets.
 
           Format: plain text, Slack mrkdwn — *bold* not **bold**, no headers. No
           preamble, no sign-off, no restating these instructions. Your entire
@@ -262,18 +181,17 @@ jobs:
           claude -p "$(cat "$RUNNER_TEMP/prompt.md")" \
             --allowedTools "Read,Bash" \
             --permission-mode bypassPermissions \
-            > pr-summary.txt 2> "$RUNNER_TEMP/claude-err.log" || true
+            > note.txt 2> "$RUNNER_TEMP/claude-err.log" || true
 
-          if [ -s pr-summary.txt ]; then
-            echo "--- summary ---"
-            cat pr-summary.txt
+          if [ -s note.txt ]; then
+            echo "--- note ---"
+            cat note.txt
           else
-            echo "::warning::Claude produced no summary; the fallback will post."
+            echo "::warning::Claude produced no note; the fallback will post."
             tail -n 20 "$RUNNER_TEMP/claude-err.log" || true
           fi
 
       - name: Post it to Slack
-        if: steps.event.outputs.skip != 'true'
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           CHANNEL: C0BPNKA6Y1L
@@ -285,19 +203,19 @@ jobs:
 
           # If Claude failed or wrote nothing, still post. Silence would read as
           # "nothing happened", which is worse than a bare link.
-          if [ -s pr-summary.txt ]; then
-            SUMMARY="$(cat pr-summary.txt)"
+          if [ -s note.txt ]; then
+            NOTE="$(cat note.txt)"
           else
-            SUMMARY="_(No summary was generated — see the link above.)_"
+            NOTE="_(No summary was generated — see the link above.)_"
           fi
 
-          # jq -n --arg builds the JSON, so nothing in the title or summary can
-          # break out of the payload.
+          # jq -n --arg builds the JSON, so nothing in the commit message or the
+          # note can break out of the payload.
           PAYLOAD="$(jq -n \
             --arg channel "$CHANNEL" \
             --arg header "$HEADER" \
             --arg meta "$META" \
-            --arg summary "$SUMMARY" \
+            --arg note "$NOTE" \
             --arg url "$URL" \
             '{
               channel: $channel,
@@ -305,9 +223,9 @@ jobs:
               text: $header,
               blocks: [
                 { type: "section",
-                  text: { type: "mrkdwn", text: ("*<" + $url + "|" + $header + ">*\n" + $meta) } },
+                  text: { type: "mrkdwn", text: ("*<" + $url + "|" + $header + ">*  " + $meta) } },
                 { type: "section",
-                  text: { type: "mrkdwn", text: $summary } }
+                  text: { type: "mrkdwn", text: $note } }
               ]
             }')"
 
@@ -327,4 +245,4 @@ jobs:
             exit 1
           fi
 
-          echo "Posted digest: ${HEADER}"
+          echo "Posted: ${HEADER}"
