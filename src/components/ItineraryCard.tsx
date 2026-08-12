@@ -16,6 +16,8 @@ type Props = {
   pinned?: boolean;
   splurge?: boolean;
   staple?: boolean;
+  /** Human label for a route family this trip already used, e.g. "sail". */
+  dupeFamily?: string;
   onFlip: () => void;
   onSwap?: () => void;
   showReasons?: boolean;
@@ -36,7 +38,7 @@ const REASONS_EXTRA = SWAP_REASONS_OPEN_PX;
 const ECHO_EXTRA = 18;
 
 export default function ItineraryCard({
-  entry, flipped, swapping, pinned, splurge, staple, onFlip, onSwap,
+  entry, flipped, swapping, pinned, splurge, staple, dupeFamily, onFlip, onSwap,
   showReasons = false, onPickReason, onAddItem, onNavigateToSection,
   onSubmitReasonText, reasonPending, reasonFailed, echo,
 }: Props) {
@@ -66,14 +68,14 @@ export default function ItineraryCard({
     : <CardBack kind="group"    bestSeller={entry.bestSeller}  onFlip={onFlip} />;
 
   const front = entry.kind === 'activity'
-    ? <ActivityCardFront a={entry.activity} bookUrl={bookUrl} pinned={pinned} staple={staple}
+    ? <ActivityCardFront a={entry.activity} bookUrl={bookUrl} pinned={pinned} staple={staple} dupeFamily={dupeFamily}
                          onFlip={onFlip} onSwap={onSwap}
                          showReasons={showReasons} onPickReason={onPickReason}
                          onSubmitReasonText={onSubmitReasonText} reasonPending={reasonPending}
                          reasonFailed={reasonFailed} echo={echo}
                          onNavigateToSection={onNavigateToSection} />
     : <GroupCard group={entry.group} bestSeller={entry.bestSeller}
-                 others={entry.others} bookUrl={bookUrl} pinned={pinned} splurge={splurge} staple={staple}
+                 others={entry.others} bookUrl={bookUrl} pinned={pinned} splurge={splurge} staple={staple} dupeFamily={dupeFamily}
                  onSwap={onSwap} onFlip={onFlip}
                  showReasons={showReasons} onPickReason={onPickReason}
                  suggestionsOpen={suggestionsOpen}
@@ -94,13 +96,14 @@ export default function ItineraryCard({
 // Local activity (non-Viator) card front face — preserved from the original
 // inline CardFront in Itinerary.tsx, with the same look and behavior.
 function ActivityCardFront({
-  a, bookUrl, pinned, staple, onFlip, onSwap, showReasons, onPickReason, onNavigateToSection,
+  a, bookUrl, pinned, staple, dupeFamily, onFlip, onSwap, showReasons, onPickReason, onNavigateToSection,
   onSubmitReasonText, reasonPending, reasonFailed, echo,
 }: {
   a: Activity;
   bookUrl: string | null;
   pinned?: boolean;
   staple?: boolean;
+  dupeFamily?: string;
   onFlip: () => void;
   onSwap?: () => void;
   showReasons?: boolean;
@@ -190,6 +193,7 @@ function ActivityCardFront({
             </span>
             {pinned && <span className="itin-pinned-badge">★ Your pick</span>}
             {staple && !pinned && <span className="itin-staple-badge">◑ Island classic</span>}
+            {dupeFamily && <span className="itin-dupe-badge">⚠ 2nd {dupeFamily} this trip</span>}
           </div>
           <div style={{ marginTop: 'auto' }}>
             {/* "Book now" leads, "Swap this" follows: the primary action sits

@@ -300,6 +300,16 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
   padding: 2px 8px; border-radius: 999px; flex-shrink: 0; white-space: nowrap;
 }
 
+/* Shown on the SECOND card of a route family in one trip — a duplicate the
+   traveller created themselves (shortlist add, drag). The generator can no
+   longer produce one and swap will not return one, so this is a note about a
+   deliberate choice, never a warning about our own suggestion. */
+.itin-dupe-badge {
+  background: var(--cream); color: var(--ink); border: 2px solid var(--ink);
+  font-size: 10px; font-weight: 800; font-style: normal;
+  padding: 1px 8px; border-radius: 999px; flex-shrink: 0; white-space: nowrap;
+}
+
 /* Per-card drag handle + remove control cluster (top-right of each card). */
 .itin-sortable { position: relative; }
 .itin-card-controls { position: absolute; top: 8px; right: 8px; z-index: 7; display: flex; gap: 4px; }

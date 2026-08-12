@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { generatePlan, durationMinutes } from './itineraryGenerator';
+import { generatePlan, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies } from './itineraryGenerator';
 import { getCatalog } from './activitySource';
 import { DEFAULT_ANSWERS } from '../App';
 import type { Answers } from '../App';
 import type { Activity, Day } from './activities';
 import type { Catalog } from './activitySource';
-import type { MatchTag, ViatorGroup, ViatorItem, SlotEntry } from '../types';
+import type { MatchTag, ViatorGroup, ViatorItem, SlotEntry, CardEntry } from '../types';
 import { type Coord } from './coords';
 import { pinFor } from './itemCoords';
 import { distanceKm } from './enRoute';
@@ -2114,5 +2114,84 @@ describe('generatePlan — premium splurge never re-places a staple', () => {
         ), cat);
       }
     }
+  });
+});
+
+describe('route families outside the generator (swap / add paths)', () => {
+  // The one-sail rule lived only inside generatePlan. Measured on the live
+  // catalog: the engine produced two Viator sails in 0 of 1,728 plans, and the
+  // card renderer in 0 of 1,728 — yet travellers saw two. Every path that edits
+  // a plan AFTER generation ran in the UI with no way to ask which families
+  // were spoken for, and "Swap this" excludes candidates by item id and GROUP
+  // id while the sail family deliberately spans groups. That is the exact case
+  // the family was invented for: two catamarans that activityKind classifies
+  // differently.
+  const mkGroup = (id: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  const mkItem = (id: string, title: string, tags: number[]): ViatorItem => ({
+    id, group_id: `g-${id}`, title, image_url: '', price_usd: 90, duration: '3 hrs',
+    rating: 4.7, review_count: 300, viator_item_url: '', is_best_seller: true,
+    display_order: 0, tags, experience_cluster_id: `c-${id}`,
+  });
+  const SAIL = 11888, OFFROAD = 12035;
+  const sailA = mkItem('sail-a', 'Premium Catamaran Afternoon Sail', [SAIL, 1]);
+  const sailB = mkItem('sail-b', 'Aruba Sunset Sail with Open Bar', [SAIL, 2]);
+  const jeep = mkItem('jeep', 'Arikok Jeep Safari', [OFFROAD, 3]);
+  const entry = (i: ViatorItem): CardEntry => ({ kind: 'group', group: mkGroup(i.group_id), bestSeller: i, others: [] });
+  const slotEntryOf = (i: ViatorItem): SlotEntry => ({ kind: 'group', groupId: i.group_id, bestSellerId: i.id });
+  const resolve = (e: SlotEntry): CardEntry | null => {
+    if (e.kind !== 'group') return null;
+    const i = [sailA, sailB, jeep].find((x) => x.id === e.bestSellerId);
+    return i ? entry(i) : null;
+  };
+
+  it('reports the families a plan has already used', () => {
+    const cards = [{ uid: 'u1', entry: slotEntryOf(sailA) }, { uid: 'u2', entry: slotEntryOf(jeep) }];
+    expect(claimedRouteFamilies(cards, resolve)).toEqual(new Set(['sail', 'offroad']));
+  });
+
+  it('ignores the card being swapped, so a sail can be swapped for another sail', () => {
+    // Without skipUid the card would claim its own family and every replacement
+    // sail would be filtered out — the swap button would refuse to work on the
+    // one card type this rule is about.
+    const cards = [{ uid: 'u1', entry: slotEntryOf(sailA) }, { uid: 'u2', entry: slotEntryOf(jeep) }];
+    const claimed = claimedRouteFamilies(cards, resolve, 'u1');
+    expect(claimed).toEqual(new Set(['offroad']));
+    expect(withoutClaimedFamilies([entry(sailB)], claimed)).toHaveLength(1);
+  });
+
+  it('drops a replacement whose family the trip already has, ACROSS groups', () => {
+    // sail-a and sail-b sit in different groups, so every exclusion the swap
+    // pool already does (item id, group id) waves sail-b through.
+    const cards = [{ uid: 'u1', entry: slotEntryOf(sailA) }, { uid: 'u2', entry: slotEntryOf(jeep) }];
+    const claimed = claimedRouteFamilies(cards, resolve, 'u2');   // swapping the JEEP
+    const pool = withoutClaimedFamilies([entry(sailB), entry(jeep)], claimed);
+    expect(pool.map((c) => (c.kind === 'group' ? c.bestSeller.id : ''))).toEqual(['jeep']);
+  });
+
+  it('a card with no family claims nothing', () => {
+    // Most of the catalog has no route family at all — a museum, a food tour, a
+    // beach. If those claimed some catch-all bucket, the first one placed would
+    // block every other familyless card from every swap for the rest of the trip.
+    const museum = mkItem('museum', 'Aruba Historical Museum', [999]);
+    const resolve2 = (e: SlotEntry): CardEntry | null =>
+      (e.kind === 'group' && e.bestSellerId === 'museum') ? entry(museum) : resolve(e);
+    const claimed = claimedRouteFamilies([{ uid: 'u1', entry: slotEntryOf(museum) }], resolve2);
+    expect(claimed.size).toBe(0);
+  });
+
+  it('leaves a familyless candidate alone', () => {
+    const museum = mkItem('museum', 'Aruba Historical Museum', [999]);
+    const claimed = new Set(['sail']);
+    expect(withoutClaimedFamilies([entry(museum)], claimed)).toHaveLength(1);
+  });
+
+  it('does not let an unresolvable card unlock a duplicate', () => {
+    // A card whose product left the catalog resolves to null. Treating that as
+    // "no family" would quietly re-allow the sail it used to be.
+    const cards = [{ uid: 'u1', entry: { kind: 'group', groupId: 'gone', bestSellerId: 'gone' } as SlotEntry }];
+    expect(claimedRouteFamilies(cards, resolve)).toEqual(new Set());
   });
 });

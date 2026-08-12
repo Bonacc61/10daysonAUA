@@ -772,6 +772,67 @@ below — more evening inventory is the fix, and no constant will do it.
 
 ---
 
+### 2026-08-12 — The one-sail rule stopped at the generator's edge
+
+**Reported:** two sails in one itinerary — a catamaran and a sunset sail — both
+Viator cards, on a plan built by the fixed engine.
+
+The engine was innocent, and measuring said so before anything was changed:
+
+```
+1,728 plans (4 group types x 4 budgets x 4 interest sets x 3 adventure x 3 lengths x 3 seeds)
+  engine produces >1 Viator sail:      0
+  card renderer shows >1 Viator sail:  0
+```
+
+**The rule only ever existed inside `generatePlan`.** Every path that edits a
+plan *after* generation runs in the UI, and `routeFamilyOf` was not exported —
+so swap, add-from-shortlist and drag-between-days had no way to ask which
+families were spoken for. There were zero references to route families in
+`Itinerary.tsx`.
+
+Swap is the one that bites, and for a precise reason: `applySwap` excludes
+candidates by **item id and group id**, while the sail family **spans groups on
+purpose**. That is the exact case it was invented for — the original report was
+two catamarans that `activityKind` classified differently ('sail' and
+'snorkel'). So every exclusion the swap already performed waved the second sail
+straight through.
+
+**Fix, in two halves, because the two halves are different questions.**
+
+*Swap is ours, so it obeys the rule.* `routeFamilyOf` is exported, plus
+`claimedRouteFamilies(cards, resolve, skipUid)` and
+`withoutClaimedFamilies(pool, claimed)` — both pure, both unit-tested. All four
+swap pools are filtered: the within-group rotation too, because a group is not a
+family ('sailing-cruises' holds sails, dives and a submarine, so rotating a
+non-sail card could still surface a sail).
+
+`skipUid` carries the asymmetry that was explicitly asked for: **tapping "Swap
+this" ON a sail still offers sails**, because that card does not claim its own
+family — otherwise the one card type this rule concerns would be unswappable.
+Tapping it on a jeep never returns a sail while one is planned.
+
+*An explicit add is the traveller's, so it gets a note, not a block.* A second
+card of a family already used shows `⚠ 2nd sail this trip`. Derived from the
+plan at render time rather than recorded on add, so it holds however the
+duplicate arrived — shortlist picker, a drag, or a trip saved before the rule
+existed. Checked for false positives: across the same 1,728 freshly generated
+plans the badge fires **0 times**, so it can only ever mark a deliberate choice.
+
+**Mutation-tested rather than assumed.** The first three helper tests passed the
+moment they were written, which proves nothing, so all three mutations were run:
+making the filter a no-op and ignoring `skipUid` both killed tests; making a
+familyless card claim a bucket did not, and a sixth test was added to close it.
+Most of the catalog has no route family, and if those claimed some catch-all the
+first one placed would block every familyless card from every swap for the rest
+of the trip.
+
+**Not verified in a browser.** The swap path lives in a React closure; the
+helpers are unit-tested and the wiring typechecks and builds, but no one has
+clicked the button.
+
+---
+
 ### 2026-08-12 — Three cards a day, and the meal counts
 
 **Asked for:** "max 3 activities per day including food". The engine did not do

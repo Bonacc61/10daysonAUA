@@ -623,7 +623,15 @@ export function isSailOuting(item: ViatorItem): boolean {
   if (isEveningItem(item) && EVENING_SAIL_TITLE_RE.test(item.title)) return true;
   return kind === 'sec:cruises-water' && DAY_SAIL_TITLE_RE.test(item.title);
 }
-function routeFamilyOf(e: CardEntry): string | undefined {
+// Exported since 2026-08-12 because the rule has to hold on BOTH sides of the
+// generator. `generatePlan` retires a family after one placement, but every path
+// that edits a plan afterwards — swap, add-from-shortlist, drag between days —
+// runs in the UI and had no way to ask this question. Measured: the engine
+// produced two Viator sails in 0 of 1,728 plans and the card renderer in 0 of
+// 1,728, yet travellers saw two, because "Swap this" could return a sail from a
+// different GROUP and the swap pool excludes by group id. The family spans
+// groups on purpose — that is the bug it was written for.
+export function routeFamilyOf(e: CardEntry): string | undefined {
   const title = e.kind === 'group' ? e.bestSeller.title : e.activity.title;
   // Conchi gets its OWN family, retired after one visit however it is reached.
   // The generic off-road family only catches items whose tags classify them as
@@ -2110,4 +2118,41 @@ export function generatePlan(
   // ---------------------------------------------------------------------------
 
   return days;
+}
+
+// --- Route families, for the plan-editing paths in the UI -------------------
+// `generatePlan` enforces one-per-trip while it builds. These two let the same
+// rule be applied to a plan that already exists, which is what swap needs.
+
+/**
+ * The route families already spoken for by a plan, ignoring one card.
+ *
+ * `skipUid` is the card being replaced: a swap must not count the sail it is
+ * about to remove, or swapping a sail for another sail becomes impossible.
+ * Cards that fail to resolve are skipped rather than treated as familyless —
+ * a card whose product left the catalog should not silently unlock a duplicate.
+ */
+export function claimedRouteFamilies(
+  cards: ReadonlyArray<{ uid: string; entry: SlotEntry }>,
+  resolve: (e: SlotEntry) => CardEntry | null,
+  skipUid?: string,
+): Set<string> {
+  const out = new Set<string>();
+  for (const c of cards) {
+    if (c.uid === skipUid) continue;
+    const resolved = resolve(c.entry);
+    if (!resolved) continue;
+    const fam = routeFamilyOf(resolved);
+    if (fam) out.add(fam);
+  }
+  return out;
+}
+
+/** Drop candidates whose route family the trip has already used. */
+export function withoutClaimedFamilies(pool: CardEntry[], claimed: Set<string>): CardEntry[] {
+  if (claimed.size === 0) return pool;
+  return pool.filter((c) => {
+    const fam = routeFamilyOf(c);
+    return !fam || !claimed.has(fam);
+  });
 }

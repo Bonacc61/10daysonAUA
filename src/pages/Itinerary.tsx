@@ -12,6 +12,7 @@ import { buildIcs, downloadIcs } from '../lib/icsExport';
 import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
 import { resolveSlotEntry } from '../data/activitySource';
+import { claimedRouteFamilies, withoutClaimedFamilies, routeFamilyOf } from '../data/itineraryGenerator';
 import { useCatalog } from '../data/useCatalog';
 import { matchPool, blendPools, entryPrice, parseActivityCost } from '../data/matcher';
 import { constrainByEdit, CHIP_CONSTRAINTS, describeConstraint, satisfiableByRotation } from '../data/editConstraint';
@@ -49,6 +50,12 @@ const SECTION_META: { id: Slot; label: string }[] = [
 export default function Itinerary({ setPage, answers, setAnswers, onLogin, shareId, onNavigateToExplore }: Props) {
   const { catalog } = useCatalog();
   const tags    = useMemo(() => answersToTags(answers), [answers]);
+
+  // Human words for the route families, for the duplicate note below. A family
+  // id is an internal token ('natural-pool'); the badge has to read like English.
+  const FAMILY_LABEL: Record<string, string> = {
+    sail: 'sail', offroad: 'off-road tour', kayak: 'kayak trip', 'natural-pool': 'Natural Pool visit',
+  };
 
   // Build the initial itinerary from the answers + the live catalog (Viator
   // groups + local picks), honoring the requested day count (1–14). Generated
@@ -377,6 +384,32 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
     logEvent({ action: 'add', day: dayNum, slot: 'afternoon', to_id: pick.id, to_kind: 'activity' });
   };
 
+  // Cards that repeat a route family already used EARLIER in the trip.
+  //
+  // Derived from the plan rather than recorded when a card is added, so it holds
+  // however the duplicate got there — the shortlist picker, a drag between days,
+  // a restored trip saved before the rule existed. The generator cannot produce
+  // one and swap will not return one, so anything flagged here was a deliberate
+  // choice; the badge says so rather than blocking it.
+  const duplicateFamilyUids = useMemo(() => {
+    const firstSeen = new Set<string>();
+    const dupes = new Map<string, string>();
+    for (const d of plan) {
+      for (const s of ['morning', 'afternoon', 'evening'] as const) {
+        for (const c of d[s]) {
+          const resolved = resolveSlotEntry(c.entry, catalog, tags, s);
+          if (!resolved) continue;
+          const fam = routeFamilyOf(resolved);
+          if (!fam) continue;
+          if (firstSeen.has(fam)) dupes.set(c.uid, FAMILY_LABEL[fam] ?? fam);
+          else firstSeen.add(fam);
+        }
+      }
+    }
+    return dupes;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan, catalog, tags]);
+
   // Remove with a brief fade/collapse before unmounting.
   const onRemove = (uid: string) => {
     const c = cardCtx(uid);
@@ -423,6 +456,27 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
     const nextRejectedGroups = new Set(rejectedGroups);
     let next: SlotEntry | null = null;
 
+    // Route families the REST of the trip has already used. generatePlan retires
+    // a family after one placement, but a swap edits a finished plan and had no
+    // way to ask — so "Swap this" could hand back a second catamaran, which is
+    // the exact thing the family exists to prevent. The pool exclusions below
+    // work on item id and GROUP id, and the sail family spans groups on purpose.
+    //
+    // `uid` is skipped: the card being replaced must not claim its own family,
+    // or swapping a sail could never return another sail.
+    const claimedFamilies = claimedRouteFamilies(
+      plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening]),
+      (e) => resolveEntry(e),
+      uid,
+    );
+    // Note the asymmetry, which is the intended behaviour: tapping "Swap this"
+    // ON a sail still offers sails (that card's own family is skipped), but
+    // tapping it on a jeep never returns a sail while one is already planned.
+    const isFamilyClaimed = (c: CardEntry): boolean => {
+      const fam = routeFamilyOf(c);
+      return !!fam && claimedFamilies.has(fam);
+    };
+
     // Rotating within the group is a shortcut that bypasses constrainByEdit, so
     // it is only safe for constraints another item in the same group could
     // actually satisfy. Without this, "we get seasick" on a catamaran card
@@ -433,7 +487,11 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
       nextRejected.add(entry.bestSeller.id);
       let pool = catalog.items.filter(
         (i) => i.group_id === entry.group.id && !nextRejected.has(i.id)
-          && !fitItem(i, tags).rejected && itemSlotOkForFill(i, slot),
+          && !fitItem(i, tags).rejected && itemSlotOkForFill(i, slot)
+          // Rotation stays inside one group, but a group is not one family:
+          // 'sailing-cruises' holds sails, dives and a submarine, so rotating a
+          // non-sail card can still surface a sail the trip already has.
+          && !isFamilyClaimed({ kind: 'group', group: entry.group, bestSeller: i, others: [] }),
       );
       if (constraint.cheaper || typeof constraint.maxPriceUsd === 'number') {
         // Cheapest item that's strictly cheaper than the current one. If none,
@@ -471,9 +529,9 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
         }
       }
 
-      const pool = refaceForAnswers(blendPools(activities, groups, catalog.items,
+      const pool = withoutClaimedFamilies(refaceForAnswers(blendPools(activities, groups, catalog.items,
         { rejectedIds: excludeIds, rejectedGroupIds: excludeGroupIds }), tags, slot)
-        .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId);
+        .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId), claimedFamilies);
       let fresh = constrainByEdit(pool, constraint, entry)[0];
       // The slot/vibe-matched pool can come up empty (or with nothing satisfying
       // the reason) — a niche slot, an already-cheap card, or after excluding
@@ -481,18 +539,18 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
       // so the swap button always does something for every reason.
       if (!fresh) {
         // 1) Whole catalog, any slot/vibe — still skipping rejects + planned items.
-        const widePool = refaceForAnswers(blendPools(catalog.activities, catalog.groups, catalog.items,
+        const widePool = withoutClaimedFamilies(refaceForAnswers(blendPools(catalog.activities, catalog.groups, catalog.items,
           { rejectedIds: excludeIds, rejectedGroupIds: excludeGroupIds }), tags, slot)
-          .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId);
+          .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId), claimedFamilies);
         fresh = constrainByEdit(widePool, constraint, entry)[0];
       }
       if (!fresh) {
         // 2) Last resort: drop the "not already in the plan" exclusion (keep only
         // the rejection history + the current card) so the click is never a dead
         // end — a repeat beats nothing. "too pricey" still only yields cheaper.
-        const anyPool = refaceForAnswers(blendPools(catalog.activities, catalog.groups, catalog.items,
+        const anyPool = withoutClaimedFamilies(refaceForAnswers(blendPools(catalog.activities, catalog.groups, catalog.items,
           { rejectedIds: nextRejected, rejectedGroupIds: nextRejectedGroups }), tags, slot)
-          .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId);
+          .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId), claimedFamilies);
         fresh = constrainByEdit(anyPool, constraint, entry)[0];
       }
       if (fresh) next = fresh.kind === 'activity'
@@ -645,6 +703,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
                     bookedIds={bookedIds}
                     onToggleBooked={toggleBooked}
                     onNavigateToSection={(section) => onNavigateToExplore?.(section)}
+                    duplicateFamilyUids={duplicateFamilyUids}
                     shortlistEntries={shortlistEntries}
                   />
                 ))}
@@ -754,6 +813,8 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
 
 type DayHandlers = {
   readOnly: boolean;
+  /** card uid -> human label of a route family the trip already used earlier. */
+  duplicateFamilyUids?: Map<string, string>;
   flipped: Set<string>; swapping: Set<string>;
   reasonOpen: Set<string>; appearing: Set<string>; removing: Set<string>;
   resolveEntry: (e: SlotEntry, slot?: Slot) => CardEntry | null;
@@ -963,7 +1024,7 @@ function SortableCard({
   card, entry, section, dayNum, readOnly,
   flipped, swapping, reasonOpen, appearing, removing,
   onFlip, onOpenSwap, onSwap, onSwapFromText, nlPending, nlFailed, echo, onAddItem, onRemove,
-  bookedIds, onToggleBooked, onNavigateToSection,
+  bookedIds, onToggleBooked, onNavigateToSection, duplicateFamilyUids,
 }: { card: PlannedCard; entry: CardEntry; section: Slot; dayNum: number } & DayHandlers) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.uid });
   const style = {
@@ -1021,6 +1082,7 @@ function SortableCard({
         staple={!!card.entry.staple
           && (card.entry.kind === 'activity'
               || (entry.kind === 'group' && entry.bestSeller.id === card.entry.bestSellerId))}
+        dupeFamily={duplicateFamilyUids?.get(card.uid)}
         onFlip={() => onFlip(card.uid)}
         onSwap={readOnly ? undefined : () => onOpenSwap(card.uid)}
         showReasons={!readOnly && reasonOpen.has(card.uid)}
