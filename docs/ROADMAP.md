@@ -31,9 +31,9 @@ feeds the engine is in `docs/matching-engine/geography.md`:
   reviews (champion pool ~81), which is why long trips used to run out of picks.
   Free local beaches becoming revisitable after a clear day
   (`REVISITABLE_MIN_DAY_GAP = 2`) got a 14-day trip to 0 open slots on all five
-  trace personas, measured 2026-08-03. The 2026-08-05 curation rules (one kayak,
-  one daytime sail and one evening cruise per trip; two outings and one meal per
-  day) traded that back deliberately: **roughly 300-350 of 1,260 slots open** —
+  trace personas, measured 2026-08-03. The 2026-08-05 curation rules (one kayak
+  and one sail per trip — daytime and evening merged 2026-08-12; two outings and
+  one meal per day) traded that back deliberately: **roughly 300-350 of 1,260 slots open** —
   the five personas from `tools/itinerary-trace.ts` at 14 days, seeds 0-5,
   measured 2026-08-05 (301 before these rules; 304 after, and it moved between
   343 and 349 within an hour as the catalog and rules churned, so treat the

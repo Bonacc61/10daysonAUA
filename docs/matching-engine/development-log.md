@@ -45,7 +45,7 @@ Accumulates trip-wide state across the day loop:
 | `usedClusterIds` | embedding clusters placed; a hit is conclusive, a miss falls through |
 | `usedTagSets` | tag arrays of placed items; trip-wide Jaccard at 0.35 |
 | `dayTagSets` | tag arrays placed TODAY, reset per day; stricter Jaccard at 0.08 |
-| `usedRouteFamilies` | five families, each retired trip-wide after one placement: `natural-pool`, `offroad`, `kayak`, `day-sail`, `evening-cruise` |
+| `usedRouteFamilies` | four families, each retired trip-wide after one placement: `natural-pool`, `offroad`, `kayak`, `sail` (daytime and evening merged 2026-08-12) |
 | `lastFamilyDay` | family → last day used; enforces FAMILY_MIN_DAY_GAP (boat outings) |
 | `usedGroupIds` | last-resort group dedup; only for items with neither tags nor a cluster |
 | `dayFamilies` | families placed TODAY; hard cap of one boat outing per day |
@@ -652,6 +652,102 @@ rule costs no placements. Open slots across 5 personas x 4 seeds unchanged at
 
 ---
 
+### 2026-08-12 — One sail per trip, and the evening pool it was hiding
+
+**Reported:** "I want you to offer only one catamaran trip per itinerary, as all
+boat trips are the same trips (same routes)."
+
+Not a bug — a reversal of the 2026-08-05 decision recorded above, which split
+boats into two route families on the reasoning that "a sunset dinner cruise is a
+different kind of evening from a daytime snorkel sail, and the two are the
+curated staple pairing". The premise was wrong. Every operator runs the same
+north-west route — Malmok, Boca Catalina, the Antilla wreck — so the second
+outing sells the traveller the same water at a different hour. The stub
+catalog's own copy says it out loud: "Antilla wreck, Boca Catalina" for the
+private charter, "Catalina Bay and Malmok reef" for the lunch cruise.
+
+Measured before the change, 5 personas x 6 seeds x 10 days:
+
+| counting | plans with 1 | 2 | 3 | 4 |
+|---|---|---|---|---|
+| sail/snorkel outings | 24 | 6 | – | – |
+| every `BOAT_KINDS` outing | 9 | 9 | 7 | 5 |
+
+All six two-sail plans were the identical shape: a daytime catamaran plus
+"Aruba Celestial Sunset Cruise". The daytime cap was already working.
+
+**Scope was the real decision.** The wide reading — one boat outing of any kind
+— was rejected, and the reason is worth keeping: `sec:cruises-water` is Viator's
+generic bucket and on the live catalog it contains "Best of Aruba by Bus",
+"Horseback Ride Tour to Natural Pool", "Aruba Atlantis Submarine Tour" and "Kids
+Parasailing Experience". A blanket one-boat rule would retire the submarine
+after a catamaran. That reading needs the enrichment pass first.
+
+**Fix:** three returns in `routeFamilyOf` — the `'day-sail'` and
+`'evening-cruise'` labels both become `'sail'`. After: **30 of 30 plans carry
+exactly one sail**, and the 4-boat plans are gone (max 3, all dives and Seabob,
+which is intended).
+
+Two tests asserted the old behaviour and were inverted, not deleted:
+`'still allows a daytime sail AND an evening cruise'` and the splurge test
+demanding a second `sailing-cruises` pick alongside the private charter.
+
+**Two things the merge broke, both caught in review, both now covered by tests.**
+
+*The evening arm was testing the wrong predicate.* It matched `isWaterBased`,
+which is the **seasick filter** — deliberately over-broad, because a false
+negative there is a medical problem. `WATER_KINDS` covers dive/jetski/sup/
+parasail/surf and a title net adds "submarine" and "ferry". Broad is right for
+"never show this to someone who gets seasick" and wrong for "which outings are
+the same route". While the family was evening-only this was harmless; merged, it
+meant "Night Shore Diving Mangel Halto" — a beach entry on the opposite coast —
+claimed the sail family, and since the catamaran claims it first, **the dive was
+deleted from every plan**. Replaced with a title test. The membership was chosen
+against the data, not by intuition: of the 30 evening water-based products in
+the live catalog, 22 are kind sail/snorkel and 3 are kayaks (already returned
+earlier); of the last 5 the title net keeps the four real boats — including
+"Luxury Four-Course Caribbean Dinner Cruise", filed under tours-sightseeing with
+no sailing tag — and drops only the shore dive. `cruise|yacht` sits on top of
+the daytime pattern because a dinner cruise rarely calls itself a sail.
+
+*A `break` became a bug.* The staple candidate loop bailed out entirely on the
+first candidate whose route family was claimed — "the whole category is spoken
+for", true while each staple's pool sat in one family. `catamaran-sail` claims
+`'sail'` one spec BEFORE `beach-dinner`, whose matcher admits both sunset dinner
+cruises (family `'sail'`) and land-side shore dinners (no family). Breaking
+discarded the shore dinner along with the cruise, and `beach-dinner` has
+`localIds: []` — no fallback — so on the seeds where the shuffle led with a
+cruise the staple silently stopped existing. Now `continue`. A staple still
+stands down when every candidate is in a claimed family; `entry` just stays null.
+
+Neither fix moved the aggregate: open slots stayed at 155 and `plan-diff`
+violations at 0. The shore dive is a certified-divers product that was not
+reaching these five personas anyway — which is the point of having both a test
+and a measurement, since the measurement alone would have called it a non-issue.
+
+**Cost, and what it exposed.** Open slots across 5 personas x 4 seeds went
+**131 -> 155**, concentrated almost entirely in the evening (+3 to +5 per
+persona, plus 4 splurge afternoons where the charter now stands alone). That is
+roughly one evening per itinerary going empty, and it is not the rule
+overreaching. The trace shows why:
+
+```
+Day 8 evening  x (slot left open)   pool 7/7, survivors 0
+    already placed  4
+    duplicate experience  3
+        Aruba Celestial Sunset Cruise   route family "sail" already placed this trip
+        Salsa, Sunsets & Mojitos at Sea route family "sail" already placed this trip
+        Sip and Paint Aruba Sunset      tag Jaccard 0.20 >= 0.08 vs something on this day
+```
+
+**The entire evening pool is 7 items** for a 10-day trip. Four get placed, two
+were sunset sails, one collides on same-day tags. The sunset cruise was papering
+over a pool that was already exhausted; removing it made the shortfall visible
+rather than causing it. This confirms the standing "Evening pool depth" item
+below — more evening inventory is the fix, and no constant will do it.
+
+---
+
 ### 2026-08-05 — The map bypassed the display chokepoint
 
 **Symptom (reported):** the "Luxury Four-Course Caribbean Dinner Cruise
@@ -813,11 +909,14 @@ a rule can fire constantly and cost nothing while alternatives remain.
   never does is score an individual item. Building a real one needs a per-item family signal the feed
   does not provide — Viator's "Kid-Friendly" tag covers 2 of 337 live products.
 
-- **Evening pool depth**: with one evening cruise per trip (2026-08-05),
-  evening fill across five personas sits at 220/288 seeds×days. The shortfall is
-  candidate exhaustion — the live evening pool is ~10 items for a given persona,
-  and the 0.08 same-day threshold blocks much of what is left. More evening
-  inventory is the fix; no constant will do it.
+- **Evening pool depth**, and it got worse: the 2026-08-12 merge means one sail
+  per trip covers the evening too, so the sunset cruise that used to fill an
+  evening no longer can. Open slots across five personas × 4 seeds went 131 →
+  155, essentially all evening. Under the old split, evening fill was 220/288
+  seeds×days (measured 2026-08-05). The shortfall is candidate exhaustion, not
+  the rules: a trace of one 10-day plan shows the whole evening pool at **7
+  items**, four of them already placed, and the 0.08 same-day threshold blocking
+  one of the rest. More evening inventory is the fix; no constant will do it.
 
 - **The evening pick ignores where the day was**: sunset and dinner products are
   all west-coast, and nothing stops one being appended to a day spent on the

@@ -64,8 +64,10 @@ export const STAPLE_SPECS: StapleSpec[] = [
     minDays: 1,
     localIds: ['eagle-beach-morning', 'malmok-beach', 'tres-trapi'],
   },
-  // A beach at sunset. Local and free by design: the paid sunset sail is
-  // already covered by the water-dinner staple on longer trips.
+  // A beach at sunset. Local and free by design. The water-dinner staple below
+  // no longer reliably covers the paid sunset sail — since 2026-08-12 one sail
+  // per trip means the catamaran staple usually claims it first — which makes
+  // this free local sunset the dependable one, not the redundant one.
   //
   // Manchebo leads deliberately, and preferInOrder makes that binding: the
   // landing page promises "a beach at sunset", and Manchebo IS a beach, where
@@ -89,8 +91,11 @@ export const STAPLE_SPECS: StapleSpec[] = [
     localIds: ['boca-catalina-snorkel'],
     itemMatch: (i) => activityKind(i) === 'sail' && !isEveningItem(i),
   },
-  // Dinner on the water, once the trip is long enough to justify a second
-  // paid evening.
+  // Dinner on the water, once the trip is long enough to justify a second paid
+  // evening — or on the sand, when the catamaran staple has already taken the
+  // trip's one sail. The matcher admits both, and since 2026-08-12 that is load
+  // bearing rather than incidental: `localIds` is empty, so a shore dinner is
+  // the only fallback this staple has.
   {
     key: 'beach-dinner',
     preferred: ['evening'], fallback: [],

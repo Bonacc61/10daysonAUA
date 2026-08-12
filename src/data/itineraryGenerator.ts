@@ -483,8 +483,8 @@ type Ctx = {
 
 // The shared "route family" of an entry: tours that are the same real-world
 // experience and so shouldn't both be recommended, retired trip-wide after one
-// placement. Five families today, each defined below where it is matched:
-// 'natural-pool', 'offroad', 'kayak', 'day-sail' and 'evening-cruise'.
+// placement. Four families today, each defined below where it is matched:
+// 'natural-pool', 'offroad', 'kayak' and 'sail'.
 // undefined = no family (dedup by cluster/tag only).
 // A free, unbookable local beach. These are the only things a traveller
 // genuinely returns to — you go back to Eagle Beach on Thursday, you do not do
@@ -525,9 +525,11 @@ const KAYAK_RE = /\bkayak/i;
 // family: "Aruba Sail and Snorkel with Turtles" and "Premium Catamaran
 // Afternoon Sail" differ only in which tag Viator happened to file first.
 //
-// Split day from evening, because they are genuinely different evenings out and
-// the plan deliberately carries one of each (the catamaran-sail and beach-dinner
-// staples). One daytime sail + one sunset/dinner cruise per trip.
+// Day and evening are ONE family since 2026-08-12 — the same boat on the same
+// route, differing only in the light. This used to be split, on the reasoning
+// that the plan deliberately carried one of each (the catamaran-sail and
+// beach-dinner staples). See routeFamilyOf for what replaced that, and for why
+// the beach-dinner staple now leans on shore dinners.
 //
 // Neither existing net could do this. Measured on the live catalog, the trio
 // that shared a 14-day plan — Premium Catamaran Afternoon Sail, Sail and Snorkel
@@ -600,6 +602,10 @@ function isMealEntry(e: CardEntry): boolean {
 // rules; on the live catalog it pulls in 12 boat trips and leaves the dives,
 // submarines, seabobs and bus tours where they were.
 const DAY_SAIL_TITLE_RE = /\b(catamaran|snorkel(?:ing)?|sail(?:s|ing)?)\b/i;
+// The same net plus the two words an evening boat uses when it does not call
+// itself a sail. Applied only to evening items, and only after SAIL_KINDS has
+// had its turn, so it never widens the daytime rule.
+const EVENING_SAIL_TITLE_RE = /\b(catamaran|snorkel(?:ing)?|sail(?:s|ing)?|cruise|yacht)\b/i;
 function routeFamilyOf(e: CardEntry): string | undefined {
   const title = e.kind === 'group' ? e.bestSeller.title : e.activity.title;
   // Conchi gets its OWN family, retired after one visit however it is reached.
@@ -612,25 +618,45 @@ function routeFamilyOf(e: CardEntry): string | undefined {
     const kind = activityKind(e.bestSeller);
     // An island day pass is a destination, not a boat trip, even though Viator
     // files it under snorkelling (De Palm carries tag 11912 among 19 others, so
-    // activityKind calls it 'snorkel'). Without this it joins the day-sail
+    // activityKind calls it 'snorkel'). Without this it joins the sail
     // family and the catamaran staple retires it from every trip — including
     // the family trips it is meant for. Checked FIRST so the claim holds
     // whatever else the title says: a "Kayak Day Pass" is still a destination.
     if (isFullDayProduct(e.bestSeller)) return undefined;
     if (kind === 'kayak' || KAYAK_RE.test(title)) return 'kayak';
-    // Any evening outing on the water is one family — a sunset sail, a dinner
-    // cruise and a celestial cruise are the same evening. isWaterBased rather
-    // than SAIL_KINDS: three live evening products classify as neither sail nor
-    // snorkel ('sec:cruises-water'), and the traveller cannot tell the
-    // difference from the deck.
+    // ONE sail per trip, daytime or evening. These used to be two families —
+    // 'day-sail' and 'evening-cruise' — on the reasoning that a sunset dinner
+    // cruise is a different kind of evening from a daytime snorkel sail, and
+    // that the two were the curated staple pairing. They are not: every
+    // operator on the island runs the same north-west route (Malmok, Boca
+    // Catalina, the Antilla wreck), so the second outing sells the traveller
+    // the same water at a different hour. Measured before the merge: 6 of 30
+    // live plans carried a daytime catamaran AND a sunset cruise.
     //
-    // Falls THROUGH for a non-water evening item rather than returning: an
-    // evening off-road product ("Sunset Island Tour in Aruba on Electric
-    // Scooter", 48 reviews — above the champion floor) has to reach the offroad
-    // check below, or this silently weakens the one-off-road-per-trip rule.
-    if (isEveningItem(e.bestSeller) && isWaterBased(e.bestSeller)) return 'evening-cruise';
-    if (SAIL_KINDS.has(kind)) return 'day-sail';
-    if (kind === 'sec:cruises-water' && DAY_SAIL_TITLE_RE.test(title)) return 'day-sail';
+    // The evening arm tests the TITLE, not isWaterBased. isWaterBased is the
+    // seasick filter and is deliberately over-broad — WATER_KINDS covers
+    // dive/jetski/sup/parasail/surf, and a title net adds "submarine" and
+    // "ferry" on top. That breadth is correct for "never show this to someone
+    // who gets seasick" and wrong for "which outings are the same route": it
+    // swept in "Night Shore Diving Mangel Halto", a beach entry on the opposite
+    // coast, and since the catamaran claims the family first, the dive was the
+    // one deleted from every plan.
+    //
+    // Measured over the 30 evening water-based products in the live catalog:
+    // 22 are kind sail/snorkel, 3 are kayaks (already returned above), and of
+    // the remaining 5 the title net keeps the four real boats — including
+    // "Luxury Four-Course Caribbean Dinner Cruise", filed under
+    // tours-sightseeing with no sailing tag — and drops only the shore dive.
+    // Hence 'cruise|yacht' on top of the daytime pattern: a dinner cruise
+    // rarely says catamaran or sail.
+    //
+    // Falls THROUGH for an evening item that is not a boat rather than
+    // returning: an evening off-road product ("Sunset Island Tour in Aruba on
+    // Electric Scooter", 48 reviews — above the champion floor) has to reach
+    // the offroad check below, or this silently weakens one-off-road-per-trip.
+    if (SAIL_KINDS.has(kind)) return 'sail';
+    if (isEveningItem(e.bestSeller) && EVENING_SAIL_TITLE_RE.test(title)) return 'sail';
+    if (kind === 'sec:cruises-water' && DAY_SAIL_TITLE_RE.test(title)) return 'sail';
     return kind === 'offroad' ? 'offroad' : undefined;
   }
   if (LOCAL_OFFROAD.test(title)) return 'offroad';
@@ -657,9 +683,13 @@ function gapFamilyOf(e: CardEntry): string | undefined {
   // Local shore picks are deliberately excluded — a beach snorkel the day after
   // a catamaran was explicitly called fine. This is about repeat BOAT trips.
   if (e.kind !== 'group') return undefined;
-  // Evening boat trips are excluded: a sunset dinner cruise is a different kind
-  // of evening from a daytime snorkel sail, and the two are the curated staple
-  // pairing. The report was about two DAYTIME catamaran sails.
+  // Evening boat trips are excluded. This used to be justified by the daytime
+  // sail and the sunset cruise being a deliberate pairing; that premise was
+  // retracted on 2026-08-12. The exclusion stands anyway, and is now mostly
+  // moot: an evening SAIL is retired trip-wide by the 'sail' route family long
+  // before a day-gap rule could see it, so what this still exempts is the
+  // evening water outing that is not a sail — a night shore dive. Which is
+  // correct: the gap rule is about repeat BOAT trips, and that is not one.
   if (isEveningItem(e.bestSeller)) return undefined;
   return BOAT_KINDS.has(activityKind(e.bestSeller)) ? 'boat' : undefined;
 }
@@ -1430,7 +1460,7 @@ export function generatePlan(
     // whole splurge with it instead of falling through to the next-best premium
     // experience. On the live catalog that killed the feature outright: there
     // are only 6 Viator groups, so a 7-day trip considered exactly one
-    // candidate — the "Luxury Private Yacht Charter", whose day-sail family the
+    // candidate — the "Luxury Private Yacht Charter", whose sail family the
     // catamaran staple has always already claimed. Splurges went 90/90 trips to
     // 0/90 before this was caught.
     const ranked = [...bestPerGroup.values()]
@@ -1527,8 +1557,18 @@ export function generatePlan(
       // A staple never gets a route family the splurge has already taken. For a
       // money-no-object traveller the yacht charter IS the trip's sail, so the
       // catamaran staple stands down rather than making it two sailing days.
+      // `continue`, not `break`. This used to break out entirely, on the
+      // reasoning that a claimed family meant the whole category was spoken
+      // for. That stopped being true when the daytime and evening sail families
+      // merged (2026-08-12): `catamaran-sail` claims 'sail' one spec before
+      // `beach-dinner`, whose matcher admits both sunset dinner CRUISES (family
+      // 'sail') and land-side shore dinners (no family). Breaking discarded the
+      // shore dinner along with the cruise, and beach-dinner has no `localIds`
+      // fallback, so the staple silently stopped existing. Skipping the
+      // individual candidate still lets the staple stand down when every
+      // candidate is in a claimed family — `entry` simply stays null.
       const rf = routeFamilyOf(candidate);
-      if (rf && ctx.usedRouteFamilies.has(rf)) break; // whole category is spoken for
+      if (rf && ctx.usedRouteFamilies.has(rf)) continue;
       // Paid staples skip the arrival day — day 1 is the free/chill settle-in
       // day normal fill also honours (see `freeOnly` below).
       const avail = (day: number, slot: Slot): boolean =>

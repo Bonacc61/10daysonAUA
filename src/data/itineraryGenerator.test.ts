@@ -305,7 +305,7 @@ describe('generatePlan — pacing + no unintended empty slots', () => {
     //
     // The pair used to be a catamaran charter and a Jolly Pirates cruise. That no
     // longer holds and should not: those two ARE one experience sold by two
-    // operators, and a trip now gets one (see routeFamilyOf's 'day-sail'). The
+    // operators, and a trip now gets one (see routeFamilyOf's 'sail'). The
     // jeep tour below keeps the test honest AND realistic — the live feed files
     // 68 of Aruba's 85 off-road products under "Sailing & Cruises", so a group
     // holding a sail and a jeep safari is the normal case, not a contrived one.
@@ -865,11 +865,18 @@ describe('generatePlan — premium splurge (money-no-object, week-plus)', () => 
       .filter((e): e is { kind: 'group'; groupId: string; bestSellerId: string } =>
         e.kind === 'group' && e.groupId === 'sailing-cruises');
 
-  it('a 9-day trip surfaces the private charter AND a second sailing-cruises cruise', () => {
+  it('a 9-day trip surfaces the private charter, and it is the ONLY cruise', () => {
+    // This used to demand a SECOND sailing-cruises pick alongside the charter,
+    // on the reasoning that a week-plus splurge trip has room for both. It does
+    // not: every cruise in this group runs the same water — the stub's own
+    // descriptions name "Antilla wreck, Boca Catalina" and "Catalina Bay and
+    // Malmok reef" — so the second one sells the charter's route back to a
+    // traveller who already booked it. The pre-pass still has to fire, which is
+    // what the first assertion guards.
     const plan = generatePlan({ ...MNO, days: 9 }, cat, { seed: 1 });
     const sc = sailingEntries(plan);
     expect(sc.some((e) => e.bestSellerId === 'private-charter')).toBe(true);
-    expect(sc.length).toBeGreaterThanOrEqual(2); // charter + a crowd-pleaser cruise
+    expect(sc).toHaveLength(1);
   });
 
   it('the premium charter carries splurge=true (badge) and is not marked pinned', () => {
@@ -1072,10 +1079,10 @@ describe('generatePlan — one kayak outing per trip', () => {
   });
 });
 
-describe('generatePlan — one daytime sail per trip, one evening cruise', () => {
+describe('generatePlan — one sail per trip, daytime or evening', () => {
   // Catamaran sails, Jolly Pirates and snorkel sails are one experience sold by
-  // different operators, so a trip gets one — but a SUNSET/dinner cruise is a
-  // different evening and still gets its own slot. Measured on the live catalog
+  // different operators, so a trip gets one — and since 2026-08-12 a sunset or
+  // dinner cruise counts as that one too. Measured on the live catalog
   // before this rule: a 14-day friends plan carried "Premium Catamaran
   // Afternoon Sail", "Aruba Sail and Snorkel with Turtles" and "Morning
   // Champagne and Lobster Sail" in one itinerary.
@@ -1084,7 +1091,7 @@ describe('generatePlan — one daytime sail per trip, one evening cruise', () =>
   // trip-wide threshold, and all three sit in different embedding clusters —
   // which is why neither existing net caught them. The fixtures mirror that:
   // near-disjoint tags, distinct clusters.
-  const SAIL = 11888, SNORKEL = 11912;
+  const SAIL = 11888, SNORKEL = 11912, DIVE = 12021;
   const mkGroup = (id: string): ViatorGroup => ({
     id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
     display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
@@ -1101,6 +1108,14 @@ describe('generatePlan — one daytime sail per trip, one evening cruise', () =>
     mkItem('sail-c', 'Aruba Sail and Snorkel with Turtles at WW2 Shipwreck', [SNORKEL, 21, 22, 23, 24, 25]),
     mkItem('eve-a', 'Aruba Sunset Cruise plus Seaside Dinner', [SAIL, 31, 32, 33, 34, 35]),
     mkItem('eve-b', 'An Astronomical Moment: Aruba Celestial Sunset Cruise', [SAIL, 41, 42, 43, 44, 45]),
+    // NOT a sail: a shore dive, entered from the beach at Mangel Halto on the
+    // south coast. It is evening and it is in the water, which is all the old
+    // membership test asked for. See the test below.
+    mkItem('dive-night', 'Night Shore Diving at Mangel Halto for Certified Divers', [DIVE, 51, 52, 53, 54, 55]),
+    // A land-side dinner. Matches the beach-dinner staple (DINNER_RE +
+    // SEASIDE_RE) exactly as the sunset dinner cruises above do, but carries no
+    // route family — it is a table on the sand, not a boat.
+    mkItem('dinner-shore', 'Beachfront Dinner at Passions on the Beach', [61, 62, 63, 64, 65]),
   ];
   const pad: { g: ViatorGroup[]; i: ViatorItem[] } = { g: [], i: [] };
   for (let n = 0; n < 20; n += 1) {
@@ -1130,12 +1145,63 @@ describe('generatePlan — one daytime sail per trip, one evening cruise', () =>
     }
   });
 
-  it('still allows a daytime sail AND an evening cruise in the same trip', () => {
-    // The rule must not collapse the two into one boat outing — the daytime
-    // catamaran and the sunset dinner cruise are the curated staple pairing.
-    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 14, interests: ['watersports'] }, cat));
-    expect(countOf(ids, 'sail-')).toBe(1);
-    expect(countOf(ids, 'eve-')).toBe(1);
+  it('places at most one sail in TOTAL — a sunset cruise is the same route', () => {
+    // This reverses an earlier decision. The daytime catamaran and the sunset
+    // cruise used to be the curated staple PAIRING, on the reasoning that the
+    // evening is a different experience. It is the same boat on the same route:
+    // every operator runs Malmok, Boca Catalina and the Antilla, and the only
+    // thing the traveller pays twice for is the light. Measured on the live
+    // catalog before this rule: 6 of 30 plans carried both, always a "Premium
+    // Catamaran Afternoon Sail" plus "Aruba Celestial Sunset Cruise".
+    for (const days of [7, 14]) {
+      const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days, interests: ['watersports'] }, cat));
+      expect(countOf(ids, 'sail-') + countOf(ids, 'eve-')).toBe(1);
+    }
+  });
+
+  it('a night SHORE dive is not a sail and still lands beside the catamaran', () => {
+    // The one-sail rule is about the boat route every operator runs — Malmok,
+    // Boca Catalina, the Antilla. A shore dive is entered from a beach on the
+    // opposite coast and shares none of it.
+    //
+    // The merged family briefly claimed it anyway: the evening arm tested
+    // `isWaterBased`, which is the seasick filter and is deliberately broad —
+    // WATER_KINDS covers dive/jetski/sup/parasail/surf and a title net catches
+    // "submarine" and "ferry" on top. That breadth is right for "never show
+    // this to someone who gets seasick" and wrong for "which trips are the same
+    // route". Because the catamaran claims the family first, the dive was the
+    // one that vanished, from every plan.
+    //
+    // Checked against the live catalog: of the 30 evening water-based products,
+    // this is the only one that is not a boat outing — and "Luxury Four-Course
+    // Caribbean Dinner Cruise" (filed under tours-sightseeing, no sail tag) is
+    // one that must stay IN, which is why the test is on the title, not the kind.
+    for (const days of [7, 14]) {
+      const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days, interests: ['watersports'] }, cat));
+      expect(countOf(ids, 'sail-') + countOf(ids, 'eve-')).toBe(1);
+      expect(ids).toContain('dive-night');
+    }
+  });
+
+  it('the water-dinner staple falls back to a shore dinner, not nothing', () => {
+    // The staple candidate loop used to `break` on the first candidate whose
+    // route family was claimed, reasoning that "the whole category is spoken
+    // for". That held while each staple's pool sat in one family. Merging the
+    // sail families broke it: `catamaran-sail` claims 'sail' one spec BEFORE
+    // `beach-dinner`, whose matcher admits BOTH sunset dinner cruises (family
+    // 'sail', now claimed) and land-side shore dinners (no family at all). A
+    // `break` on the first cruise threw the shore dinner away with it, and
+    // beach-dinner has `localIds: []` — no fallback — so the staple silently
+    // stopped existing on the seeds where the shuffle led with a cruise.
+    const dinners = ['eve-a', 'eve-b', 'dinner-shore'];
+    for (let seed = 0; seed < 6; seed += 1) {
+      const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 7, interests: ['watersports'] }, cat, { seed });
+      const staples = plan
+        .flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening])
+        .filter((e) => e.staple)
+        .map((e) => (e.kind === 'activity' ? e.id : e.bestSellerId));
+      expect(staples.some((id) => dinners.includes(id))).toBe(true);
+    }
   });
 });
 
@@ -1389,7 +1455,7 @@ describe('generatePlan — an Arikok day keeps its afternoon free', () => {
 
 describe('generatePlan — the premium splurge survives a claimed route family', () => {
   // The splurge pre-pass honours the trip-wide route families, so its top
-  // candidate can be rejected (the catamaran staple always claims 'day-sail'
+  // candidate can be rejected (the catamaran staple always claims 'sail'
   // first). It must then fall through to the next-best premium experience
   // rather than placing nothing: `ranked` was briefly truncated to maxPremium
   // BEFORE that check, and because the live feed has only 6 Viator groups a
@@ -1405,9 +1471,9 @@ describe('generatePlan — the premium splurge survives a claimed route family',
     display_order: 0, tags, experience_cluster_id: `c-${id}`,
   });
   // The yacht scores highest (a snorkel-kind crowd-pleaser, so it is in the
-  // day-sail family) but is NOT eligible for the catamaran staple, whose
+  // sail family) but is NOT eligible for the catamaran staple, whose
   // itemMatch requires kind 'sail' exactly. That leaves the catamaran as the
-  // only staple candidate, so it deterministically claims 'day-sail' before the
+  // only staple candidate, so it deterministically claims 'sail' before the
   // premium pass runs — which is what makes this test discriminate.
   const items = [
     mk('yacht', 'Luxury Private Yacht Charter Aruba', 2300, [11912, 1, 2]),
@@ -1537,7 +1603,7 @@ describe('generatePlan — kids-oriented products need a group with children', (
 
   it('still places it for a family whose trip already has a catamaran sail', () => {
     // The day pass carries Viator's snorkelling tag (11912), so activityKind
-    // calls it 'snorkel' — which briefly put it in the one-per-trip day-sail
+    // calls it 'snorkel' — which briefly put it in the one-per-trip sail
     // family, and the catamaran staple then retired it from every plan. An
     // island day pass is a destination, not a boat trip.
     const sailGroup: ViatorGroup = {
