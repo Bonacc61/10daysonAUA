@@ -661,6 +661,9 @@ placed beside it.
 > which put a second card on the pass's day in 64 of 100 runs with the pin path
 > re-enabled. **Close the template hole before rewiring the shortlist** — it
 > reopens exactly the bug this entry closed.
+>
+> **The template hole is now closed** — see the entry below. The untested
+> reverse direction is still open (`docs/ROADMAP.md` item 7b).
 
 After: 6 of 6 -> **0 of 6** shared, with the pass still placed all 6 times — the
 rule costs no placements. Open slots across 5 personas x 4 seeds unchanged at
@@ -761,6 +764,57 @@ were sunset sails, one collides on same-day tags. The sunset cruise was papering
 over a pool that was already exhausted; removing it made the shortfall visible
 rather than causing it. This confirms the standing "Evening pool depth" item
 below — more evening inventory is the fix, and no constant will do it.
+
+---
+
+### 2026-08-12 — The balanced template walked around the day-pass rule
+
+**Found in review, not in production** — and it could not have been found in
+production, because the path is dormant. Recorded and fixed anyway, for the
+reason below.
+
+The day-pass rule ("a pass IS the day") is stated in two places: `withinDayShape`
+for the fill ladder and `fitsDayShape` for the pre-passes. The balanced-template
+pre-pass is a third placer and consults neither. It checks `templateAvail`, which
+asks **is this SLOT claimed** — never **does this DAY already hold a pass**. And
+`fitsDayShape` is declared *after* the template block, so it is in the temporal
+dead zone there: it could not have been called even by someone who thought to.
+
+Sequence: the pin pre-pass puts a pinned day pass on day 1 morning →
+`templateAvail(1, 'afternoon')` is true → `eagle-beach-morning` lands beside it.
+
+Measured with the pin path exercised directly, 5 personas × 4 trip lengths × 5
+seeds:
+
+```
+before   runs 100 — pass placed 100, SHARED 40
+after    runs 100 — pass placed 100, SHARED  0
+```
+
+The 40 is not noise. It is exactly the two **balanced** personas (2 × 4 × 5 =
+40) — every single run that qualified for the template, always day 1, always
+`eagle-beach-morning`. The other three personas never reach the template at all,
+which is why the aggregate looks like 40% rather than 100% of the affected set.
+
+**Fix:** `pinnedFullDayOn(day)` in the template loop. It reads `pinnedSlots`,
+which is populated before the template runs, so it needs no restructuring of the
+declaration order. Only one direction is required: the template places curated
+LOCAL activities and `isFullDayEntry` demands `kind === 'group'`, so the template
+can never itself be the pass.
+
+**Why fix a dormant path.** Nothing passes `opts.pinned` today — the shortlist
+was unwired from it on 2026-08-05 — so this changes no live plan (`plan-diff`:
+0 plans changed, open slots unchanged at 155). But the shortlist is expected to
+be rewired, and on the day it is, this reopens the exact bug fixed hours earlier
+in the entry above, silently, for the persona that gets the curated template.
+The cost of closing it now is four lines; the cost of finding it later is a
+second production report.
+
+**Still open, deliberately:** `slotAvail` is per-slot, so two PINS can share a
+day, including a pass and something else. Left alone — pins are exempt from
+every other rule here too ("an explicit shortlist choice always lands"), and
+making the pass the one exception would be a change to what a pin means, not a
+bug fix. Also open: the untested reverse direction, `docs/ROADMAP.md` item 7b.
 
 ---
 

@@ -1602,6 +1602,44 @@ describe('generatePlan — a day pass consumes the whole daytime', () => {
       }
     }
   });
+
+  it('the balanced template does not add a card to a PINNED pass\'s day', () => {
+    // The gap the day-pass fix left open. `fitsDayShape` guards the premium and
+    // staple pre-passes, but the balanced-template pre-pass runs before it is
+    // even declared and checks `templateAvail`, which asks only whether the
+    // SLOT is claimed — never whether the DAY already holds a pass. So a pinned
+    // pass takes day 1 morning and the template drops eagle-beach into day 1
+    // afternoon beside it.
+    //
+    // Reachable only through `opts.pinned`, which nothing passes today — the
+    // shortlist was unwired from it on 2026-08-05. This is therefore a test for
+    // a path that is dormant, written now because the shortlist is expected to
+    // be rewired and this bug reopens the moment it is.
+    //
+    // Needs the REAL local activities: resolveBalancedTemplate looks its entries
+    // up in `catalog.activities`, and the fixture above has none, so the
+    // template would silently resolve to nothing and the test would pass
+    // vacuously. Balanced persona = mid slider AND Mid-range (isBalancedTraveller).
+    const base = getCatalog();
+    const pass = mk('zz-daypass', 'Aruba De Palm Island Day Pass', '6 hrs', [11912, 12043]);
+    const cat2: Catalog = {
+      ...base,
+      groups: [...base.groups, mkGroup('g-zz-daypass')],
+      items: [...base.items, pass],
+    };
+    const answers: Answers = {
+      ...DEFAULT_ANSWERS, days: 10, adventureLevel: 50, budget: 'Mid-range',
+      groupType: 'Family with young kids',
+    };
+    for (let seed = 0; seed < 8; seed += 1) {
+      const plan = generatePlan(answers, cat2, { pinned: ['item:zz-daypass'], seed });
+      const day = plan.find((d) => [...d.morning, ...d.afternoon, ...d.evening]
+        .some((e) => e.kind === 'group' && e.bestSellerId === 'zz-daypass'));
+      expect(day).toBeDefined();
+      const cards = [...day!.morning, ...day!.afternoon, ...day!.evening];
+      expect(cards).toHaveLength(1);
+    }
+  });
 });
 
 describe('generatePlan — kids-oriented products need a group with children', () => {

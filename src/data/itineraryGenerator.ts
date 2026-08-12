@@ -1367,8 +1367,26 @@ export function generatePlan(
       if (slot === 'morning' && flags.has('no-early-mornings')) return false;
       return !pinClaimed.get(day)?.has(slot);
     };
+    // A day the pin pre-pass gave a full-day product is spoken for ENTIRELY —
+    // the pass is the day. `fitsDayShape` states this rule for the premium and
+    // staple passes, but it is declared below and the template runs before it,
+    // so it has to be restated here rather than reused.
+    //
+    // It cannot live inside templateAvail either: that answers "is this SLOT
+    // free", and the whole point is that the rest of the DAY is not. A pinned
+    // pass takes day 1 morning, templateAvail says day 1 afternoon is free, and
+    // eagle-beach lands beside it — measured at 64 of 100 runs.
+    //
+    // Only this direction is needed. The template places curated LOCAL
+    // activities, and `isFullDayEntry` requires `kind === 'group'`, so the
+    // template can never itself be the pass.
+    const pinnedFullDayOn = (day: number): boolean => SECTIONS.some((s) => {
+      const p = pinnedSlots.get(day)?.get(s);
+      return !!p && isFullDayEntry(p.cardEntry);
+    });
     for (const { day, slot, activity } of resolveBalancedTemplate(filteredCatalog, nDays)) {
       if (!templateAvail(day, slot)) continue;
+      if (pinnedFullDayOn(day)) continue;
       // Already the traveller's own pick — placing it again ourselves would put
       // the same card in the plan twice. Same principle as the revisit rule: a
       // pin is one explicit choice, not licence to repeat it.
