@@ -662,8 +662,12 @@ placed beside it.
 > re-enabled. **Close the template hole before rewiring the shortlist** — it
 > reopens exactly the bug this entry closed.
 >
-> **The template hole is now closed** — see the entry below. The untested
-> reverse direction is still open (`docs/ROADMAP.md` item 7b).
+> **All three are now closed.** The template hole has its own entry below. The
+> reverse direction turned out to be reachable after all, but only through a day
+> whose EVENING is reserved ahead — in the daytime the 420-minute inflation
+> already blocks it, which is why no plain 10-day plan could ever exercise the
+> gate. The test now pins two evening items on a 3-day trip and dies to the
+> mutation; the gate is load-bearing, not redundant.
 
 After: 6 of 6 -> **0 of 6** shared, with the pass still placed all 6 times — the
 rule costs no placements. Open slots across 5 personas x 4 seeds unchanged at

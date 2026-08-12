@@ -49,9 +49,19 @@ const PERSONAS: Record<string, Answers> = {
 };
 
 const argv = process.argv.slice(2);
+const CI = argv.includes('--ci');
+// Rejects rather than coerces. `--days abc` used to parseInt to NaN, which
+// generated near-empty plans, found no violations and exited 0 — a green run
+// that measured nothing, which is the one output this tool must never produce.
 const arg = (n: string, d: number) => {
   const i = argv.indexOf(`--${n}`);
-  return i >= 0 ? parseInt(argv[i + 1], 10) : d;
+  if (i < 0) return d;
+  const v = Number(argv[i + 1]);
+  if (!Number.isInteger(v) || v < 1) {
+    console.error(`plan-diff: --${n} needs a positive whole number, got ${JSON.stringify(argv[i + 1])}`);
+    process.exit(2);
+  }
+  return v;
 };
 
 /** The catalog as it was before enrichment: same items, derived fields removed. */
@@ -82,7 +92,6 @@ type Violation = { rule: string; detail: string };
 // boat set (2026-08-12) this file kept the old set, which would have flagged a
 // legal bus-tour-plus-catamaran day as a violation. The two numbers below are
 // still mirrored — they are single integers with no derivation to drift.
-const MAX_ACTIVITIES_PER_DAY = 2;        // itineraryGenerator.ts:567
 const MAX_NON_MEAL_CARDS_PER_DAY = 3;    // itineraryGenerator.ts:576
 
 // --- The rules, as assertions over a finished plan --------------------------
@@ -139,12 +148,16 @@ function checkInvariants(plan: Day[], catalog: Catalog): Violation[] {
     // on NON-MEAL cards — a day may legitimately carry MAX_NON_MEAL + one meal.
     // Curated local picks are activities; Viator products are never meals here,
     // so counting group entries as outings is the right approximation.
+    // ONE assertion, not two. These were separate rules with identical
+    // conditions — `> MAX_NON_MEAL_CARDS_PER_DAY` and `> MAX_ACTIVITIES_PER_DAY
+    // + 1` are both `> 3` — so every offending day was counted twice under two
+    // names, inflating the totals and the per-rule table. The outings half is
+    // not assertable from a finished plan anyway: meals are indistinguishable
+    // from outings here (see the note above), which is why the ceiling is the
+    // one that survives.
     const outings = itemsOf(d).length;
     if (outings > MAX_NON_MEAL_CARDS_PER_DAY) {
       out.push({ rule: 'non-meal card ceiling', detail: `day ${d.day} has ${outings} (max ${MAX_NON_MEAL_CARDS_PER_DAY})` });
-    }
-    if (outings > MAX_ACTIVITIES_PER_DAY + 1) {
-      out.push({ rule: 'two outings per day', detail: `day ${d.day} has ${outings}` });
     }
 
     // One boat per day — the engine's own test, not "anything on water".
@@ -175,7 +188,9 @@ const fingerprint = (plan: Day[]) =>
   console.log(`live catalog: ${after.items.length} items, ${enrichedCount} carrying enrichment`);
   if (enrichedCount === 0) {
     console.log('\n⚠  The snapshot is empty, so BEFORE and AFTER are the same catalog.');
-    console.log('   This run establishes the baseline. Re-run after `npm run enrich`.\n');
+    console.log('   Every plan is compared against ITSELF: "plans that changed: 0" and');
+    console.log('   "rules broken BY enrichment: 0" are guaranteed and mean nothing here.');
+    console.log('   The absolute violation count below IS real. Re-run after `npm run enrich`.\n');
   }
   console.log(`personas: ${Object.keys(PERSONAS).length} × seeds 0-${seeds - 1} × ${days} days\n`);
 
@@ -249,6 +264,18 @@ const fingerprint = (plan: Day[]) =>
     console.log('catch. Do not commit the snapshot. The rules above were each derived from a');
     console.log('production report — see docs/matching-engine/development-log.md.');
     process.exit(1);
+  }
+  // A no-op run is not a pass. By hand it is a useful baseline, so exit 0 and
+  // say so; under --ci it is a job that proved nothing while reporting success,
+  // which is worse than a failure because nobody looks at a green build.
+  if (enrichedCount === 0) {
+    console.log('\nNo enrichment present — this run established the baseline and compared');
+    console.log('nothing. The rule counts above are real; the BEFORE/AFTER diff is not.');
+    if (CI) {
+      console.error('plan-diff: --ci given but there is nothing to compare. Run `npm run enrich` first.');
+      process.exit(3);
+    }
+    return;
   }
   console.log('\nNo rule that held before is broken after. Whatever moved, moved within the rules.');
 })();

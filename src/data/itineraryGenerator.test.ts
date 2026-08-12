@@ -1590,16 +1590,33 @@ describe('generatePlan — a day pass consumes the whole daytime', () => {
     expect([...day!.morning, ...day!.afternoon, ...day!.evening]).toHaveLength(1);
   });
 
-  it('is not placed on a day that already has something', () => {
-    // The other direction. A pass that joins an existing day is the same bug
-    // wearing different clothes, and pre-passes (staple, splurge, pin) run
-    // BEFORE the ladder, so this is the order it actually happens in.
-    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 10, groupType: 'Family with young kids' }, cat);
-    for (const d of plan) {
-      const cards = [...d.morning, ...d.afternoon, ...d.evening];
-      if (cards.some((e) => e.kind === 'group' && e.bestSellerId === 'daypass')) {
-        expect(cards).toHaveLength(1);
-      }
+  it('is not placed on a day whose EVENING is already reserved', () => {
+    // The other direction, and it needs a specific setup to reach at all —
+    // which is why the version of this test written on 2026-08-12 did not.
+    // That one ran the same plain 10-day plan as the two tests above and
+    // asserted the same thing, so it died to the same mutation and the reverse
+    // gate stayed unverified.
+    //
+    // In the DAYTIME the reverse direction is already covered by arithmetic:
+    // entryDurationMin inflates a pass to FULL_DAY_MIN (420), so on a day that
+    // has any other card the 480-minute cap blocks it without needing a rule.
+    // The gate only earns its place when the day's other card is in the
+    // EVENING, because the evening has its own 240-minute budget that never
+    // consults dayMin.
+    //
+    // `ahead` (reservedAhead) is what makes that visible from the morning: it
+    // counts what the day has already promised to LATER slots. So pinning an
+    // evening item on day 2 means the day-2 morning pick can see it. Verified
+    // by mutation — deleting the gate puts the pass on day 2 beside eve-1:
+    //   with     day 2: m[filler-0] e[eve-1]   day 3: m[daypass]
+    //   without  day 2: m[daypass]  e[eve-1]   day 3: m[filler-1] e[eve-4]
+    for (let seed = 0; seed < 6; seed += 1) {
+      const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 3, groupType: 'Family with young kids' }, cat,
+        { pinned: ['item:eve-0', 'item:eve-1'], seed });
+      const day = plan.find((d) => [...d.morning, ...d.afternoon, ...d.evening]
+        .some((e) => e.kind === 'group' && e.bestSellerId === 'daypass'));
+      expect(day).toBeDefined();
+      expect([...day!.morning, ...day!.afternoon, ...day!.evening]).toHaveLength(1);
     }
   });
 
