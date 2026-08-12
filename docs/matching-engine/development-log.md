@@ -601,6 +601,57 @@ and for any future path that builds a catalog without going through
 
 ---
 
+### 2026-08-12 — A day pass owned the daytime but not the evening
+
+**Reported:** "Aruba De Palm Island Day Pass" came back with two other cards on
+the same day. It is a day pass; it should be the only card.
+
+The daytime half of this was fixed on 2026-08-05: `entryDurationMin` inflates a
+day pass to `FULL_DAY_MIN` (420), which leaves 60 of the 480-minute daytime cap
+and so blocks anything but a very short second product. That rule was working.
+
+The evening was never covered, and could not be. `feasible` splits into two
+independent budgets:
+
+```
+slot === 'evening'
+  ? BUFFER + entryDurationMin(e) <= EVENING_CAP_MIN      // 240, ignores dayMin
+  : dayMin + BUFFER + entryDurationMin(e) <= DAY_CAP_MIN // 480
+```
+
+The evening branch never consults `dayMin`, deliberately — that is what lets a
+morning tour and a dinner cruise share a normal day. But it also means **no
+amount of daytime duration can ever reach the evening**, so inflating the pass
+to 420 minutes was structurally incapable of blocking an evening card. Time
+accounting was the wrong instrument for this rule.
+
+Measured on the live catalog before the fix, 5 personas x 6 seeds x 10 days:
+**6 of 6 day-pass days carried an evening card** — always the family persona,
+always day 4, always a local evening pick. 100% reproduction, not an edge case.
+
+The existing regression test could not have caught it: it asserts
+`[...morning, ...afternoon]` has length 1 and does not look at the evening. Its
+fixture also had no evening-suitable product (`isEveningItem` reads the title,
+and "Beach Walk 3" is never an evening candidate), so an evening assertion added
+to it would have passed vacuously. Both are fixed — the fixture gains "Sunset
+Stroll" fillers, and the test now asserts the whole day.
+
+**Fix:** `isFullDayEntry` in `withinDayShape` (the ladder) and `fitsDayShape`
+(the pre-passes), in both directions — nothing joins a day that has a pass, and
+a pass never joins a day that has anything. Stated as a day-shape rule rather
+than a time calculation, because it is one: a pass IS the day, which is a fact
+about the product, not an arithmetic result.
+
+Both gates are needed. The pre-pass gate is not redundant: a **shortlisted** day
+pass arrives as a pin before the ladder runs, and a staple would otherwise be
+placed beside it.
+
+After: 6 of 6 -> **0 of 6** shared, with the pass still placed all 6 times — the
+rule costs no placements. Open slots across 5 personas x 4 seeds unchanged at
+131, so the displaced evening cards moved to other days rather than being lost.
+
+---
+
 ### 2026-08-05 — The map bypassed the display chokepoint
 
 **Symptom (reported):** the "Luxury Four-Course Caribbean Dinner Cruise

@@ -1446,6 +1446,10 @@ describe('generatePlan — a day pass consumes the whole daytime', () => {
   // fillers this test would pass without the rule and prove nothing.
   const items = [mk('daypass', 'Aruba De Palm Island Day Pass', '6 hrs', [11912, 12043])];
   for (let n = 0; n < 20; n += 1) items.push(mk(`filler-${n}`, `Beach Walk ${n}`, '30 min', [90000 + n]));
+  // Evening-suitable fillers. Without these the day pass's evening could never
+  // be tested at all — isEveningItem reads the TITLE, so a "Beach Walk" is
+  // never an evening candidate and the assertion below would pass vacuously.
+  for (let n = 0; n < 10; n += 1) items.push(mk(`eve-${n}`, `Sunset Stroll ${n}`, '90 min', [91000 + n]));
   const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
 
   it('leaves the rest of the daytime free on the day it is placed', () => {
@@ -1454,6 +1458,33 @@ describe('generatePlan — a day pass consumes the whole daytime', () => {
     const day = plan.find((d) => [...d.morning, ...d.afternoon].some((e) => e.kind === 'group' && e.bestSellerId === 'daypass'));
     expect(day).toBeDefined();
     expect([...day!.morning, ...day!.afternoon]).toHaveLength(1);
+  });
+
+  it('leaves the EVENING free too — the pass is the only card on its day', () => {
+    // Reported from production 2026-08-12: the day pass came back with two other
+    // cards on the same day. The daytime rule above was doing its job; the
+    // evening is a SEPARATE 240-minute budget that never consults dayMin, so
+    // FULL_DAY_MIN could not reach it and an evening card slipped in every time.
+    // Measured on the live catalog before the fix: 6 of 6 day-pass days carried
+    // an evening card.
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 10, groupType: 'Family with young kids' }, cat);
+    const day = plan.find((d) => [...d.morning, ...d.afternoon, ...d.evening]
+      .some((e) => e.kind === 'group' && e.bestSellerId === 'daypass'));
+    expect(day).toBeDefined();
+    expect([...day!.morning, ...day!.afternoon, ...day!.evening]).toHaveLength(1);
+  });
+
+  it('is not placed on a day that already has something', () => {
+    // The other direction. A pass that joins an existing day is the same bug
+    // wearing different clothes, and pre-passes (staple, splurge, pin) run
+    // BEFORE the ladder, so this is the order it actually happens in.
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 10, groupType: 'Family with young kids' }, cat);
+    for (const d of plan) {
+      const cards = [...d.morning, ...d.afternoon, ...d.evening];
+      if (cards.some((e) => e.kind === 'group' && e.bestSellerId === 'daypass')) {
+        expect(cards).toHaveLength(1);
+      }
+    }
   });
 });
 

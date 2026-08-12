@@ -578,6 +578,16 @@ const MAX_NON_MEAL_CARDS_PER_DAY = 3;
 // Fry') and every lunchspot, all of which carry category 'Food'. A Viator
 // dinner cruise or sunset sail is deliberately NOT a meal — it is an outing you
 // booked, so it counts as one of the two.
+// A day pass IS the day — you ferry to an island and it is gone. The engine
+// already inflates one to FULL_DAY_MIN so it crowds out the rest of the
+// DAYTIME budget, but the evening is a separate EVENING_CAP_MIN bucket that
+// never consults dayMin, so nothing stopped an evening card joining it.
+// Reported from production 2026-08-12; measured at 6 of 6 day-pass days on the
+// live catalog before the fix.
+function isFullDayEntry(e: CardEntry): boolean {
+  return e.kind === 'group' && isFullDayProduct(e.bestSeller);
+}
+
 function isMealEntry(e: CardEntry): boolean {
   return e.kind === 'activity' && e.activity.category === 'Food';
 }
@@ -1345,6 +1355,11 @@ export function generatePlan(
   // persona's day 2 (snorkel cruise + Alto Vista + sunset sail).
   const fitsDayShape = (entry: CardEntry, day: number): boolean => {
     const claimed = claimedOn(day);
+    // Same rule as the ladder's withinDayShape. It has to live here too: a
+    // SHORTLISTED day pass arrives as a pin before any of this runs, and a
+    // staple would otherwise land beside it.
+    if (claimed.some(isFullDayEntry)) return false;
+    if (isFullDayEntry(entry) && claimed.length > 0) return false;
     if (isMealEntry(entry)) return claimed.filter(isMealEntry).length < 1;
     if (claimed.filter((e) => !isMealEntry(e)).length >= MAX_NON_MEAL_CARDS_PER_DAY) return false;
     if (isRevisitableBeach(entry)) return true;
@@ -1714,6 +1729,13 @@ export function generatePlan(
     const afternoonClaimed = slot === 'morning' && afternoonClaimedOn(d);
     const withinDayShape = (e: CardEntry) => {
       if (afternoonClaimed && isArikok(e)) return false;
+      // A day pass owns its day outright, in both directions: nothing joins one,
+      // and one never joins a day that already has something. Time accounting
+      // cannot express this on its own — the evening budget is separate from
+      // dayMin by design, so FULL_DAY_MIN can never reach it.
+      const today = [...picks, ...ahead];
+      if (today.some(isFullDayEntry)) return false;
+      if (isFullDayEntry(e) && today.length > 0) return false;
       if (isMealEntry(e)) return mealsToday < 1;
       if (cardsToday >= MAX_NON_MEAL_CARDS_PER_DAY) return false;
       if (isRevisitableBeach(e)) return true;
