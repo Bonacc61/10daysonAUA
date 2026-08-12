@@ -667,7 +667,8 @@ placed beside it.
 > whose EVENING is reserved ahead — in the daytime the 420-minute inflation
 > already blocks it, which is why no plain 10-day plan could ever exercise the
 > gate. The test now pins two evening items on a 3-day trip and dies to the
-> mutation; the gate is load-bearing, not redundant.
+> mutation; the gate is load-bearing, not redundant. Roadmap item 7b is closed
+> and removed.
 
 After: 6 of 6 -> **0 of 6** shared, with the pass still placed all 6 times — the
 rule costs no placements. Open slots across 5 personas x 4 seeds unchanged at
@@ -780,22 +781,28 @@ the existing rule alone*, since `MAX_NON_MEAL_CARDS_PER_DAY` was already 3. It
 counted **non-meal** cards, plus one meal on the side, so the real ceiling was
 **four**.
 
-Measured before the change: **20 of 300 live days** carried four cards (29 of
-180 on the stub), always the same shape.
+Measured before the change: **20 of 300 live days** carried four cards, and
+**35 of 240** on the stub under the sweep the committed test uses (4 personas ×
+6 seeds × 10 days). Always the same shape.
 
 ```
 default seed 0 day 7:  baby-beach-snorkel | lunch-oniels | alto-vista-chapel | california-lighthouse-sunset
 foodie  seed 0 day 4:  San Nicolas tour   | lunch-oniels | rodgers-beach    | california-dunes-sunset
 ```
 
-**Three places had to change, and the third is where most of it came from.**
+**Three places were changed. Only the third does anything.**
 `withinDayShape` and `fitsDayShape` both tested the meal *before* the ceiling
-and returned early, so a meal never met the ceiling at all — the fix is the
-ordering, not a new condition. But the en-route food post-pass ran last and
-appended unconditionally, with a comment saying so outright: *"The stop is a
-MEAL, so the non-meal ceiling cannot block it."* It now bails when the day is
-full, and computes that count **before** removing any dinner it would displace,
-so a day with no room does not lose its dinner for a stop that then cannot land.
+and returned early, so a meal never met the ceiling at all. Reordering them is
+correct in principle and **changes nothing in practice** — review instrumented
+both branches over 10,080 days and got zero hits, and either line can be deleted
+with the suite green. The day loop writes at most one entry per slot, so
+`cardsToday` cannot exceed 2. They stay as rails, now labelled as such.
+
+The en-route food post-pass is the whole fix. It ran last and appended
+unconditionally, with a comment saying so outright: *"The stop is a MEAL, so the
+non-meal ceiling cannot block it."* It now bails when the day is full, and
+computes that count **before** removing any dinner it would displace, so a day
+with no room does not lose its dinner for a stop that then cannot land.
 
 `MAX_NON_MEAL_CARDS_PER_DAY` is renamed `MAX_CARDS_PER_DAY`. A name asserting
 "non-meal" on a rule that counts meals is the kind of lie that produced two
@@ -876,7 +883,8 @@ second production report.
 day, including a pass and something else. Left alone — pins are exempt from
 every other rule here too ("an explicit shortlist choice always lands"), and
 making the pass the one exception would be a change to what a pin means, not a
-bug fix. Also open: the untested reverse direction, `docs/ROADMAP.md` item 7b.
+bug fix. (The reverse-direction gap noted here on the day was closed the same
+day — see the correction under the day-pass entry above.)
 
 ---
 

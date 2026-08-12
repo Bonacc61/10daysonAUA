@@ -46,9 +46,10 @@ feeds the engine is in `docs/matching-engine/geography.md`:
   second afternoon card (`day.afternoon.push`) after the day loop, outside
   `feasible`, so a day can exceed the 8h daytime cap: measured on the live
   catalog, 52 of 558 days ran past 12h, worst 14.6h. Since 2026-08-05 it enforces
-  the one-meal rule by displacing any curated restaurant on the day, and cannot
-  breach the non-meal ceiling because the stop is itself a meal — but it performs
-  no ceiling check of its own and does not check DAY_CAP_MIN.
+  the one-meal rule by displacing any curated restaurant on the day, and since
+  2026-08-12 the three-card ceiling too — bailing before it displaces a dinner,
+  so a full day does not lose its dinner for a stop that then cannot land. It
+  still does not check DAY_CAP_MIN, which is the open half of this item.
 - **Pre-pass ORDER is load-bearing and undocumented in the code's structure.**
   Pins → balanced template (mid-slider personas only) → premium splurge →
   staples → fill ladder. Whichever pass runs first claims a route family, and
@@ -60,8 +61,10 @@ feeds the engine is in `docs/matching-engine/geography.md`:
   meal included, since 2026-08-12) + two outings + one meal + a full-day pass
   alone on its day is applied by the fill ladder (`withinDayShape`) and
   re-applied by the staple pre-pass, the premium pre-pass (both via
-  `fitsDayShape`); the en-route post-pass enforces the one-meal half only, and
-  the balanced template satisfies the shape by construction. None of the three AUTO-PLACEMENT paths goes through the
+  `fitsDayShape`); the en-route post-pass enforces the one-meal half and the
+  card ceiling; and the balanced template satisfies the shape by construction
+  EXCEPT for the day-pass rule, which it has had to check explicitly since
+  2026-08-12. None of the three AUTO-PLACEMENT paths goes through the
   ladder, so a new one has to opt in by hand or it will silently break the shape
   — that is exactly how a staple was landing a third outing on a template-filled
   day until 2026-08-05.

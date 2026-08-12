@@ -1346,11 +1346,17 @@ describe('generatePlan — day shape: two activities, one meal', () => {
 
   it('never puts more than three NON-MEAL cards on one day, on any catalog', () => {
     // The ceiling that makes the free-beach exemption safe: without it a day
-    // could stack beach + beach + outing + outing. It counts activities, not
-    // cards, because a meal is "on the side" — so a day may legitimately show
-    // two outings, a free beach and a lunch stop. Counting raw cards instead
-    // blocked the south-coast food stop, and Zeerover and O'Neil's are close to
-    // the only decent options down there.
+    // could stack beach + beach + outing + outing.
+    //
+    // HISTORICAL NOTE, kept because the rationale used to live here and is now
+    // wrong: this counted non-meal cards because the meal was "on the side", so
+    // a day could legitimately show two outings, a free beach AND a lunch stop.
+    // That exemption was removed on 2026-08-12 — the meal counts, three cards
+    // total — and the cost the exemption existed to avoid is now paid: a full
+    // south-coast day can no longer pick up Zeerover or O'Neil's. See the
+    // 'three cards a day, meal included' block above, whose `<= 3` assertion
+    // strictly subsumes this one. This test survives as the narrower statement
+    // about the beach exemption specifically.
     const isMeal = (e: SlotEntry) => e.kind === 'activity'
       && (e.id.startsWith('lunch-') || e.id === 'zeerovers-fresh-catch' || e.id === 'gasparito-restaurant');
     for (const days of [1, 5, 7, 10, 14]) {

@@ -1459,13 +1459,17 @@ export function generatePlan(
     // DEFENSIVE, not load-bearing: nothing passes `opts.pinned` in production
     // (Itinerary.tsx:57-59 — the shortlist was unwired from it on 2026-08-05),
     // so `claimed` is empty here on every live plan and neither line below can
-    // fire. Deleting both keeps the whole suite green. Keep them anyway — the
-    // shortlist is expected to be rewired, and this is the rule it needs — but
-    // do not read them as covered.
+    // fire on live data. The FIRST line is covered as of 2026-08-12 — deleting
+    // it fails the balanced-template test, which drives the pin path directly.
+    // The second is still uncovered; deleting it leaves the suite green. Keep
+    // both — the shortlist is expected to be rewired and this is the rule it
+    // needs — but read only the first as verified.
     if (claimed.some(isFullDayEntry)) return false;
     if (isFullDayEntry(entry) && claimed.length > 0) return false;
-    // Total cards, meals included, and checked before the meal branch — same
-    // ordering and same reason as withinDayShape above.
+    // Also unreachable, same as withinDayShape's: every caller ANDs this with
+    // `slotAvail(day, slot)`, so at least one of the three slots is free and
+    // `claimed.length` is at most 2. Kept as a rail for the day a pre-pass
+    // learns to claim two slots at once.
     if (claimed.length >= MAX_CARDS_PER_DAY) return false;
     if (isMealEntry(entry)) return claimed.filter(isMealEntry).length < 1;
     if (isRevisitableBeach(entry)) return true;
@@ -1852,8 +1856,15 @@ export function generatePlan(
       const today = [...picks, ...ahead];
       if (today.some(isFullDayEntry)) return false;
       if (isFullDayEntry(e) && today.length > 0) return false;
-      // Checked BEFORE the meal branch — that ordering IS the rule. Below it,
-      // a meal returned early and never met the ceiling at all.
+      // UNREACHABLE, kept as a rail. The ordering matters in principle — below
+      // the meal branch a meal returns early and never meets the ceiling — but
+      // `cardsToday` is `picks.length + ahead.length` and `fillSlot` only runs
+      // on a slot no pre-pass claimed, so `reservedAhead` never counts the
+      // current one: the maximum is 2 at every slot (morning 0+2, afternoon
+      // 1+1, evening 2+0). Instrumented over 10,080 days: zero hits. The
+      // ceiling that actually bites is in the en-route food post-pass, which is
+      // the only path that ever wrote a fourth card. Do not read this line as
+      // the fix.
       if (cardsToday >= MAX_CARDS_PER_DAY) return false;
       if (isMealEntry(e)) return mealsToday < 1;
       if (isRevisitableBeach(e)) return true;
