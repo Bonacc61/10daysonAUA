@@ -827,9 +827,54 @@ Most of the catalog has no route family, and if those claimed some catch-all the
 first one placed would block every familyless card from every swap for the rest
 of the trip.
 
-**Not verified in a browser.** The swap path lives in a React closure; the
-helpers are unit-tested and the wiring typechecks and builds, but no one has
-clicked the button.
+**Verified in a browser, and that is how the REAL bug surfaced.** Driving the
+app (Playwright against the dev server, stub catalog) showed **three** sails in
+one plan before a single swap was clicked:
+
+```
+Antilla Shipwreck Snorkel Cruise            <- entry.kind 'activity'
+Champagne Sunset Sail with Open Bar         <- entry.kind 'group'
+Catamaran Sail & Snorkel at Boca Catalina   <- entry.kind 'activity'
+```
+
+**`catalog.activities` is not "local".** This was reported by a traveller who
+said plainly that both sails were Viator cards, and the first diagnosis called
+them curated locals because of which array they sit in. That was wrong in the
+way that matters. On the LIVE catalog `boca-catalina-snorkel` is refaced to
+"Arusun Catamaran Sail with Snorkeling in Aruba" and carries a real
+`viator_item_url` with the affiliate params, so `ItineraryCard.tsx:54` gives it
+a **"Book now"** button — it renders as a Viator card because it IS a Viator
+product. The same product also exists as item `8936P1`. The array split is
+"curated slot" vs "catalog pool", not local vs Viator, and only the offline stub
+makes it look otherwise.
+
+**`routeFamilyOf` never tested `kind: 'activity'` entries for sails.** Its
+non-group branch checked off-road and kayak and returned `undefined` for
+everything else, so the one-sail rule quietly meant *one `kind: 'group'` sail*.
+Two curated slots are boat trips, and `boca-catalina-snorkel` is also the
+`catamaran-sail` staple's own `localIds` fallback — so the staple could place a
+bookable catamaran that retired nothing and let a second sail follow it.
+
+The test is on the TITLE and has to be: a local carries no Viator kind, and
+`loadCatalog` refaces these to live product titles, so the id is no key either.
+It requires a VESSEL word, because the shore snorkels ("Malmok Beach Snorkel",
+"Boca Catalina Shore Snorkel") share the snorkel tag but are a walk into the
+sea. Checked against all 26 locals in both catalogs: exactly the two boat trips
+match, before and after refacing.
+
+Measured across the same 1,728 plans, counting BOTH entry kinds: **1,066 with
+more than one sail → 0.**
+
+The group-only count was 0 before and after, and reporting that number as "the
+engine is clean" was the actual mistake here. It defined a card with a Book now
+button out of the measurement and contradicted what the traveller could see on
+their screen. **A metric that excludes half the rendered cards is not evidence.**
+The browser is what settled it.
+
+Browser after the fix: baseline 3 sails → 1; swapping a NON-sail returned
+"Arikok National Park Hike" (still one sail); swapping THE sail returned
+"Catamaran Snorkel Cruise to Antilla Shipwreck" — still a sail, as specified,
+and still one in the trip.
 
 ---
 

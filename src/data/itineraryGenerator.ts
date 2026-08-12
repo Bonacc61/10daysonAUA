@@ -519,6 +519,9 @@ const LOCAL_OFFROAD = /jeep|safari|4x4|4wd|off.?road|utv|atv|natural pool|conchi
 // it either. Lowering the Jaccard threshold to 0.31 to catch this one pair
 // would have thinned every other slot in the plan.
 const KAYAK_RE = /\bkayak/i;
+// A curated local that is an actual boat trip. Needs a VESSEL word: 'snorkel'
+// alone is a shore snorkel, which is not a sail.
+const LOCAL_SAIL_RE = /\b(catamaran|sail(?:s|ing)?|cruise)\b/i;
 // Sailing, catamarans and Jolly Pirates are one experience sold by a dozen
 // operators — the same boat, the same coastal run, the same snorkel stops — so
 // a trip gets ONE, regardless of length. Snorkel-kind boats are in the same
@@ -683,7 +686,24 @@ export function routeFamilyOf(e: CardEntry): string | undefined {
     return kind === 'offroad' ? 'offroad' : undefined;
   }
   if (LOCAL_OFFROAD.test(title)) return 'offroad';
-  return KAYAK_RE.test(title) ? 'kayak' : undefined;
+  if (KAYAK_RE.test(title)) return 'kayak';
+  // Curated LOCALS can be sails too, and until 2026-08-12 they claimed nothing —
+  // so the one-sail rule quietly meant "one VIATOR sail". Two of the curated
+  // locals are boat trips: 'boca-catalina-snorkel' ("Catamaran Sail & Snorkel at
+  // Boca Catalina") and 'antilla-wreck-dive' ("Antilla Shipwreck Snorkel
+  // Cruise"). The first is also the catamaran-sail staple's own localIds
+  // fallback, so the staple could place a local catamaran that retired nothing
+  // and let a Viator sunset sail follow it. Reproduced in a browser on the stub
+  // catalog: three sails in one plan.
+  //
+  // Title-based, and it has to be: a local carries no Viator kind, and
+  // `loadCatalog` REFACES these to live product titles, so the id is not a
+  // reliable key either. Requires a vessel word — the shore snorkels
+  // ("Malmok Beach Snorkel", "Boca Catalina Shore Snorkel") share the snorkel
+  // tag but are a walk into the sea, and must stay outside the family. Checked
+  // against all 26 locals in both the live and stub catalogs: exactly the two
+  // boat trips match, before and after refacing.
+  return LOCAL_SAIL_RE.test(title) ? 'sail' : undefined;
 }
 
 // Boat outings, treated as ONE family for the minimum-gap rule below. Two
