@@ -98,7 +98,9 @@ async function callerHash(req: Request): Promise<string> {
   const xff = req.headers.get('x-forwarded-for')?.split(',') ?? [];
   const ip = xff[xff.length - 1]?.trim() || 'unknown';
   const salt = Deno.env.get('RATE_LIMIT_SALT')!;
-  const bytes = new TextEncoder().encode(`${ip}:${salt}`);
+  // `ip:` domain separator so a query that happens to BE an ip string cannot
+  // collide with that ip's caller_hash in the shared table.
+  const bytes = new TextEncoder().encode(`ip:${ip}:${salt}`);
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
@@ -109,15 +111,23 @@ async function checkLimits(hash: string): Promise<Response | null> {
   const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-  const { count: mine } = await db.from('edit_requests')
+  const { count: mine, error: mineErr } = await db.from('edit_requests')
     .select('*', { count: 'exact', head: true })
     .eq('feature', FEATURE).eq('caller_hash', hash).gte('created_at', hourAgo);
+  // FAIL CLOSED. Both counts used to discard `error`, so an outage — or simply
+  // deploying this function before the migration that adds `feature` — turned
+  // the ceiling off entirely on a paid endpoint behind a public anon key. An
+  // unavailable limiter must mean "no", not "yes".
+  if (mineErr) {
+    console.warn(`[rate-limit] count failed: ${String(mineErr.message ?? '').slice(0, 120)}`);
+    return json({ error: 'unavailable' }, 503);
+  }
   if ((mine ?? 0) >= RATE_LIMIT_PER_HOUR) return json({ error: 'rate_limited' }, 429);
 
-  const { count: all } = await db.from('edit_requests')
+  const { count: all, error: allErr } = await db.from('edit_requests')
     .select('*', { count: 'exact', head: true })
     .eq('feature', FEATURE).gte('created_at', dayAgo);
-  if ((all ?? 0) >= DAILY_CEILING) return json({ error: 'unavailable' }, 503);
+  if (allErr || (all ?? 0) >= DAILY_CEILING) return json({ error: 'unavailable' }, 503);
 
   await db.from('edit_requests').insert({ caller_hash: hash, feature: FEATURE });
   return null;

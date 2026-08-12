@@ -65,10 +65,11 @@ export default function Privacy({ setPage }: Props) {
 
           <Section title="AI features">
             <p style={{ fontSize: 14, lineHeight: 1.7, margin: '0 0 12px' }}>
-              Two places on this site let you type in your own words: the box that asks what you&rsquo;d rather do
-              when swapping an activity, and search. If you use either, we send what you typed to an outside
-              company to be interpreted. If you don&rsquo;t use them, nothing is sent &mdash; everything else on the
-              site works without them.
+              Two places on this site can send what you type to an outside company to be interpreted: the box that
+              asks what you&rsquo;d rather do when swapping an activity, and &mdash; if you deliberately ask for it
+              &mdash; search-by-meaning. Ordinary searching does not send anything anywhere: typing in the search box
+              matches against words we already hold, on your own device. Nothing is sent unless you ask for one of
+              those two things, and everything else on the site works without them.
             </p>
             <p style={{ fontSize: 14, lineHeight: 1.7, margin: '0 0 12px' }}>
               <strong>What we send:</strong> the words you typed. For a swap we also send the activity you&rsquo;re

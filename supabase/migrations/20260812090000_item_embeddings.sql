@@ -16,8 +16,12 @@
 -- Vectors are never returned to the browser. They are read only by the `search`
 -- edge function, under the service role.
 
--- `with schema extensions` matches Supabase's convention and removes a
--- search_path dependency for resolving the vector(256) type inside search_items.
+-- `with schema extensions` matches Supabase's convention. Note it does NOT
+-- remove a search_path dependency — it adds one at CREATE time, since the
+-- vector(256) in the table DDL and the function signature must resolve then.
+-- It works because Supabase keeps `extensions` on the search path. And because
+-- of `if not exists`, this line cannot move an extension already installed
+-- elsewhere; it is a convention marker, not an enforcement.
 create extension if not exists vector with schema extensions;
 
 -- One row per catalog item.

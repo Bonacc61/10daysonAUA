@@ -62,12 +62,12 @@ describe('searchByMeaning — flag off', () => {
     expect(semanticSearchEnabled()).toBe(false);
   });
 
-  it('does not fetch for an empty query even when enabled', async () => {
-    const fetchSpy = vi.fn();
-    vi.stubGlobal('fetch', fetchSpy);
-    vi.stubEnv('VITE_SEMANTIC_SEARCH', 'true');
-
-    expect((await searchByMeaning('   ')).ok).toBe(false);
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
+  // NOTE: there is deliberately no "empty query while ENABLED" test here.
+  // vitest loads no .env, so VITE_SEARCH_FN_URL and VITE_SUPABASE_ANON_KEY are
+  // undefined and semanticSearchEnabled() is false no matter what the flag is
+  // stubbed to — vi.stubEnv cannot reach module-load consts. Such a test would
+  // return at the flag guard and pass whether or not the empty-query guard
+  // existed, which is worse than no test: it would report coverage it does not
+  // have. normaliseQuery('   ') === '' is asserted above and is what that guard
+  // actually keys on.
 });

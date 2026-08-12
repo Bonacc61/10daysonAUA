@@ -10,10 +10,10 @@ Open work for 10daysonaruba.com. Durable facts and invariants live in
 | 1 | `feedback_events` retention cron (24 months) | Table exists (`supabase/migrations/20260523230000_feedback_events.sql`); no purge job yet. Contact submissions already purge at 12 months — mirror that pattern. GDPR: retention needs to match what the Privacy Policy claims. |
 | 2 | Shortlist + explore event tracking (PostHog) | No `track()` calls on star/shortlist/explore paths today. Must go through `src/lib/analytics.ts`; new events need a legal basis documented in `src/pages/Privacy.tsx`. |
 | 3 | Vendor dashboard | Read-only Supabase query page. RLS stays on — scope access with a policy, never a service-role key in the client. |
-| 5 | Enable semantic search | Built and merged 2026-08-12, dark behind `VITE_SEMANTIC_SEARCH`. Five prerequisites before the flag flips — migration, function deploys, secrets, a catalog refresh to populate `item_embeddings`, and a golden-set run to give `MIN_SIMILARITY` a measured value instead of the shipped guess. Checklist: `docs/superpowers/specs/2026-08-12-semantic-search-design.md`. |
-| 6 | Enable natural-language swaps | Same shape, dark behind `VITE_NL_EDIT`. Needs the `itinerary-edit` deploy, `ANTHROPIC_API_KEY` + `RATE_LIMIT_SALT`, and its own golden run. |
-| 7 | Run the catalog enrichment tool | `npm run enrich` needs `ANTHROPIC_API_KEY` locally. Pipeline shipped with an EMPTY snapshot — 144 of 328 items still fall into generic `sec:` buckets until it runs. |
-| 4 | In-app account deletion button | GDPR right to erasure. Needs to cover `trips`, `feedback_events`, `shared_itineraries`, and the auth user. |
+| 4 | Enable semantic search | Built and merged 2026-08-12, dark behind `VITE_SEMANTIC_SEARCH`. Five prerequisites before the flag flips — migration, function deploys, secrets, a catalog refresh to populate `item_embeddings`, and a golden-set run to give `MIN_SIMILARITY` a measured value instead of the shipped guess. Checklist: `docs/superpowers/specs/2026-08-12-semantic-search-design.md`. |
+| 5 | Enable natural-language swaps | Same shape, dark behind `VITE_NL_EDIT`. Needs the `itinerary-edit` deploy, `ANTHROPIC_API_KEY` + `RATE_LIMIT_SALT`, its own golden run — **and `20260812090000_item_embeddings.sql` applied first.** That migration adds the `feature` column both functions' rate limits filter on; deploying `itinerary-edit` without it made the limiter fail open until 2026-08-12, and the column living in a file named after embeddings is how that gets missed. |
+| 6 | Run the catalog enrichment tool | `npm run enrich` needs `ANTHROPIC_API_KEY` locally. Pipeline shipped with an EMPTY snapshot — 144 of 328 items still fall into generic `sec:` buckets until it runs. |
+| 7 | In-app account deletion button | GDPR right to erasure. Needs to cover `trips`, `feedback_events`, `shared_itineraries`, and the auth user. |
 
 ## Matching engine — open items
 

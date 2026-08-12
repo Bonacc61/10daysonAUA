@@ -58,7 +58,7 @@ async function sha256(s: string): Promise<string> {
 async function callerHash(req: Request): Promise<string> {
   const xff = req.headers.get('x-forwarded-for')?.split(',') ?? [];
   const ip = xff[xff.length - 1]?.trim() || 'unknown';
-  return await sha256(`${ip}:${Deno.env.get('RATE_LIMIT_SALT')!}`);
+  return await sha256(`ip:${ip}:${Deno.env.get('RATE_LIMIT_SALT')!}`);
 }
 
 async function checkLimits(hash: string): Promise<Response | null> {
@@ -69,15 +69,23 @@ async function checkLimits(hash: string): Promise<Response | null> {
   // Every count is scoped to this feature. Without that, search traffic burns
   // itinerary-edit's 2000/day ceiling and the swap box returns 503 for everyone
   // for the rest of the day — one feature silently taking out another.
-  const { count: mine } = await db.from('edit_requests')
+  const { count: mine, error: mineErr } = await db.from('edit_requests')
     .select('*', { count: 'exact', head: true })
     .eq('feature', FEATURE).eq('caller_hash', hash).gte('created_at', hourAgo);
+  // FAIL CLOSED. Both counts used to discard `error`, so an outage — or simply
+  // deploying this function before the migration that adds `feature` — turned
+  // the ceiling off entirely on a paid endpoint behind a public anon key. An
+  // unavailable limiter must mean "no", not "yes".
+  if (mineErr) {
+    console.warn(`[rate-limit] count failed: ${String(mineErr.message ?? '').slice(0, 120)}`);
+    return json({ error: 'unavailable' }, 503);
+  }
   if ((mine ?? 0) >= RATE_LIMIT_PER_HOUR) return json({ error: 'rate_limited' }, 429);
 
-  const { count: all } = await db.from('edit_requests')
+  const { count: all, error: allErr } = await db.from('edit_requests')
     .select('*', { count: 'exact', head: true })
     .eq('feature', FEATURE).gte('created_at', dayAgo);
-  if ((all ?? 0) >= DAILY_CEILING) return json({ error: 'unavailable' }, 503);
+  if (allErr || (all ?? 0) >= DAILY_CEILING) return json({ error: 'unavailable' }, 503);
 
   await db.from('edit_requests').insert({ caller_hash: hash, feature: FEATURE });
   return null;
@@ -116,6 +124,34 @@ Deno.serve(async (req) => {
   if (limited) return limited;
 
   const db = admin();
+  // Is there a corpus we can actually rank against? BEFORE the embed, not after.
+  //
+  // `search_items` filters on model in SQL, so a mismatch — and an EMPTY table,
+  // which is the guaranteed state until the first catalog refresh after deploy —
+  // both return zero rows, indistinguishable from "nothing matched". That would
+  // tell the traveller we looked and found nothing when we could not look.
+  //
+  // Ordering matters for more than tidiness: run this after the embed and every
+  // search in that window ships the traveller's free text to a third party and
+  // stores a fingerprint of it, for a request that can only 503. A transfer with
+  // no possible benefit is not covered by the justification the Privacy Policy
+  // gives for the cache.
+  //
+  // Scoped to the ACTIVE model rather than reading an arbitrary row: a single
+  // stale row — the window between upsert and delete in viator-cards, or a run
+  // whose delete failed — would otherwise 503 a perfectly good corpus.
+  const { data: corpus, error: corpusErr } = await db
+    .from('item_embeddings').select('item_id').eq('model', model).limit(1).maybeSingle();
+  if (corpusErr) {
+    console.warn(`[search] corpus probe failed: ${String(corpusErr.message ?? '').slice(0, 120)}`);
+    return json({ error: 'upstream' }, 502);
+  }
+  if (!corpus) {
+    console.warn(`[search] no item_embeddings rows for model ${model} — catalog refresh since deploy?`);
+    return json({ error: 'no_corpus' }, 503);
+  }
+
+
   // Normalise before hashing so "Snorkeling " and "snorkeling" share a cache
   // entry — travel searches repeat heavily and a hit costs no third-party call.
   //
@@ -126,7 +162,7 @@ Deno.serve(async (req) => {
   // seconds, and the migration's claim that "a table of hashes is not a
   // search-history log" would be false.
   const normalised = query.toLowerCase().replace(/\s+/g, ' ').trim();
-  const hash = await sha256(`${normalised}:${Deno.env.get('RATE_LIMIT_SALT')}`);
+  const hash = await sha256(`q:${normalised}:${Deno.env.get('RATE_LIMIT_SALT')}`);
 
   let vector: number[] | null = null;
   try {
@@ -154,21 +190,6 @@ Deno.serve(async (req) => {
       console.warn(`[search] embed failed: ${e instanceof Error ? e.name : 'error'}`);
       return json({ error: 'upstream' }, 502);
     }
-  }
-
-  // Is there a comparable corpus at all? `search_items` filters on model in SQL,
-  // so a mismatch — and an EMPTY table, which is the guaranteed state until the
-  // first catalog refresh after deploy — both return zero rows, indistinguishable
-  // from "nothing matched". That would tell the traveller we looked and found
-  // nothing when we could not look at all.
-  const { data: corpus } = await db.from('item_embeddings').select('model').limit(1).maybeSingle();
-  if (!corpus) {
-    console.warn('[search] item_embeddings is empty — no catalog refresh since deploy?');
-    return json({ error: 'no_corpus' }, 503);
-  }
-  if (corpus.model !== model) {
-    console.warn(`[search] corpus model ${corpus.model} != active ${model}`);
-    return json({ error: 'model_mismatch' }, 503);
   }
 
   const { data, error } = await db.rpc('search_items', {
