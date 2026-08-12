@@ -13,7 +13,8 @@ Open work for 10daysonaruba.com. Durable facts and invariants live in
 | 4 | Enable semantic search | Built and merged 2026-08-12, dark behind `VITE_SEMANTIC_SEARCH`. Five prerequisites before the flag flips — migration, function deploys, secrets, a catalog refresh to populate `item_embeddings`, and a golden-set run to give `MIN_SIMILARITY` a measured value instead of the shipped guess. Checklist: `docs/superpowers/specs/2026-08-12-semantic-search-design.md`. |
 | 5 | Enable natural-language swaps | Same shape, dark behind `VITE_NL_EDIT`. Needs the `itinerary-edit` deploy, `ANTHROPIC_API_KEY` + `RATE_LIMIT_SALT`, its own golden run — **and `20260812090000_item_embeddings.sql` applied first.** That migration adds the `feature` column both functions' rate limits filter on; deploying `itinerary-edit` without it made the limiter fail open until 2026-08-12, and the column living in a file named after embeddings is how that gets missed. |
 | 6 | Run the catalog enrichment tool | `npm run enrich` needs `ANTHROPIC_API_KEY` locally. Pipeline shipped with an EMPTY snapshot — 144 of 328 items still fall into generic `sec:` buckets until it runs. |
-| 7 | In-app account deletion button | GDPR right to erasure. Needs to cover `trips`, `feedback_events`, `shared_itineraries`, and the auth user. |
+| 7 | `avoid-crowds` flag is inert | The Q8 pill exists and can be ticked, but no filter anywhere reads it — `applyCatalogFlags` handles `no-boats`, `no-car` and the adventure caps only. Ticking it changes nothing. Either give it a filter or take the pill away; a control that does nothing is worse than no control. Found 2026-08-12 while scoping Q8 extraction. |
+| 8 | In-app account deletion button | GDPR right to erasure. Needs to cover `trips`, `feedback_events`, `shared_itineraries`, and the auth user. |
 
 ## Matching engine — open items
 
