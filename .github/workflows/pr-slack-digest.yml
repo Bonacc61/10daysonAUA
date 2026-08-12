@@ -100,13 +100,21 @@ jobs:
           out() { printf '%s<<__EOF__\n%s\n__EOF__\n' "$1" "$2" >> "$GITHUB_OUTPUT"; }
 
           # A range is only usable if both ends exist locally. Force-pushes and
-          # first-pushes leave BEFORE dangling or all-zeroes; fall back to the
-          # single head commit rather than failing the job.
+          # first-pushes leave BEFORE dangling or all-zeroes, so fall back to the
+          # head commit alone rather than failing the job.
+          #
+          # The last resort is git's empty-tree hash, which is a real object in
+          # every repository representing "no files at all" — diffing against it
+          # renders the commit as pure additions. It covers the case where the
+          # head has no parent to fall back to, where `HEAD~1` would not resolve.
+          EMPTY_TREE=4b825dc642cb6eb9a060e54bf8d69288fbee4904
           safe_range() {
             if git rev-list --count "$1..$2" >/dev/null 2>&1; then
               printf '%s..%s' "$1" "$2"
-            else
+            elif git rev-parse --verify --quiet "$2~1" >/dev/null; then
               printf '%s~1..%s' "$2" "$2"
+            else
+              printf '%s..%s' "$EMPTY_TREE" "$2"
             fi
           }
 
