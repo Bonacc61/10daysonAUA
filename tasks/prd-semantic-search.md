@@ -150,6 +150,28 @@ results are appended below it.
 - The empty state is where this feature is most visible. When semantic search returned nothing *and* was armed, say so plainly rather than showing the generic no-results copy.
 - Match `SwapReasons.tsx` for the in-progress and failure treatment, so both AI features fail the same way.
 
+## Findings from the 2026-08-11 baseline/treatment test
+
+Two independent runs answering this same design question surfaced three things the
+original PRD missed. The first two are folded into the stories above:
+
+1. **Cache query→embedding.** Travel searches repeat heavily — "snorkeling", "sunset",
+   "with kids". A cache keyed on a hash of the normalised query absorbs most traffic and
+   most cost, and keyed on a hash rather than the text it is not a search-history log.
+   Now in US-001 (table) and US-003 (use).
+2. **Record what text is embedded.** `embeddings.ts` embeds `${title}. ${description}`
+   truncated to 500 chars. The search function must embed queries into the same space, so
+   a silent change here degrades ranking without failing anything. Now documented in US-002.
+3. **Semantic search is WORSE than substring on proper nouns** — "Arikok", "De Palm
+   Island". Similarity blurs exactly the distinctions names depend on. This is the
+   strongest argument for the blend in US-005, stronger than the one this PRD originally
+   gave, and it means the substring layer is permanently load-bearing rather than a
+   transitional fallback.
+
+Two further items are recorded as open questions rather than stories: check PostHog for
+whether the search box is used at all before spending a week on it, and measure real
+embedding latency before designing the armed-Enter interaction around an estimate.
+
 ## Technical Considerations
 
 - **Model pinning is a correctness constraint, not a preference.** Cosine similarity between vectors from different models is meaningless. The `model` column exists so a provider swap is detected rather than silently producing garbage ranking; changing providers means rebuilding the table.

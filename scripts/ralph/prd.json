@@ -16,6 +16,9 @@
         "Every statement uses `if not exists` so re-running the migration is safe",
         "A comment block at the top explains why `model` exists: a vector is only comparable to another produced by the same model",
         "Write the migration FILE only. Do NOT run `supabase db push`, `supabase db reset`, or any command that touches the linked remote project \u2014 a human applies migrations to production",
+        "Also creates public.query_embeddings (query_hash text primary key, embedding vector(256), model text not null, created_at timestamptz not null default now()) with RLS enabled and no anon policy \u2014 travel searches repeat heavily ('snorkeling', 'sunset', 'with kids'), so a cache absorbs most traffic and most cost",
+        "query_hash is a SHA-256 of the NORMALISED query text (trimmed, lowercased) \u2014 the raw query is never stored, so the cache is not a search-history log",
+        "Schedules a pg_cron purge of query_embeddings rows older than 30 days, mirroring purge-old-edit-requests",
         "Typecheck passes"
       ],
       "priority": 1,
@@ -34,6 +37,8 @@
         "A failure of the whole embedding-write block is caught and non-fatal \u2014 the catalog response is returned unchanged, matching how writeCache already behaves",
         "No vector is added to the JSON payload returned to the browser",
         "Do NOT run `supabase functions deploy` \u2014 a human deploys edge functions",
+        "Record in a comment exactly what text is embedded \u2014 today `${title}. ${description}` truncated to 500 chars in embeddings.ts \u2014 because the search function must embed queries into the same space and any change here silently degrades ranking",
+        "Note as a follow-up (not this story): long descriptions can embed to a bland, generic position, which is fine for spotting duplicates and mediocre for search. If golden-set recall is poor, embedding title plus a trimmed description is the first thing to try",
         "Typecheck passes"
       ],
       "priority": 2,
@@ -55,6 +60,9 @@
         "Rate limited per caller and globally by reusing the edit_requests table and the callerHash/checkLimits approach from supabase/functions/itinerary-edit/index.ts, including failing closed when RATE_LIMIT_SALT is unset",
         "Returns 502 on embedding-provider failure with no partial results",
         "Do NOT run `supabase functions deploy`; the function is verified by typecheck and review, not by deploying it",
+        "Before calling the embedding provider, look up the normalised query's SHA-256 in query_embeddings and reuse the stored vector on a hit \u2014 a cache hit must make zero third-party calls",
+        "On a miss, store the computed vector against the hash. Never store the raw query text",
+        "Cache lookups and writes are keyed on the model too; a row whose model differs from the active one is ignored, not reused",
         "Typecheck passes"
       ],
       "priority": 3,
