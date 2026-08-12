@@ -22,15 +22,30 @@ Live production app. Dutch law (GDPR) applies. Reddit launch imminent.
 
 - PostHog must not fire before explicit consent. Enforced by `src/lib/analytics.ts` — the app never imports `posthog-js` directly, and `initAnalytics()` runs only after `10doa:analytics-consent === 'true'`. `CookieBanner` (`src/components/CookieBanner.tsx`, rendered from `App.tsx`) is the only thing that sets it; `src/main.tsx` reads it at boot. Never call `posthog.*` outside this module.
 - Any new data collection (PostHog events, Supabase inserts, edge function logging) needs a legal basis documented in the Privacy Policy (`src/pages/Privacy.tsx`).
+- **Never log text a traveller typed** — not to console, not into an error body, not into a
+  database column. Log the derived result instead. `itinerary-edit` logs the parsed
+  constraint; `search` logs the result count. Neither logs the words.
+- **Two feature flags gate the AI features and both default OFF:** `VITE_NL_EDIT` and
+  `VITE_SEMANTIC_SEARCH`. They send a traveller's own words to a US sub-processor, so the
+  switch is a legal decision, not a technical one. Neither appears in `.env.production`.
+  Enable checklists live in `docs/superpowers/specs/2026-08-11-natural-language-edit-design.md`
+  and `docs/superpowers/specs/2026-08-12-semantic-search-design.md`.
 - Contact submissions auto-purge after 12 months (cron job exists). New tables need matching retention.
 
 ## Data flow
 
 ```
-User → React app (localStorage) → Supabase (trips, feedback_events, shared_itineraries)
-                                → Edge functions (viator-cards, contact-notify, itinerary-share)
+User → React app (localStorage) → Supabase (trips, feedback_events, shared_itineraries,
+                                              item_embeddings, query_embeddings, edit_requests)
+                                → Edge functions (viator-cards, contact-notify, itinerary-share,
+                                                  itinerary-edit, search)
                                 → PostHog (analytics, EU hosted)
                                 → Viator (affiliate clicks, no return signal)
+
+AI features (both dark by default — see the flags below):
+  itinerary-edit → Anthropic (US)   free text → an EditConstraint. Nothing stored.
+  search         → OpenAI (US)      query → a vector. Hash + vector cached 30 days.
+  viator-cards   → OpenAI (US)      product text → vectors, at ingest. Always on.
 ```
 
 ## Ship gate
