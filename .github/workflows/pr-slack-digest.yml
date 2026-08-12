@@ -22,12 +22,18 @@ name: PR Slack digest
 # `synchronize` (commits pushed to an open PR) summarises ONLY the new commits,
 # not the whole PR again — otherwise every push re-announces the entire branch.
 #
-# The writing rules in the prompt are the `deconstruct` skill — jargon defined at
-# first use with its stake, real numbers over adjectives, risk as a concrete
-# failure. They are inlined rather than referenced because that skill lives in a
-# personal ~/.claude and does not exist on a GitHub runner; naming it here would
-# silently do nothing. Its option-comparison structure is deliberately dropped:
-# a PR is not a choice between alternatives.
+# The prompt aims at one thing: a note a non-engineer reads in ten seconds.
+#
+# It started from the `deconstruct` skill, which says to define every term of art
+# at first use. That rule is right for a decision document and wrong here — it
+# adds a clause per term, and the digests came out at 250 words nobody finished.
+# Inverted instead: avoid the term, so there is nothing to define. "Makes search
+# faster" beats "adds an index — a lookup table that lets the database skip
+# rows". What survives from the skill is naming a concrete failure rather than a
+# category, and refusing to pad.
+#
+# The worked example in the prompt is doing real work. Length and register are
+# far better controlled by showing one than by asking for a word count.
 #
 # Claude writes the prose; a plain shell step delivers it. Keeping delivery out
 # of the model's hands means diff text containing quotes, backticks or newlines
@@ -183,47 +189,48 @@ jobs:
             Inspect it with ${{ steps.event.outputs.inspect }}. Read any source
             file you need in order to judge what the change actually does.
 
-            Then write a summary for a teammate who has not read the code and
-            will not open GitHub unless you give them a reason to. Write it to
-            the file `pr-summary.txt` in the repository root.
+            Then write a very short note for someone who does not write code and
+            wants to know what happened, and nothing more. Write it to the file
+            `pr-summary.txt` in the repository root.
 
-            Write it so someone can follow it without sharing your vocabulary:
+            Hard rules:
 
-            - *Lead with the load-bearing idea.* Open with the single concept the
-              change rests on, in plain words. If the reader understands only
-              that first line, the bullets should already half make sense. Never
-              restate the title.
-            - *Define every term of art at first use*, in the same sentence, in
-              words a smart non-specialist knows — and give the stake, not just
-              the definition. "an index lets the database skip most of the rows,
-              which is what keeps this fast as the catalog grows", not "adds an
-              index". Terms of art include library and product names, and
-              ordinary words carrying a specialist meaning: migration, hook,
-              bundle, payload, edge function, cold start, index.
-            - *Use the real numbers from the diff* — files touched, lines added
-              and removed, values that actually changed. Measurements decide
-              things; adjectives do not. Write "grows the bundle 12 KB", never
-              "may affect performance". If you did not measure it, say so.
-            - *Say what it costs, not only what it buys.* The reader cannot agree
-              with a change they cannot disagree with.
-            - Then a short bullet list of the substantive changes, grouped by
-              intent rather than by file. Skip lockfiles, formatting and
-              generated code.
-            - Close with `Risk:` naming a *concrete failure* — who breaks, doing
-              what, when. "Deleting the auth test means a broken login ships
-              silently", not "touches authentication". If genuinely routine,
-              write `Risk: routine.` and nothing more. Never invent a concern to
-              seem thorough.
-            - If something could not be settled from the diff alone, add a final
-              line starting `Unverified:` saying what you would need to check.
-              Omit the line entirely when nothing is in doubt.
+            - *Under 80 words.* Shorter is always better. Most changes deserve
+              two sentences. A typo fix deserves one line.
+            - *Avoid the jargon instead of explaining it.* Do not name files,
+              functions, libraries, or technologies unless the note is
+              meaningless without them. Say what the change does for a person,
+              not how it is built. Write "Slack now gets a message when code
+              goes straight into the project" — never "adds a push trigger to
+              the workflow".
+            - No line counts, no file paths, no percentages, unless that number
+              is the entire point of the change.
+            - Never restate the title. The reader can already see it.
 
-            A small change gets a short summary. Three lines for a typo fix is
-            the right length — do not pad it to look thorough.
+            Shape:
+
+            - One plain sentence: what changed, and why anyone should care.
+            - Then at most three short bullets, and only if they say something
+              the sentence did not. Fewer is better. For a small change, drop
+              them entirely.
+            - Only if something could genuinely go wrong for a person, one final
+              line starting `Watch out:`. Otherwise leave it out — never write
+              "no risk", "routine", or any other placeholder.
+
+            This is the right length and register:
+
+              Jarvis now speaks up when code goes straight into the project, not
+              only when changes are proposed for review first.
+
+              • Announces new code added to an open proposal
+              • Stays quiet instead of repeating itself when one is approved
+
+              Watch out: a note ending in something like "(#4)" is mistaken for
+              an approval and stays silent.
 
             Format: plain text, Slack mrkdwn — *bold* not **bold**, no headers.
-            Under 250 words. No preamble, no sign-off, no restating these
-            instructions. The file's entire contents get posted verbatim.
+            No preamble, no sign-off, no restating these instructions. The
+            file's entire contents get posted verbatim.
 
       - name: Post it to Slack
         if: steps.event.outputs.skip != 'true'
