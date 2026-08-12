@@ -567,15 +567,20 @@ function isArikok(e: CardEntry): boolean {
 // and a day of their own to shape. Meals do not count — a lunch stop or a
 // dinner is the "on the side" card, and there is at most one of those per day.
 const MAX_ACTIVITIES_PER_DAY = 2;
-// ...and a hard ceiling on NON-MEAL cards, so the free-beach exemption below
-// cannot stack back up into the crowded day this exists to prevent.
+// ...and a hard ceiling on CARDS, so the free-beach exemption below cannot
+// stack back up into the crowded day this exists to prevent.
 //
-// Counts activities, not cards, because the meal was specified as being "on the
-// side": a day may therefore show two outings, a free beach and a lunch. The
-// ceiling was briefly on raw cards instead, which blocked the south-coast food
-// stop on 3-card days — and Zeerover and O'Neil's are close to the only decent
-// options down there, so that stop is worth more than the strict count.
-const MAX_NON_MEAL_CARDS_PER_DAY = 3;
+// The meal counts (2026-08-12). It used to be exempt, on the reasoning that a
+// lunch stop is "on the side" — which let a day show two outings, a free beach
+// AND a lunch. Four cards, measured at 20 of 300 days on the live catalog and
+// 29 of 180 on the stub, always the same shape: an outing, the en-route lunch
+// stop, a free beach and a sunset.
+//
+// The exemption was not arbitrary and its cost is now paid back: it existed
+// because a 3-card south-coast day could not pick up its food stop, and
+// Zeerover and O'Neil's are close to the only decent options down there. Those
+// days now lose their third card instead of gaining a fourth.
+const MAX_CARDS_PER_DAY = 3;
 // A food card: the curated restaurants ('Dinner at Gasparito', 'Zeerovers Fish
 // Fry') and every lunchspot, all of which carry category 'Food'. A Viator
 // dinner cruise or sunset sail is deliberately NOT a meal — it is an outing you
@@ -1459,8 +1464,10 @@ export function generatePlan(
     // do not read them as covered.
     if (claimed.some(isFullDayEntry)) return false;
     if (isFullDayEntry(entry) && claimed.length > 0) return false;
+    // Total cards, meals included, and checked before the meal branch — same
+    // ordering and same reason as withinDayShape above.
+    if (claimed.length >= MAX_CARDS_PER_DAY) return false;
     if (isMealEntry(entry)) return claimed.filter(isMealEntry).length < 1;
-    if (claimed.filter((e) => !isMealEntry(e)).length >= MAX_NON_MEAL_CARDS_PER_DAY) return false;
     if (isRevisitableBeach(entry)) return true;
     const outings = claimed.filter((e) => !isMealEntry(e) && !isRevisitableBeach(e)).length;
     return outings < MAX_ACTIVITIES_PER_DAY;
@@ -1845,8 +1852,10 @@ export function generatePlan(
       const today = [...picks, ...ahead];
       if (today.some(isFullDayEntry)) return false;
       if (isFullDayEntry(e) && today.length > 0) return false;
+      // Checked BEFORE the meal branch — that ordering IS the rule. Below it,
+      // a meal returned early and never met the ceiling at all.
+      if (cardsToday >= MAX_CARDS_PER_DAY) return false;
       if (isMealEntry(e)) return mealsToday < 1;
-      if (cardsToday >= MAX_NON_MEAL_CARDS_PER_DAY) return false;
       if (isRevisitableBeach(e)) return true;
       return outingsToday < MAX_ACTIVITIES_PER_DAY;
     };
@@ -2066,8 +2075,14 @@ export function generatePlan(
       const dinners = SECTIONS.flatMap((s) => day[s].map((e) => ({ s, e })))
         .filter(({ e }) => e.kind === 'activity' && isFoodActivityId(e.id));
 
-      // The stop is a MEAL, so the non-meal ceiling cannot block it — it only
-      // has to respect the one-meal rule, which the dinner removal below serves.
+      // The stop counts against the day's three cards like anything else since
+      // 2026-08-12; it used to be exempt as a meal, and this pass appending
+      // unconditionally is where most four-card days came from.
+      //
+      // Computed BEFORE the removal below, and bailing before it, so a day with
+      // no room does not lose its dinner for a stop that then cannot be added.
+      const cardsAfterRemoval = SECTIONS.reduce((n, s) => n + day[s].length, 0) - dinners.length;
+      if (cardsAfterRemoval >= MAX_CARDS_PER_DAY) return;
 
       for (const { s, e } of dinners) day[s] = day[s].filter((x) => x !== e);
       usedPlaceKeys.add(pick.placeKey);

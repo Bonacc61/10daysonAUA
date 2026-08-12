@@ -63,8 +63,8 @@ in mind" only — the traveller drops it into a slot from the empty-slot picker 
 
 Four tiers, best → worst. Every tier is gated by `unused` (no id repeats, except a free local beach after a 2-day gap),
 `notSimilar` (semantic dedup) and `feasible` — the day/evening time budget AND
-the day shape (<=2 outings, <=1 meal, <=3 non-meal cards, and a full-day pass
-alone on its day); when
+the day shape (<=3 cards a day INCLUDING the meal, <=2 outings, <=1 meal, and a
+full-day pass alone on its day); when
 `maxPrice === 0` (the free-only arrival day) it returns before tiers 3-4. `kindOk` runs the whole ladder for
 variety-introducing picks first, then relaxes for same-kind picks:
 
@@ -768,6 +768,64 @@ were sunset sails, one collides on same-day tags. The sunset cruise was papering
 over a pool that was already exhausted; removing it made the shortfall visible
 rather than causing it. This confirms the standing "Evening pool depth" item
 below — more evening inventory is the fix, and no constant will do it.
+
+---
+
+### 2026-08-12 — Three cards a day, and the meal counts
+
+**Asked for:** "max 3 activities per day including food". The engine did not do
+that, and the gap was a genuine misunderstanding: asked earlier whether the
+ceiling should change, the answer was "keep it at 3" — which was read as *leave
+the existing rule alone*, since `MAX_NON_MEAL_CARDS_PER_DAY` was already 3. It
+counted **non-meal** cards, plus one meal on the side, so the real ceiling was
+**four**.
+
+Measured before the change: **20 of 300 live days** carried four cards (29 of
+180 on the stub), always the same shape.
+
+```
+default seed 0 day 7:  baby-beach-snorkel | lunch-oniels | alto-vista-chapel | california-lighthouse-sunset
+foodie  seed 0 day 4:  San Nicolas tour   | lunch-oniels | rodgers-beach    | california-dunes-sunset
+```
+
+**Three places had to change, and the third is where most of it came from.**
+`withinDayShape` and `fitsDayShape` both tested the meal *before* the ceiling
+and returned early, so a meal never met the ceiling at all — the fix is the
+ordering, not a new condition. But the en-route food post-pass ran last and
+appended unconditionally, with a comment saying so outright: *"The stop is a
+MEAL, so the non-meal ceiling cannot block it."* It now bails when the day is
+full, and computes that count **before** removing any dinner it would displace,
+so a day with no room does not lose its dinner for a stop that then cannot land.
+
+`MAX_NON_MEAL_CARDS_PER_DAY` is renamed `MAX_CARDS_PER_DAY`. A name asserting
+"non-meal" on a rule that counts meals is the kind of lie that produced two
+other bugs on this same day.
+
+**The counterweight test earned its place immediately.** The first attempt at
+the ceiling did not bound the food pass, it deleted it — zero lunch stops. The
+test written alongside ("still allows a meal as the third card") caught it. It
+sweeps four personas deliberately: the default persona alone returns 0 on the
+stub, because the south-coast drive the stop needs is not in its themes, so a
+single-persona version would have failed for a reason unrelated to the rule.
+
+**Result.** Four-card days **20 → 0**. Cards per day on the live catalog:
+
+```
+before   1:24  2:120  3:136  4:20
+after    1:23  2:116  3:161
+```
+
+The en-route lunch stop still lands, on **17 of 300 days against 29 before**.
+That loss is the accepted cost, and it is the same cost the exemption was
+written to avoid in the first place: a full south-coast day can no longer pick
+up its food stop, and Zeerover and O'Neil's are close to the only decent options
+down there. Traded knowingly for never showing a four-card day.
+
+`tools/plan-diff.ts` mirrored this rule and counted it over `itemsOf`, which
+returns only Viator products — so a day of one tour plus a lunch stop plus two
+free beaches scored 1. It now counts every slot entry. Verified non-vacuous:
+the corrected checker reports **12 violations against the pre-fix engine and 0
+against the fixed one**.
 
 ---
 

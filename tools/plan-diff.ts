@@ -83,8 +83,7 @@ type Violation = { rule: string; detail: string };
 // The engine's OWN definitions. Getting these wrong is how a checker manufactures
 // alarms: an earlier version of this file used isWaterBased for the boat cap
 // (broader than the engine's boat test, which excludes kayak/jetski/sup) and a
-// flat three-card ceiling (the real rule is three NON-MEAL cards plus one meal,
-// with revisitable beaches exempt from the outings count). Both reported
+// flat three-card ceiling counted over the wrong entries. Both reported
 // violations that were not violations.
 //
 // The boat and sail tests are now IMPORTED rather than copied, because they got
@@ -92,7 +91,7 @@ type Violation = { rule: string; detail: string };
 // boat set (2026-08-12) this file kept the old set, which would have flagged a
 // legal bus-tour-plus-catamaran day as a violation. The two numbers below are
 // still mirrored — they are single integers with no derivation to drift.
-const MAX_NON_MEAL_CARDS_PER_DAY = 3;    // itineraryGenerator.ts:576
+const MAX_CARDS_PER_DAY = 3;    // itineraryGenerator.ts — meals included since 2026-08-12
 
 // --- The rules, as assertions over a finished plan --------------------------
 // Each one is a production report someone wrote up and someone else fixed. They
@@ -144,20 +143,19 @@ function checkInvariants(plan: Day[], catalog: Catalog): Violation[] {
   }
 
   for (const d of plan) {
-    // Day shape. Meals are counted separately from outings, and the ceiling is
-    // on NON-MEAL cards — a day may legitimately carry MAX_NON_MEAL + one meal.
-    // Curated local picks are activities; Viator products are never meals here,
-    // so counting group entries as outings is the right approximation.
-    // ONE assertion, not two. These were separate rules with identical
-    // conditions — `> MAX_NON_MEAL_CARDS_PER_DAY` and `> MAX_ACTIVITIES_PER_DAY
-    // + 1` are both `> 3` — so every offending day was counted twice under two
-    // names, inflating the totals and the per-rule table. The outings half is
-    // not assertable from a finished plan anyway: meals are indistinguishable
-    // from outings here (see the note above), which is why the ceiling is the
-    // one that survives.
-    const outings = itemsOf(d).length;
-    if (outings > MAX_NON_MEAL_CARDS_PER_DAY) {
-      out.push({ rule: 'non-meal card ceiling', detail: `day ${d.day} has ${outings} (max ${MAX_NON_MEAL_CARDS_PER_DAY})` });
+    // Day shape: at most three CARDS, meals and curated locals included
+    // (2026-08-12 — the meal used to be exempt). Counted over every slot entry,
+    // not `itemsOf`: that returns only Viator products, so a day of one tour
+    // plus a lunch stop plus two free beaches would have scored 1 here.
+    //
+    // ONE assertion, not two. This and "two outings per day" had identical
+    // conditions — both `> 3` — so every offending day was counted twice under
+    // two names, inflating the totals and the per-rule table. The outings half
+    // is not assertable from a finished plan anyway: a Viator card gives no
+    // reliable signal of whether it is a meal.
+    const cards = SLOTS.reduce((n, s) => n + d[s].length, 0);
+    if (cards > MAX_CARDS_PER_DAY) {
+      out.push({ rule: 'card ceiling', detail: `day ${d.day} has ${cards} (max ${MAX_CARDS_PER_DAY})` });
     }
 
     // One boat per day — the engine's own test, not "anything on water".

@@ -56,9 +56,9 @@ feeds the engine is in `docs/matching-engine/geography.md`:
   only reason a money-no-object traveller gets the yacht instead of the
   catamaran staple (2026-08-05). Reordering these passes changes which products
   reach the itinerary, so treat the sequence as an interface.
-- **Day shape is enforced in four separate places.** Two outings + one meal + a
-  three-card ceiling + a full-day pass alone on its day is applied by the fill
-  ladder (`withinDayShape`) and
+- **Day shape is enforced in four separate places.** Three cards a day (the
+  meal included, since 2026-08-12) + two outings + one meal + a full-day pass
+  alone on its day is applied by the fill ladder (`withinDayShape`) and
   re-applied by the staple pre-pass, the premium pre-pass (both via
   `fitsDayShape`); the en-route post-pass enforces the one-meal half only, and
   the balanced template satisfies the shape by construction. None of the three AUTO-PLACEMENT paths goes through the

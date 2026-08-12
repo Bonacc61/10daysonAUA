@@ -10,6 +10,7 @@ import { type Coord } from './coords';
 import { pinFor } from './itemCoords';
 import { distanceKm } from './enRoute';
 import { isWaterBased, isAutoFillExcluded, activityKind } from './itemFit';
+import { isLunchspot } from './lunchspots';
 import { parseActivityCost } from './matcher';
 
 const catalog = getCatalog();
@@ -1252,6 +1253,67 @@ describe('generatePlan — a bus tour is not a boat', () => {
   it('lets a bus tour and a sail share a day', () => {
     const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 1 }, cat, { seed: 1 });
     expect(placed(plan)).toEqual(expect.arrayContaining(['sail', 'bus']));
+  });
+});
+
+describe('generatePlan — three cards a day, meal included', () => {
+  // The ceiling used to exempt the meal: three NON-meal cards PLUS one meal, so
+  // a day could legitimately show four. Measured before this rule — 20 of 300
+  // days on the live catalog and 29 of 180 on the stub — always the same shape,
+  // an outing plus the en-route lunch stop plus a free beach plus a sunset:
+  //
+  //   scuba-discovery | lunch-oniels | rodgers-beach | beach-dinner
+  //
+  // Four is too many. The meal now counts like everything else.
+  //
+  // The cost is real and was accepted deliberately: the exemption existed
+  // because a three-card south-coast day could not pick up its food stop, and
+  // "Zeerover and O'Neil's are close to the only decent options down there".
+  // Those days now lose their third card instead.
+  const SLOTS = ['morning', 'afternoon', 'evening'] as const;
+  const PERSONAS: Partial<Answers>[] = [
+    {},
+    { interests: ['food-drink'], budget: 'Budget-conscious', adventureLevel: 10, groupType: 'Couple' },
+    { adventureLevel: 50, budget: 'Mid-range', groupType: 'Family with young kids' },
+    { interests: ['watersports'], budget: 'Money no object', adventureLevel: 60, groupType: 'Couple' },
+  ];
+
+  it('never places a fourth card, however the day was assembled', () => {
+    const cat = getCatalog();
+    for (const p of PERSONAS) {
+      for (let seed = 0; seed < 6; seed += 1) {
+        const plan = generatePlan({ ...DEFAULT_ANSWERS, ...p, days: 10 } as Answers, cat, { seed });
+        for (const d of plan) {
+          const cards = SLOTS.flatMap((s) => d[s]);
+          expect(cards.length).toBeLessThanOrEqual(3);
+        }
+      }
+    }
+  });
+
+  it('still allows a meal as the third card', () => {
+    // The ceiling must BOUND the en-route food pass, not delete it. Written
+    // deliberately as the counterweight to the test above, and it earned its
+    // place immediately: the first attempt at the ceiling blocked the lunch
+    // stop outright and this caught it.
+    //
+    // Swept across personas on purpose. The default persona alone returns 0 on
+    // the stub — the south-coast drive it needs is not in its themes — so a
+    // single-persona version of this assertion would have failed for a reason
+    // that has nothing to do with the rule. On the live catalog the stop lands
+    // on 17 of 300 days (29 before the ceiling).
+    const cat = getCatalog();
+    let daysWithAMeal = 0;
+    for (const p of PERSONAS) {
+      for (let seed = 0; seed < 6; seed += 1) {
+        const plan = generatePlan({ ...DEFAULT_ANSWERS, ...p, days: 10 } as Answers, cat, { seed });
+        for (const d of plan) {
+          const cards = SLOTS.flatMap((s) => d[s]);
+          if (cards.some((e) => e.kind === 'activity' && isLunchspot(e.id))) daysWithAMeal += 1;
+        }
+      }
+    }
+    expect(daysWithAMeal).toBeGreaterThan(0);
   });
 });
 
