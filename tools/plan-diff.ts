@@ -3,7 +3,7 @@
  *
  * WHY THIS EXISTS
  * The generator's rules were derived painfully, one production report at a time:
- * one kayak per trip, one daytime sail, one evening cruise, two outings and one
+ * one kayak per trip, one sail (daytime and evening alike), two outings and one
  * meal per day, nothing repeated except a revisitable beach. Those rules are
  * guarded by tests — but the tests run against the OFFLINE STUB catalog
  * (`getCatalog()`), and enrichment is merged only in the live path
@@ -19,9 +19,13 @@
  *
  * Exit 1 if enrichment introduces a violation that was not already there.
  */
-import { generatePlan } from '../src/data/itineraryGenerator';
+import { generatePlan, isBoatOuting, isSailOuting } from '../src/data/itineraryGenerator';
 import { loadCatalog } from '../src/data/activitySource';
-import { activityKind, isEveningItem } from '../src/data/itemFit';
+import { activityKind, isFullDayProduct } from '../src/data/itemFit';
+
+// routeFamilyOf retires kayaks and day passes into their own families BEFORE the
+// sail test runs, so the trip-wide sail count has to exclude them the same way.
+const KAYAK_RE = /\bkayak/i;
 import type { Catalog } from '../src/data/activitySource';
 import type { Answers } from '../src/App';
 import type { Day } from '../src/data/activities';
@@ -66,13 +70,18 @@ function stripEnrichment(c: Catalog): Catalog {
 
 type Violation = { rule: string; detail: string };
 
-// The engine's OWN definitions, mirrored. Getting these wrong is how a checker
-// manufactures alarms: an earlier version of this file used isWaterBased for the
-// boat cap (broader than the engine's BOAT_KINDS, which excludes kayak/jetski/
-// sup) and a flat three-card ceiling (the real rule is three NON-MEAL cards plus
-// one meal, with revisitable beaches exempt from the outings count). Both
-// reported violations that were not violations.
-const BOAT_KINDS = new Set(['sail', 'snorkel', 'dive', 'sec:cruises-water']);
+// The engine's OWN definitions. Getting these wrong is how a checker manufactures
+// alarms: an earlier version of this file used isWaterBased for the boat cap
+// (broader than the engine's boat test, which excludes kayak/jetski/sup) and a
+// flat three-card ceiling (the real rule is three NON-MEAL cards plus one meal,
+// with revisitable beaches exempt from the outings count). Both reported
+// violations that were not violations.
+//
+// The boat and sail tests are now IMPORTED rather than copied, because they got
+// copied wrong again: when 'sec:cruises-water' was dropped from the engine's
+// boat set (2026-08-12) this file kept the old set, which would have flagged a
+// legal bus-tour-plus-catamaran day as a violation. The two numbers below are
+// still mirrored — they are single integers with no derivation to drift.
 const MAX_ACTIVITIES_PER_DAY = 2;        // itineraryGenerator.ts:567
 const MAX_NON_MEAL_CARDS_PER_DAY = 3;    // itineraryGenerator.ts:576
 
@@ -102,11 +111,10 @@ function checkInvariants(plan: Day[], catalog: Catalog): Violation[] {
   const kayaks = count((i) => activityKind(i) === 'kayak');
   if (kayaks > 1) out.push({ rule: 'one kayak per trip', detail: `${kayaks} placed` });
 
-  const daySails = count((i) => activityKind(i) === 'sail' && !isEveningItem(i));
-  if (daySails > 1) out.push({ rule: 'one daytime sail per trip', detail: `${daySails} placed` });
-
-  const eveningCruises = count((i) => BOAT_KINDS.has(activityKind(i)) && isEveningItem(i));
-  if (eveningCruises > 1) out.push({ rule: 'one evening cruise per trip', detail: `${eveningCruises} placed` });
+  // One sail per trip, daytime and evening alike (merged 2026-08-12 — same boat,
+  // same north-west route). This was two rules until then.
+  const sails = count((i) => isSailOuting(i) && !isFullDayProduct(i) && !KAYAK_RE.test(i.title));
+  if (sails > 1) out.push({ rule: 'one sail per trip', detail: `${sails} placed` });
 
   // Nothing repeats (a revisitable free beach is an activity, not an item).
   const seenItem = new Map<string, number>();
@@ -139,8 +147,8 @@ function checkInvariants(plan: Day[], catalog: Catalog): Violation[] {
       out.push({ rule: 'two outings per day', detail: `day ${d.day} has ${outings}` });
     }
 
-    // One boat per day — the engine's BOAT_KINDS, not "anything on water".
-    const boats = itemsOf(d).filter((i) => BOAT_KINDS.has(activityKind(i))).length;
+    // One boat per day — the engine's own test, not "anything on water".
+    const boats = itemsOf(d).filter(isBoatOuting).length;
     if (boats > 1) out.push({ rule: 'one boat per day', detail: `day ${d.day} has ${boats}` });
   }
   return out;

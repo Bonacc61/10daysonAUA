@@ -606,6 +606,18 @@ const DAY_SAIL_TITLE_RE = /\b(catamaran|snorkel(?:ing)?|sail(?:s|ing)?)\b/i;
 // itself a sail. Applied only to evening items, and only after SAIL_KINDS has
 // had its turn, so it never widens the daytime rule.
 const EVENING_SAIL_TITLE_RE = /\b(catamaran|snorkel(?:ing)?|sail(?:s|ing)?|cruise|yacht)\b/i;
+// The sail test, extracted so `tools/plan-diff.ts` can assert the trip-wide rule
+// against the SAME predicate the engine decides with rather than a hand-copied
+// mirror. That file's header records what mirroring costs: a previous copy used
+// isWaterBased for the boat cap and reported violations that were not
+// violations. Callers must still apply the natural-pool, full-day and kayak
+// checks first — see routeFamilyOf, which is the only ordering that matters.
+export function isSailOuting(item: ViatorItem): boolean {
+  const kind = activityKind(item);
+  if (SAIL_KINDS.has(kind)) return true;
+  if (isEveningItem(item) && EVENING_SAIL_TITLE_RE.test(item.title)) return true;
+  return kind === 'sec:cruises-water' && DAY_SAIL_TITLE_RE.test(item.title);
+}
 function routeFamilyOf(e: CardEntry): string | undefined {
   const title = e.kind === 'group' ? e.bestSeller.title : e.activity.title;
   // Conchi gets its OWN family, retired after one visit however it is reached.
@@ -654,9 +666,7 @@ function routeFamilyOf(e: CardEntry): string | undefined {
     // returning: an evening off-road product ("Sunset Island Tour in Aruba on
     // Electric Scooter", 48 reviews — above the champion floor) has to reach
     // the offroad check below, or this silently weakens one-off-road-per-trip.
-    if (SAIL_KINDS.has(kind)) return 'sail';
-    if (isEveningItem(e.bestSeller) && EVENING_SAIL_TITLE_RE.test(title)) return 'sail';
-    if (kind === 'sec:cruises-water' && DAY_SAIL_TITLE_RE.test(title)) return 'sail';
+    if (isSailOuting(e.bestSeller)) return 'sail';
     return kind === 'offroad' ? 'offroad' : undefined;
   }
   if (LOCAL_OFFROAD.test(title)) return 'offroad';
@@ -666,7 +676,42 @@ function routeFamilyOf(e: CardEntry): string | undefined {
 // Boat outings, treated as ONE family for the minimum-gap rule below. Two
 // catamaran trips read as different `activityKind`s — the reported pair was
 // 'sail' and 'snorkel' — so a kind-level rule could never have separated them.
-const BOAT_KINDS = new Set(['sail', 'snorkel', 'dive', 'sec:cruises-water']);
+const BOAT_KINDS = new Set(['sail', 'snorkel', 'dive']);
+// ...and the generic bucket, which needs positive evidence before it counts.
+//
+// `activityKind` returns two different sorts of answer in one string: a real
+// activity kind when the item's Viator tags name one, or `sec:<browse section>`
+// when they do not. 144 of 328 live items get the fallback. Treating
+// 'sec:cruises-water' as a boat kind therefore swept in whatever Viator's
+// section tree happened to file under water — and it files a lot: tag 20255
+// maps to `cruises-water`, 73 live items carry it, and `primarySection` breaks
+// ties by tab order, where water sorts first. That is how "Best of Aruba by
+// Bus" (642 reviews), "Full-Day Aruba History and Must-See Landmarks Tour"
+// (1591) and "Horseback Ride Tour to Natural Pool" (1252) all became boats,
+// each one blocking a sail from its day and pushing the next sail two days out.
+//
+// Checked against all 32 items in the live bucket: this keeps the 28 real boat
+// outings — including the ones the tags miss entirely, like "Aruba Seabob
+// Scooter Reef Tour" and "Aruba PADI Scuba Diving Program" — and drops exactly
+// the four that are not boats (the three above plus "Kids Parasailing
+// Experience", which is 1 review and is towed behind a boat, so it is the one
+// judgement call here rather than an obvious exclusion).
+//
+// Every alternative names a VESSEL or a thing you do off one. Deliberately no
+// place names: "reef" and "shipwreck" both split the bucket 28/4 identically
+// and were dropped for that reason — a dive SITE is the kind of word that
+// starts matching beach walks as the catalog churns.
+//
+// This is a stopgap for a catalog problem. The real fix is for enrichment to
+// give these items a true kind, but its vocabulary is derived from KIND_BY_TAG
+// and so covers only physical activity kinds — there is no kind for a bus tour
+// or a sightseeing tour, and no `enriched_kind` will ever arrive for them.
+const BOAT_TITLE_RE = /\b(boat|catamaran|sail(?:s|ing)?|cruise|cruising|yacht|charter|snorkel(?:ing)?|dive|diving|seabob|fishing|submarine)\b/i;
+export function isBoatOuting(item: ViatorItem): boolean {
+  const kind = activityKind(item);
+  if (BOAT_KINDS.has(kind)) return true;
+  return kind === 'sec:cruises-water' && BOAT_TITLE_RE.test(item.title);
+}
 // Whole days that must sit between two outings of the same family. 2 means
 // "at least one clear day in between": a sail on day 3 puts the next at day 5.
 const FAMILY_MIN_DAY_GAP = 2;
@@ -676,7 +721,7 @@ const FAMILY_MIN_DAY_GAP = 2;
 // is irrelevant here — it is a count, not a comparison.
 function dayCapFamilyOf(e: CardEntry): string | undefined {
   if (e.kind !== 'group') return undefined;
-  return BOAT_KINDS.has(activityKind(e.bestSeller)) ? 'boat' : undefined;
+  return isBoatOuting(e.bestSeller) ? 'boat' : undefined;
 }
 
 function gapFamilyOf(e: CardEntry): string | undefined {
@@ -691,7 +736,7 @@ function gapFamilyOf(e: CardEntry): string | undefined {
   // evening water outing that is not a sail — a night shore dive. Which is
   // correct: the gap rule is about repeat BOAT trips, and that is not one.
   if (isEveningItem(e.bestSeller)) return undefined;
-  return BOAT_KINDS.has(activityKind(e.bestSeller)) ? 'boat' : undefined;
+  return isBoatOuting(e.bestSeller) ? 'boat' : undefined;
 }
 
 // Candidates for a slot — ONE CardEntry per Viator item (no group face-collapse),

@@ -748,6 +748,94 @@ below — more evening inventory is the fix, and no constant will do it.
 
 ---
 
+### 2026-08-12 — A bus tour is not a boat
+
+**Reported:** follow-up to the entry above. Asked why `sec:cruises-water`
+contains "Best of Aruba by Bus" at all, and whether the engine should be
+filtering on something more granular than a browse section.
+
+It should. **`activityKind` returns two incompatible sorts of answer in one
+string**: a real activity kind when the item's Viator tags name one, or
+`sec:<browse section>` when they do not. On the live catalog that fallback fires
+for **144 of 328 items (44%)**:
+
+| bucket | items |
+|---|---|
+| `sec:tours-sightseeing` | 74 |
+| `sec:cruises-water` | 32 |
+| `sec:adventures-outdoor` | 27 |
+| `sec:food-drink` | 11 |
+
+`BOAT_KINDS` then mixed three real kinds with one of those buckets —
+`{sail, snorkel, dive, 'sec:cruises-water'}` — so any rule reading it inherited
+whatever Viator's section tree filed under water. Two things make that a lot:
+tag **20255** maps to `cruises-water` and **73 live items carry it**, and
+`primarySection` breaks ties by tab order, where water sorts first. So the
+horseback ride, whose sections are `[tours-sightseeing, adventures-outdoor,
+cruises-water]`, is a water activity because water sorts first.
+
+Four non-boats were the result, all eligible, all well-reviewed:
+
+```
+Full-Day Aruba History and Must-See Landmarks Tour   1591 reviews
+Horseback Ride Tour to Natural Pool                  1252
+Best of Aruba by Bus                                  642
+Kids Parasailing Experience                             1
+```
+
+Each blocked a sail from sharing its day (`dayCapFamilyOf`) **and** pushed the
+next sail two days out (`gapFamilyOf`, `FAMILY_MIN_DAY_GAP = 2`). None is a
+full-day product, so both arms were live.
+
+**Fix:** `isBoatOuting(item)` — real kinds count; the generic bucket counts only
+with positive title evidence. Checked against all 32 items in the live bucket:
+keeps the 28 real boat outings, including the ones the tags miss entirely
+("Aruba Seabob Scooter Reef Tour", "Aruba PADI Scuba Diving Program"), and drops
+exactly the four above. Every alternative in the regex names a vessel or a thing
+you do off one — `reef` and `shipwreck` split the bucket 28/4 identically and
+were dropped anyway, because a dive SITE is the kind of word that starts
+matching beach walks as the catalog churns.
+
+**Effect, and an honest limit.** Only the splurge persona moves: 758 → 752 cards
+across 30 plans, and the trace is complete. The history tour sits on day 4; under
+the old rule it claimed the boat family, so the 2-day gap pushed a dive from day
+5 to day 6. Freed, the dive lands day 5 and the jet ski takes day 6 — and the
+afternoon local pick follows the morning's geography, so `rodgers-beach` (far
+south) becomes `palm-beach-strip`, which drops the en-route lunch stop that only
+fires for far-south drives. Net: `rodgers-beach` 19→13, `lunch-oniels` 29→23,
+`alto-vista-chapel` 24→30. **Open slots unchanged** — the loss is a companion
+meal card, not an unfilled slot. The change is provably strictly narrowing (the
+new predicate is a subset of the old), so two real boats can never newly share a
+day; confirmed over 240 plans.
+
+Worth recording: across those 240 plans the four de-classified items were placed
+33 times and **never once landed on a day that also held a real boat**. All
+measured benefit flows through the gap rule, not the same-day cap. The
+one-sail-per-trip result is evidence of no harm, not evidence the day-cap arm
+did anything.
+
+**`tools/plan-diff.ts` now imports `isBoatOuting` and `isSailOuting` instead of
+copying them.** It had copied the boat set, and this change made the copy stale
+— it would have flagged a legal bus-tour-plus-catamaran day as a violation, on
+the one tool whose value is not manufacturing false alarms. Its header already
+recorded one such incident; this would have been the second, so the definitions
+are imported now and only the two bare integers stay mirrored.
+
+**This is a stopgap, and the real fix is blocked.** Enrichment exists to give
+these items a true kind, and `activityKind` already consults `enriched_kind`
+before falling back. But `KIND_VOCABULARY` is *derived from `KIND_BY_TAG`*
+(`itemFit.ts:199`), so enrichment may only answer one of twelve physical
+activity kinds: offroad, snorkel, dive, jetski, kayak, sup, parasail, surf,
+sail, hike, horseback, zipline. There is **no kind for a bus tour, a submarine
+or a sightseeing tour**, so no `enriched_kind` will ever arrive for them — and
+the largest bucket, the 74 in `sec:tours-sightseeing`, is mostly out of reach for
+the same reason. The horseback ride is the exception that proves it: `horseback`
+IS in the vocabulary, so enrichment can fix that one. Widening the vocabulary is
+a separate decision, because `KIND_ADVENTURE` scores every kind and each new
+entry needs a value chosen against the flag caps that read it.
+
+---
+
 ### 2026-08-05 — The map bypassed the display chokepoint
 
 **Symptom (reported):** the "Luxury Four-Course Caribbean Dinner Cruise

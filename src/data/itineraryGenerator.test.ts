@@ -9,7 +9,7 @@ import type { MatchTag, ViatorGroup, ViatorItem, SlotEntry } from '../types';
 import { type Coord } from './coords';
 import { pinFor } from './itemCoords';
 import { distanceKm } from './enRoute';
-import { isWaterBased, isAutoFillExcluded } from './itemFit';
+import { isWaterBased, isAutoFillExcluded, activityKind } from './itemFit';
 import { parseActivityCost } from './matcher';
 
 const catalog = getCatalog();
@@ -1202,6 +1202,56 @@ describe('generatePlan — one sail per trip, daytime or evening', () => {
         .map((e) => (e.kind === 'activity' ? e.id : e.bestSellerId));
       expect(staples.some((id) => dinners.includes(id))).toBe(true);
     }
+  });
+});
+
+describe('generatePlan — a bus tour is not a boat', () => {
+  // `BOAT_KINDS` mixes three real activity kinds (sail/snorkel/dive) with one
+  // SECTION BUCKET, 'sec:cruises-water'. An item lands in that bucket when none
+  // of its Viator tags names an activity, so `activityKind` falls back to the
+  // item's browse section — and Viator tag 20255 maps to `cruises-water` while
+  // `primarySection` breaks ties by tab order, where water sorts first.
+  //
+  // On the live catalog that put four non-boats in the bucket, all eligible and
+  // all well-reviewed: "Full-Day Aruba History and Must-See Landmarks Tour"
+  // (1591 reviews), "Horseback Ride Tour to Natural Pool" (1252), "Best of
+  // Aruba by Bus" (642) and "Kids Parasailing Experience" (1). Each one counted
+  // as a boat — blocking a sail on the same day via `dayCapFamilyOf`, and
+  // pushing the next sail two days out via `gapFamilyOf`.
+  const mkGroup = (id: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  const mkItem = (id: string, title: string, tags: number[]): ViatorItem => ({
+    id, group_id: `g-${id}`, title,
+    image_url: '', price_usd: 80, duration: '3 hrs', rating: 4.7, review_count: 600,
+    viator_item_url: '', is_best_seller: true, display_order: 0,
+    tags, experience_cluster_id: `c-${id}`,
+  });
+  const SAIL = 11888;
+  // 20255 is the real tag that drags an item into `cruises-water` — using it
+  // rather than setting `sections` directly keeps the fixture honest about HOW
+  // the misclassification happens.
+  const CRUISES_WATER_ATTR = 20255;
+  const items = [
+    mkItem('sail', 'Premium Catamaran Afternoon Sail: Snorkeling and Lunch', [SAIL, 1, 2, 3]),
+    mkItem('bus', 'Best of Aruba by Bus', [CRUISES_WATER_ATTR, 11, 12, 13]),
+  ];
+  const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
+
+  const placed = (plan: Day[]): string[] =>
+    plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening])
+        .flatMap((e) => (e.kind === 'group' ? [e.bestSellerId] : []));
+
+  it('classifies the bus into the water bucket — the fixture reproduces the real cause', () => {
+    // Guards the premise. If Viator retags 20255 or TAG_SECTION changes, this
+    // fails loudly rather than letting the tests below pass for the wrong reason.
+    expect(activityKind(items[1])).toBe('sec:cruises-water');
+  });
+
+  it('lets a bus tour and a sail share a day', () => {
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 1 }, cat, { seed: 1 });
+    expect(placed(plan)).toEqual(expect.arrayContaining(['sail', 'bus']));
   });
 });
 
