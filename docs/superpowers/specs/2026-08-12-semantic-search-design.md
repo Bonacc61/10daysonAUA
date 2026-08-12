@@ -36,13 +36,16 @@ Nothing below is optional, and the order matters.
    `RATE_LIMIT_SALT`. Both fail closed — `search` returns 500 without either.
 4. **Force a catalog refresh** so `item_embeddings` is populated. The cache has a 6h TTL;
    until it expires and rebuilds, the table is empty and every search returns nothing.
-   Confirm `select count(*) from item_embeddings` is ~328.
+   Confirm `select count(*) from item_embeddings` matches the item count in the live
+   `viator-cards` payload — do not hardcode a number here; the catalog moves (the project
+   memory records 361 items on 2026-08-02, a drift check measured 328 on 2026-08-11).
 5. **Run the golden set.** `node tools/run-search-golden.cjs`. Target ≥80% recall. This is
    also how `MIN_SIMILARITY` gets tuned — the shipped value of `0.20` is a **starting
    point, not a measurement**.
 6. **Re-read the Privacy Policy** against what actually shipped. It already names the
    embedding provider and the query-text flow (added 2026-08-11) — check it still matches.
-7. **Add `search` to the data-flow block** in `.claude/CLAUDE.md`.
+7. ~~Add `search` to the data-flow block in `.claude/CLAUDE.md`~~ — **done 2026-08-12**,
+   in the same commit as the feature. Re-read it rather than redo it.
 8. Only then: `VITE_SEMANTIC_SEARCH=true` in `.env.production`.
 
 ## Known gaps, recorded rather than hidden

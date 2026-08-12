@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { parseSearchBody, normaliseQuery, MAX_QUERY_CHARS } from './semanticSearch';
+import { parseSearchBody, normaliseQuery, MAX_QUERY_CHARS, searchByMeaning, semanticSearchEnabled } from './semanticSearch';
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
@@ -43,5 +43,31 @@ describe('parseSearchBody — the trust boundary', () => {
     for (const bad of [undefined, 0, 'string', [], { results: [null, 1, 'x'] }]) {
       expect(() => parseSearchBody(bad)).not.toThrow();
     }
+  });
+});
+
+// FR-10 — the guarantee the whole dark ship rests on: with the flag unset there
+// must be no reachable path to the network. Browser-verified too, but that
+// verification is not repeatable in CI and this is.
+describe('searchByMeaning — flag off', () => {
+  it('does not fetch, at all', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    vi.stubEnv('VITE_SEMANTIC_SEARCH', '');
+
+    const out = await searchByMeaning('good with a toddler');
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(out.ok).toBe(false);
+    expect(semanticSearchEnabled()).toBe(false);
+  });
+
+  it('does not fetch for an empty query even when enabled', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    vi.stubEnv('VITE_SEMANTIC_SEARCH', 'true');
+
+    expect((await searchByMeaning('   ')).ok).toBe(false);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

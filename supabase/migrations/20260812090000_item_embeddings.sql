@@ -16,7 +16,9 @@
 -- Vectors are never returned to the browser. They are read only by the `search`
 -- edge function, under the service role.
 
-create extension if not exists vector;
+-- `with schema extensions` matches Supabase's convention and removes a
+-- search_path dependency for resolving the vector(256) type inside search_items.
+create extension if not exists vector with schema extensions;
 
 -- One row per catalog item.
 create table if not exists public.item_embeddings (
@@ -103,4 +105,27 @@ as $$
 $$;
 
 -- Service role only, like the tables it reads.
+--
+-- REVOKE ... FROM PUBLIC removes the implicit grant that EVERY role holds,
+-- service_role included. Whether it keeps EXECUTE then depends on Supabase's
+-- default privileges having fired for whoever ran this migration — and if they
+-- did not, rpc() returns a permission error that the function turns into a 502
+-- and the client turns into a silent no-op. Grant it back explicitly rather
+-- than depend on that. RLS on item_embeddings is the real gate either way.
 revoke all on function public.search_items(vector(256), text, int, float) from public, anon, authenticated;
+grant execute on function public.search_items(vector(256), text, int, float) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Rate-limit bucket discriminator.
+--
+-- edit_requests was built for itinerary-edit and search reuses it — but both
+-- functions counted ALL rows, so search traffic would exhaust itinerary-edit's
+-- 2000/day ceiling and return 503 to every traveller opening the swap box for
+-- the rest of the day. One feature silently taking out another.
+--
+-- Existing rows predate search, so 'edit' is the right default.
+alter table public.edit_requests
+  add column if not exists feature text not null default 'edit';
+
+create index if not exists edit_requests_feature_time_idx
+  on public.edit_requests (feature, caller_hash, created_at desc);

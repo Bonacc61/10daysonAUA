@@ -19,6 +19,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 
 const MODEL = 'claude-opus-5';
 const MAX_TEXT = 200;            // characters, enforced here and in the UI
+const FEATURE = 'edit';          // discriminator: edit_requests is shared with `search`
 const RATE_LIMIT_PER_HOUR = 30;  // per caller hash
 const DAILY_CEILING = 2000;      // global backstop — a leaked anon key cannot run up a bill
 
@@ -110,15 +111,15 @@ async function checkLimits(hash: string): Promise<Response | null> {
 
   const { count: mine } = await db.from('edit_requests')
     .select('*', { count: 'exact', head: true })
-    .eq('caller_hash', hash).gte('created_at', hourAgo);
+    .eq('feature', FEATURE).eq('caller_hash', hash).gte('created_at', hourAgo);
   if ((mine ?? 0) >= RATE_LIMIT_PER_HOUR) return json({ error: 'rate_limited' }, 429);
 
   const { count: all } = await db.from('edit_requests')
     .select('*', { count: 'exact', head: true })
-    .gte('created_at', dayAgo);
+    .eq('feature', FEATURE).gte('created_at', dayAgo);
   if ((all ?? 0) >= DAILY_CEILING) return json({ error: 'unavailable' }, 503);
 
-  await db.from('edit_requests').insert({ caller_hash: hash });
+  await db.from('edit_requests').insert({ caller_hash: hash, feature: FEATURE });
   return null;
 }
 

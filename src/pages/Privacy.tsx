@@ -39,7 +39,7 @@ export default function Privacy({ setPage }: Props) {
                   ['Shared itinerary snapshot', 'Powers your share link', 'Legitimate interest', 'Until you delete it or your account'],
                   ['Text you type into an AI feature', 'To turn what you asked for into a change to your plan, or into search results', 'Contract', 'Not stored — see “AI features” below'],
                   ['Your IP address, hashed (AI features only)', 'Rate-limiting, so nobody can run up our costs', 'Legitimate interest', '24 hours'],
-                  ['A scrambled fingerprint of a search phrase, and its numeric form', 'So a repeat search costs nothing and is not sent abroad again', 'Legitimate interest', '30 days'],
+                  ['A scrambled fingerprint of a search phrase, and its numeric form (only if you use search-by-meaning)', 'So a repeat search costs nothing and is not sent abroad again', 'Legitimate interest', '30 days'],
                 ].map(([what, why, basis, kept]) => (
                   <tr key={what} style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
                     <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>{what}</td>
@@ -86,14 +86,18 @@ export default function Privacy({ setPage }: Props) {
               Those records are deleted after 24 hours.
             </p>
             <p style={{ fontSize: 14, lineHeight: 1.7, margin: '0 0 12px' }}>
-              <strong>Search keeps one thing, and we&rsquo;d rather explain it than gloss it.</strong> When you search by
-              meaning we store a scrambled fingerprint of the phrase together with the list of numbers it was turned
-              into, for 30 days. That is what lets a repeat search &mdash; and people search for the same handful of
-              things &mdash; skip the outside company entirely. The phrase itself is not stored. But we won&rsquo;t
-              pretend a fingerprint of a short common phrase could never be worked backwards, so: it is not tied to
-              your account, not tied to your IP address, and not tied to anything else you did on the site. It is a
-              phrase and some numbers, sitting on their own, and after 30 days it is deleted. Nothing about the swap
-              box is stored at all.
+              <strong>Search keeps one thing, and we&rsquo;d rather explain it than gloss it.</strong> If you use
+              search-by-meaning, we store a scrambled fingerprint of the phrase together with the list of numbers it
+              was turned into, for 30 days. That is what lets a repeat search &mdash; and people search for the same
+              handful of things &mdash; skip the outside company entirely.
+            </p>
+            <p style={{ fontSize: 14, lineHeight: 1.7, margin: '0 0 12px' }}>
+              The phrase itself is never stored, and the fingerprint is scrambled with a secret only our server knows,
+              so it cannot simply be looked up. We still won&rsquo;t claim either of those things is impossible to
+              work backwards &mdash; and the list of numbers is the easier of the two, because it is built from the
+              meaning of what you wrote rather than its spelling. What we can tell you is what it is not attached to:
+              not your account, and not stored against your IP address. After 30 days it is deleted. Nothing you type
+              into the swap box is stored at all, ever.
             </p>
             <p style={{ fontSize: 14, lineHeight: 1.7, margin: '0 0 12px' }}>
               <strong>These companies are in the United States</strong>, so using these features means your words leave

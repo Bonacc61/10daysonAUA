@@ -121,9 +121,13 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
 
   // Only blend results that answer the query currently in the box. Without this
   // an edited query would keep showing matches for the previous one.
-  const allEntries = filterExploreEntries(catalog, { section, search: '', vibe, price });
-  const entries = search.trim() === semanticFor
-    ? blendSearchResults(substringHits, semanticIds, allEntries)
+  //
+  // The unsearched pool is built ONLY when there is something to blend into it —
+  // otherwise this allocated ~328 entries and re-derived every section on every
+  // keystroke, for a branch that is not taken while the feature is dark.
+  const blendable = search.trim() === semanticFor && semanticIds.length > 0;
+  const entries = blendable
+    ? blendSearchResults(substringHits, semanticIds, filterExploreEntries(catalog, { section, search: '', vibe, price }))
     : substringHits;
 
   const totalCount = entries.length;
@@ -134,6 +138,7 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   const runSemantic = async () => {
     const q = search.trim();
     if (!armed || semanticPending || !q) return;
+    if (q === semanticFor) return;      // already answered; don't spend a quota row on it
     setSemanticPending(true);
     setSemanticFailed(false);
     const out = await searchByMeaning(q);
@@ -168,13 +173,21 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
                 <X />
               </button>
             )}
-            {armed && !semanticAnswered && (
+            {armed && (
               <div className="search-arm-hint">
                 {semanticPending
                   ? 'Searching by meaning…'
                   : semanticFailed
                     ? "Couldn't search by meaning just now — keyword results still below."
-                    : <>press <kbd>Enter</kbd> to search by meaning</>}
+                    : semanticAnswered
+                      // Say so. Otherwise pressing Enter makes the hint vanish and
+                      // changes nothing else, which reads as the feature ignoring you
+                      // — and it is the guaranteed experience until the first catalog
+                      // refresh populates the corpus.
+                      ? (semanticIds.length === 0
+                          ? 'Nothing else matched what you meant.'
+                          : `Added ${semanticIds.length} match${semanticIds.length === 1 ? '' : 'es'} by meaning.`)
+                      : <>press <kbd>Enter</kbd> to search by meaning</>}
               </div>
             )}
           </div>

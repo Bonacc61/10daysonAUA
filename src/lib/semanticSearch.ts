@@ -16,7 +16,11 @@ const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 export const MAX_QUERY_CHARS = 200;   // mirrors the edge function's cap
 
-/** Read at call time rather than module load, so a test can vary the flag. */
+/**
+ * Read at call time rather than module load so a test can vary the FLAG.
+ * `FN_URL` and `ANON` above are module-load consts and are NOT stubbable — a
+ * test can turn the feature off, not point it somewhere else.
+ */
 export function semanticSearchEnabled(): boolean {
   return import.meta.env.VITE_SEMANTIC_SEARCH === 'true' && Boolean(FN_URL) && Boolean(ANON);
 }

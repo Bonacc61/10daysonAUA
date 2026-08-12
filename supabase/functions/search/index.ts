@@ -24,6 +24,7 @@ import { embedBatch, activeProvider, MODEL_ID, isSearchableProvider } from '../v
 
 const MAX_QUERY = 200;
 const MATCH_COUNT = 30;
+const FEATURE = 'search';         // discriminator: edit_requests is shared with itinerary-edit
 const RATE_LIMIT_PER_HOUR = 60;   // looser than itinerary-edit: searching is cheaper and more frequent
 const DAILY_CEILING = 5000;
 
@@ -65,17 +66,20 @@ async function checkLimits(hash: string): Promise<Response | null> {
   const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
+  // Every count is scoped to this feature. Without that, search traffic burns
+  // itinerary-edit's 2000/day ceiling and the swap box returns 503 for everyone
+  // for the rest of the day — one feature silently taking out another.
   const { count: mine } = await db.from('edit_requests')
     .select('*', { count: 'exact', head: true })
-    .eq('caller_hash', hash).gte('created_at', hourAgo);
+    .eq('feature', FEATURE).eq('caller_hash', hash).gte('created_at', hourAgo);
   if ((mine ?? 0) >= RATE_LIMIT_PER_HOUR) return json({ error: 'rate_limited' }, 429);
 
   const { count: all } = await db.from('edit_requests')
     .select('*', { count: 'exact', head: true })
-    .gte('created_at', dayAgo);
+    .eq('feature', FEATURE).gte('created_at', dayAgo);
   if ((all ?? 0) >= DAILY_CEILING) return json({ error: 'unavailable' }, 503);
 
-  await db.from('edit_requests').insert({ caller_hash: hash });
+  await db.from('edit_requests').insert({ caller_hash: hash, feature: FEATURE });
   return null;
 }
 
@@ -114,7 +118,15 @@ Deno.serve(async (req) => {
   const db = admin();
   // Normalise before hashing so "Snorkeling " and "snorkeling" share a cache
   // entry — travel searches repeat heavily and a hit costs no third-party call.
-  const hash = await sha256(query.toLowerCase().replace(/\s+/g, ' ').trim());
+  //
+  // SALTED, for the same reason callerHash is: an unsalted SHA-256 of a search
+  // phrase is not a pseudonym. The plaintext space for a travel search box is
+  // tiny and enumerable — tools/search-golden.json is literally a dictionary of
+  // the likely inputs — so a wordlist would recover most of this table in
+  // seconds, and the migration's claim that "a table of hashes is not a
+  // search-history log" would be false.
+  const normalised = query.toLowerCase().replace(/\s+/g, ' ').trim();
+  const hash = await sha256(`${normalised}:${Deno.env.get('RATE_LIMIT_SALT')}`);
 
   let vector: number[] | null = null;
   try {
@@ -128,7 +140,10 @@ Deno.serve(async (req) => {
 
   if (!vector) {
     try {
-      const [v] = await embedBatch([query]);
+      // The NORMALISED string, so the cache key and the stored vector describe
+      // the same input — otherwise whichever casing arrived first would decide
+      // the vector every later variant gets.
+      const [v] = await embedBatch([normalised]);
       if (!v) throw new Error('empty embedding');
       vector = v;
       // Store the vector against the hash. The text is never written.
@@ -139,6 +154,21 @@ Deno.serve(async (req) => {
       console.warn(`[search] embed failed: ${e instanceof Error ? e.name : 'error'}`);
       return json({ error: 'upstream' }, 502);
     }
+  }
+
+  // Is there a comparable corpus at all? `search_items` filters on model in SQL,
+  // so a mismatch — and an EMPTY table, which is the guaranteed state until the
+  // first catalog refresh after deploy — both return zero rows, indistinguishable
+  // from "nothing matched". That would tell the traveller we looked and found
+  // nothing when we could not look at all.
+  const { data: corpus } = await db.from('item_embeddings').select('model').limit(1).maybeSingle();
+  if (!corpus) {
+    console.warn('[search] item_embeddings is empty — no catalog refresh since deploy?');
+    return json({ error: 'no_corpus' }, 503);
+  }
+  if (corpus.model !== model) {
+    console.warn(`[search] corpus model ${corpus.model} != active ${model}`);
+    return json({ error: 'model_mismatch' }, 503);
   }
 
   const { data, error } = await db.rpc('search_items', {

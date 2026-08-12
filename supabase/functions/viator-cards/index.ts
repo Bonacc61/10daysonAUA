@@ -222,6 +222,7 @@ serve(async (req) => {
         } else {
           try {
             const db = supabaseAdmin();
+            const runStart = new Date().toISOString();
             const rows = sorted.map((it, i) => ({
               item_id: String(it.id),
               embedding: JSON.stringify(embeddings[i]),   // pgvector accepts the JSON array form
@@ -233,10 +234,14 @@ serve(async (req) => {
 
             // Drop rows for products that have left the catalog, so the table
             // cannot grow without bound as Viator's inventory churns.
-            const liveIds = rows.map((r) => r.item_id);
+            //
+            // By timestamp, not by an id list: 328 quoted ids is a ~6KB query
+            // string already, and the migration's own comment says this table is
+            // expected to grow. Everything the upsert just touched has
+            // updated_at >= runStart; anything older is gone from the feed. This
+            // also clears rows written by a previous model for free.
             const { error: delErr } = await db.from('item_embeddings')
-              .delete()
-              .not('item_id', 'in', `(${liveIds.map((id) => `"${id}"`).join(',')})`);
+              .delete().lt('updated_at', runStart);
             if (delErr) throw delErr;
 
             console.log(`[viator-cards] stored ${rows.length} embeddings (${MODEL_ID[provider]})`);

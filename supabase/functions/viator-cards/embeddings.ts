@@ -32,7 +32,6 @@ export const MODEL_ID: Record<EmbedProvider, string> = {
 // Only the 256-dimension provider can be stored: item_embeddings.embedding is
 // vector(256), and mixing dimensionalities in one column is not possible even
 // if mixing models were sensible.
-export const SEARCHABLE_DIMS = OPENAI_DIMS;
 export function isSearchableProvider(p: EmbedProvider | null): boolean {
   return p === 'openai';
 }

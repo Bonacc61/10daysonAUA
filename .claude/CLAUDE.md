@@ -35,10 +35,11 @@ Live production app. Dutch law (GDPR) applies. Reddit launch imminent.
 ## Data flow
 
 ```
-User → React app (localStorage) → Supabase (trips, feedback_events, shared_itineraries,
-                                              item_embeddings, query_embeddings, edit_requests)
+User → React app (localStorage) → Supabase (trips, feedback_events, shared_itineraries)
                                 → Edge functions (viator-cards, contact-notify, itinerary-share,
                                                   itinerary-edit, search)
+                                    └─ service role only: item_embeddings,
+                                       query_embeddings, edit_requests, catalog_cache
                                 → PostHog (analytics, EU hosted)
                                 → Viator (affiliate clicks, no return signal)
 
