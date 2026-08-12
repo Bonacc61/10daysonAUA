@@ -1412,6 +1412,11 @@ export function generatePlan(
   // traveller's. Runs AFTER pins so an explicit shortlist choice still wins the
   // slot, and BEFORE staples so it is not crowded out by them.
   const templateSlots = new Map<number, Map<Slot, PinPlacement>>();
+  // GATE STILL IN PLACE, deliberately. The yield curve below is built and
+  // measured but NOT enabled: removing this gate makes the template the baseline
+  // for everyone, and measurement showed that costs the Regenerate button —
+  // reseed overlap goes to 100%%, 1 distinct plan in 5. See the log entry.
+  // Flipping this to `{` is the whole switch, once the density is chosen.
   if (isBalancedTraveller(tags)) {
     // The template may claim the arrival/departure afternoon that slotAvail keeps
     // open. That rule exists to keep those days light — and the template's answer
@@ -1483,7 +1488,7 @@ export function generatePlan(
       return group ? { kind: 'group', group, bestSeller: best, others: otherItemsInGroup(group.id, best.id, filteredCatalog) } : undefined;
     };
 
-    for (const { day, slot, activity, alternatives } of resolveBalancedTemplate(filteredCatalog, nDays)) {
+    for (const { day, slot, activity, alternatives } of resolveBalancedTemplate(filteredCatalog, nDays, tags)) {
       if (!templateAvail(day, slot)) continue;
       if (pinnedFullDayOn(day)) continue;
       if (slot !== 'morning' && fullDayTemplateMorningOn(day)) continue;

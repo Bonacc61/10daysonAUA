@@ -153,7 +153,33 @@ export type ResolvedTemplateEntry = { day: number; slot: Slot; activity: Activit
  * `no-car` traveller silently loses the entries that need one rather than
  * having them forced in.
  */
-export function resolveBalancedTemplate(catalog: Catalog, nDays: number): ResolvedTemplateEntry[] {
+// How many template entries a HIGH-ADVENTURE traveller keeps. The template's own
+// centre is around adventure 25 — it is mostly free beaches — so a traveller at
+// 90 who receives all 18 entries has almost no room left for what they asked
+// for. Measured on the naive "template for everyone" prototype: high-adventure
+// outings per plan collapsed from 4.5 to 1.0 and the money-no-object ceiling
+// fell from $1,800 to $420.
+//
+// Low and mid travellers keep everything: they ARE the template's audience.
+export const HIGH_ADVENTURE_TEMPLATE_ENTRIES = 10;
+
+/**
+ * The template entries this traveller gets, most-suitable first.
+ *
+ * Everyone gets the curated shape (2026-08-12) — it used to be gated to the
+ * middle of both sliders, which reached about 8% of answer combinations and left
+ * everyone else on raw fill. Raw fill is where the niche products come from: the
+ * ladder widens as it runs out of good matches, so the more slots it has to
+ * cover the deeper it digs.
+ *
+ * A high-adventure traveller keeps a SPINE — the most adventurous entry of each
+ * day, so the beach-heavy shape survives — and then the next most adventurous
+ * entries up to the cap. The slots that fall away go to normal fill, which for
+ * that traveller means adventure content.
+ */
+export function resolveBalancedTemplate(
+  catalog: Catalog, nDays: number, tags?: Set<MatchTag>,
+): ResolvedTemplateEntry[] {
   const byId = new Map(catalog.activities.map((a) => [a.id, a]));
   const out: ResolvedTemplateEntry[] = [];
   for (const e of BALANCED_TEMPLATE) {
@@ -161,5 +187,16 @@ export function resolveBalancedTemplate(catalog: Catalog, nDays: number): Resolv
     const activity = byId.get(e.id);
     if (activity) out.push({ day: e.day, slot: e.slot, activity, alternatives: e.alternatives });
   }
-  return out;
+  if (!tags?.has('high-adventure') || out.length <= HIGH_ADVENTURE_TEMPLATE_ENTRIES) return out;
+
+  const adv = (r: ResolvedTemplateEntry) => (r.activity as { adventure?: number }).adventure ?? 0;
+  const spine = new Set<ResolvedTemplateEntry>();
+  for (const day of new Set(out.map((r) => r.day))) {
+    const best = out.filter((r) => r.day === day).sort((a, b) => adv(b) - adv(a))[0];
+    if (best) spine.add(best);
+  }
+  const rest = out.filter((r) => !spine.has(r)).sort((a, b) => adv(b) - adv(a));
+  const keep = new Set([...spine, ...rest.slice(0, Math.max(0, HIGH_ADVENTURE_TEMPLATE_ENTRIES - spine.size))]);
+  // Preserve template order, not ranking order — the day loop reads it in order.
+  return out.filter((r) => keep.has(r));
 }

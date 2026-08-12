@@ -772,6 +772,68 @@ below — more evening inventory is the fix, and no constant will do it.
 
 ---
 
+### 2026-08-12 — The yield curve: built, measured, and NOT enabled
+
+Asked to make the curated template the baseline for every traveller rather than
+the ~8% the `isBalancedTraveller` gate reaches, with the template yielding slots
+as the adventure slider rises so the sliders keep working.
+
+Built (`resolveBalancedTemplate` now takes `tags` and keeps a per-day SPINE plus
+the most adventurous remaining entries, capped by
+`HIGH_ADVENTURE_TEMPLATE_ENTRIES`) and measured against explicit acceptance
+criteria. **On its own criteria it passes everywhere:**
+
+```
+profile          tmpl%  niche   $/day   adv>=60/plan
+budget/adv-10      65%     0      19          0.0
+budget/adv-90      43%     0      54          3.0
+mid/adv-50         65%     0      54          0.0
+mid/adv-90         43%     0      87          3.0
+MNO/adv-50         58%     0     375          2.0
+MNO/adv-95         36%     0     526          4.0
+```
+
+Niche products go to **0 everywhere** (14 → 0 for budget/chill), MNO rises from
+$320 to $375–526/day — the $68/day failure of the naive prototype does not
+recur, because removing the gate is also what finally makes the `privateUpgrade`
+alternatives reachable — and high-adventure travellers keep 3–4 adventurous
+outings instead of collapsing to 1.0.
+
+**Then the existing suite caught what the harness did not measure: it destroys
+the Regenerate button.**
+
+```
+opposite-persona overlap:  71%   (a test asserts < 50%)
+reseed overlap:           100%
+distinct plans / 5 reseeds:  1
+```
+
+A deterministic template covering 65% of slots leaves nothing for a reseed to
+vary. Nine tests fail, and they are not tests encoding the old world — they are
+geographic coherence, persona differentiation, reseed variety, the splurge
+badge, and a **pinned private charter placed twice**.
+
+Density is the dial, and the trade is clean:
+
+| cap | reseed distinct | tmpl% | niche (budget/chill) |
+|---|---|---|---|
+| 18 (all) | **1/5** | 65% | 0 |
+| 12 | 4/5 | 52% | 3 |
+| 9 | **5/5** | 44% | 3 |
+| 6 | 5/5 | — | — |
+
+Regenerate recovers at a cap around 9–12; template coverage and niche
+suppression get worse in exactly the same step. The two requests — "as few
+activities deviating from the template as possible" and "regenerate feels alive"
+— are in direct tension, and no cap satisfies both.
+
+**Left unenabled on purpose.** The gate stays, so behaviour is unchanged and the
+suite is green; the curve is one line away from live once the density is chosen.
+Shipping a guess here would have silently turned Regenerate into a no-op for
+almost every traveller.
+
+---
+
 ### 2026-08-12 — Template alternatives: the answers swap cards, not plans
 
 The canonical template carries typed alternatives per slot — `highBudget`,
