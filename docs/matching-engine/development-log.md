@@ -63,7 +63,8 @@ in mind" only — the traveller drops it into a slot from the empty-slot picker 
 
 Four tiers, best → worst. Every tier is gated by `unused` (no id repeats, except a free local beach after a 2-day gap),
 `notSimilar` (semantic dedup) and `feasible` — the day/evening time budget AND
-the day shape (<=2 outings, <=1 meal, <=3 non-meal cards); when
+the day shape (<=2 outings, <=1 meal, <=3 non-meal cards, and a full-day pass
+alone on its day); when
 `maxPrice === 0` (the free-only arrival day) it returns before tiers 3-4. `kindOk` runs the whole ladder for
 variety-introducing picks first, then relaxes for same-kind picks:
 
@@ -645,6 +646,21 @@ about the product, not an arithmetic result.
 Both gates are needed. The pre-pass gate is not redundant: a **shortlisted** day
 pass arrives as a pin before the ladder runs, and a staple would otherwise be
 placed beside it.
+
+> **Correction, 2026-08-12 (review).** The sentence above is wrong about today.
+> Nothing passes `opts.pinned` in production — the shortlist was unwired from it
+> on 2026-08-05 (`Itinerary.tsx:57-59`, and the pin note under Context above).
+> So `claimed` is empty in `fitsDayShape` on every live plan and neither
+> pre-pass gate can fire; deleting both leaves the whole suite green. They are
+> defensive against the shortlist being rewired, not load-bearing now. Two
+> further gaps found in the same review and NOT fixed here: the third test
+> (`is not placed on a day that already has something`) never constructs a day
+> that already has something, so it dies to the same mutation as the second and
+> the "reverse direction" is untested; and the balanced-template pre-pass
+> bypasses both gates entirely (`templateAvail` checks the slot, not the day),
+> which put a second card on the pass's day in 64 of 100 runs with the pin path
+> re-enabled. **Close the template hole before rewiring the shortlist** — it
+> reopens exactly the bug this entry closed.
 
 After: 6 of 6 -> **0 of 6** shared, with the pass still placed all 6 times — the
 rule costs no placements. Open slots across 5 personas x 4 seeds unchanged at

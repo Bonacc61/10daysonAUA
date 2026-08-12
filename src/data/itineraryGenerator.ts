@@ -1430,9 +1430,15 @@ export function generatePlan(
   // persona's day 2 (snorkel cruise + Alto Vista + sunset sail).
   const fitsDayShape = (entry: CardEntry, day: number): boolean => {
     const claimed = claimedOn(day);
-    // Same rule as the ladder's withinDayShape. It has to live here too: a
-    // SHORTLISTED day pass arrives as a pin before any of this runs, and a
-    // staple would otherwise land beside it.
+    // Same rule as the ladder's withinDayShape, repeated for the pre-passes so
+    // a staple cannot land beside a pass the pin pre-pass already placed.
+    //
+    // DEFENSIVE, not load-bearing: nothing passes `opts.pinned` in production
+    // (Itinerary.tsx:57-59 — the shortlist was unwired from it on 2026-08-05),
+    // so `claimed` is empty here on every live plan and neither line below can
+    // fire. Deleting both keeps the whole suite green. Keep them anyway — the
+    // shortlist is expected to be rewired, and this is the rule it needs — but
+    // do not read them as covered.
     if (claimed.some(isFullDayEntry)) return false;
     if (isFullDayEntry(entry) && claimed.length > 0) return false;
     if (isMealEntry(entry)) return claimed.filter(isMealEntry).length < 1;
