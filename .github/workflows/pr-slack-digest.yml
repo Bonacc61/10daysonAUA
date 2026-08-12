@@ -39,6 +39,19 @@ name: PR Slack digest
 # of the model's hands means diff text containing quotes, backticks or newlines
 # cannot break the Slack payload — jq handles the escaping.
 #
+# Uses the Claude Code CLI rather than anthropics/claude-code-action, because
+# that action rejects `push` outright — "Unsupported event type: push" — and the
+# push path is half the point of this workflow. The CLI has no such restriction
+# and takes the same subscription token, so one mechanism now covers both
+# triggers. `claude -p` prints the note on stdout, which removes the file the
+# model used to write and the Write tool it needed to do it.
+#
+# The summary step deliberately never fails the job. Anything that goes wrong
+# falls through to the Slack step, which posts the link with a note that the
+# summary is missing. Silence is the worst outcome available here: it is
+# indistinguishable from "no commits happened", so a failure that silences the
+# channel gets discovered weeks later, if ever.
+#
 # Secrets required:
 #   CLAUDE_CODE_OAUTH_TOKEN  — from `claude setup-token`, billed to the Claude
 #                              subscription rather than API credit
@@ -174,63 +187,90 @@ jobs:
             out "inspect" "\`gh pr view ${PR_NUMBER}\` and \`gh pr diff ${PR_NUMBER}\`"
           fi
 
+      - name: Set up Node
+        if: steps.event.outputs.skip != 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
       - name: Write the summary
         if: steps.event.outputs.skip != 'true'
-        uses: anthropics/claude-code-action@v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_args: |
-            --max-turns 12
-            --allowedTools Read,Write,Bash
-          prompt: |
-            ${{ steps.event.outputs.brief }}
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRIEF: ${{ steps.event.outputs.brief }}
+          INSPECT: ${{ steps.event.outputs.inspect }}
+        # No `set -e`. Every failure below must fall through to the Slack step,
+        # which posts a fallback — silence is the one outcome worse than a bad
+        # summary, and silence is indistinguishable from "nothing happened".
+        run: |
+          set -uo pipefail
 
-            Inspect it with ${{ steps.event.outputs.inspect }}. Read any source
-            file you need in order to judge what the change actually does.
+          npm install -g @anthropic-ai/claude-code >/dev/null 2>&1 || true
 
-            Then write a very short note for someone who does not write code and
-            wants to know what happened, and nothing more. Write it to the file
-            `pr-summary.txt` in the repository root.
+          # The two dynamic lines are printed from env; the rules are a quoted
+          # heredoc so nothing in them expands. A commit message cannot reach
+          # the shell either way.
+          {
+          printf '%s\n\n' "$BRIEF"
+          printf 'Inspect it with %s. Read any source file you need in order to judge what the change actually does.\n\n' "$INSPECT"
+          cat <<'RULES'
+          Then write a very short note for someone who does not write code and
+          wants to know what happened, and nothing more.
 
-            Hard rules:
+          Hard rules:
 
-            - *Under 80 words.* Shorter is always better. Most changes deserve
-              two sentences. A typo fix deserves one line.
-            - *Avoid the jargon instead of explaining it.* Do not name files,
-              functions, libraries, or technologies unless the note is
-              meaningless without them. Say what the change does for a person,
-              not how it is built. Write "Slack now gets a message when code
-              goes straight into the project" — never "adds a push trigger to
-              the workflow".
-            - No line counts, no file paths, no percentages, unless that number
-              is the entire point of the change.
-            - Never restate the title. The reader can already see it.
+          - Under 80 words. Shorter is always better. Most changes deserve two
+            sentences. A typo fix deserves one line.
+          - Avoid the jargon instead of explaining it. Do not name files,
+            functions, libraries, or technologies unless the note is meaningless
+            without them. Say what the change does for a person, not how it is
+            built. Write "Slack now gets a message when code goes straight into
+            the project" — never "adds a push trigger to the workflow".
+          - No line counts, no file paths, no percentages, unless that number is
+            the entire point of the change.
+          - Never restate the title. The reader can already see it.
 
-            Shape:
+          Shape:
 
-            - One plain sentence: what changed, and why anyone should care.
-            - Then at most three short bullets, and only if they say something
-              the sentence did not. Fewer is better. For a small change, drop
-              them entirely.
-            - Only if something could genuinely go wrong for a person, one final
-              line starting `Watch out:`. Otherwise leave it out — never write
-              "no risk", "routine", or any other placeholder.
+          - One plain sentence: what changed, and why anyone should care.
+          - Then at most three short bullets, and only if they say something the
+            sentence did not. Fewer is better. For a small change, drop them.
+          - Only if something could genuinely go wrong for a person, one final
+            line starting `Watch out:`. Otherwise leave it out — never write "no
+            risk", "routine", or any other placeholder.
 
-            This is the right length and register:
+          This is the right length and register:
 
-              Jarvis now speaks up when code goes straight into the project, not
-              only when changes are proposed for review first.
+            Jarvis now speaks up when code goes straight into the project, not
+            only when changes are proposed for review first.
 
-              • Announces new code added to an open proposal
-              • Stays quiet instead of repeating itself when one is approved
+            • Announces new code added to an open proposal
+            • Stays quiet instead of repeating itself when one is approved
 
-              Watch out: a note ending in something like "(#4)" is mistaken for
-              an approval and stays silent.
+            Watch out: a note ending in something like "(#4)" is mistaken for an
+            approval and stays silent.
 
-            Format: plain text, Slack mrkdwn — *bold* not **bold**, no headers.
-            No preamble, no sign-off, no restating these instructions. The
-            file's entire contents get posted verbatim.
+          Format: plain text, Slack mrkdwn — *bold* not **bold**, no headers. No
+          preamble, no sign-off, no restating these instructions. Your entire
+          reply is the note, and gets posted verbatim.
+          RULES
+          } > "$RUNNER_TEMP/prompt.md"
+
+          # `claude -p` prints the note on stdout — that IS the summary, so there
+          # is no file for the model to write and no Write tool to grant.
+          claude -p "$(cat "$RUNNER_TEMP/prompt.md")" \
+            --allowedTools "Read,Bash" \
+            --permission-mode bypassPermissions \
+            > pr-summary.txt 2> "$RUNNER_TEMP/claude-err.log" || true
+
+          if [ -s pr-summary.txt ]; then
+            echo "--- summary ---"
+            cat pr-summary.txt
+          else
+            echo "::warning::Claude produced no summary; the fallback will post."
+            tail -n 20 "$RUNNER_TEMP/claude-err.log" || true
+          fi
 
       - name: Post it to Slack
         if: steps.event.outputs.skip != 'true'
