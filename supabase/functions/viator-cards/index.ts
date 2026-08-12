@@ -110,8 +110,21 @@ serve(async (req) => {
   }
 
   // Serve from cache if fresh enough, stale cache as fallback on Viator failure.
+  //
+  // `op=refresh` bypasses it. Added 2026-08-12 because there was no operator
+  // control at all over a 6-hour cache: after the item_embeddings migration
+  // landed, the embedding corpus stayed empty and the only way to fill it was to
+  // wait for the TTL to expire and hope a visitor arrived. `search` refuses with
+  // no_corpus until it is populated, so "wait up to six hours" was the entire
+  // recovery procedure.
+  //
+  // Cost of a refresh is one Viator round-trip plus one embedding pass over the
+  // catalog (~366 items, fractions of a cent). It is exposed on the same footing
+  // as the existing `counts` / `taxonomy` / `match` ops, which also hit Viator —
+  // so this adds no new class of exposure, but see docs/ROADMAP.md: none of them
+  // is rate-limited, and that is worth closing as a group rather than one-off.
   const cached = await readCache();
-  if (cached && (Date.now() - cached.cachedAt.getTime() < CACHE_TTL_MS)) {
+  if (op !== 'refresh' && cached && (Date.now() - cached.cachedAt.getTime() < CACHE_TTL_MS)) {
     return json({ ...(cached.payload as object), source: 'cache' });
   }
 

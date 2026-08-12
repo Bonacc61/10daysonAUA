@@ -36,7 +36,11 @@ execFileSync('node_modules/.bin/esbuild', [
   '--bundle', '--platform=node', '--format=esm', '--log-level=warning',
   `--define:import.meta.env=${JSON.stringify({ VITE_VIATOR_FN_URL: read('VITE_VIATOR_FN_URL'), VITE_SUPABASE_ANON_KEY: ANON })}`,
   `--outfile=${out}`,
-  '--stdin-loader=ts',
+  // `--loader=ts`, not `--stdin-loader=ts`. The latter is not an esbuild flag
+  // (checked against 0.21.5) and made this runner exit 1 before it ever reached
+  // the network — which is why it had never actually run: the search function
+  // was not deployed either, so the failure looked like the expected one.
+  '--loader=ts',
 ], {
   input: `
     import { loadCatalog } from '${process.cwd()}/src/data/activitySource';

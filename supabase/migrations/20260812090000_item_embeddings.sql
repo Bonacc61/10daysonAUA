@@ -24,6 +24,19 @@
 -- elsewhere; it is a convention marker, not an enforcement.
 create extension if not exists vector with schema extensions;
 
+-- ...and that assumption is FALSE under `supabase db push` (found 2026-08-12).
+-- The CLI runs migrations with a search_path that excludes `extensions`, so
+-- every bare `vector(256)` below failed with:
+--   ERROR: type "vector" does not exist (SQLSTATE 42704)
+-- The dashboard SQL editor does keep `extensions` on the path, which is why
+-- this file looked fine when it was written and only broke when it was pushed.
+--
+-- Set explicitly rather than schema-qualifying each use: the type appears in the
+-- table DDL, the function signature, two grants AND the index's
+-- `vector_cosine_ops` operator class, and missing one of those is the kind of
+-- error that only shows up at CREATE time.
+set search_path = public, extensions;
+
 -- One row per catalog item.
 create table if not exists public.item_embeddings (
   item_id    text primary key,
