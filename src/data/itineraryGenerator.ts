@@ -18,7 +18,7 @@ import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry, ViatorItem, ViatorGroup } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, entryPrice, parseActivityCost } from './matcher';
-import { fitItem, budgetCap, activityKind, adventureCapForFlags, isEveningItem, isWaterBased, isCrowdPleaser, isAutoFillExcluded, isKidsOriented, isFullDayProduct, titleTimeOfDay, isNaturalPool, offroadAdrenalineBonus, contentCreatorBonus, itemSlotOkForFill, itemAdventure } from './itemFit';
+import { fitItem, budgetCap, activityKind, adventureCapForFlags, isEveningItem, isWaterBased, isCrowdPleaser, isAutoFillExcluded, isKidsOriented, isCouplesOriented, isFullDayProduct, titleTimeOfDay, isNaturalPool, offroadAdrenalineBonus, contentCreatorBonus, itemSlotOkForFill, itemAdventure } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 import { effectiveFlags } from './notesFlags';
@@ -1295,8 +1295,16 @@ export function generatePlan(
   // 0-review, 0-rating listings that nobody should be handed unasked.
   const withChildren = tags.has('family-young-kids') || tags.has('family-teens');
   const influencer = tags.has('influencer');
+  // Group-fit exclusions, both the same shape: a product whose title names its
+  // audience is not handed to a traveller who is not that audience. Auto-fill
+  // only — it stays in Explore and a pinned one still lands.
+  //
+  // `couple` covers the honeymoon pill too (answerTags maps it), so a couple who
+  // ticked honeymoon keeps exactly the products the flag is for.
+  const asCouple = tags.has('couple');
   const autoFillOk = (i: ViatorItem) =>
-    !isAutoFillExcluded(i, influencer) && (withChildren || !isKidsOriented(i));
+    !isAutoFillExcluded(i, influencer) && (withChildren || !isKidsOriented(i))
+    && (asCouple || !isCouplesOriented(i));
   const eligible = filteredCatalog.items.filter(autoFillOk);
   const floorApplies = eligible.length >= MIN_CATALOG_TO_FLOOR;
   const champions = !floorApplies ? eligible : championsByExperience(eligible);

@@ -387,6 +387,27 @@ export function isAutoFillExcluded(item: ViatorItem, influencer = false): boolea
 // Explore, stays searchable, and a hearted one still lands in the plan.
 const WATER_PARK_TAG = 12043;
 const KIDS_TITLE_RE = /\bday pass\b|\bwater ?parks?\b|\bkids?\b|\bchildren'?s?\b/i;
+// A product sold specifically to a couple: a proposal shoot, a romantic picnic
+// for two, a couples painting class. Not a judgement about who may enjoy it —
+// a solo traveller is welcome on a sunset sail, and this deliberately does NOT
+// catch those. It catches titles that name the audience, because handing a
+// PROPOSAL PHOTOSHOOT to someone who ticked "Solo" is the engine telling them
+// it wasn't listening.
+//
+// Reported case: "Aruba Eagle Beach Romantic Sunset Picnic in a Luxury Cabana"
+// in 90 of 120 Solo plans. It scored 1.6483516 as Solo, Couple and Friends
+// alike — nothing in the engine asked who the traveller was.
+//
+// Explicit markers only. Measured over the 328 live items, this matches 6, and
+// a wider pattern adding `intimate|anniversary` matches exactly the same 6 —
+// so those two words earn nothing and only add false friends ("intimate group
+// setting", a company's "20th Anniversary Tour"). `\bcouples?\b` is kept
+// despite "a couple of hours" because that phrasing does not occur in a title.
+const COUPLES_TITLE_RE = /\b(romantic|romance|couples?|honeymoon|proposal|for two)\b/i;
+export function isCouplesOriented(item: ViatorItem): boolean {
+  return COUPLES_TITLE_RE.test(item.title);
+}
+
 export function isKidsOriented(item: ViatorItem): boolean {
   return (item.tags ?? []).includes(WATER_PARK_TAG) || KIDS_TITLE_RE.test(item.title);
 }

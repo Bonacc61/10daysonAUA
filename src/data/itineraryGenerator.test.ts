@@ -2204,3 +2204,72 @@ describe('route families outside the generator (swap / add paths)', () => {
     expect(claimedRouteFamilies(cards, resolve)).toEqual(new Set(['sail']));
   });
 });
+
+describe('generatePlan — couples products are not handed to people travelling alone', () => {
+  // Reported: a Solo traveller was offered "Aruba Eagle Beach Romantic Sunset
+  // Picnic in a Luxury Cabana". Measured before this rule: it appeared in 90 of
+  // 120 Solo plans (75%).
+  //
+  // The cause was not a bad score — it was NO score. `answersToTags` emits a
+  // 'solo' tag and `fitItem` never reads any group-type tag, so the picnic
+  // scored 1.6483516 identically as Solo, Couple and Friends. Nothing in the
+  // engine asked "who is this for".
+  //
+  // This mirrors `isKidsOriented` exactly: an auto-fill exclusion, not a hard
+  // ban. A couples product stays in Explore and still lands if pinned — the
+  // traveller may want it. What changes is that we stop handing it over unasked.
+  const mkGroup = (id: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  const mk = (id: string, title: string): ViatorItem => ({
+    id, group_id: `g-${id}`, title, image_url: '', price_usd: 90, duration: '2 hrs',
+    rating: 4.8, review_count: 300, viator_item_url: '', is_best_seller: true,
+    display_order: 0, tags: [7000 + id.length], experience_cluster_id: `c-${id}`,
+  });
+  // Needs its own fixture: the stub catalog contains ZERO couples-marked titles,
+  // so a stub-based test would pass vacuously.
+  const items = [
+    mk('romantic', 'Aruba Eagle Beach Romantic Sunset Picnic in a Luxury Cabana'),
+    mk('couples', 'Private Sip and Paint Experience for Couples in Aruba'),
+  ];
+  for (let n = 0; n < 5; n += 1) items.push(mk(`plain-${n}`, `Island Walking Tour ${n}`));
+  const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
+  const ids = (a: Answers, seed: number) => entryIds(generatePlan(a, cat, { seed }));
+  const BASE: Answers = { ...DEFAULT_ANSWERS, days: 10, budget: 'Mid-range', adventureLevel: 50 };
+
+  it('never auto-places a couples product for a solo traveller', () => {
+    for (let seed = 0; seed < 6; seed += 1) {
+      const placed = ids({ ...BASE, groupType: 'Solo' }, seed);
+      expect(placed).not.toContain('romantic');
+      expect(placed).not.toContain('couples');
+    }
+  });
+
+  it('still offers them to a couple', () => {
+    // The counterweight. Without it the rule could be "never show these to
+    // anyone", which would delete the products rather than target them.
+    const seen = new Set<string>();
+    for (let seed = 0; seed < 20; seed += 1) ids({ ...BASE, groupType: 'Couple' }, seed).forEach((i) => seen.add(i));
+    expect([...seen].some((i) => i === 'romantic' || i === 'couples')).toBe(true);
+  });
+
+  it('treats a honeymoon as a couple', () => {
+    // effectiveFlags maps the honeymoon pill to the 'couple' tag, so a solo
+    // honeymooner is a contradiction we do not need to resolve — but a couple
+    // who ticked honeymoon must not lose the products the flag is FOR.
+    const seen = new Set<string>();
+    for (let seed = 0; seed < 20; seed += 1) {
+      ids({ ...BASE, groupType: 'Couple', flags: ['honeymoon'] }, seed).forEach((i) => seen.add(i));
+    }
+    expect([...seen].some((i) => i === 'romantic' || i === 'couples')).toBe(true);
+  });
+
+  it('does not hand them to friends or a multi-gen group either', () => {
+    for (const groupType of ['Friends', 'Multi-gen']) {
+      const placed = ids({ ...BASE, groupType }, 1);
+      expect(placed).not.toContain('romantic');
+      expect(placed).not.toContain('couples');
+    }
+  });
+});

@@ -772,6 +772,71 @@ below — more evening inventory is the fix, and no constant will do it.
 
 ---
 
+### 2026-08-12 — Nothing asked who the traveller was
+
+**Reported:** a Solo traveller offered "Aruba Eagle Beach Romantic Sunset Picnic
+in a Luxury Cabana". Measured: **90 of 120 Solo plans (75%)** carried a
+"Romantic…" product.
+
+**The cause was not a bad score. It was no score.** `answersToTags` emits a
+`solo` tag and `fitItem` reads no group-type tag at all, so the picnic scored
+identically for everyone:
+
+```
+as Solo     1.6483516...
+as Couple   1.6483516...
+as Friends  1.6483516...
+```
+
+`groupType` is read in exactly three places: to build a tag nothing consumes, to
+decide which Q8 pills apply (`notesFlags.flagAppliesTo`), and as an input to
+`hashAnswers`. So it changes which VARIANT you get, never what fits.
+
+**A sensitivity sweep, and it is the real finding here.** Same seed, one answer
+varied, symmetric difference over 8 seeds:
+
+| answer varied | cards changed (of ~20) |
+|---|---|
+| Adventure level 5 → 95 | **19.4** |
+| Budget low → high | **12.3** |
+| Interests: beach → food & drink | 3.0 |
+| Interests: beach → culture | 2.0 |
+| Group type: Solo → Couple | 1.0 |
+| Interests: beach → adventure | 0.8 |
+| **Group type: Solo → Family with young kids** | **0.0** |
+| **Lodging: Palm Beach → San Nicolas** | **0.0** |
+
+Two sliders do nearly all the work. Solo and "Family with young kids" produce
+the identical plan. **Lodging (Q7) changes nothing whatsoever.**
+
+**Fix:** `isCouplesOriented`, mirroring `isKidsOriented` exactly — an auto-fill
+exclusion, not a ban. The product stays in Explore and a pinned one still lands;
+we simply stop handing it over unasked. `couple` covers the honeymoon pill,
+which `answersToTags` already maps.
+
+Explicit markers only. Over the 328 live items the pattern matches 6, and a
+wider one adding `intimate|anniversary` matches **exactly the same 6** — so
+those words earn nothing and only add false friends. Five of the six sit below
+the 25-review champion floor and never auto-placed anyway: the reported bug was
+essentially one product.
+
+**Deliberately narrow.** 123 further items are couples-ish by vibe — "Private
+Sunset Tour", "Morning Champagne and Lobster Sail" — and are NOT excluded. A
+solo traveller on a sunset sail is normal; a solo traveller sold a proposal
+photoshoot is the engine not listening. Only titles that name their audience
+qualify.
+
+**Result:** 90 of 120 → **0**. `plan-diff` violations unchanged at 0; open slots
+155 → 161, the six slots that used to hold a couples product for someone who is
+not a couple.
+
+**Not fixed here, and worth stating plainly:** this closes one hole in a wall
+that is mostly missing. Group type still does not score anything, interests
+barely register, and lodging is inert. The instrument for that is the
+conformance harness, not another patch.
+
+---
+
 ### 2026-08-12 — The one-sail rule stopped at the generator's edge
 
 **Reported:** two sails in one itinerary — a catamaran and a sunset sail — both
