@@ -8,7 +8,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { GROUPS, ARUBA_DESTINATION_ID } from './groups.ts';
 import { normalizeProduct } from './normalize.ts';
 import { hasKey, ping, searchProducts, searchProductsPaged, freetextSearch, getProduct, getTags } from './viator.ts';
-import { embedBatch, clusterByEmbedding, activeProvider } from './embeddings.ts';
+import { embedBatch, clusterByEmbedding, activeProvider, MODEL_ID, isSearchableProvider } from './embeddings.ts';
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
@@ -200,6 +200,52 @@ serve(async (req) => {
         }
         const nClusters = new Set(clusters.values()).size;
         console.log(`[viator-cards] ${provider}: ${(items as Row[]).length} items → ${nClusters} experience clusters`);
+
+        // ── Persist the vectors for semantic search ────────────────────────
+        // These used to be discarded the moment clustering finished, so every
+        // refresh paid to compute something it then binned. They are written
+        // here, never added to the payload — no vector reaches the browser.
+        //
+        // WHAT IS EMBEDDED, and why it is written down: `${it.title}. ${it.description}`
+        // truncated to 500 chars (see `texts` above). The search function must
+        // embed queries into the SAME space, so changing this composition
+        // silently degrades ranking without failing anything. If golden-set
+        // recall is poor, a trimmed description is the first thing to try —
+        // long prose tends to embed to a bland, generic position, which is
+        // fine for spotting duplicates and mediocre for search.
+        //
+        // Only the 256-dim provider is storable: the column is vector(256).
+        // Under Voyage (512) we skip and say so, rather than corrupting the
+        // table — a mixed-model table makes cosine similarity meaningless.
+        if (!isSearchableProvider(provider)) {
+          console.warn(`[viator-cards] embeddings not stored: provider ${provider} is not the 256-dim one; semantic search will report a model mismatch`);
+        } else {
+          try {
+            const db = supabaseAdmin();
+            const rows = sorted.map((it, i) => ({
+              item_id: String(it.id),
+              embedding: JSON.stringify(embeddings[i]),   // pgvector accepts the JSON array form
+              model: MODEL_ID[provider],
+              updated_at: new Date().toISOString(),
+            }));
+            const { error: upErr } = await db.from('item_embeddings').upsert(rows, { onConflict: 'item_id' });
+            if (upErr) throw upErr;
+
+            // Drop rows for products that have left the catalog, so the table
+            // cannot grow without bound as Viator's inventory churns.
+            const liveIds = rows.map((r) => r.item_id);
+            const { error: delErr } = await db.from('item_embeddings')
+              .delete()
+              .not('item_id', 'in', `(${liveIds.map((id) => `"${id}"`).join(',')})`);
+            if (delErr) throw delErr;
+
+            console.log(`[viator-cards] stored ${rows.length} embeddings (${MODEL_ID[provider]})`);
+          } catch (e) {
+            // Non-fatal, exactly as writeCache is: a storage failure must never
+            // cost the traveller their catalog.
+            console.warn(`[viator-cards] embedding store failed: ${String(e).slice(0, 160)}`);
+          }
+        }
       } catch (e) {
         console.warn(`[viator-cards] embedding clustering skipped (${provider}): ${String(e).slice(0, 160)}`);
       }

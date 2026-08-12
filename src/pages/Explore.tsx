@@ -5,7 +5,8 @@ import Footer from '../components/Footer';
 import { useShortlist } from '../lib/shortlist';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
-import { filterExploreEntries, bookingUrl, viatorLink, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint } from '../data/exploreItems';
+import { filterExploreEntries, blendSearchResults, bookingUrl, viatorLink, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint } from '../data/exploreItems';
+import { searchByMeaning, semanticSearchEnabled } from '../lib/semanticSearch';
 import { parseActivityCost } from '../data/matcher';
 import type { Section } from '../types';
 import type { ViatorItem } from '../types';
@@ -83,6 +84,19 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
 
   const [section, setSection] = useState<string>(initialSection ?? 'All');
   const [search, setSearch] = useState('');
+  // Semantic search state (VITE_SEMANTIC_SEARCH only).
+  //
+  // The space bar ARMS it rather than switching to it. One word is nearly always
+  // a name or a noun — "Zeerover", "snorkel" — and substring matching answers
+  // those instantly, locally and for free. Two or more words is where people
+  // start describing intent, and that is the only case worth a network round
+  // trip. Substring results stay live throughout: arming never blanks or delays
+  // what is already on screen, so a two-word KEYWORD search ("baby beach") keeps
+  // working exactly as it does today and Enter merely adds to it.
+  const [semanticIds, setSemanticIds] = useState<string[]>([]);
+  const [semanticFor, setSemanticFor] = useState('');      // the query those ids answer
+  const [semanticPending, setSemanticPending] = useState(false);
+  const [semanticFailed, setSemanticFailed] = useState(false);
   // Both filters open BALANCED (50), not seeded from the questionnaire. Seeding
   // vibe from answers.adventureLevel meant a traveller who answered "chill"
   // arrived at Explore with the catalog already narrowed to 🌴 Chill and no
@@ -103,9 +117,31 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
     return slug ? REGION_LABEL[slug] ?? slug : '';
   };
   // Every individual Viator item URL + local pick, as its own filterable tile.
-  const entries = filterExploreEntries(catalog, { section, search, vibe, price });
+  const substringHits = filterExploreEntries(catalog, { section, search, vibe, price });
+
+  // Only blend results that answer the query currently in the box. Without this
+  // an edited query would keep showing matches for the previous one.
+  const allEntries = filterExploreEntries(catalog, { section, search: '', vibe, price });
+  const entries = search.trim() === semanticFor
+    ? blendSearchResults(substringHits, semanticIds, allEntries)
+    : substringHits;
 
   const totalCount = entries.length;
+
+  const armed = semanticSearchEnabled() && search.trim().includes(' ');
+  const semanticAnswered = search.trim() === semanticFor && semanticFor !== '';
+
+  const runSemantic = async () => {
+    const q = search.trim();
+    if (!armed || semanticPending || !q) return;
+    setSemanticPending(true);
+    setSemanticFailed(false);
+    const out = await searchByMeaning(q);
+    setSemanticPending(false);
+    if (!out.ok) { setSemanticFailed(true); return; }
+    setSemanticIds(out.ids);
+    setSemanticFor(q);
+  };
 
   return (
     <>
@@ -122,7 +158,8 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
             </span>
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setSemanticFailed(false); }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && armed) { e.preventDefault(); void runSemantic(); } }}
               placeholder="Search beaches, activities, food…"
               style={{ width: '100%', padding: '14px 14px 14px 44px', border: '2px solid var(--ink)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', background: 'var(--cream)', outline: 'none' }}
             />
@@ -130,6 +167,15 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
               <button onClick={() => setSearch('')} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
                 <X />
               </button>
+            )}
+            {armed && !semanticAnswered && (
+              <div className="search-arm-hint">
+                {semanticPending
+                  ? 'Searching by meaning…'
+                  : semanticFailed
+                    ? "Couldn't search by meaning just now — keyword results still below."
+                    : <>press <kbd>Enter</kbd> to search by meaning</>}
+              </div>
             )}
           </div>
 
@@ -179,7 +225,11 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
               {!loading && totalCount === 0 && (
                 <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--sand-500)' }}>
                   <p className="font-display" style={{ fontSize: 24, margin: 0 }}>No results found</p>
-                  <p style={{ fontSize: 14, marginTop: 6 }}>Recenter the Vibe / Price sliders or clear search.</p>
+                  <p style={{ fontSize: 14, marginTop: 6 }}>
+                    {semanticAnswered && semanticIds.length === 0
+                      ? 'We looked for what you meant as well as what you typed, and still found nothing here. Try recentering the Vibe / Price sliders.'
+                      : 'Recenter the Vibe / Price sliders or clear search.'}
+                  </p>
                 </div>
               )}
             </div>
