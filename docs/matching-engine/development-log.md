@@ -807,10 +807,19 @@ swap pools are filtered: the within-group rotation too, because a group is not a
 family ('sailing-cruises' holds sails, dives and a submarine, so rotating a
 non-sail card could still surface a sail).
 
-`skipUid` carries the asymmetry that was explicitly asked for: **tapping "Swap
-this" ON a sail still offers sails**, because that card does not claim its own
-family — otherwise the one card type this rule concerns would be unswappable.
-Tapping it on a jeep never returns a sail while one is planned.
+`skipUid` carries the asymmetry that was explicitly asked for — but state it
+precisely, because the first version of this entry overclaimed. **`skipUid`
+guarantees the new filter never BLOCKS a sail-for-sail swap.** Whether a sail is
+actually offered is decided by the pre-existing pool exclusions, which drop
+candidates by item id and group id, and those return a non-sail most of the
+time: measured over 256 post-fix plans x 5 chips, swapping THE sail returns
+another sail 0/256 on the stub and 77/256 (30%) on live — **identical numbers
+with the family filter disabled**. The single browser observation that seemed to
+confirm "still offers sails" was one lucky draw, not the general behaviour.
+
+Tapping "Swap this" on a jeep never returns a sail while one is planned. That
+half IS the new filter's doing, and it is measured: 12,439 → 0 leaked sails on
+the stub and 4,608 → 0 on live, across 63,995 simulated swaps.
 
 *An explicit add is the traveller's, so it gets a note, not a block.* A second
 card of a family already used shows `⚠ 2nd sail this trip`. Derived from the
@@ -873,8 +882,18 @@ The browser is what settled it.
 
 Browser after the fix: baseline 3 sails → 1; swapping a NON-sail returned
 "Arikok National Park Hike" (still one sail); swapping THE sail returned
-"Catamaran Snorkel Cruise to Antilla Shipwreck" — still a sail, as specified,
-and still one in the trip.
+"Catamaran Snorkel Cruise to Antilla Shipwreck" — one sail either way. See the
+correction above: that second observation is NOT evidence of a general rule.
+
+**Fill cost, both catalogs.** Live: 6,398 → 6,393 cards over 256 plans (−5,
+0.08%) — free. **Stub: 6,638 → 6,406 (−232, −3.5%), open slots 1,658 → 1,934.**
+The stub is the first paint and the offline fallback, so a pre-live-catalog plan
+is about 0.9 cards thinner. The card removed was the duplicate sail, so the
+trade is right — but it is a real cost and belongs in the record.
+
+**A side effect worth keeping.** The helper catches families beyond sail: "not
+our vibe" on a sail card previously returned a Natural Pool product in 64 of 256
+cases where the plan already had one. After the diff, 0.
 
 ---
 

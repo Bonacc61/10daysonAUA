@@ -2141,9 +2141,9 @@ describe('route families outside the generator (swap / add paths)', () => {
   const jeep = mkItem('jeep', 'Arikok Jeep Safari', [OFFROAD, 3]);
   const entry = (i: ViatorItem): CardEntry => ({ kind: 'group', group: mkGroup(i.group_id), bestSeller: i, others: [] });
   const slotEntryOf = (i: ViatorItem): SlotEntry => ({ kind: 'group', groupId: i.group_id, bestSellerId: i.id });
-  const resolve = (e: SlotEntry): CardEntry | null => {
-    if (e.kind !== 'group') return null;
-    const i = [sailA, sailB, jeep].find((x) => x.id === e.bestSellerId);
+  const resolve = (c: { uid: string; entry: SlotEntry }): CardEntry | null => {
+    if (c.entry.kind !== 'group') return null;
+    const i = [sailA, sailB, jeep].find((x) => x.id === (c.entry as { bestSellerId: string }).bestSellerId);
     return i ? entry(i) : null;
   };
 
@@ -2176,8 +2176,8 @@ describe('route families outside the generator (swap / add paths)', () => {
     // beach. If those claimed some catch-all bucket, the first one placed would
     // block every other familyless card from every swap for the rest of the trip.
     const museum = mkItem('museum', 'Aruba Historical Museum', [999]);
-    const resolve2 = (e: SlotEntry): CardEntry | null =>
-      (e.kind === 'group' && e.bestSellerId === 'museum') ? entry(museum) : resolve(e);
+    const resolve2 = (c: { uid: string; entry: SlotEntry }): CardEntry | null =>
+      (c.entry.kind === 'group' && c.entry.bestSellerId === 'museum') ? entry(museum) : resolve(c);
     const claimed = claimedRouteFamilies([{ uid: 'u1', entry: slotEntryOf(museum) }], resolve2);
     expect(claimed.size).toBe(0);
   });
@@ -2188,10 +2188,19 @@ describe('route families outside the generator (swap / add paths)', () => {
     expect(withoutClaimedFamilies([entry(museum)], claimed)).toHaveLength(1);
   });
 
-  it('does not let an unresolvable card unlock a duplicate', () => {
-    // A card whose product left the catalog resolves to null. Treating that as
-    // "no family" would quietly re-allow the sail it used to be.
-    const cards = [{ uid: 'u1', entry: { kind: 'group', groupId: 'gone', bestSellerId: 'gone' } as SlotEntry }];
-    expect(claimedRouteFamilies(cards, resolve)).toEqual(new Set());
+  it('keeps counting after a card that fails to resolve', () => {
+    // An unresolvable card (product left the catalog) contributes nothing, which
+    // is fine — it does not render either. What it must NOT do is stop the
+    // count, or one stale id would unclaim every family after it and reopen the
+    // duplicate this whole helper exists to prevent.
+    //
+    // The earlier version of this test asserted an empty Set for a lone
+    // unresolvable card, which passed whether the loop used `continue` or
+    // `break` — it could not fail. This one dies if `continue` becomes `break`.
+    const cards = [
+      { uid: 'u0', entry: { kind: 'group', groupId: 'gone', bestSellerId: 'gone' } as SlotEntry },
+      { uid: 'u1', entry: slotEntryOf(sailA) },
+    ];
+    expect(claimedRouteFamilies(cards, resolve)).toEqual(new Set(['sail']));
   });
 });

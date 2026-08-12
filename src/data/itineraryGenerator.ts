@@ -522,6 +522,11 @@ const KAYAK_RE = /\bkayak/i;
 // A curated local that is an actual boat trip. Needs a VESSEL word: 'snorkel'
 // alone is a shore snorkel, which is not a sail.
 const LOCAL_SAIL_RE = /\b(catamaran|sail(?:s|ing)?|cruise)\b/i;
+// ...but a cruise PORT is a place, not a boat you board. These titles come from
+// the live feed and change without a deploy, and Viator routinely names walking
+// tours "…from the Cruise Port" — `oranjestad-walking` is one reface away from
+// silently joining the sail family.
+const CRUISE_PLACE_RE = /\bcruise (?:port|terminal|pier|dock)\b/i;
 // Sailing, catamarans and Jolly Pirates are one experience sold by a dozen
 // operators — the same boat, the same coastal run, the same snorkel stops — so
 // a trip gets ONE, regardless of length. Snorkel-kind boats are in the same
@@ -542,9 +547,15 @@ const LOCAL_SAIL_RE = /\b(catamaran|sail(?:s|ing)?|cruise)\b/i;
 // championsByExperience already thins those to one; cross-cluster duplicates are
 // precisely what an embedding cannot see, so this has to be a family rule.
 //
-// Curated LOCAL picks stay out of it, as they do for the boat gap rule: a beach
-// snorkel the day after a catamaran was explicitly called fine. Note this
-// exemption covers local activities only — a Viator shore-snorkel product
+// Curated entries are NO LONGER exempt (2026-08-12). They were, and this comment
+// used to say so — which is the misreading that shipped the duplicate: two
+// curated slots are boat trips, and on the live catalog they are refaced into
+// real Viator products with Book now buttons. They join the family via
+// LOCAL_SAIL_RE in routeFamilyOf's non-group branch. The exemption still holds
+// for `gapFamilyOf`, which is a different rule: a beach snorkel the day after a
+// catamaran was explicitly called fine.
+//
+// Note the kind test below covers Viator products only — a Viator shore-snorkel
 // ("Small Group Snorkeling at Mangel Halto", "Private Turtle Snorkel Tour") has
 // kind 'snorkel' and IS in the family, so it competes with the catamaran for
 // the trip's one slot. 36 live items land in this family; a south-coast shore
@@ -703,6 +714,7 @@ export function routeFamilyOf(e: CardEntry): string | undefined {
   // tag but are a walk into the sea, and must stay outside the family. Checked
   // against all 26 locals in both the live and stub catalogs: exactly the two
   // boat trips match, before and after refacing.
+  if (CRUISE_PLACE_RE.test(title)) return undefined;
   return LOCAL_SAIL_RE.test(title) ? 'sail' : undefined;
 }
 
@@ -2149,18 +2161,27 @@ export function generatePlan(
  *
  * `skipUid` is the card being replaced: a swap must not count the sail it is
  * about to remove, or swapping a sail for another sail becomes impossible.
- * Cards that fail to resolve are skipped rather than treated as familyless —
- * a card whose product left the catalog should not silently unlock a duplicate.
+ *
+ * A card that fails to resolve contributes nothing — it is indistinguishable
+ * here from a card with no family. That is acceptable rather than clever: an
+ * unresolvable card does not render either, so it cannot produce a duplicate
+ * anyone can see. It must not ABORT the loop, though, or one stale id would
+ * unclaim every family after it; hence `continue`, and the test for it.
+ *
+ * `resolve` takes the whole card, not just its entry, so the caller can resolve
+ * SLOT-AWARE. `resolveSlotEntry` re-faces a group entry differently per slot, so
+ * resolving without the slot can face a different item than the card displays —
+ * making this census disagree with what the traveller sees.
  */
 export function claimedRouteFamilies(
   cards: ReadonlyArray<{ uid: string; entry: SlotEntry }>,
-  resolve: (e: SlotEntry) => CardEntry | null,
+  resolve: (c: { uid: string; entry: SlotEntry }) => CardEntry | null,
   skipUid?: string,
 ): Set<string> {
   const out = new Set<string>();
   for (const c of cards) {
     if (c.uid === skipUid) continue;
-    const resolved = resolve(c.entry);
+    const resolved = resolve(c);
     if (!resolved) continue;
     const fam = routeFamilyOf(resolved);
     if (fam) out.add(fam);

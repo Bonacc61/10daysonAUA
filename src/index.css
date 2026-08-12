@@ -305,9 +305,12 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
    longer produce one and swap will not return one, so this is a note about a
    deliberate choice, never a warning about our own suggestion. */
 .itin-dupe-badge {
-  background: var(--cream); color: var(--ink); border: 2px solid var(--ink);
+  /* Coral, not cream: cream on an ink border is byte-identical to the neutral
+     .chip-outline, so a warning read as an ordinary chip. Padding matches its
+     three sibling badges so the flex row keeps one baseline. */
+  background: var(--coral); color: var(--ink); border: 2px solid var(--ink);
   font-size: 10px; font-weight: 800; font-style: normal;
-  padding: 1px 8px; border-radius: 999px; flex-shrink: 0; white-space: nowrap;
+  padding: 2px 8px; border-radius: 999px; flex-shrink: 0; white-space: nowrap;
 }
 
 /* Per-card drag handle + remove control cluster (top-right of each card). */

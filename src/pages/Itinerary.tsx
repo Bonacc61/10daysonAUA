@@ -464,9 +464,15 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
     //
     // `uid` is skipped: the card being replaced must not claim its own family,
     // or swapping a sail could never return another sail.
+    const slotOfCard = new Map<string, Slot>();
+    const allCards = plan.flatMap((d) => (['morning', 'afternoon', 'evening'] as const)
+      .flatMap((sl) => d[sl].map((c) => { slotOfCard.set(c.uid, sl); return c; })));
     const claimedFamilies = claimedRouteFamilies(
-      plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening]),
-      (e) => resolveEntry(e),
+      allCards,
+      // Slot-aware, matching the badge memo and the render path. resolveSlotEntry
+      // re-faces a group entry per slot, so resolving without it can face a
+      // different item than the card actually shows.
+      (c) => resolveEntry(c.entry, slotOfCard.get(c.uid)),
       uid,
     );
     // Note the asymmetry, which is the intended behaviour: tapping "Swap this"
