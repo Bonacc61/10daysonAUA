@@ -772,6 +772,46 @@ below — more evening inventory is the fix, and no constant will do it.
 
 ---
 
+### 2026-08-12 — One sail, unless the trip is long enough for two
+
+**Refines the merge earlier today.** Collapsing the daytime and evening sail
+families was right for the reported bug and too blunt as a general rule: a week
+is not long enough to sell the same water twice, but a fortnight is — provided
+the second outing is genuinely different. So the rule is now trip-length aware.
+
+```
+<= 7 days   one sail, of either kind
+>= 8 days   one DAYTIME sail AND one EVENING sail; never two of a kind
+```
+
+**Where it lives matters.** `routeFamilyOf` goes back to returning the
+fine-grained `'day-sail'` / `'evening-cruise'`, and a new wrapper
+`tripRouteFamily(entry, nDays)` collapses them to `'sail'` below
+`SECOND_SAIL_MIN_DAYS`. The split is deliberate: `routeFamilyOf` answers *what
+is this?* and must stay pure and trip-independent; `tripRouteFamily` answers
+*what counts as a repeat on THIS trip?*. Every engine call site and both UI
+helpers now take `nDays`.
+
+Measured on the live catalog, 3 group types x 6 seeds at each length:
+
+```
+ 4 days: daytime 1.00, evening 0.00, violations 0
+ 7 days: daytime 1.00, evening 0.00, violations 0
+ 8 days: daytime 1.00, evening 1.00, violations 0
+10 days: daytime 1.00, evening 1.00, violations 0
+14 days: daytime 1.00, evening 1.00, violations 0
+```
+
+**`tools/plan-diff.ts` went stale again — the third time today.** Its mirrored
+"one sail per trip" rule immediately reported **20 violations that were not
+violations**, because it ran 10-day plans against a rule that no longer applied
+at that length. It now imports `SECOND_SAIL_MIN_DAYS` rather than copying it,
+and asserts the three-part rule. A known gap is recorded in the file: it counts
+Viator products only, so a sail in a curated slot is invisible to it even though
+the engine counts one.
+
+---
+
 ### 2026-08-12 — Nothing asked who the traveller was
 
 **Reported:** a Solo traveller offered "Aruba Eagle Beach Romantic Sunset Picnic

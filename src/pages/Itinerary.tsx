@@ -12,7 +12,7 @@ import { buildIcs, downloadIcs } from '../lib/icsExport';
 import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
 import { resolveSlotEntry } from '../data/activitySource';
-import { claimedRouteFamilies, withoutClaimedFamilies, routeFamilyOf } from '../data/itineraryGenerator';
+import { claimedRouteFamilies, withoutClaimedFamilies, tripRouteFamily } from '../data/itineraryGenerator';
 import { useCatalog } from '../data/useCatalog';
 import { matchPool, blendPools, entryPrice, parseActivityCost } from '../data/matcher';
 import { constrainByEdit, CHIP_CONSTRAINTS, describeConstraint, satisfiableByRotation } from '../data/editConstraint';
@@ -399,7 +399,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
         for (const c of d[s]) {
           const resolved = resolveSlotEntry(c.entry, catalog, tags, s);
           if (!resolved) continue;
-          const fam = routeFamilyOf(resolved);
+          const fam = tripRouteFamily(resolved, answers.days);
           if (!fam) continue;
           if (firstSeen.has(fam)) dupes.set(c.uid, FAMILY_LABEL[fam] ?? fam);
           else firstSeen.add(fam);
@@ -408,7 +408,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
     }
     return dupes;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plan, catalog, tags]);
+  }, [plan, catalog, tags, answers.days]);
 
   // Remove with a brief fade/collapse before unmounting.
   const onRemove = (uid: string) => {
@@ -473,13 +473,14 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
       // re-faces a group entry per slot, so resolving without it can face a
       // different item than the card actually shows.
       (c) => resolveEntry(c.entry, slotOfCard.get(c.uid)),
+      answers.days,
       uid,
     );
     // Note the asymmetry, which is the intended behaviour: tapping "Swap this"
     // ON a sail still offers sails (that card's own family is skipped), but
     // tapping it on a jeep never returns a sail while one is already planned.
     const isFamilyClaimed = (c: CardEntry): boolean => {
-      const fam = routeFamilyOf(c);
+      const fam = tripRouteFamily(c, answers.days);
       return !!fam && claimedFamilies.has(fam);
     };
 
@@ -537,7 +538,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
 
       const pool = withoutClaimedFamilies(refaceForAnswers(blendPools(activities, groups, catalog.items,
         { rejectedIds: excludeIds, rejectedGroupIds: excludeGroupIds }), tags, slot)
-        .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId), claimedFamilies);
+        .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId), claimedFamilies, answers.days);
       let fresh = constrainByEdit(pool, constraint, entry)[0];
       // The slot/vibe-matched pool can come up empty (or with nothing satisfying
       // the reason) — a niche slot, an already-cheap card, or after excluding
@@ -547,7 +548,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
         // 1) Whole catalog, any slot/vibe — still skipping rejects + planned items.
         const widePool = withoutClaimedFamilies(refaceForAnswers(blendPools(catalog.activities, catalog.groups, catalog.items,
           { rejectedIds: excludeIds, rejectedGroupIds: excludeGroupIds }), tags, slot)
-          .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId), claimedFamilies);
+          .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId), claimedFamilies, answers.days);
         fresh = constrainByEdit(widePool, constraint, entry)[0];
       }
       if (!fresh) {
@@ -556,7 +557,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
         // end — a repeat beats nothing. "too pricey" still only yields cheaper.
         const anyPool = withoutClaimedFamilies(refaceForAnswers(blendPools(catalog.activities, catalog.groups, catalog.items,
           { rejectedIds: nextRejected, rejectedGroupIds: nextRejectedGroups }), tags, slot)
-          .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId), claimedFamilies);
+          .filter((c) => (c.kind === 'activity' ? c.activity.id : c.group.id) !== curId), claimedFamilies, answers.days);
         fresh = constrainByEdit(anyPool, constraint, entry)[0];
       }
       if (fresh) next = fresh.kind === 'activity'

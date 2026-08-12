@@ -19,9 +19,9 @@
  *
  * Exit 1 if enrichment introduces a violation that was not already there.
  */
-import { generatePlan, isBoatOuting, isSailOuting } from '../src/data/itineraryGenerator';
+import { generatePlan, isBoatOuting, isSailOuting, SECOND_SAIL_MIN_DAYS } from '../src/data/itineraryGenerator';
 import { loadCatalog } from '../src/data/activitySource';
-import { activityKind, isFullDayProduct } from '../src/data/itemFit';
+import { activityKind, isFullDayProduct, isEveningItem } from '../src/data/itemFit';
 
 // routeFamilyOf retires kayaks and day passes into their own families BEFORE the
 // sail test runs, so the trip-wide sail count has to exclude them the same way.
@@ -119,10 +119,26 @@ function checkInvariants(plan: Day[], catalog: Catalog): Violation[] {
   const kayaks = count((i) => activityKind(i) === 'kayak');
   if (kayaks > 1) out.push({ rule: 'one kayak per trip', detail: `${kayaks} placed` });
 
-  // One sail per trip, daytime and evening alike (merged 2026-08-12 — same boat,
-  // same north-west route). This was two rules until then.
-  const sails = count((i) => isSailOuting(i) && !isFullDayProduct(i) && !KAYAK_RE.test(i.title));
-  if (sails > 1) out.push({ rule: 'one sail per trip', detail: `${sails} placed` });
+  // Sails, and the one rule here that depends on TRIP LENGTH (2026-08-12).
+  // Up to 7 days a trip gets ONE sail of any kind; from 8 days it may add a
+  // second, but only of the other kind — a daytime snorkel sail and an evening
+  // dinner sail. Two of one kind is never allowed at any length.
+  //
+  // This mirrored rule went stale the moment the split landed and reported 20
+  // violations that were not violations, which is the third time today. The
+  // threshold is imported rather than copied for exactly that reason.
+  //
+  // KNOWN GAP: `all` comes from itemsOf, which returns Viator products only, so
+  // a sail sitting in a CURATED slot is invisible here. The engine counts those
+  // (routeFamilyOf's non-group branch); this checker does not.
+  const sailItems = all.filter((i) => isSailOuting(i) && !isFullDayProduct(i) && !KAYAK_RE.test(i.title));
+  const daySails = sailItems.filter((i) => !isEveningItem(i)).length;
+  const eveSails = sailItems.filter((i) => isEveningItem(i)).length;
+  if (daySails > 1) out.push({ rule: 'one DAYTIME sail per trip', detail: `${daySails} placed` });
+  if (eveSails > 1) out.push({ rule: 'one EVENING sail per trip', detail: `${eveSails} placed` });
+  if (plan.length < SECOND_SAIL_MIN_DAYS && daySails + eveSails > 1) {
+    out.push({ rule: `one sail per trip under ${SECOND_SAIL_MIN_DAYS} days`, detail: `${daySails + eveSails} placed on a ${plan.length}-day trip` });
+  }
 
   // Nothing repeats (a revisitable free beach is an activity, not an item).
   const seenItem = new Map<string, number>();

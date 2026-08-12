@@ -693,7 +693,7 @@ export function routeFamilyOf(e: CardEntry): string | undefined {
     // returning: an evening off-road product ("Sunset Island Tour in Aruba on
     // Electric Scooter", 48 reviews — above the champion floor) has to reach
     // the offroad check below, or this silently weakens one-off-road-per-trip.
-    if (isSailOuting(e.bestSeller)) return 'sail';
+    if (isSailOuting(e.bestSeller)) return isEveningItem(e.bestSeller) ? 'evening-cruise' : 'day-sail';
     return kind === 'offroad' ? 'offroad' : undefined;
   }
   if (LOCAL_OFFROAD.test(title)) return 'offroad';
@@ -715,7 +715,8 @@ export function routeFamilyOf(e: CardEntry): string | undefined {
   // against all 26 locals in both the live and stub catalogs: exactly the two
   // boat trips match, before and after refacing.
   if (CRUISE_PLACE_RE.test(title)) return undefined;
-  return LOCAL_SAIL_RE.test(title) ? 'sail' : undefined;
+  if (!LOCAL_SAIL_RE.test(title)) return undefined;
+  return isEveningItem({ title } as ViatorItem) ? 'evening-cruise' : 'day-sail';
 }
 
 // Boat outings, treated as ONE family for the minimum-gap rule below. Two
@@ -959,7 +960,7 @@ function pickForSlot(
   const similarReason = (e: CardEntry): string | null => {
     // Route family: one off-road tour per trip (they share the same circuit),
     // applies to Viator groups and local picks alike.
-    const fam = routeFamilyOf(e);
+    const fam = tripRouteFamily(e, ctx.nDays);
     if (fam && ctx.usedRouteFamilies.has(fam)) return `route family "${fam}" already placed this trip`;
     // Hard same-day cap: one boat outing per day, however different they are.
     const dcf = dayCapFamilyOf(e);
@@ -1384,7 +1385,7 @@ export function generatePlan(
     ctx.pinnedIds.add(entryId(resolved));
     ctx.lastUsedDay.set(entryId(resolved), day);
     bumpPlacement(ctx, entryId(resolved));
-    { const rf = routeFamilyOf(resolved); if (rf) ctx.usedRouteFamilies.add(rf); }
+    { const rf = tripRouteFamily(resolved, nDays); if (rf) ctx.usedRouteFamilies.add(rf); }
     if (resolved.kind === 'group') {
       const cid = resolved.bestSeller.experience_cluster_id;
       if (cid) ctx.usedClusterIds.add(cid);
@@ -1452,7 +1453,7 @@ export function generatePlan(
       // reaches the template's day. `lastUsedDay` holds the LATEST day a card is
       // used, which is what the revisit gap is measured against.
       ctx.lastUsedDay.set(entryId(entry), day);
-      { const rf = routeFamilyOf(entry); if (rf) ctx.usedRouteFamilies.add(rf); }
+      { const rf = tripRouteFamily(entry, nDays); if (rf) ctx.usedRouteFamilies.add(rf); }
       if (!templateSlots.has(day)) templateSlots.set(day, new Map());
       templateSlots.get(day)!.set(slot, {
         cardEntry: entry, slotEntry: { ...toSlotEntry(entry), staple: true },
@@ -1607,7 +1608,7 @@ export function generatePlan(
       // Only pins have run before this pass, so the set is normally empty —
       // this now mostly stops a fortnight's SECOND splurge repeating the
       // first's family.
-      const prf = routeFamilyOf({ kind: 'group', group, bestSeller: item, others: [] });
+      const prf = tripRouteFamily({ kind: 'group', group, bestSeller: item, others: [] }, nDays);
       if (prf && ctx.usedRouteFamilies.has(prf)) continue;
       // `others` from the full FILTERED catalog (not the popularity-floored fill
       // pool) so the card's swap alternatives match a pinned card's, and sorted
@@ -1695,7 +1696,7 @@ export function generatePlan(
       // fallback, so the staple silently stopped existing. Skipping the
       // individual candidate still lets the staple stand down when every
       // candidate is in a claimed family — `entry` simply stays null.
-      const rf = routeFamilyOf(candidate);
+      const rf = tripRouteFamily(candidate, nDays);
       if (rf && ctx.usedRouteFamilies.has(rf)) continue;
       // Paid staples skip the arrival day — day 1 is the free/chill settle-in
       // day normal fill also honours (see `freeOnly` below).
@@ -1728,7 +1729,7 @@ export function generatePlan(
     // stops a day-1 catamaran preceding the day-2 catamaran staple).
     ctx.lastUsedDay.set(entryId(entry), day);
     bumpPlacement(ctx, entryId(entry));
-    { const rf = routeFamilyOf(entry); if (rf) ctx.usedRouteFamilies.add(rf); }
+    { const rf = tripRouteFamily(entry, nDays); if (rf) ctx.usedRouteFamilies.add(rf); }
     if (entry.kind === 'group') {
       const cid = entry.bestSeller.experience_cluster_id;
       if (cid) ctx.usedClusterIds.add(cid);
@@ -1932,7 +1933,7 @@ export function generatePlan(
     { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }
     { const gf = gapFamilyOf(pick); if (gf) ctx.lastFamilyDay.set(gf, d); }
     { const df = dayCapFamilyOf(pick); if (df) ctx.dayFamilies.add(df); }
-    { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
+    { const rf = tripRouteFamily(pick, nDays); if (rf) ctx.usedRouteFamilies.add(rf); }
     if (pick.kind === 'group') {
       ctx.usedGroupIds.add(pick.group.id);
       const cid = pick.bestSeller.experience_cluster_id;
@@ -1973,7 +1974,7 @@ export function generatePlan(
         { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }
       { const gf = gapFamilyOf(pick); if (gf) ctx.lastFamilyDay.set(gf, d); }
       { const df = dayCapFamilyOf(pick); if (df) ctx.dayFamilies.add(df); }
-        { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
+        { const rf = tripRouteFamily(pick, nDays); if (rf) ctx.usedRouteFamilies.add(rf); }
         if (pick.kind === 'group') {
           ctx.usedGroupIds.add(pick.group.id);
           const cid = pick.bestSeller.experience_cluster_id;
@@ -2020,7 +2021,7 @@ export function generatePlan(
         { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }
       { const gf = gapFamilyOf(pick); if (gf) ctx.lastFamilyDay.set(gf, d); }
       { const df = dayCapFamilyOf(pick); if (df) ctx.dayFamilies.add(df); }
-        { const rf = routeFamilyOf(pick); if (rf) ctx.usedRouteFamilies.add(rf); }
+        { const rf = tripRouteFamily(pick, nDays); if (rf) ctx.usedRouteFamilies.add(rf); }
         if (pick.kind === 'group') {
           const cid = pick.bestSeller.experience_cluster_id;
           if (cid) ctx.usedClusterIds.add(cid);
@@ -2160,6 +2161,23 @@ export function generatePlan(
   return days;
 }
 
+// A week is not long enough to sell the same water twice. Beyond it, a daytime
+// snorkel sail and an evening dinner-and-live-music sail are a genuinely
+// different pair of outings and a fortnight has room for both.
+//
+// So the sail family is COLLAPSED on short trips and SPLIT on long ones. This
+// is the one rule in here that depends on trip length, which is why it lives in
+// a wrapper rather than in routeFamilyOf: that function answers "what is this?"
+// and must stay pure; this one answers "what counts as a repeat THIS trip?".
+export const SECOND_SAIL_MIN_DAYS = 8;
+
+/** The family to retire trip-wide, given how long the trip is. */
+export function tripRouteFamily(e: CardEntry, nDays: number): string | undefined {
+  const fam = routeFamilyOf(e);
+  if (fam !== 'day-sail' && fam !== 'evening-cruise') return fam;
+  return nDays >= SECOND_SAIL_MIN_DAYS ? fam : 'sail';
+}
+
 // --- Route families, for the plan-editing paths in the UI -------------------
 // `generatePlan` enforces one-per-trip while it builds. These two let the same
 // rule be applied to a plan that already exists, which is what swap needs.
@@ -2184,6 +2202,7 @@ export function generatePlan(
 export function claimedRouteFamilies(
   cards: ReadonlyArray<{ uid: string; entry: SlotEntry }>,
   resolve: (c: { uid: string; entry: SlotEntry }) => CardEntry | null,
+  nDays: number,
   skipUid?: string,
 ): Set<string> {
   const out = new Set<string>();
@@ -2191,17 +2210,17 @@ export function claimedRouteFamilies(
     if (c.uid === skipUid) continue;
     const resolved = resolve(c);
     if (!resolved) continue;
-    const fam = routeFamilyOf(resolved);
+    const fam = tripRouteFamily(resolved, nDays);
     if (fam) out.add(fam);
   }
   return out;
 }
 
 /** Drop candidates whose route family the trip has already used. */
-export function withoutClaimedFamilies(pool: CardEntry[], claimed: Set<string>): CardEntry[] {
+export function withoutClaimedFamilies(pool: CardEntry[], claimed: Set<string>, nDays: number): CardEntry[] {
   if (claimed.size === 0) return pool;
   return pool.filter((c) => {
-    const fam = routeFamilyOf(c);
+    const fam = tripRouteFamily(c, nDays);
     return !fam || !claimed.has(fam);
   });
 }

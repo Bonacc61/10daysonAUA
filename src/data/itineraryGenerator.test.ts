@@ -9,7 +9,7 @@ import type { MatchTag, ViatorGroup, ViatorItem, SlotEntry, CardEntry } from '..
 import { type Coord } from './coords';
 import { pinFor } from './itemCoords';
 import { distanceKm } from './enRoute';
-import { isWaterBased, isAutoFillExcluded, activityKind } from './itemFit';
+import { isWaterBased, isAutoFillExcluded, activityKind, isEveningItem } from './itemFit';
 import { isLunchspot } from './lunchspots';
 import { parseActivityCost } from './matcher';
 
@@ -874,10 +874,14 @@ describe('generatePlan — premium splurge (money-no-object, week-plus)', () => 
     // Malmok reef" — so the second one sells the charter's route back to a
     // traveller who already booked it. The pre-pass still has to fire, which is
     // what the first assertion guards.
+    // 9 days is past SECOND_SAIL_MIN_DAYS (2026-08-12), so an EVENING cruise may
+    // join the daytime charter — what must never happen is two of the same kind.
     const plan = generatePlan({ ...MNO, days: 9 }, cat, { seed: 1 });
     const sc = sailingEntries(plan);
     expect(sc.some((e) => e.bestSellerId === 'private-charter')).toBe(true);
-    expect(sc).toHaveLength(1);
+    const byId = new Map(cat.items.map((i) => [i.id, i]));
+    const daytime = sc.filter((e) => !isEveningItem(byId.get(e.bestSellerId)!));
+    expect(daytime).toHaveLength(1);
   });
 
   it('the premium charter carries splurge=true (badge) and is not marked pinned', () => {
@@ -1146,7 +1150,7 @@ describe('generatePlan — one sail per trip, daytime or evening', () => {
     }
   });
 
-  it('places at most one sail in TOTAL — a sunset cruise is the same route', () => {
+  it('a trip of 7 days or fewer gets ONE sail in total', () => {
     // This reverses an earlier decision. The daytime catamaran and the sunset
     // cruise used to be the curated staple PAIRING, on the reasoning that the
     // evening is a different experience. It is the same boat on the same route:
@@ -1154,10 +1158,35 @@ describe('generatePlan — one sail per trip, daytime or evening', () => {
     // thing the traveller pays twice for is the light. Measured on the live
     // catalog before this rule: 6 of 30 plans carried both, always a "Premium
     // Catamaran Afternoon Sail" plus "Aruba Celestial Sunset Cruise".
-    for (const days of [7, 14]) {
+    for (const days of [4, 7]) {
       const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days, interests: ['watersports'] }, cat));
-      expect(countOf(ids, 'sail-') + countOf(ids, 'eve-')).toBe(1);
+      expect(countOf(ids, 'sail-') + countOf(ids, 'eve-')).toBeLessThanOrEqual(1);
     }
+  });
+
+  it('a trip of 8+ days may add a SECOND sail, but only of the other kind', () => {
+    // Refined 2026-08-12 after the merge. A week is not long enough to sell the
+    // same water twice; a fortnight is. The second one has to be a genuinely
+    // different evening out — a dinner-and-live-music sail — not another
+    // daytime catamaran, which was the original report.
+    for (const days of [8, 10, 14]) {
+      const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days, interests: ['watersports'] }, cat));
+      expect(countOf(ids, 'sail-')).toBeLessThanOrEqual(1);   // never two daytime
+      expect(countOf(ids, 'eve-')).toBeLessThanOrEqual(1);    // never two evening
+    }
+  });
+
+  it('a long trip actually takes both when both are available', () => {
+    // The counterweight. Without it the rule above is satisfied by placing no
+    // sails at all, which is the failure mode the merge introduced and this
+    // change is meant to undo.
+    const seen = new Set<string>();
+    for (let seed = 0; seed < 8; seed += 1) {
+      entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 14, interests: ['watersports'] }, cat, { seed }))
+        .forEach((i) => seen.add(i));
+    }
+    expect([...seen].some((i) => i.startsWith('sail-'))).toBe(true);
+    expect([...seen].some((i) => i.startsWith('eve-'))).toBe(true);
   });
 
   it('a night SHORE dive is not a sail and still lands beside the catamaran', () => {
@@ -1177,9 +1206,12 @@ describe('generatePlan — one sail per trip, daytime or evening', () => {
     // this is the only one that is not a boat outing — and "Luxury Four-Course
     // Caribbean Dinner Cruise" (filed under tours-sightseeing, no sail tag) is
     // one that must stay IN, which is why the test is on the title, not the kind.
+    // 7 days: one sail total. 14 days: one of each kind, never two of one.
     for (const days of [7, 14]) {
       const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days, interests: ['watersports'] }, cat));
-      expect(countOf(ids, 'sail-') + countOf(ids, 'eve-')).toBe(1);
+      expect(countOf(ids, 'sail-')).toBeLessThanOrEqual(1);
+      expect(countOf(ids, 'eve-')).toBeLessThanOrEqual(1);
+      if (days < 8) expect(countOf(ids, 'sail-') + countOf(ids, 'eve-')).toBeLessThanOrEqual(1);
       expect(ids).toContain('dive-night');
     }
   });
@@ -2149,7 +2181,7 @@ describe('route families outside the generator (swap / add paths)', () => {
 
   it('reports the families a plan has already used', () => {
     const cards = [{ uid: 'u1', entry: slotEntryOf(sailA) }, { uid: 'u2', entry: slotEntryOf(jeep) }];
-    expect(claimedRouteFamilies(cards, resolve)).toEqual(new Set(['sail', 'offroad']));
+    expect(claimedRouteFamilies(cards, resolve, 5)).toEqual(new Set(['sail', 'offroad']));
   });
 
   it('ignores the card being swapped, so a sail can be swapped for another sail', () => {
@@ -2157,17 +2189,17 @@ describe('route families outside the generator (swap / add paths)', () => {
     // sail would be filtered out — the swap button would refuse to work on the
     // one card type this rule is about.
     const cards = [{ uid: 'u1', entry: slotEntryOf(sailA) }, { uid: 'u2', entry: slotEntryOf(jeep) }];
-    const claimed = claimedRouteFamilies(cards, resolve, 'u1');
+    const claimed = claimedRouteFamilies(cards, resolve, 5, 'u1');
     expect(claimed).toEqual(new Set(['offroad']));
-    expect(withoutClaimedFamilies([entry(sailB)], claimed)).toHaveLength(1);
+    expect(withoutClaimedFamilies([entry(sailB)], claimed, 5)).toHaveLength(1);
   });
 
   it('drops a replacement whose family the trip already has, ACROSS groups', () => {
     // sail-a and sail-b sit in different groups, so every exclusion the swap
     // pool already does (item id, group id) waves sail-b through.
     const cards = [{ uid: 'u1', entry: slotEntryOf(sailA) }, { uid: 'u2', entry: slotEntryOf(jeep) }];
-    const claimed = claimedRouteFamilies(cards, resolve, 'u2');   // swapping the JEEP
-    const pool = withoutClaimedFamilies([entry(sailB), entry(jeep)], claimed);
+    const claimed = claimedRouteFamilies(cards, resolve, 5, 'u2');   // swapping the JEEP
+    const pool = withoutClaimedFamilies([entry(sailB), entry(jeep)], claimed, 5);
     expect(pool.map((c) => (c.kind === 'group' ? c.bestSeller.id : ''))).toEqual(['jeep']);
   });
 
@@ -2178,14 +2210,14 @@ describe('route families outside the generator (swap / add paths)', () => {
     const museum = mkItem('museum', 'Aruba Historical Museum', [999]);
     const resolve2 = (c: { uid: string; entry: SlotEntry }): CardEntry | null =>
       (c.entry.kind === 'group' && c.entry.bestSellerId === 'museum') ? entry(museum) : resolve(c);
-    const claimed = claimedRouteFamilies([{ uid: 'u1', entry: slotEntryOf(museum) }], resolve2);
+    const claimed = claimedRouteFamilies([{ uid: 'u1', entry: slotEntryOf(museum) }], resolve2, 5);
     expect(claimed.size).toBe(0);
   });
 
   it('leaves a familyless candidate alone', () => {
     const museum = mkItem('museum', 'Aruba Historical Museum', [999]);
     const claimed = new Set(['sail']);
-    expect(withoutClaimedFamilies([entry(museum)], claimed)).toHaveLength(1);
+    expect(withoutClaimedFamilies([entry(museum)], claimed, 5)).toHaveLength(1);
   });
 
   it('keeps counting after a card that fails to resolve', () => {
@@ -2201,7 +2233,7 @@ describe('route families outside the generator (swap / add paths)', () => {
       { uid: 'u0', entry: { kind: 'group', groupId: 'gone', bestSellerId: 'gone' } as SlotEntry },
       { uid: 'u1', entry: slotEntryOf(sailA) },
     ];
-    expect(claimedRouteFamilies(cards, resolve)).toEqual(new Set(['sail']));
+    expect(claimedRouteFamilies(cards, resolve, 5)).toEqual(new Set(['sail']));
   });
 });
 
