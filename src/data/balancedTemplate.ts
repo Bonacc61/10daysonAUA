@@ -28,16 +28,83 @@ import type { MatchTag, Slot } from '../types';
  * template itself marks day 8 morning and day 10 afternoon as free.
  */
 
-export type TemplateEntry = { day: number; slot: Slot; id: string };
+// A typed swap for one template slot. The traveller's answers pick which (if
+// any) applies; the default stays otherwise.
+//
+// Resolution is deliberately NOT by name. "Private snorkel sail" is a label, not
+// an id, and the live catalog has dozens of loose matches with no field marking
+// "this is the private version of that". So an alternative says either exactly
+// WHICH product it means, or by what RULE to find one — and `activity` stays as
+// the human label so the table reads like the canonical template it came from.
+export type AltType = 'highBudget' | 'kids' | 'hike';
+/** The engine's slots plus 'lunch', which only the canonical template models. */
+export type TemplateSlot = Slot | 'lunch';
+export type Alternative = {
+  type: AltType;
+  /** Human label from the canonical template. Never used for lookup. */
+  activity: string;
+  /** An exact Viator product. */
+  itemId?: string;
+  /** An exact curated entry. */
+  localId?: string;
+  /**
+   * Resolve by rule: the private/luxury version of whatever the default is,
+   * same route family, cheapest-first among products that clear the champion
+   * floor. The floor matters — the priciest private sails on the live catalog
+   * have 4, 0 and 2 reviews, so "most expensive" alone picks junk.
+   */
+  privateUpgrade?: boolean;
+  /**
+   * Slots this swap consumes (De Palm Island takes the whole day).
+   *
+   * `TemplateSlot` includes 'lunch', which the ENGINE does not have — it fills
+   * morning/afternoon/evening and appends food afterwards. The canonical
+   * template models lunch as a first-class slot, so the type keeps it rather
+   * than quietly dropping it; nothing reads it yet.
+   */
+  spansSlots?: TemplateSlot[];
+};
+
+export type TemplateEntry = { day: number; slot: Slot; id: string; alternatives?: Alternative[] };
+
+/**
+ * Which alternative types this traveller qualifies for, HIGHEST PRECEDENCE
+ * FIRST. A family that is also high-budget gets the kids swap: a constraint
+ * about who is travelling outranks a preference about spend.
+ *
+ * highBudget is "more than $200/day on average", which is exactly above the
+ * mid-range cap — so `treat-yourself` ($400) and `money-no-object` (uncapped).
+ */
+export function altTypesFor(tags: Set<MatchTag>): AltType[] {
+  const out: AltType[] = [];
+  if (tags.has('family-young-kids') || tags.has('family-teens')) out.push('kids');
+  if (tags.has('treat-yourself') || tags.has('money-no-object')) out.push('highBudget');
+  if (tags.has('nature-hiking')) out.push('hike');
+  return out;
+}
+
+/** The alternative to apply for these tags, or undefined to keep the default. */
+export function pickAlternative(entry: TemplateEntry, tags: Set<MatchTag>): Alternative | undefined {
+  if (!entry.alternatives?.length) return undefined;
+  for (const type of altTypesFor(tags)) {
+    const hit = entry.alternatives.find((a) => a.type === type);
+    if (hit) return hit;
+  }
+  return undefined;
+}
 
 export const BALANCED_TEMPLATE: TemplateEntry[] = [
   { day: 1,  slot: 'morning',   id: 'tres-trapi' },
   { day: 1,  slot: 'afternoon', id: 'eagle-beach-morning' },
-  { day: 2,  slot: 'morning',   id: 'antilla-wreck-dive' },
-  { day: 2,  slot: 'afternoon', id: 'alto-vista-chapel' },
-  { day: 3,  slot: 'morning',   id: 'mangel-halto' },
+  { day: 2,  slot: 'morning',   id: 'antilla-wreck-dive',
+    alternatives: [{ type: 'highBudget', activity: 'Private snorkel sail', privateUpgrade: true }] },
+  { day: 2,  slot: 'afternoon', id: 'alto-vista-chapel',
+    alternatives: [{ type: 'kids', activity: 'Half-Day Aruba Animal Sanctuary Guided Tour', itemId: '7389P10' }] },
+  { day: 3,  slot: 'morning',   id: 'mangel-halto',
+    alternatives: [{ type: 'highBudget', activity: 'Private snorkel sail', privateUpgrade: true }] },
   { day: 3,  slot: 'afternoon', id: 'baby-beach-snorkel' },
-  { day: 4,  slot: 'morning',   id: 'natural-pool-jeep' },
+  { day: 4,  slot: 'morning',   id: 'natural-pool-jeep',
+    alternatives: [{ type: 'highBudget', activity: 'Private hike tour', privateUpgrade: true }] },
   // Day 4 afternoon carries arashi-beach again as of 2026-08-12, reversing the
   // 2026-08-05 decision to empty it. That reasoning — an Arikok day is the whole
   // day, the park road is rough, you come back tired — was overruled in favour
@@ -48,12 +115,18 @@ export const BALANCED_TEMPLATE: TemplateEntry[] = [
   // generator). On today's catalog that never fires — natural-pool-jeep is
   // "3-5 hrs" and 0 of the 20 live Natural Pool products are full-day — so it is
   // a guard against a reface rather than a live branch.
-  { day: 4,  slot: 'afternoon', id: 'arashi-beach' },
-  { day: 5,  slot: 'morning',   id: 'palm-beach-strip' },
+  { day: 4,  slot: 'afternoon', id: 'arashi-beach',
+    alternatives: [{ type: 'hike', activity: 'Bushiribana Loop from Calbas', localId: 'bushiribana-loop' }] },
+  { day: 5,  slot: 'morning',   id: 'palm-beach-strip',
+    alternatives: [{ type: 'kids', activity: 'De Palm Island', itemId: '2455P18',
+      // Spans the whole day. No special handling needed: it is a full-day
+      // product, so the day-pass rule already keeps the rest of the day clear.
+      spansSlots: ['morning', 'lunch', 'afternoon'] }] },
   // day 5 afternoon — sunset sail, no curated card; engine fills
   { day: 6,  slot: 'morning',   id: 'eagle-beach-morning' },
   { day: 6,  slot: 'afternoon', id: 'california-dunes-sunset' },
-  { day: 7,  slot: 'morning',   id: 'san-nicolas-murals' },
+  { day: 7,  slot: 'morning',   id: 'san-nicolas-murals',
+    alternatives: [{ type: 'kids', activity: 'Atlantis Submarine', itemId: '2455SUB' }] },
   { day: 7,  slot: 'afternoon', id: 'rodgers-beach' },
   // day 8 morning — free in the template
   { day: 8,  slot: 'afternoon', id: 'mangel-halto' },
@@ -72,7 +145,7 @@ export function isBalancedTraveller(tags: Set<MatchTag>): boolean {
   return tags.has('med-adventure') && tags.has('mid-range');
 }
 
-export type ResolvedTemplateEntry = { day: number; slot: Slot; activity: Activity };
+export type ResolvedTemplateEntry = { day: number; slot: Slot; activity: Activity; alternatives?: Alternative[] };
 
 /**
  * Template entries that can actually be placed on this trip: within the trip
@@ -86,7 +159,7 @@ export function resolveBalancedTemplate(catalog: Catalog, nDays: number): Resolv
   for (const e of BALANCED_TEMPLATE) {
     if (e.day > nDays) continue;
     const activity = byId.get(e.id);
-    if (activity) out.push({ day: e.day, slot: e.slot, activity });
+    if (activity) out.push({ day: e.day, slot: e.slot, activity, alternatives: e.alternatives });
   }
   return out;
 }

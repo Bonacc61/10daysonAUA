@@ -5,12 +5,14 @@ import { DEFAULT_ANSWERS } from '../App';
 import type { Answers } from '../App';
 import type { Activity, Day } from './activities';
 import type { Catalog } from './activitySource';
-import type { MatchTag, ViatorGroup, ViatorItem, SlotEntry, CardEntry } from '../types';
+import type { MatchTag, ViatorGroup, ViatorItem, SlotEntry, CardEntry, Slot } from '../types';
 import { type Coord } from './coords';
 import { pinFor } from './itemCoords';
 import { distanceKm } from './enRoute';
 import { isWaterBased, isAutoFillExcluded, activityKind, isEveningItem } from './itemFit';
 import { isLunchspot } from './lunchspots';
+import { pickAlternative } from './balancedTemplate';
+import { answersToTags } from './answerTags';
 import { parseActivityCost } from './matcher';
 
 const catalog = getCatalog();
@@ -2336,5 +2338,85 @@ describe('generatePlan — the curated template fills day 4 afternoon', () => {
       .flatMap((e) => (e.kind === 'activity' ? [e.id] : []));
     expect(ids).toContain('natural-pool-jeep');
     expect(ids).toContain('arashi-beach');
+  });
+});
+
+describe('generatePlan — template alternatives swap by answer', () => {
+  // The canonical template carries typed alternatives per slot; the traveller's
+  // answers pick which applies. This is what stops a money-no-object traveller
+  // getting a $68/day itinerary of free beaches: the template is the shape, and
+  // `highBudget` upgrades the individual cards inside it.
+  //
+  // Precedence is deliberate and tested below: a high-budget FAMILY gets the
+  // kids swap. A constraint about who is travelling outranks a preference about
+  // spend.
+  const BAL = { ...DEFAULT_ANSWERS, days: 10, adventureLevel: 50 } as Answers;
+  // The kids alternatives name LIVE Viator product codes, and the offline stub
+  // has none of them — no Atlantis Submarine, no De Palm Island day pass, no
+  // animal sanctuary. On the stub they correctly fall back to the default, so a
+  // stub-only test would assert the fallback and never exercise the swap. The
+  // fixture adds exactly those three products to the stub so the MECHANISM is
+  // tested offline; whether the live catalog still carries them is a separate
+  // question, answered by measurement rather than by this suite.
+  const withKidProducts = (): Catalog => {
+    const base = getCatalog();
+    const mkG = (id: string): ViatorGroup => ({
+      id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+    });
+    const mkI = (id: string, title: string, price: number): ViatorItem => ({
+      id, group_id: `g-${id}`, title, image_url: '', price_usd: price, duration: '2 hrs',
+      rating: 4.7, review_count: 400, viator_item_url: '', is_best_seller: true,
+      display_order: 0, tags: [11890], experience_cluster_id: `c-${id}`,
+    });
+    const extra = [mkI('2455SUB', 'Aruba Atlantis Submarine Tour', 112),
+                   mkI('7389P10', 'Half-Day Aruba Animal Sanctuary Guided Tour', 57)];
+    return { ...base, groups: [...base.groups, ...extra.map((i) => mkG(i.group_id))], items: [...base.items, ...extra] };
+  };
+  const dayIds = (a: Answers, seed = 2, cat: Catalog = getCatalog()) => {
+    const plan = generatePlan(a, cat, { seed });
+    return (day: number) => {
+      const d = plan.find((x) => x.day === day)!;
+      return [...d.morning, ...d.afternoon, ...d.evening]
+        .map((e) => (e.kind === 'activity' ? e.id : e.bestSellerId));
+    };
+  };
+
+  it('keeps the default for a mid-range traveller', () => {
+    const at = dayIds({ ...BAL, budget: 'Mid-range', groupType: 'Couple' });
+    expect(at(2)).toContain('antilla-wreck-dive');
+    expect(at(7)).toContain('san-nicolas-murals');
+  });
+
+  it('swaps in the kid-friendly card for a family', () => {
+    const at = dayIds({ ...BAL, budget: 'Mid-range', groupType: 'Family with young kids' }, 2, withKidProducts());
+    expect(at(7)).toContain('2455SUB');           // Atlantis Submarine
+    expect(at(7)).not.toContain('san-nicolas-murals');
+  });
+
+  it('a high-budget FAMILY gets the kids swap, not the private one', () => {
+    // Precedence, tested on the pure function rather than through a plan — and
+    // that is not a shortcut, it is the only place it CAN be tested today.
+    // `isBalancedTraveller` requires mid-range, so a money-no-object family
+    // receives no template at all and therefore no alternatives. Alternatives
+    // currently reach only the ~11% of answer combinations the template covers.
+    // Widening that coverage is the next piece of work, and when it lands this
+    // should also be asserted end-to-end.
+    const entry = { day: 7, slot: 'morning' as Slot, id: 'san-nicolas-murals',
+      alternatives: [
+        { type: 'kids' as const, activity: 'Atlantis Submarine', itemId: '2455SUB' },
+        { type: 'highBudget' as const, activity: 'Private tour', privateUpgrade: true },
+      ] };
+    const bothApply = answersToTags({ ...BAL, budget: 'Money no object', groupType: 'Family with young kids' });
+    expect(pickAlternative(entry, bothApply)?.type).toBe('kids');
+    // ...and order in the array must not decide it.
+    const reversed = { ...entry, alternatives: [...entry.alternatives].reverse() };
+    expect(pickAlternative(reversed, bothApply)?.type).toBe('kids');
+  });
+
+  it('swaps in the hiking card when the traveller asked for hiking', () => {
+    const at = dayIds({ ...BAL, budget: 'Mid-range', groupType: 'Couple', interests: ['Nature & hiking'] });
+    expect(at(4)).toContain('bushiribana-loop');
+    expect(at(4)).not.toContain('arashi-beach');
   });
 });

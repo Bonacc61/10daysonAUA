@@ -28,7 +28,7 @@ import { pinFor } from './itemCoords';
 import { pickEnRouteStop, foodPlaceKey, distanceKm } from './enRoute';
 import { budgetTag, adventureBandTag } from './classify';
 import { resolveStaples } from './staples';
-import { isBalancedTraveller, resolveBalancedTemplate } from './balancedTemplate';
+import { isBalancedTraveller, resolveBalancedTemplate, pickAlternative, type Alternative } from './balancedTemplate';
 
 export const DAY_COLORS = ['#FF6B47', '#3B82F6', '#22C55E', '#EAB308', '#E63946', '#8B5CF6', '#0EA5E9'];
 
@@ -1446,7 +1446,41 @@ export function generatePlan(
       const m = templateSlots.get(day)?.get('morning');
       return !!m && entryDurationMin(m.cardEntry) >= FULL_DAY_MIN;
     };
-    for (const { day, slot, activity } of resolveBalancedTemplate(filteredCatalog, nDays)) {
+    // Resolve one typed alternative into a placeable card, or undefined to keep
+    // the default. Never by name: `activity` on an Alternative is a label for
+    // readers, and the lookup goes through an explicit id or an explicit rule.
+    const resolveAlternative = (alt: Alternative, fallback: CardEntry): CardEntry | undefined => {
+      if (alt.localId) {
+        const a = filteredCatalog.activities.find((x) => x.id === alt.localId);
+        return a ? { kind: 'activity', activity: a } : undefined;
+      }
+      if (alt.itemId) {
+        const item = filteredCatalog.items.find((x) => x.id === alt.itemId);
+        if (!item || fitItem(item, tags).rejected) return undefined;
+        const group = filteredCatalog.groups.find((g) => g.id === item.group_id);
+        return group ? { kind: 'group', group, bestSeller: item, others: otherItemsInGroup(group.id, item.id, filteredCatalog) } : undefined;
+      }
+      if (!alt.privateUpgrade) return undefined;
+      // The rule: the private/luxury version of whatever the default is. Same
+      // route family, so a snorkel-sail slot cannot upgrade into a jeep tour;
+      // must clear the champion floor, because the priciest private sails on
+      // the live catalog have 4, 0 and 2 reviews; then the dearest that
+      // `fitItem` will still accept, which is what makes the traveller's cap
+      // decide how far the upgrade goes.
+      const want = routeFamilyOf(fallback);
+      if (!want) return undefined;
+      const best = filteredCatalog.items
+        .filter((i) => /private|luxury|yacht|charter/i.test(i.title)
+          && (i.review_count ?? 0) >= MIN_CHAMPION_REVIEWS
+          && !fitItem(i, tags).rejected
+          && routeFamilyOf({ kind: 'group', group: { id: i.group_id } as ViatorGroup, bestSeller: i, others: [] }) === want)
+        .sort((a, b) => b.price_usd - a.price_usd)[0];
+      if (!best) return undefined;
+      const group = filteredCatalog.groups.find((g) => g.id === best.group_id);
+      return group ? { kind: 'group', group, bestSeller: best, others: otherItemsInGroup(group.id, best.id, filteredCatalog) } : undefined;
+    };
+
+    for (const { day, slot, activity, alternatives } of resolveBalancedTemplate(filteredCatalog, nDays)) {
       if (!templateAvail(day, slot)) continue;
       if (pinnedFullDayOn(day)) continue;
       if (slot !== 'morning' && fullDayTemplateMorningOn(day)) continue;
@@ -1454,7 +1488,13 @@ export function generatePlan(
       // the same card in the plan twice. Same principle as the revisit rule: a
       // pin is one explicit choice, not licence to repeat it.
       if (ctx.pinnedIds.has(activity.id)) continue;
-      const entry: CardEntry = { kind: 'activity', activity };
+      // The default, then the swap the answers ask for. An alternative that
+      // cannot be resolved (missing product, over the traveller's cap, filtered
+      // out by a Q8 flag) falls back to the default rather than emptying the
+      // slot — a template slot is a promise about the SHAPE of the day.
+      const fallback: CardEntry = { kind: 'activity', activity };
+      const alt = alternatives ? pickAlternative({ day, slot, id: activity.id, alternatives }, tags) : undefined;
+      const entry: CardEntry = (alt && resolveAlternative(alt, fallback)) ?? fallback;
       if (!pinClaimed.has(day)) pinClaimed.set(day, new Set());
       pinClaimed.get(day)!.add(slot);
       // Retired trip-wide up front, exactly as pins and staples are, so normal

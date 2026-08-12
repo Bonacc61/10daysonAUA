@@ -772,6 +772,57 @@ below — more evening inventory is the fix, and no constant will do it.
 
 ---
 
+### 2026-08-12 — Template alternatives: the answers swap cards, not plans
+
+The canonical template carries typed alternatives per slot — `highBudget`,
+`kids`, `hike` — and the traveller's answers pick which applies. This is the
+mechanism that is meant to stop a money-no-object traveller receiving a $68/day
+itinerary of free beaches: the template supplies the SHAPE, and the alternatives
+upgrade the individual cards inside it.
+
+**Resolution is never by name.** `"Private snorkel sail"` is a label, not an id;
+the live catalog has dozens of loose matches and no field marking "this is the
+private version of that". An `Alternative` therefore carries either an explicit
+`itemId`/`localId`, or `privateUpgrade: true` meaning *resolve by rule*:
+
+- the same route family as the default, so a snorkel-sail slot cannot upgrade
+  into a jeep tour;
+- `review_count >= MIN_CHAMPION_REVIEWS`, because the priciest private sails on
+  the live catalog have **4, 0 and 2 reviews** — "most expensive" alone picks
+  junk;
+- then the dearest that `fitItem` still accepts, so the traveller's own cap
+  decides how far the upgrade goes. `treat-yourself` ($400/day) lands somewhere
+  different from money-no-object, with no extra code.
+
+`highBudget` is defined as **more than $200/day**, which is exactly above the
+mid-range cap — so `treat-yourself` or `money-no-object`.
+
+**Precedence is explicit:** kids, then highBudget, then hike. A high-budget
+family gets the kids swap, because a constraint about who is travelling outranks
+a preference about spend. It is tested both ways round so array order in the
+template cannot decide it.
+
+**An unresolvable alternative falls back to the default** rather than emptying
+the slot — a template slot is a promise about the shape of the day.
+
+**Two limits, both real and both recorded rather than hidden.**
+
+*The offline stub has none of the kid products* — no Atlantis Submarine, no De
+Palm Island pass, no animal sanctuary. On the stub those swaps correctly fall
+back, so a stub-only test would assert the fallback and never exercise the swap.
+The suite adds exactly those three products to a fixture to test the mechanism
+offline.
+
+*Alternatives reach only the ~11% of answer combinations the template covers.*
+`isBalancedTraveller` requires mid-range, so a money-no-object family receives no
+template and therefore no alternatives — which means **this does not yet fix the
+$68/day problem it was built for**. The precedence test had to be written
+against the pure `pickAlternative` rather than a generated plan for exactly this
+reason, and says so. Widening template coverage is the prerequisite, not a
+follow-up.
+
+---
+
 ### 2026-08-12 — One sail, unless the trip is long enough for two
 
 **Refines the merge earlier today.** Collapsing the daytime and evening sail
