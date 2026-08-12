@@ -1,6 +1,6 @@
 import type { Catalog } from './activitySource';
 import type { Activity } from './activities';
-import { activityKind, isEveningItem, fitItem, isAutoFillExcluded } from './itemFit';
+import { activityKind, isEveningItem, fitItem, isAutoFillExcluded, isCouplesOriented, isKidsOriented } from './itemFit';
 import type { CardEntry, MatchTag, Slot, ViatorItem } from '../types';
 
 /* ------------------------------------------------------------------ *
@@ -164,6 +164,14 @@ export function resolveStaples(
         // too. Latent today, but "Sunset Dinner Photoshoot" would satisfy the
         // beach-dinner matcher exactly.
         .filter((i) => !isAutoFillExcluded(i))
+        // ...and the same for the group-fit exclusions. A staple bypasses the
+        // fill ladder entirely, so `autoFillOk` never sees it: without these two
+        // lines the couples and kids rules are guarantees about the LADDER, not
+        // about the plan. Measured as latent today (0 of 120 Solo plans place a
+        // couples product either way) — this makes it structural rather than
+        // lucky. `couple`/`withChildren` mirror the generator's own gates.
+        .filter((i) => tags.has('couple') || !isCouplesOriented(i))
+        .filter((i) => (tags.has('family-young-kids') || tags.has('family-teens')) || !isKidsOriented(i))
         .filter((i) => !fitItem(i, tags).rejected)
         .filter((i) => !taken.has(i.id))
         .filter((i) => !i.experience_cluster_id || !usedClusters.has(i.experience_cluster_id))

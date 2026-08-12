@@ -45,7 +45,7 @@ Accumulates trip-wide state across the day loop:
 | `usedClusterIds` | embedding clusters placed; a hit is conclusive, a miss falls through |
 | `usedTagSets` | tag arrays of placed items; trip-wide Jaccard at 0.35 |
 | `dayTagSets` | tag arrays placed TODAY, reset per day; stricter Jaccard at 0.08 |
-| `usedRouteFamilies` | four families, each retired trip-wide after one placement: `natural-pool`, `offroad`, `kayak`, `sail` (daytime and evening merged 2026-08-12) |
+| `usedRouteFamilies` | route families retired trip-wide after one placement: `natural-pool`, `offroad`, `kayak`, and the sail families — which are LENGTH-DEPENDENT since 2026-08-12: collapsed to one `sail` below 8 days, split into `day-sail` + `evening-cruise` at 8+. See `tripRouteFamily`. |
 | `lastFamilyDay` | family → last day used; enforces FAMILY_MIN_DAY_GAP (boat outings) |
 | `usedGroupIds` | last-resort group dedup; only for items with neither tags nor a cluster |
 | `dayFamilies` | families placed TODAY; hard cap of one boat outing per day |
@@ -813,13 +813,28 @@ back, so a stub-only test would assert the fallback and never exercise the swap.
 The suite adds exactly those three products to a fixture to test the mechanism
 offline.
 
-*Alternatives reach only the ~11% of answer combinations the template covers.*
-`isBalancedTraveller` requires mid-range, so a money-no-object family receives no
-template and therefore no alternatives — which means **this does not yet fix the
-$68/day problem it was built for**. The precedence test had to be written
-against the pure `pickAlternative` rather than a generated plan for exactly this
-reason, and says so. Widening template coverage is the prerequisite, not a
-follow-up.
+*The `highBudget` branch is 0% reachable — dead code, not merely narrow.* The
+first version of this entry said "~11%", which reads as reduced reach. Review
+proved the truth is worse and exact: `isBalancedTraveller` requires `mid-range`,
+`altTypesFor` emits `highBudget` only for `treat-yourself`/`money-no-object`, and
+`answersToTags` maps budget to exactly one tag — so the two sets are **disjoint**.
+Measured over an 840-combination grid:
+
+```
+get the template:                 70  (8.3%)
+qualify for a highBudget swap:   420  (50.0%)
+BOTH (needed for privateUpgrade):  0  (0.0%)
+```
+
+So all three `highBudget` alternatives and the ~20-line resolver — the most
+intricate part of this commit — cannot execute in production. It is inert and
+falls back safely, but it is an abstraction built before the gate that would let
+it run, and **it does not fix the $68/day problem it was built for**. The
+precedence test is written against the pure `pickAlternative` rather than a
+generated plan for exactly this reason.
+
+Widening template coverage is the prerequisite, not a follow-up. The `kids` and
+`hike` branches DO run today; only `highBudget` is stranded.
 
 ---
 
@@ -879,9 +894,11 @@ as Couple   1.6483516...
 as Friends  1.6483516...
 ```
 
-`groupType` is read in exactly three places: to build a tag nothing consumes, to
-decide which Q8 pills apply (`notesFlags.flagAppliesTo`), and as an input to
-`hashAnswers`. So it changes which VARIANT you get, never what fits.
+`groupType` is read in exactly three places: to build a tag no ITEM-LEVEL rule
+consumes (the `couple` tag IS read at group level — `matcher.ts:34` — which is
+why the phrasing matters), to decide which Q8 pills apply
+(`notesFlags.flagAppliesTo`), and as an input to `hashAnswers`. So it changes
+which VARIANT you get, never which product fits.
 
 **A sensitivity sweep, and it is the real finding here.** Same seed, one answer
 varied, symmetric difference over 8 seeds:
@@ -1411,21 +1428,26 @@ a rule can fire constantly and cost nothing while alternatives remain.
 - **Group type is still almost inert**: `classifyTags` emits only budget,
   interest and adventure-band tags, so `solo` / `couple` / `friends` /
   `multi-gen` never match anything in `fitItem`. `isKidsOriented` (2026-08-05)
-  is the only ITEM-LEVEL rule that reads Q2, and it is a single exclusion rather
+  and `isCouplesOriented` (2026-08-12) are the only ITEM-LEVEL rules that read Q2, and it is a single exclusion rather
   than a scoring dimension. Group type does reach the plan two other ways —
   `flagAppliesTo` uses it to decide which Q8 pills apply, and live groups carry
   'couple'/'friends' in `matched_by`, which `candidatesFor` filters on. What it
   never does is score an individual item. Building a real one needs a per-item family signal the feed
   does not provide — Viator's "Kid-Friendly" tag covers 2 of 337 live products.
 
-- **Evening pool depth**, and it got worse: the 2026-08-12 merge means one sail
-  per trip covers the evening too, so the sunset cruise that used to fill an
-  evening no longer can. Open slots across five personas × 4 seeds went 131 →
-  155, essentially all evening. Under the old split, evening fill was 220/288
-  seeds×days (measured 2026-08-05). The shortfall is candidate exhaustion, not
-  the rules: a trace of one 10-day plan shows the whole evening pool at **7
-  items**, four of them already placed, and the 0.08 same-day threshold blocking
-  one of the rest. More evening inventory is the fix; no constant will do it.
+- **Evening pool depth.** The underlying shortage is real and unchanged: a trace
+  of one 10-day plan shows the whole evening pool at **7 items**, four already
+  placed, and the 0.08 same-day threshold blocking one of the rest. More evening
+  inventory is the fix; no constant will do it.
+
+  The rule-driven part has since been walked back. The 2026-08-12 merge briefly
+  made one sail cover the evening too — costing an evening card per trip and
+  taking open slots from 131 → 155 across five personas × 4 seeds — but the
+  length-dependent rule later the same day restored the evening sail on trips of
+  8+ days. **Those 131 → 155 figures predate both that change and the couples
+  exclusion, and have not been re-measured**; treat them as historical, not
+  current. Under the pre-merge split, evening fill was 220/288 seeds×days
+  (measured 2026-08-05).
 
 - **The evening pick ignores where the day was**: sunset and dinner products are
   all west-coast, and nothing stops one being appended to a day spent on the

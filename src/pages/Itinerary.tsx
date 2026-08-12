@@ -53,8 +53,14 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
 
   // Human words for the route families, for the duplicate note below. A family
   // id is an internal token ('natural-pool'); the badge has to read like English.
+  // Every value tripRouteFamily can return must appear here — the badge renders
+  // `⚠ 2nd {label} this trip`, so a miss puts a raw internal token in front of a
+  // traveller. 'day-sail'/'evening-cruise' were missed when the sail family
+  // became trip-length aware, which showed "2nd day-sail this trip" on the
+  // DEFAULT 10-day plan.
   const FAMILY_LABEL: Record<string, string> = {
-    sail: 'sail', offroad: 'off-road tour', kayak: 'kayak trip', 'natural-pool': 'Natural Pool visit',
+    sail: 'sail', 'day-sail': 'daytime sail', 'evening-cruise': 'evening cruise',
+    offroad: 'off-road tour', kayak: 'kayak trip', 'natural-pool': 'Natural Pool visit',
   };
 
   // Build the initial itinerary from the answers + the live catalog (Viator

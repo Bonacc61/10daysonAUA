@@ -1431,9 +1431,12 @@ export function generatePlan(
     // pass takes day 1 morning, templateAvail says day 1 afternoon is free, and
     // eagle-beach lands beside it — measured at 64 of 100 runs.
     //
-    // Only this direction is needed. The template places curated LOCAL
-    // activities, and `isFullDayEntry` requires `kind === 'group'`, so the
-    // template can never itself be the pass.
+    // Only this direction is needed here. NOTE this stopped being true of the
+    // template in general on 2026-08-12: a `kids` alternative can put De Palm
+    // Island (a full-day GROUP card) into a template slot. That case is covered
+    // elsewhere — `fitsDayShape` and the fill ladder both read `templateSlots`,
+    // and a measured day 5 comes back morning-only — but do not read this as
+    // "the template is always a local activity", because it is not.
     const pinnedFullDayOn = (day: number): boolean => SECTIONS.some((s) => {
       const p = pinnedSlots.get(day)?.get(s);
       return !!p && isFullDayEntry(p.cardEntry);

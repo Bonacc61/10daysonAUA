@@ -49,8 +49,8 @@ export type Alternative = {
   localId?: string;
   /**
    * Resolve by rule: the private/luxury version of whatever the default is,
-   * same route family, cheapest-first among products that clear the champion
-   * floor. The floor matters — the priciest private sails on the live catalog
+   * same route family, DEAREST-first among products that clear the champion
+   * floor, capped by what `fitItem` accepts. The floor matters — the priciest private sails on the live catalog
    * have 4, 0 and 2 reviews, so "most expensive" alone picks junk.
    */
   privateUpgrade?: boolean;
