@@ -1,12 +1,26 @@
 name: PR Slack digest
 
-# Posts a written summary of each pull request to Slack, so the state of the
-# repo is legible without opening GitHub.
+# Posts a written summary of every change to Slack, so the state of the repo is
+# legible without opening GitHub.
 #
 # Not a notification bot. GitHub's own Slack app already posts event cards and
 # they are close to useless — "Bonacc61 opened #12" tells you nothing you would
 # act on. This reads the actual diff and says what changed and whether it looks
 # risky.
+#
+# Covers two things, with no overlap between them:
+#   pull_request  — opened, ready for review, new commits, merged/closed
+#   push to main  — commits that never went through a PR
+#
+# The no-overlap part is load-bearing. Merging a PR fires BOTH a pull_request
+# `closed` event and a `push` to main, which would announce every merge twice.
+# The push branch bails out when the head commit looks merge-produced — GitHub
+# squashes as "Title (#12)" and merge-commits as "Merge pull request #12".
+# The cost of that heuristic: a hand-written commit ending in "(#12)" is
+# silently skipped. Judged worth it against doubling every merge.
+#
+# `synchronize` (commits pushed to an open PR) summarises ONLY the new commits,
+# not the whole PR again — otherwise every push re-announces the entire branch.
 #
 # The writing rules in the prompt are the `deconstruct` skill — jargon defined at
 # first use with its stake, real numbers over adjectives, risk as a concrete
@@ -15,11 +29,6 @@ name: PR Slack digest
 # silently do nothing. Its option-comparison structure is deliberately dropped:
 # a PR is not a choice between alternatives.
 #
-# Fires on the pull_request event itself, so there is no polling and nothing to
-# host. Deliberately NOT subscribed to `synchronize` (every commit pushed to an
-# open PR): that is the difference between a channel you read and a channel you
-# mute.
-#
 # Claude writes the prose; a plain shell step delivers it. Keeping delivery out
 # of the model's hands means diff text containing quotes, backticks or newlines
 # cannot break the Slack payload — jq handles the escaping.
@@ -27,8 +36,8 @@ name: PR Slack digest
 # Secrets required:
 #   CLAUDE_CODE_OAUTH_TOKEN  — from `claude setup-token`, billed to the Claude
 #                              subscription rather than API credit
-#   SLACK_BOT_TOKEN          — the @Jan app's xoxb- token (needs chat:write; the
-#                              app has no chat:write.public, so @Jan must be a
+#   SLACK_BOT_TOKEN          — the Slack app's xoxb- token (needs chat:write; the
+#                              app has no chat:write.public, so the bot must be a
 #                              member of the target channel or posting fails)
 #
 # Note: pull_request runs from forks do not receive secrets, by GitHub design.
@@ -37,12 +46,14 @@ name: PR Slack digest
 
 on:
   pull_request:
-    types: [opened, ready_for_review, closed]
+    types: [opened, ready_for_review, synchronize, closed]
+  push:
+    branches: [main]
 
-# One digest per PR event. A doubled post is noise, and two runs racing on the
-# same PR would both post.
+# Keyed on the commit, not the PR: two pushes in quick succession are two
+# distinct things to announce, so neither may cancel the other.
 concurrency:
-  group: pr-slack-digest-${{ github.event.number }}-${{ github.event.action }}
+  group: pr-slack-digest-${{ github.event_name }}-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -51,8 +62,8 @@ jobs:
     timeout-minutes: 10
 
     # Drafts are not ready to be summarised; they get their digest when marked
-    # ready for review instead.
-    if: github.event.pull_request.draft == false
+    # ready for review instead. Push events carry no draft flag, hence the OR.
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
 
     permissions:
       contents: read
@@ -62,27 +73,95 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          # Full history: the commit ranges below are meaningless on a shallow
+          # clone, and `git diff BEFORE..AFTER` fails outright.
           fetch-depth: 0
 
-      - name: Describe what happened to this PR
+      - name: Work out what changed
         id: event
         env:
+          # Every field is held in env rather than inlined into the script, so a
+          # branch or commit message cannot execute as shell.
+          EVENT: ${{ github.event_name }}
           ACTION: ${{ github.event.action }}
           MERGED: ${{ github.event.pull_request.merged }}
+          PR_NUMBER: ${{ github.event.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
+          COMPARE_URL: ${{ github.event.compare }}
+          ACTOR: ${{ github.actor }}
         run: |
-          # Held in env rather than inlined into the script, so a PR titled
-          # `"; rm -rf / #` is data and not code.
-          if [ "$ACTION" = "closed" ] && [ "$MERGED" = "true" ]; then
-            echo "headline=merged" >> "$GITHUB_OUTPUT"
-          elif [ "$ACTION" = "closed" ]; then
-            echo "headline=closed without merging" >> "$GITHUB_OUTPUT"
-          elif [ "$ACTION" = "ready_for_review" ]; then
-            echo "headline=ready for review" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+
+          out() { printf '%s<<__EOF__\n%s\n__EOF__\n' "$1" "$2" >> "$GITHUB_OUTPUT"; }
+
+          # A range is only usable if both ends exist locally. Force-pushes and
+          # first-pushes leave BEFORE dangling or all-zeroes; fall back to the
+          # single head commit rather than failing the job.
+          safe_range() {
+            if git rev-list --count "$1..$2" >/dev/null 2>&1; then
+              printf '%s..%s' "$1" "$2"
+            else
+              printf '%s~1..%s' "$2" "$2"
+            fi
+          }
+
+          if [ "$EVENT" = "push" ]; then
+            FIRST_LINE="$(printf '%s' "$HEAD_MSG" | head -n 1)"
+            if printf '%s' "$FIRST_LINE" | grep -qE '\(#[0-9]+\)$|^Merge pull request #[0-9]+'; then
+              echo "The pull_request closed event already announced this merge."
+              out "skip" "true"
+              exit 0
+            fi
+
+            RANGE="$(safe_range "$BEFORE" "$AFTER")"
+            COUNT="$(git rev-list --count "$RANGE")"
+            [ "$COUNT" = "1" ] && NOUN="commit" || NOUN="commits"
+
+            out "skip" "false"
+            out "header" "$FIRST_LINE"
+            out "url" "$COMPARE_URL"
+            out "meta" "*${COUNT} ${NOUN} pushed to main* by ${ACTOR}"
+            out "brief" "${COUNT} ${NOUN} were just pushed directly to the main branch, without going through a pull request."
+            out "inspect" "\`git log --oneline ${RANGE}\` and \`git diff ${RANGE}\`"
+
+          elif [ "$ACTION" = "synchronize" ]; then
+            RANGE="$(safe_range "$BEFORE" "$AFTER")"
+            COUNT="$(git rev-list --count "$RANGE")"
+            [ "$COUNT" = "1" ] && NOUN="commit" || NOUN="commits"
+
+            out "skip" "false"
+            out "header" "#${PR_NUMBER} ${PR_TITLE}"
+            out "url" "$PR_URL"
+            out "meta" "*${COUNT} new ${NOUN}* by ${ACTOR}"
+            out "brief" "${COUNT} new ${NOUN} were just pushed to open pull request #${PR_NUMBER}."
+            out "inspect" "\`git log --oneline ${RANGE}\` and \`git diff ${RANGE}\` — summarise ONLY these new commits, not the whole pull request"
+
           else
-            echo "headline=opened" >> "$GITHUB_OUTPUT"
+            if [ "$ACTION" = "closed" ] && [ "$MERGED" = "true" ]; then
+              HEADLINE="merged"
+            elif [ "$ACTION" = "closed" ]; then
+              HEADLINE="closed without merging"
+            elif [ "$ACTION" = "ready_for_review" ]; then
+              HEADLINE="ready for review"
+            else
+              HEADLINE="opened"
+            fi
+
+            out "skip" "false"
+            out "header" "#${PR_NUMBER} ${PR_TITLE}"
+            out "url" "$PR_URL"
+            out "meta" "*${HEADLINE}* by ${PR_AUTHOR}"
+            out "brief" "Pull request #${PR_NUMBER} in this repository was just ${HEADLINE}."
+            out "inspect" "\`gh pr view ${PR_NUMBER}\` and \`gh pr diff ${PR_NUMBER}\`"
           fi
 
       - name: Write the summary
+        if: steps.event.outputs.skip != 'true'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -91,15 +170,13 @@ jobs:
             --max-turns 12
             --allowedTools Read,Write,Bash
           prompt: |
-            Pull request #${{ github.event.number }} in this repository was just
-            ${{ steps.event.outputs.headline }}.
+            ${{ steps.event.outputs.brief }}
 
-            Read it with `gh pr view ${{ github.event.number }}` and
-            `gh pr diff ${{ github.event.number }}`. Read any source file you
-            need in order to judge what the change actually does.
+            Inspect it with ${{ steps.event.outputs.inspect }}. Read any source
+            file you need in order to judge what the change actually does.
 
             Then write a summary for a teammate who has not read the code and
-            will not open the PR unless you give them a reason to. Write it to
+            will not open GitHub unless you give them a reason to. Write it to
             the file `pr-summary.txt` in the repository root.
 
             Write it so someone can follow it without sharing your vocabulary:
@@ -107,7 +184,7 @@ jobs:
             - *Lead with the load-bearing idea.* Open with the single concept the
               change rests on, in plain words. If the reader understands only
               that first line, the bullets should already half make sense. Never
-              restate the PR title.
+              restate the title.
             - *Define every term of art at first use*, in the same sentence, in
               words a smart non-specialist knows — and give the stake, not just
               the definition. "an index lets the database skip most of the rows,
@@ -133,38 +210,40 @@ jobs:
               line starting `Unverified:` saying what you would need to check.
               Omit the line entirely when nothing is in doubt.
 
+            A small change gets a short summary. Three lines for a typo fix is
+            the right length — do not pad it to look thorough.
+
             Format: plain text, Slack mrkdwn — *bold* not **bold**, no headers.
             Under 250 words. No preamble, no sign-off, no restating these
             instructions. The file's entire contents get posted verbatim.
 
       - name: Post it to Slack
+        if: steps.event.outputs.skip != 'true'
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           CHANNEL: C0BPNKA6Y1L
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          HEADLINE: ${{ steps.event.outputs.headline }}
-          PR_NUMBER: ${{ github.event.number }}
+          HEADER: ${{ steps.event.outputs.header }}
+          META: ${{ steps.event.outputs.meta }}
+          URL: ${{ steps.event.outputs.url }}
         run: |
           set -euo pipefail
 
           # If Claude failed or wrote nothing, still post. Silence would read as
-          # "no PRs happened", which is worse than a bare link.
+          # "nothing happened", which is worse than a bare link.
           if [ -s pr-summary.txt ]; then
             SUMMARY="$(cat pr-summary.txt)"
           else
-            SUMMARY="_(No summary was generated — see the PR.)_"
+            SUMMARY="_(No summary was generated — see the link above.)_"
           fi
 
           # jq -n --arg builds the JSON, so nothing in the title or summary can
           # break out of the payload.
           PAYLOAD="$(jq -n \
             --arg channel "$CHANNEL" \
-            --arg header "#${PR_NUMBER} ${PR_TITLE}" \
-            --arg meta "*${HEADLINE}* by ${PR_AUTHOR}" \
+            --arg header "$HEADER" \
+            --arg meta "$META" \
             --arg summary "$SUMMARY" \
-            --arg url "$PR_URL" \
+            --arg url "$URL" \
             '{
               channel: $channel,
               unfurl_links: false,
@@ -187,10 +266,10 @@ jobs:
           # forever.
           if [ "$(printf '%s' "$RESPONSE" | jq -r '.ok')" != "true" ]; then
             echo "::error::Slack rejected the message: $(printf '%s' "$RESPONSE" | jq -r '.error')"
-            echo "not_in_channel  -> run /invite @Jan in the target channel"
-            echo "invalid_auth    -> SLACK_BOT_TOKEN is wrong or was rotated"
-            echo "channel_not_found -> wrong channel ID, or Jarvis cannot see it"
+            echo "not_in_channel    -> invite the bot to the target channel"
+            echo "invalid_auth      -> SLACK_BOT_TOKEN is wrong or was rotated"
+            echo "channel_not_found -> wrong channel ID, or the bot cannot see it"
             exit 1
           fi
 
-          echo "Posted digest for #${PR_NUMBER} (${HEADLINE})."
+          echo "Posted digest: ${HEADER}"
