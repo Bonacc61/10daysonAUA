@@ -8,6 +8,13 @@ name: PR Slack digest
 # act on. This reads the actual diff and says what changed and whether it looks
 # risky.
 #
+# The writing rules in the prompt are the `deconstruct` skill — jargon defined at
+# first use with its stake, real numbers over adjectives, risk as a concrete
+# failure. They are inlined rather than referenced because that skill lives in a
+# personal ~/.claude and does not exist on a GitHub runner; naming it here would
+# silently do nothing. Its option-comparison structure is deliberately dropped:
+# a PR is not a choice between alternatives.
+#
 # Fires on the pull_request event itself, so there is no polling and nothing to
 # host. Deliberately NOT subscribed to `synchronize` (every commit pushed to an
 # open PR): that is the difference between a channel you read and a channel you
@@ -95,19 +102,40 @@ jobs:
             will not open the PR unless you give them a reason to. Write it to
             the file `pr-summary.txt` in the repository root.
 
-            Requirements for that file:
-            - Plain text, Slack mrkdwn. Use *bold* not **bold**. No headers.
-            - Open with one sentence on what the change does and why it matters.
-              Not a restatement of the title.
-            - Then a short bullet list of the substantive changes. Group by
-              intent, not by file. Skip lockfiles, formatting and generated code.
-            - Close with a line starting `Risk:` — call out anything touching
-              auth, payments, user data, database migrations, deleted tests, or
-              a diff too large to review in one sitting. If genuinely routine,
-              write `Risk: routine.` and nothing more. Do not invent concerns to
+            Write it so someone can follow it without sharing your vocabulary:
+
+            - *Lead with the load-bearing idea.* Open with the single concept the
+              change rests on, in plain words. If the reader understands only
+              that first line, the bullets should already half make sense. Never
+              restate the PR title.
+            - *Define every term of art at first use*, in the same sentence, in
+              words a smart non-specialist knows — and give the stake, not just
+              the definition. "an index lets the database skip most of the rows,
+              which is what keeps this fast as the catalog grows", not "adds an
+              index". Terms of art include library and product names, and
+              ordinary words carrying a specialist meaning: migration, hook,
+              bundle, payload, edge function, cold start, index.
+            - *Use the real numbers from the diff* — files touched, lines added
+              and removed, values that actually changed. Measurements decide
+              things; adjectives do not. Write "grows the bundle 12 KB", never
+              "may affect performance". If you did not measure it, say so.
+            - *Say what it costs, not only what it buys.* The reader cannot agree
+              with a change they cannot disagree with.
+            - Then a short bullet list of the substantive changes, grouped by
+              intent rather than by file. Skip lockfiles, formatting and
+              generated code.
+            - Close with `Risk:` naming a *concrete failure* — who breaks, doing
+              what, when. "Deleting the auth test means a broken login ships
+              silently", not "touches authentication". If genuinely routine,
+              write `Risk: routine.` and nothing more. Never invent a concern to
               seem thorough.
-            - Under 180 words. No preamble, no sign-off, no restating these
-              instructions. The file's entire contents get posted verbatim.
+            - If something could not be settled from the diff alone, add a final
+              line starting `Unverified:` saying what you would need to check.
+              Omit the line entirely when nothing is in doubt.
+
+            Format: plain text, Slack mrkdwn — *bold* not **bold**, no headers.
+            Under 250 words. No preamble, no sign-off, no restating these
+            instructions. The file's entire contents get posted verbatim.
 
       - name: Post it to Slack
         env:
