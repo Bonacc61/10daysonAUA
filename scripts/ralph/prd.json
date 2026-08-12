@@ -22,8 +22,8 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented directly on ralph/semantic-search 2026-08-12 \u2014 the ralph runner was blocked on Claude CLI auth (expired) and root refusing bypassPermissions. Browser-verified flag on and off."
     },
     {
       "id": "US-002",
@@ -42,8 +42,8 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented directly on ralph/semantic-search 2026-08-12 \u2014 the ralph runner was blocked on Claude CLI auth (expired) and root refusing bypassPermissions. Browser-verified flag on and off."
     },
     {
       "id": "US-003",
@@ -66,8 +66,8 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented directly on ralph/semantic-search 2026-08-12 \u2014 the ralph runner was blocked on Claude CLI auth (expired) and root refusing bypassPermissions. Browser-verified flag on and off."
     },
     {
       "id": "US-004",
@@ -85,8 +85,8 @@
         "Typecheck passes"
       ],
       "priority": 4,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented directly on ralph/semantic-search 2026-08-12 \u2014 the ralph runner was blocked on Claude CLI auth (expired) and root refusing bypassPermissions. Browser-verified flag on and off."
     },
     {
       "id": "US-005",
@@ -104,8 +104,8 @@
         "Typecheck passes"
       ],
       "priority": 5,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented directly on ralph/semantic-search 2026-08-12 \u2014 the ralph runner was blocked on Claude CLI auth (expired) and root refusing bypassPermissions. Browser-verified flag on and off."
     },
     {
       "id": "US-006",
@@ -124,8 +124,8 @@
         "Verify in browser using dev-browser skill: typing 'Zeerover' issues no request; typing 'good with a toddler' shows the hint and issues no request until Enter is pressed"
       ],
       "priority": 6,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented directly on ralph/semantic-search 2026-08-12 \u2014 the ralph runner was blocked on Claude CLI auth (expired) and root refusing bypassPermissions. Browser-verified flag on and off."
     },
     {
       "id": "US-007",
@@ -139,8 +139,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 7,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented directly on ralph/semantic-search 2026-08-12 \u2014 the ralph runner was blocked on Claude CLI auth (expired) and root refusing bypassPermissions. Browser-verified flag on and off."
     },
     {
       "id": "US-008",
@@ -157,8 +157,8 @@
         "Typecheck passes"
       ],
       "priority": 8,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented directly on ralph/semantic-search 2026-08-12 \u2014 the ralph runner was blocked on Claude CLI auth (expired) and root refusing bypassPermissions. Browser-verified flag on and off."
     },
     {
       "id": "US-009",
@@ -173,8 +173,8 @@
         "Typecheck passes"
       ],
       "priority": 9,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented directly on ralph/semantic-search 2026-08-12 \u2014 the ralph runner was blocked on Claude CLI auth (expired) and root refusing bypassPermissions. Browser-verified flag on and off."
     }
   ]
 }

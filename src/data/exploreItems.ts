@@ -304,6 +304,47 @@ export function productUrlFor(item: { id?: string; viator_item_url?: string }): 
 // Five states, not three: the ends of the range are a genuinely different
 // filter (ONLY the calmest / ONLY the priciest), and a slider that says the
 // same thing at 70 and at 100 gives no reason to keep sliding.
+/** The catalog id behind an entry, whichever shape it is. */
+export function entryId(e: ExploreEntry): string {
+  return e.kind === 'item' ? e.item.id : e.activity.id;
+}
+
+/**
+ * Merge meaning-matched results into keyword-matched ones.
+ *
+ * Substring hits keep their order and come first; semantic-only ids follow in
+ * the order the ranker returned them. An entry in both appears once, in the
+ * substring block.
+ *
+ * The ordering is the whole point and it is not a hedge. Cosine similarity is
+ * WORSE than substring matching on proper nouns — "Arikok", "De Palm Island",
+ * an operator's name — because similarity blurs precisely the rare exact tokens
+ * that make a name a name. So the keyword layer is permanently load-bearing,
+ * and semantic results are an addition beneath it rather than a replacement.
+ *
+ * An empty `semanticIds` returns `substringHits` unchanged, which is what makes
+ * this safe to call unconditionally: with the feature dark, or after a failed
+ * lookup, behaviour is identical to before it existed.
+ */
+export function blendSearchResults(
+  substringHits: ExploreEntry[],
+  semanticIds: string[],
+  all: ExploreEntry[],
+): ExploreEntry[] {
+  if (semanticIds.length === 0) return substringHits;
+  const seen = new Set(substringHits.map(entryId));
+  const byId = new Map(all.map((e) => [entryId(e), e]));
+  const extra: ExploreEntry[] = [];
+  for (const id of semanticIds) {
+    if (seen.has(id)) continue;
+    const entry = byId.get(id);
+    if (!entry) continue;          // ranked an id the catalog no longer has
+    seen.add(id);
+    extra.push(entry);
+  }
+  return [...substringHits, ...extra];
+}
+
 export function vibeHint(v: number): string {
   const t = (v - 50) / 50;
   if (Math.abs(t) < 0.06) return 'Showing every vibe — slide either way to narrow.';

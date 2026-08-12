@@ -109,6 +109,19 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
 }
 .swap-text-go:disabled { opacity: 0.45; cursor: default; }
 
+/* Semantic search: the hint that appears once a query becomes a phrase. */
+.search-arm-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--sand-700);
+  font-style: italic;
+}
+.search-arm-hint kbd {
+  font-family: inherit; font-style: normal; font-size: 11px; font-weight: 700;
+  padding: 1px 5px; border: 1px solid var(--ink); border-radius: 4px;
+  background: var(--sand-50);
+}
+
 /* What the swap actually applied, shown on the new card. */
 .swap-echo {
   font-size: 10px; color: var(--sand-700); font-style: italic;

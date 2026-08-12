@@ -12,6 +12,8 @@ import {
   primarySection,
   filterExploreEntries,
   groupPasses,
+  blendSearchResults,
+  entryId,
   type ExploreEntry,
 } from './exploreItems';
 import { getCatalog, type Catalog } from './activitySource';
@@ -319,5 +321,47 @@ describe('groupPasses', () => {
     for (const g of catalog.groups) {
       expect(groupPasses(g, catalog, 50, 0)).toBe(false);
     }
+  });
+});
+
+// --- blendSearchResults ----------------------------------------------------
+// Exact matches must outrank meaning matches. Cosine similarity blurs exactly
+// the distinctions proper nouns depend on, so someone typing "Zeerover" is
+// served by the substring layer and must not be out-ranked by something that
+// merely feels similar.
+describe('blendSearchResults', () => {
+  const item = (id: string): ExploreEntry => ({
+    kind: 'item',
+    item: { id, group_id: 'g', title: id, image_url: '', price_usd: 0, duration: '', rating: 4, review_count: 1, viator_item_url: '', is_best_seller: false, display_order: 0 } as ViatorItem,
+    category: 'Tours',
+    adventure: 30,
+    sections: ['tours-sightseeing'],
+  });
+  const ids = (out: ExploreEntry[]) => out.map(entryId);
+
+  test('substring hits come first, in their existing order', () => {
+    const all = [item('a'), item('b'), item('c')];
+    expect(ids(blendSearchResults([all[1], all[0]], ['c'], all))).toEqual(['b', 'a', 'c']);
+  });
+
+  test('semantic ids follow in the order they were returned', () => {
+    const all = [item('a'), item('b'), item('c')];
+    expect(ids(blendSearchResults([], ['c', 'a'], all))).toEqual(['c', 'a']);
+  });
+
+  test('an entry in both appears once, in the substring block', () => {
+    const all = [item('a'), item('b')];
+    expect(ids(blendSearchResults([all[0]], ['a', 'b'], all))).toEqual(['a', 'b']);
+  });
+
+  test('an empty semantic list returns the substring hits untouched', () => {
+    const all = [item('a'), item('b')];
+    const hits = [all[1], all[0]];
+    expect(blendSearchResults(hits, [], all)).toEqual(hits);
+  });
+
+  test('a semantic id with no matching entry is skipped rather than throwing', () => {
+    const all = [item('a')];
+    expect(ids(blendSearchResults([], ['ghost', 'a'], all))).toEqual(['a']);
   });
 });

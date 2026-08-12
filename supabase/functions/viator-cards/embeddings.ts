@@ -20,6 +20,23 @@ const VOYAGE_MODEL = 'voyage-3-lite';
 
 export type EmbedProvider = 'openai' | 'voyage';
 
+// The model id that produced a vector, recorded alongside it in item_embeddings.
+// A vector is only comparable to another from the SAME model — cosine between
+// two models is not a weaker signal, it is meaningless — so the search function
+// refuses to rank when the stored model and the active one disagree.
+export const MODEL_ID: Record<EmbedProvider, string> = {
+  openai: OPENAI_MODEL,
+  voyage: VOYAGE_MODEL,
+};
+
+// Only the 256-dimension provider can be stored: item_embeddings.embedding is
+// vector(256), and mixing dimensionalities in one column is not possible even
+// if mixing models were sensible.
+export const SEARCHABLE_DIMS = OPENAI_DIMS;
+export function isSearchableProvider(p: EmbedProvider | null): boolean {
+  return p === 'openai';
+}
+
 export function activeProvider(): EmbedProvider | null {
   if (Deno.env.get('OPENAI_API_KEY'))  return 'openai';
   if (Deno.env.get('VOYAGE_API_KEY'))  return 'voyage';
