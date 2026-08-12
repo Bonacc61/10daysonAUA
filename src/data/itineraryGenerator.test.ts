@@ -1578,12 +1578,17 @@ describe('generatePlan — an Arikok day keeps its afternoon free', () => {
     expect(day!.afternoon).toHaveLength(0);
   });
 
-  it('keeps the afternoon free for a balanced traveller, whose Arikok day is curated', () => {
-    // The reported case came from the balanced template (med-adventure +
-    // mid-range), which hand-places natural-pool-jeep on day 4. The template
-    // paired it with arashi-beach, and the staple/splurge pre-passes would
-    // happily refill the slot once that was removed — none of them go through
-    // the fill ladder, so each needed the rule applied separately.
+  it('adds ONLY the curated beach to a templated Arikok afternoon, nothing else', () => {
+    // Rewritten 2026-08-12. This used to assert the afternoon stayed EMPTY for a
+    // balanced traveller, which encoded the 2026-08-05 decision to strip
+    // arashi-beach from day 4. The canonical template puts it back, so the
+    // guarantee changes shape rather than disappearing: the curated beach is
+    // allowed, and nothing ELSE may join it.
+    //
+    // That distinction is the whole point. The pre-passes (staple, splurge) and
+    // the fill ladder each bypass one another, so without the rule they would
+    // refill the slot with a paid outing — which is what made day 4 the plan's
+    // busiest and prompted the original fix.
     const balanced: Answers = {
       ...DEFAULT_ANSWERS, days: 10, budget: 'Mid-range', adventureLevel: 50,
       interests: ['Beach & chill', 'Watersports'],
@@ -1594,10 +1599,11 @@ describe('generatePlan — an Arikok day keeps its afternoon free', () => {
         const arikokMorning = d.morning.some((e) => e.kind === 'activity'
           && (e.id === 'natural-pool-jeep' || e.id === 'arikok-hiking'));
         if (!arikokMorning) continue;
-        // A food stop is still allowed — you drive past Zeerover on the way home.
-        const nonFood = d.afternoon.filter((e) => !(e.kind === 'activity'
-          && (e.id.startsWith('lunch-') || e.id === 'zeerovers-fresh-catch')));
-        expect(nonFood).toHaveLength(0);
+        // Allowed: the curated beach, and a food stop (you drive past Zeerover
+        // on the way home). Anything else means a pre-pass refilled the slot.
+        const unexpected = d.afternoon.filter((e) => !(e.kind === 'activity'
+          && (e.id === 'arashi-beach' || e.id.startsWith('lunch-') || e.id === 'zeerovers-fresh-catch')));
+        expect(unexpected).toHaveLength(0);
       }
     }
   });
@@ -2303,5 +2309,32 @@ describe('generatePlan — couples products are not handed to people travelling 
       expect(placed).not.toContain('romantic');
       expect(placed).not.toContain('couples');
     }
+  });
+});
+
+describe('generatePlan — the curated template fills day 4 afternoon', () => {
+  // Reversal of a 2026-08-05 decision, made deliberately. The afternoon after
+  // the Natural Pool run was emptied then, on the reasoning that an Arikok day
+  // is the whole day — "you drive across the island, the park road is rough and
+  // you come back tired" — and it was measured as making day 4 the busiest.
+  //
+  // The canonical template says otherwise: day 4 afternoon is Arashi Beach,
+  // with a `hike` alternative. The exception is duration, not geography: leave
+  // Arashi in UNLESS the morning card is a full-day product. On today's catalog
+  // that never fires — natural-pool-jeep is "3-5 hrs" and 0 of the 20 live
+  // Natural Pool products are full-day — so this is a guard against a reface,
+  // not a live branch.
+  const BALANCED: Answers = {
+    ...DEFAULT_ANSWERS, days: 10, budget: 'Mid-range', adventureLevel: 50, groupType: 'Couple',
+  };
+
+  it('places Arashi Beach on day 4 after the Natural Pool morning', () => {
+    const plan = generatePlan(BALANCED, getCatalog(), { seed: 2 });
+    const day4 = plan.find((d) => d.day === 4);
+    expect(day4).toBeDefined();
+    const ids = [...day4!.morning, ...day4!.afternoon]
+      .flatMap((e) => (e.kind === 'activity' ? [e.id] : []));
+    expect(ids).toContain('natural-pool-jeep');
+    expect(ids).toContain('arashi-beach');
   });
 });

@@ -1438,9 +1438,18 @@ export function generatePlan(
       const p = pinnedSlots.get(day)?.get(s);
       return !!p && isFullDayEntry(p.cardEntry);
     });
+    // A full-day morning consumes its afternoon, whether the pass arrived as a
+    // pin or as the template's own morning card. The pin case is checked above;
+    // this covers the template placing, say, a refaced 7-hour Natural Pool tour
+    // and then adding a beach after it.
+    const fullDayTemplateMorningOn = (day: number): boolean => {
+      const m = templateSlots.get(day)?.get('morning');
+      return !!m && entryDurationMin(m.cardEntry) >= FULL_DAY_MIN;
+    };
     for (const { day, slot, activity } of resolveBalancedTemplate(filteredCatalog, nDays)) {
       if (!templateAvail(day, slot)) continue;
       if (pinnedFullDayOn(day)) continue;
+      if (slot !== 'morning' && fullDayTemplateMorningOn(day)) continue;
       // Already the traveller's own pick — placing it again ourselves would put
       // the same card in the plan twice. Same principle as the revisit rule: a
       // pin is one explicit choice, not licence to repeat it.

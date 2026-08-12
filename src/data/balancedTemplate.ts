@@ -38,11 +38,17 @@ export const BALANCED_TEMPLATE: TemplateEntry[] = [
   { day: 3,  slot: 'morning',   id: 'mangel-halto' },
   { day: 3,  slot: 'afternoon', id: 'baby-beach-snorkel' },
   { day: 4,  slot: 'morning',   id: 'natural-pool-jeep' },
-  // day 4 afternoon — deliberately empty since 2026-08-05. An Arikok day is the
-  // whole day: you drive across the island, the park road is rough and you come
-  // back tired, so the afternoon stays free for the traveller to fill. This used
-  // to carry arashi-beach, which put a north-tip beach after a south-east park
-  // run and made day 4 the plan's busiest.
+  // Day 4 afternoon carries arashi-beach again as of 2026-08-12, reversing the
+  // 2026-08-05 decision to empty it. That reasoning — an Arikok day is the whole
+  // day, the park road is rough, you come back tired — was overruled in favour
+  // of the canonical template, which fills this slot.
+  //
+  // The exception is DURATION, not geography: the slot is skipped when the day's
+  // morning card is a full-day product (see fullDayTemplateMorningOn in the
+  // generator). On today's catalog that never fires — natural-pool-jeep is
+  // "3-5 hrs" and 0 of the 20 live Natural Pool products are full-day — so it is
+  // a guard against a reface rather than a live branch.
+  { day: 4,  slot: 'afternoon', id: 'arashi-beach' },
   { day: 5,  slot: 'morning',   id: 'palm-beach-strip' },
   // day 5 afternoon — sunset sail, no curated card; engine fills
   { day: 6,  slot: 'morning',   id: 'eagle-beach-morning' },
