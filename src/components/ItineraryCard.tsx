@@ -54,11 +54,24 @@ const ECHO_EXTRA = 18;
 // Rounding down left the widest case ~1.6px short of its own arithmetic, and
 // `.itin-card-front` is overflow:hidden, so short means clipped.
 //
-// Raised 79 → 95 on 2026-08-13, when the box began carrying a start time. The
-// headline can now run to a fourth line ("Departures 9:00am, 3:00pm, 5:00pm
-// +3 more near Hyatt Regency Aruba Resort Spa and Casino"), so this budgets
-// chrome (4px border + 14px padding + 12px margin = 30) plus four 16.1px lines.
-const DEPARTURE_EXTRA = 95;
+// Raised 79 → 113 on 2026-08-13, when the box began carrying a start time.
+//
+// 95 was wrong and clipped: it budgeted four lines and attributed all four to
+// the HEADLINE, forgetting that DepartureNote ALWAYS renders the hedge as well
+// (DEPARTURE_QUOTE_EXTRA below covers only the OPTIONAL check-in quote). The
+// hedge also got longer with this change — "Times vary by season and day.
+// Confirm both on your booking." wraps to two lines across most of the band
+// where the old 42-character hedge fit on one — so the miss was systematic
+// rather than an edge case, and `.itin-card-front` is overflow:hidden.
+//
+// Worst real case: an approx pin at "Hyatt Regency Aruba Resort Spa and Casino"
+// with several departures gives a 3-line headline and a 2-line hedge:
+//   chrome 30 (4 border + 14 padding + 12 margin) + 3×16.1 + 2 (hedge margin)
+//   + 2×16.1 = 112.5
+// Checked against the Dashboard too (src/pages/Dashboard.tsx:939), which renders
+// the same fixed-height card in a much narrower column and therefore wraps
+// earlier — it is the binding constraint, not the itinerary page.
+const DEPARTURE_EXTRA = 113;
 // A check-in quote adds a line that wraps at card width — three of them for the
 // longest quote on record (95 characters), at 11.5px/1.4 plus its 2px margin.
 const DEPARTURE_QUOTE_EXTRA = 51;

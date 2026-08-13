@@ -40,10 +40,19 @@ export function departureHeadline(time: string | null, place: string): string {
   return [time ?? 'Departs', place].filter(Boolean).join(' ');
 }
 
-/** The hedge names only what is actually on screen — see the note above. */
+/**
+ * The hedge names only what is actually on screen — see the note above.
+ *
+ * "by season AND day" is not padding. The snapshot is a union across seasons
+ * *and* days of week, and 109 of 281 products vary on one or the other. Saying
+ * only "by season" would tell a traveller the times are fixed within a season,
+ * so someone reading "Departures 9:00am, 3:00pm" on a product that runs 9:00
+ * Mon/Wed and 15:00 Tue/Thu could turn up Tuesday morning for a boat that is
+ * not there.
+ */
 export function departureHedge(hasTime: boolean, hasPlace: boolean): string {
-  if (hasTime && hasPlace) return 'Times vary by season. Confirm both on your booking.';
-  if (hasTime) return 'Times vary by season. Confirm on your booking.';
+  if (hasTime && hasPlace) return 'Times vary by season and day. Confirm both on your booking.';
+  if (hasTime) return 'Times vary by season and day. Confirm on your booking.';
   return 'Confirm the meeting point on your booking.';
 }
 

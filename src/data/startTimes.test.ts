@@ -33,6 +33,29 @@ describe('startTimeLabel', () => {
     expect(startTimeLabel('5595462P1')).toBe('Departures 3:30pm, 5:00pm');
   });
 
+  it('shows the span, not the first three, once a set gets large', () => {
+    // 137607P22 runs 14 times from 10:00 to 16:30. Listing the earliest three
+    // named nothing after lunch and made an all-day product read as a morning
+    // one — the span is the honest summary.
+    expect(startTimeLabel('137607P22')).toBe('Departures 10:00am-4:30pm');
+    expect(startTimeLabel('137607P23')).toBe('Departures 7:00am-4:00pm');
+  });
+
+  it('still lists in full at the boundary', () => {
+    // 3 is the largest set shown as a list; 4 flips to a span. Guards the
+    // off-by-one directly rather than trusting the <= .
+    const three = Object.entries(SNAPSHOT as Record<string, string[]>)
+      .find(([, t]) => t.length === 3);
+    const four = Object.entries(SNAPSHOT as Record<string, string[]>)
+      .find(([, t]) => t.length === 4);
+    expect(three, 'snapshot has no 3-time product to test with').toBeTruthy();
+    expect(four, 'snapshot has no 4-time product to test with').toBeTruthy();
+    expect(startTimeLabel(three![0])).toMatch(/, /);
+    expect(startTimeLabel(three![0])).not.toMatch(/-/);
+    expect(startTimeLabel(four![0])).toMatch(/^Departures \d/);
+    expect(startTimeLabel(four![0])).not.toMatch(/, /);
+  });
+
   it('is silent for a product with nothing on record', () => {
     expect(startTimeLabel('no-such-product')).toBeNull();
     expect(startTimesFor('no-such-product')).toEqual([]);

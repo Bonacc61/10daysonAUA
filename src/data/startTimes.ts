@@ -40,22 +40,60 @@ export function formatStartTime(hhmm: string): string {
   return `${h12}:${m[2]}${suffix}`;
 }
 
-/** How many times to name before collapsing the rest into a count. */
-const MAX_SHOWN = 3;
+/** Above this many departures a card shows the span instead of a list. */
+const MAX_LISTED = 3;
+
+/** Midday, in minutes. The line between a morning product and an afternoon one. */
+const NOON_MIN = 12 * 60;
+
+const toMinutes = (hhmm: string): number => {
+  const m = hhmm.match(/^(\d{1,2}):(\d{2})/);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : NaN;
+};
+
+/**
+ * The slot a product's SCHEDULE rules out the alternative to, or undefined when
+ * it rules out nothing.
+ *
+ * A statement about what would be WRONG, not a preference — the same shape as
+ * the Arikok gate, and the reason it is safe for the fill ladder to read. A
+ * product that only ever departs at 09:00 cannot happen in an afternoon.
+ *
+ * Undefined for the 119 products whose departures straddle noon: they constrain
+ * nothing, and guessing a side for them would be a preference wearing a
+ * correctness costume.
+ */
+export function scheduleTimeOfDay(id: string): 'morning' | 'afternoon' | undefined {
+  const mins = startTimesFor(id).map(toMinutes).filter((n) => !Number.isNaN(n));
+  if (mins.length === 0) return undefined;
+  if (mins.every((m) => m < NOON_MIN)) return 'morning';
+  if (mins.every((m) => m >= NOON_MIN)) return 'afternoon';
+  return undefined;
+}
 
 /**
  * The line a card shows, or null when nothing is on record.
  *
- * Deliberately says "Departures" for the plural case rather than naming a
- * single time: picking one of a set would be inventing a fact the schedule does
- * not support, and the set spans seasons. Beyond MAX_SHOWN the tail becomes
- * "+N more" so a product with eleven departures does not eat the card.
+ * Never names one time out of a set — that would invent a fact the schedule
+ * does not support. Three shapes, by how many departures there are:
+ *
+ *   1        "Departs 9:00am"
+ *   2-3      "Departures 3:30pm, 5:00pm"
+ *   4+       "Departures 7:00am-6:00pm"
+ *
+ * The span, rather than the first three plus a count. Listing the earliest
+ * three made an all-day product read as a morning one: 137607P22 runs 14 times
+ * from 10:00 to 17:30, and "10:00am, 10:30am, 11:00am +11 more" names nothing
+ * after lunch. The span is the honest summary of a set that large, and the card
+ * links to the booking page for the exact list.
  */
 export function startTimeLabel(id: string): string | null {
   const times = startTimesFor(id);
   if (times.length === 0) return null;
   if (times.length === 1) return `Departs ${formatStartTime(times[0])}`;
-  const shown = times.slice(0, MAX_SHOWN).map(formatStartTime).join(', ');
-  const rest = times.length - MAX_SHOWN;
-  return `Departures ${shown}${rest > 0 ? ` +${rest} more` : ''}`;
+  if (times.length <= MAX_LISTED) {
+    return `Departures ${times.map(formatStartTime).join(', ')}`;
+  }
+  // Sorted ascending — guarded by a test on the snapshot — so ends are the span.
+  return `Departures ${formatStartTime(times[0])}-${formatStartTime(times[times.length - 1])}`;
 }
