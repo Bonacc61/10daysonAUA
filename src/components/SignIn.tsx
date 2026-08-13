@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { accountDeletionAvailable, deleteAccount } from '../lib/account';
 
 // The save / sign-in section at the bottom of the itinerary. Google one-click
 // (Gmail) plus an email magic link that works for any provider (Proton, iCloud,
@@ -10,6 +11,24 @@ export default function SignIn() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [deleteState, setDeleteState] = useState<'idle' | 'confirm' | 'deleting' | 'error' | 'done'>('idle');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const runDelete = async () => {
+    setDeleteState('deleting');
+    setDeleteError(null);
+    const res = await deleteAccount();
+    if (res.ok) {
+      // deleteAccount() has already signed out, so `user` goes null and this
+      // whole branch unmounts. The 'done' state is what a traveller sees in the
+      // frame before that happens, and if the sign-out is ever removed it is
+      // still the correct thing to show.
+      setDeleteState('done');
+    } else {
+      setDeleteError(res.error);
+      setDeleteState('error');
+    }
+  };
 
   if (loading) return null;
 
@@ -32,6 +51,74 @@ export default function SignIn() {
         <button type="button" className="btn-ghost" onClick={() => signOut()} style={{ padding: '10px 18px', fontSize: 14 }}>
           Sign out
         </button>
+
+        {/* GDPR Article 17. Hidden entirely until the edge function is deployed
+            and its URL configured — a delete button that cannot delete is worse
+            than none, because the person who presses it believes they are gone. */}
+        {accountDeletionAvailable() && (
+          <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid rgba(0,0,0,0.12)' }}>
+            {deleteState === 'done' ? (
+              <p style={{ fontSize: 14, color: 'var(--ink)', margin: 0 }}>
+                Your account and everything in it have been deleted. Thanks for travelling with us.
+              </p>
+            ) : deleteState === 'confirm' || deleteState === 'deleting' || deleteState === 'error' ? (
+              <div style={{ maxWidth: 460, margin: '0 auto', textAlign: 'left' }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', margin: '0 0 8px' }}>
+                  Delete your account permanently?
+                </p>
+                {/* Naming each thing, because "all your data" is not informed
+                    consent — and because one of these is public. */}
+                <ul style={{ fontSize: 13, color: 'rgba(0,0,0,0.7)', margin: '0 0 12px', paddingLeft: 20, lineHeight: 1.7 }}>
+                  <li>Your saved itinerary and questionnaire answers</li>
+                  <li>Any share links you created — those pages stop working for everyone</li>
+                  <li>Your sign-in details</li>
+                </ul>
+                <p style={{ fontSize: 13, color: 'rgba(0,0,0,0.55)', margin: '0 0 16px' }}>
+                  This cannot be undone.
+                </p>
+                {deleteState === 'error' && (
+                  <p role="alert" style={{ color: 'var(--red)', fontSize: 13, margin: '0 0 12px' }}>
+                    {deleteError === 'network'
+                      ? 'We could not reach the server, so we do not know whether anything was deleted. Please try again, and contact us if this keeps happening.'
+                      : 'Something went wrong and your account was not fully deleted. Please try again, or email hello@10daysonaruba.com.'}
+                  </p>
+                )}
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn-red"
+                    disabled={deleteState === 'deleting'}
+                    onClick={() => { void runDelete(); }}
+                    style={{ padding: '10px 18px', fontSize: 14 }}
+                  >
+                    {deleteState === 'deleting' ? 'Deleting…' : 'Yes, delete everything'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    disabled={deleteState === 'deleting'}
+                    onClick={() => { setDeleteState('idle'); setDeleteError(null); }}
+                    style={{ padding: '10px 18px', fontSize: 14 }}
+                  >
+                    Keep my account
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setDeleteState('confirm')}
+                style={{
+                  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                  fontFamily: 'inherit', fontSize: 13, color: 'rgba(0,0,0,0.55)',
+                  textDecoration: 'underline',
+                }}
+              >
+                Delete my account
+              </button>
+            )}
+          </div>
+        )}
       </Section>
     );
   }
