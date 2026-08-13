@@ -2,6 +2,7 @@ import type { CardEntry, MatchTag, Section, Slot, ViatorItem } from '../types';
 import { classifyTags } from './classify';
 import { sectionsForTags, primarySection } from './exploreItems';
 import { ITEM_PINS, CHECKIN_QUOTES } from './itemCoords';
+import { scheduleTimeOfDay } from './startTimes';
 
 // === Per-item fit scoring — the granular half of the matching engine ========
 // The matcher used to match whole GROUPS by a single overlapping tag and then
@@ -169,10 +170,23 @@ export function itemSlotOk(item: ViatorItem, slot: Slot): boolean {
 // already-SHARED itineraries silently became a different product. A shared link
 // showing something other than what was shared is a worse outcome than an
 // imperfectly-slotted card in an old plan.
+// Since 2026-08-13 the product's own Viator SCHEDULE is consulted where the
+// title says nothing, which is most of the catalog: 266 of 328 products carry no
+// time word, and 114 of those depart only ever before noon or only ever after.
+// That is what stopped a 9am walking tour being offered as an afternoon card
+// while its own card said "Departs 9:00am".
+//
+// Title first, schedule second — not because the title is better evidence, but
+// because it is the operator's own naming and the two never disagree: measured
+// across all 328 products, ZERO titles are contradicted by their schedule. The
+// order is therefore free, and this way the fallback cannot overturn a stated
+// name if that ever changes.
+//
+// Still only here, never in `itemSlotOk`, for the reason above it.
 export function itemSlotOkForFill(item: ViatorItem, slot: Slot): boolean {
   if (!itemSlotOk(item, slot)) return false;
   if (slot === 'evening') return true;
-  const tod = titleTimeOfDay(item);
+  const tod = titleTimeOfDay(item) ?? scheduleTimeOfDay(item.id);
   return tod === undefined || tod === slot;
 }
 
