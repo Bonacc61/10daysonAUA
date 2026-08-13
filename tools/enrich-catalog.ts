@@ -101,9 +101,24 @@ async function callClaude(batch: Product[], key: string): Promise<EnrichmentReco
       ).join('\n\n---\n\n'),
     }],
   };
+  // Two credential shapes reach this tool and they authenticate DIFFERENTLY.
+  // A console API key (`sk-ant-api…`) goes on `x-api-key`. An OAuth access
+  // token — what `ant auth login` mints and what a pasted `sk-ant-oat…` string
+  // is — must go on `Authorization: Bearer` with the oauth beta header, and
+  // returns a bare 401 on `x-api-key` with nothing to say the header was the
+  // problem. Sniffing the prefix costs one line and removes that dead end.
+  //
+  // Caveat for the OAuth path: an access token passed via env var is short-lived
+  // and is NOT auto-refreshed here, so a full 328-item run (17 batches) can 401
+  // partway through where a console key would not. Re-run — already-enriched
+  // items are skipped — or use an `sk-ant-api…` key for the full pass.
+  const isOAuth = key.startsWith('sk-ant-oat');
+  const auth: Record<string, string> = isOAuth
+    ? { authorization: `Bearer ${key}`, 'anthropic-beta': 'oauth-2025-04-20' }
+    : { 'x-api-key': key };
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    headers: { ...auth, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
   if (!r.ok) throw new Error(`anthropic ${r.status}: ${(await r.text()).slice(0, 200)}`);
