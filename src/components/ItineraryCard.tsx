@@ -9,6 +9,7 @@ import { otherSuggestionsExpandedPx } from './OtherSuggestionsList';
 import { productUrlFor, viatorLink, primarySection } from '../data/exploreItems';
 import { parseActivityCost } from '../data/matcher';
 import { departurePointFor } from '../data/itemFit';
+import { startTimeLabel } from '../data/startTimes';
 
 type Props = {
   entry: CardEntry;
@@ -52,7 +53,12 @@ const ECHO_EXTRA = 18;
 // Both terms round UP off the real line height: 11.5px × 1.4 is 16.1px, not 16.
 // Rounding down left the widest case ~1.6px short of its own arithmetic, and
 // `.itin-card-front` is overflow:hidden, so short means clipped.
-const DEPARTURE_EXTRA = 79;
+//
+// Raised 79 → 95 on 2026-08-13, when the box began carrying a start time. The
+// headline can now run to a fourth line ("Departures 9:00am, 3:00pm, 5:00pm
+// +3 more near Hyatt Regency Aruba Resort Spa and Casino"), so this budgets
+// chrome (4px border + 14px padding + 12px margin = 30) plus four 16.1px lines.
+const DEPARTURE_EXTRA = 95;
 // A check-in quote adds a line that wraps at card width — three of them for the
 // longest quote on record (95 characters), at 11.5px/1.4 plus its 2px margin.
 const DEPARTURE_QUOTE_EXTRA = 51;
@@ -74,13 +80,18 @@ export default function ItineraryCard({
     : (entry.activity.viator_item_url && parseActivityCost(entry.activity.cost) > 0 ? viatorLink(entry.activity.viator_item_url) : null);
 
   const otherCount = entry.kind === 'group' ? entry.others.length : 0;
-  // Must mirror what GroupCard actually renders, or the card clips.
+  // Must mirror DepartureNote's render condition exactly, or the card clips.
+  // That box now appears for a start time alone, not just a departure point —
+  // 281 of 328 products have one, against 35 with a pin — so this is the common
+  // case rather than the rare one.
   const departure = entry.kind === 'group' ? departurePointFor(entry.bestSeller) : null;
+  const startTime = entry.kind === 'group' ? startTimeLabel(entry.bestSeller.id) : null;
+  const hasDepartureBox = Boolean(departure || startTime);
   const height = BASE_HEIGHT
     + (suggestionsOpen ? otherSuggestionsExpandedPx(otherCount) : 0)
     + (showReasons ? (onSubmitReasonText ? SWAP_REASONS_TEXT_OPEN_PX : REASONS_EXTRA) : 0)
     + (echo?.length ? ECHO_EXTRA : 0)
-    + (departure ? DEPARTURE_EXTRA + (departure.checkin ? DEPARTURE_QUOTE_EXTRA : 0) : 0);
+    + (hasDepartureBox ? DEPARTURE_EXTRA + (departure?.checkin ? DEPARTURE_QUOTE_EXTRA : 0) : 0);
 
   const classes = ['flip-card', 'fade-in'];
   if (flipped)  classes.push('flipped');

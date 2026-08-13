@@ -1,0 +1,100 @@
+import { describe, it, expect } from 'vitest';
+import { startTimesFor, formatStartTime, startTimeLabel } from './startTimes';
+import SNAPSHOT from './startTimes.json';
+import { departureHeadline, departureHedge } from '../components/DepartureNote';
+
+describe('formatStartTime', () => {
+  it('renders in the voice the rest of the site uses', () => {
+    expect(formatStartTime('09:00')).toBe('9:00am');
+    expect(formatStartTime('15:30')).toBe('3:30pm');
+    expect(formatStartTime('18:30')).toBe('6:30pm');
+  });
+
+  it('says noon and midnight the way a traveller does', () => {
+    // 12 % 12 is 0, which would print "0:00pm" without the guard.
+    expect(formatStartTime('12:00')).toBe('12:00pm');
+    expect(formatStartTime('00:30')).toBe('12:30am');
+  });
+
+  it('passes anything unparseable through rather than inventing a time', () => {
+    expect(formatStartTime('')).toBe('');
+    expect(formatStartTime('flexible')).toBe('flexible');
+  });
+});
+
+describe('startTimeLabel', () => {
+  it('names the single time when there is only one', () => {
+    // 62666P1 — the 09:00 walking tour the engine was placing in afternoons.
+    expect(startTimeLabel('62666P1')).toBe('Departs 9:00am');
+  });
+
+  it('never collapses a set of departures to one time', () => {
+    // Picking one of these would invent a fact the schedule does not support.
+    expect(startTimeLabel('5595462P1')).toBe('Departures 3:30pm, 5:00pm');
+  });
+
+  it('is silent for a product with nothing on record', () => {
+    expect(startTimeLabel('no-such-product')).toBeNull();
+    expect(startTimesFor('no-such-product')).toEqual([]);
+  });
+});
+
+describe('the committed snapshot', () => {
+  const entries = Object.entries(SNAPSHOT as Record<string, string[]>);
+
+  it('is not empty', () => {
+    expect(entries.length).toBeGreaterThan(200);
+  });
+
+  it('holds only well-formed 24-hour times', () => {
+    // The API returns "HH:MM". Anything else means the probe's parser drifted
+    // or a hand edit went in, and formatStartTime would pass it through to the
+    // card verbatim rather than fail.
+    const bad = entries.flatMap(([id, times]) =>
+      times.filter((t) => !/^([01]\d|2[0-3]):[0-5]\d$/.test(t)).map((t) => `${id}: ${t}`));
+    expect(bad).toEqual([]);
+  });
+
+  it('never stores an empty or duplicated set', () => {
+    // An empty array would render "Departures " with nothing after it.
+    const empty = entries.filter(([, t]) => t.length === 0).map(([id]) => id);
+    expect(empty).toEqual([]);
+    const dupes = entries.filter(([, t]) => new Set(t).size !== t.length).map(([id]) => id);
+    expect(dupes).toEqual([]);
+  });
+
+  it('keeps every set in ascending order', () => {
+    // startTimeLabel shows the first N and counts the rest, so an unsorted set
+    // would name late departures and hide the early one — the opposite of what
+    // a traveller needs.
+    const unsorted = entries
+      .filter(([, t]) => [...t].sort().join() !== t.join())
+      .map(([id]) => id);
+    expect(unsorted).toEqual([]);
+  });
+});
+
+describe('the line a traveller actually reads', () => {
+  it('joins a time and a place into one sentence', () => {
+    expect(departureHeadline('Departs 9:00am', 'from Pelican Pier'))
+      .toBe('Departs 9:00am from Pelican Pier');
+    expect(departureHeadline('Departures 3:30pm, 5:00pm', 'near Holiday Inn Resort'))
+      .toBe('Departures 3:30pm, 5:00pm near Holiday Inn Resort');
+  });
+
+  it('stands alone when only one half is on record', () => {
+    // The word "Departs" has to come from somewhere when there is no time.
+    expect(departureHeadline(null, 'from Pelican Pier')).toBe('Departs from Pelican Pier');
+    expect(departureHeadline('Departs 9:00am', '')).toBe('Departs 9:00am');
+  });
+
+  it('hedges exactly what is on screen and nothing else', () => {
+    // Promising "times vary" on a card showing no time reads as a bug; claiming
+    // a meeting point we never printed is worse.
+    expect(departureHedge(true, true)).toMatch(/Confirm both/);
+    expect(departureHedge(true, false)).toMatch(/Times vary/);
+    expect(departureHedge(true, false)).not.toMatch(/meeting point/);
+    expect(departureHedge(false, true)).toBe('Confirm the meeting point on your booking.');
+    expect(departureHedge(false, true)).not.toMatch(/Times vary/);
+  });
+});
