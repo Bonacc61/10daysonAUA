@@ -157,7 +157,13 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
             {catalog.items.length} activities + {catalog.activities.length} local picks — filter by vibe, price, and category.
           </p>
 
-          <div style={{ position: 'relative', maxWidth: 520, marginTop: 22 }}>
+          {/* The icons are anchored to the INPUT, not to this wrapper. They are
+              positioned at top:50%, so any sibling the wrapper gains — the
+              search-by-meaning button below — would drag them down past the
+              input's bottom border. That is exactly what happened when the
+              button replaced the one-line hint. */}
+          <div style={{ maxWidth: 520, marginTop: 22 }}>
+            <div style={{ position: 'relative' }}>
             <span style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--sand-500)' }}>
               <Search />
             </span>
@@ -173,21 +179,30 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
                 <X />
               </button>
             )}
+            </div>
             {armed && (
-              <div className="search-arm-hint">
-                {semanticPending
-                  ? 'Searching by meaning…'
-                  : semanticFailed
-                    ? "Couldn't search by meaning just now — keyword results still below."
-                    : semanticAnswered
-                      // Say so. Otherwise pressing Enter makes the hint vanish and
-                      // changes nothing else, which reads as the feature ignoring you
-                      // — and it is the guaranteed experience until the first catalog
-                      // refresh populates the corpus.
-                      ? (semanticIds.length === 0
-                          ? 'Nothing else matched what you meant.'
-                          : `Added ${semanticIds.length} match${semanticIds.length === 1 ? '' : 'es'} by meaning.`)
-                      : <>press <kbd>Enter</kbd> to search by meaning</>}
+              <div className="search-meaning-row">
+                <button
+                  type="button"
+                  className="search-meaning-btn"
+                  onClick={() => void runSemantic()}
+                  disabled={semanticPending || semanticAnswered}
+                >
+                  {semanticPending ? 'Searching…' : 'Search by meaning'}
+                </button>
+                {/* Say what happened. Otherwise the button just greys out and
+                    nothing else changes, which reads as the feature ignoring
+                    you — and that is the guaranteed experience whenever the
+                    query matches nothing beyond the keyword hits. */}
+                {(semanticFailed || semanticAnswered) && (
+                  <span className="search-meaning-note">
+                    {semanticFailed
+                      ? "Couldn't search by meaning just now — keyword results still below."
+                      : semanticIds.length === 0
+                        ? 'Nothing else matched what you meant.'
+                        : `Added ${semanticIds.length} match${semanticIds.length === 1 ? '' : 'es'} by meaning.`}
+                  </span>
+                )}
               </div>
             )}
           </div>

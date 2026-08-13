@@ -110,16 +110,32 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
 .swap-text-go:disabled { opacity: 0.45; cursor: default; }
 
 /* Semantic search: the hint that appears once a query becomes a phrase. */
-.search-arm-hint {
-  margin-top: 6px;
-  font-size: 12px;
-  color: var(--sand-700);
-  font-style: italic;
+/* Search-by-meaning affordance. Was an italic grey hint reading "press Enter",
+   which is unreachable on a phone — there is no Enter key — so the whole
+   semantic path was desktop-only. It is a real button now, in the house style
+   (2px ink border, hard offset shadow, press-to-translate) so it reads as
+   something you can hit. The Enter handler stays for keyboard users. */
+.search-meaning-row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  margin-top: 10px;
 }
-.search-arm-hint kbd {
-  font-family: inherit; font-style: normal; font-size: 11px; font-weight: 700;
-  padding: 1px 5px; border: 1px solid var(--ink); border-radius: 4px;
-  background: var(--sand-50);
+.search-meaning-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 16px;
+  background: var(--cream); color: var(--ink);
+  border: 2px solid var(--ink); border-radius: 999px;
+  box-shadow: 3px 3px 0 var(--ink);
+  font-family: inherit; font-size: 13px; font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+  transition: transform 0.08s, box-shadow 0.08s, background 0.15s;
+}
+.search-meaning-btn:hover:not(:disabled) { background: var(--yellow); }
+.search-meaning-btn:active:not(:disabled) {
+  transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink);
+}
+.search-meaning-btn:disabled { opacity: 0.55; cursor: default; }
+.search-meaning-note {
+  font-size: 12px; font-weight: 600; color: var(--ink);
 }
 
 /* Where a boat collects you, and — when the operator states it — when to be
