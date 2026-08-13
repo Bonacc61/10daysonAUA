@@ -187,16 +187,22 @@ export function itemSlotOk(item: ViatorItem, slot: Slot): boolean {
 export function itemSlotOkForFill(item: ViatorItem, slot: Slot): boolean {
   if (!itemSlotOk(item, slot)) return false;
   if (slot === 'evening') return true;
-  // The Arikok gate wins outright where the two disagree. 441143P8 ("Natural
-  // Pool Jeep Adventure") publishes a single 14:00 departure, but the park
-  // closes at 16:00 and `itemSlotOk` has already pinned it to a morning — so
-  // applying the schedule here made it false for morning AND false for
-  // afternoon, and the product vanished from the fill ladder, the swap pool and
-  // the rotate path with nothing anywhere saying why. Two sources of truth
-  // conflict on that product; dropping it is the one response that helps
-  // nobody. Physical access beats a published time.
-  if (isNaturalPool(item)) return true;
-  const tod = titleTimeOfDay(item) ?? scheduleTimeOfDay(item.id);
+  // The Arikok gate beats a published departure time where they disagree, but
+  // it does NOT beat the product's own name. 441143P8 ("Natural Pool Jeep
+  // Adventure") publishes a single 14:00 departure while the park closes at
+  // 16:00, and `itemSlotOk` has already pinned it to a morning — so consulting
+  // the schedule made it false for morning AND false for afternoon, and the
+  // product vanished from the fill ladder, the swap pool and the rotate path
+  // with nothing anywhere saying why. Dropping it is the one response that
+  // helps nobody: physical access wins.
+  //
+  // Only the SCHEDULE is suppressed, not the title check above it. A blanket
+  // early return would also make a future "Natural Pool Afternoon Tour"
+  // eligible for mornings. No live product needs that today — none of the 22
+  // matching this regex carries a time word — which is exactly why it has to be
+  // written down rather than left to a `return true`.
+  const tod = titleTimeOfDay(item)
+    ?? (isNaturalPool(item) ? undefined : scheduleTimeOfDay(item.id));
   return tod === undefined || tod === slot;
 }
 

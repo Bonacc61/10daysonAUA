@@ -80,7 +80,9 @@ describe('the committed snapshot', () => {
   });
 
   it('never stores an empty or duplicated set', () => {
-    // An empty array would render "Departures " with nothing after it.
+    // startTimeLabel returns null at length 0, so an empty array would not
+    // render — it would mean the snapshot claims a product is timed when the
+    // probe found no departure, which is a generation bug worth catching.
     const empty = entries.filter(([, t]) => t.length === 0).map(([id]) => id);
     expect(empty).toEqual([]);
     const dupes = entries.filter(([, t]) => new Set(t).size !== t.length).map(([id]) => id);
@@ -88,9 +90,8 @@ describe('the committed snapshot', () => {
   });
 
   it('keeps every set in ascending order', () => {
-    // startTimeLabel shows the first N and counts the rest, so an unsorted set
-    // would name late departures and hide the early one — the opposite of what
-    // a traveller needs.
+    // startTimeLabel reads the ends of the array as the window, so an unsorted
+    // set would print a backwards or plain wrong range.
     const unsorted = entries
       .filter(([, t]) => [...t].sort().join() !== t.join())
       .map(([id]) => id);
@@ -128,8 +129,10 @@ describe('the snapshot agrees with the evidence it came from', () => {
   // regenerates it, so nothing but this test would notice the two drifting —
   // and the card would then print a departure time the probe never saw.
   it('matches docs/map/viator-start-times.json exactly', () => {
+    // Resolved against THIS file, not the working directory — a cwd-relative
+    // path passes under `npm test` from the root and throws ENOENT anywhere else.
     const evidence = JSON.parse(
-      readFileSync('docs/map/viator-start-times.json', 'utf8'),
+      readFileSync(new URL('../../docs/map/viator-start-times.json', import.meta.url), 'utf8'),
     ) as { products: Array<{ id: string; status: number; startTimes: string[] }> };
 
     const expected = new Map(

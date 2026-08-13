@@ -517,8 +517,18 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
    booking hedge, which is the one line making an undated schedule safe to print.
    One constant cannot serve both widths, so the Dashboard opts out of the fixed
    height entirely. Same escape the ≤640px block already uses, and the flip still
-   works there; only the height transition stops animating. */
-.dashboard-content .flip-card { height: auto !important; }
+   works there; only the height transition stops animating.
+
+   min-height keeps the floor: `height: auto` shrinks as well as grows, and
+   without it a short card dropped from 284px to 248px. */
+.dashboard-content .flip-card { height: auto !important; min-height: 284px; }
+/* The companion the ≤640px block ships and this rule needs for the same reason:
+   `.itin-card-image-btn` carries an INLINE `height: 100%`, which against an
+   auto-height ancestor resolves to `auto` — so the image collapsed to its
+   intrinsic aspect ratio and left a blank sand strip below it, up to 269px tall
+   on a narrow column. Its computed height must be `auto` before `align-self`
+   can stretch it back to the row. */
+.dashboard-content .itin-card-image-btn { height: auto !important; align-self: stretch; }
 .flip-inner {
   position: relative;
   transition: transform 0.55s cubic-bezier(0.4, 0.0, 0.2, 1);
