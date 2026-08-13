@@ -330,11 +330,13 @@ function ItineraryBody({
           {dupeFamily && <span className="itin-dupe-badge">⚠ 2nd {dupeFamily} this trip</span>}
         </div>
 
-        {/* Boats only, and only where a collection point is on record. It
-            matters more here than on Explore: by the itinerary the traveller has
-            committed to the day, and "where do I actually turn up?" is the next
-            question. ItineraryCard sizes the flip card for this box, so the two
-            must agree on when it renders — both go through DepartureNote. */}
+        {/* A departure PLACE is boats-only and rare (35 of 135 water items); a
+            start TIME is neither — 281 of 328 products carry one, so this box is
+            the common case, not the exception. It matters more here than on
+            Explore: by the itinerary the traveller has committed to the day, and
+            "where do I actually turn up, and when?" is the next question.
+            ItineraryCard sizes the flip card for this box, so the two must agree
+            on exactly when it renders — hence both go through DepartureNote. */}
         <DepartureNote item={bestSeller} />
 
         <div style={{ marginTop: 'auto' }}>

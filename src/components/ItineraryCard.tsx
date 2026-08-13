@@ -38,39 +38,31 @@ const BASE_HEIGHT = 284;
 const REASONS_EXTRA = SWAP_REASONS_OPEN_PX;
 // The applied-constraint caption is one line under the action row.
 const ECHO_EXTRA = 18;
-// The departure box (`.card-departure`): 4px borders + 14px padding + 12px
-// margin-bottom + two 16px lines — the place, and the unconditional "confirm
-// on booking" hedge. Without this term the flip card's fixed height clips it,
-// measured at 11px into the "Other suggestions" row.
-// Sized to the WIDEST measured case, not the typical one: the flip card keeps a
-// fixed height down to 641px (the `height: auto` override is in the ≤640px
-// block), and in the 641-768px band a long place name wraps. "Hyatt Regency
-// Aruba Resort Spa and Casino" — two live products pin there — takes the box to
-// 79px, and 130px with a quote. Costs some dead space on wide cards; the
-// alternative is moving that CSS override up to ≤768px, which changes card
-// layout for the whole band and is a product call rather than a bug fix.
+// The departure box (`.card-departure`). The flip card's height is fixed — the
+// flip animation needs it — so every optional row it can contain needs a term
+// here, and `.itin-card-front` is overflow:hidden, so a term that is too small
+// silently cuts content off rather than looking wrong.
 //
-// Both terms round UP off the real line height: 11.5px × 1.4 is 16.1px, not 16.
-// Rounding down left the widest case ~1.6px short of its own arithmetic, and
-// `.itin-card-front` is overflow:hidden, so short means clipped.
+// 30px chrome (4 border + 14 padding + 12 margin) + 3 headline lines + the 2px
+// hedge margin + 2 hedge lines = 112.5 at 11.5px/1.4 (16.1px per line, NOT 16 —
+// rounding that down is what left an earlier value 1.6px short). The worst real
+// content is an `approx` pin at "Hyatt Regency Aruba Resort Spa and Casino"
+// carrying several departures, which wraps the headline to three lines at the
+// narrowest width where the height is still fixed (641px; the `height: auto`
+// override lives in the ≤640px block).
 //
-// Raised 79 → 113 on 2026-08-13, when the box began carrying a start time.
+// History, because this term has been wrong twice. 79 predated start times and
+// covered a place alone. 95 added a line for the time but attributed all four
+// budgeted lines to the HEADLINE, forgetting that DepartureNote ALWAYS renders
+// the hedge too — DEPARTURE_QUOTE_EXTRA below covers only the OPTIONAL check-in
+// quote. The hedge also got longer ("Times vary by season and day…"), so it now
+// wraps to two lines across most of the band where the old one fit on one.
 //
-// 95 was wrong and clipped: it budgeted four lines and attributed all four to
-// the HEADLINE, forgetting that DepartureNote ALWAYS renders the hedge as well
-// (DEPARTURE_QUOTE_EXTRA below covers only the OPTIONAL check-in quote). The
-// hedge also got longer with this change — "Times vary by season and day.
-// Confirm both on your booking." wraps to two lines across most of the band
-// where the old 42-character hedge fit on one — so the miss was systematic
-// rather than an edge case, and `.itin-card-front` is overflow:hidden.
-//
-// Worst real case: an approx pin at "Hyatt Regency Aruba Resort Spa and Casino"
-// with several departures gives a 3-line headline and a 2-line hedge:
-//   chrome 30 (4 border + 14 padding + 12 margin) + 3×16.1 + 2 (hedge margin)
-//   + 2×16.1 = 112.5
-// Checked against the Dashboard too (src/pages/Dashboard.tsx:939), which renders
-// the same fixed-height card in a much narrower column and therefore wraps
-// earlier — it is the binding constraint, not the itinerary page.
+// This term is derived from the ITINERARY page's width. The Dashboard renders
+// the same card ~220px narrower and no single constant serves both, so it opts
+// out of the fixed height entirely — see `.dashboard-content .flip-card` in
+// src/index.css. Any new row added to the box needs a term here and a thought
+// about that column.
 const DEPARTURE_EXTRA = 113;
 // A check-in quote adds a line that wraps at card width — three of them for the
 // longest quote on record (95 characters), at 11.5px/1.4 plus its 2px margin.

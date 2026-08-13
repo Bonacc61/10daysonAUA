@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { startTimesFor, formatStartTime, startTimeLabel } from './startTimes';
 import SNAPSHOT from './startTimes.json';
 import { departureHeadline, departureHedge } from '../components/DepartureNote';
@@ -34,16 +35,16 @@ describe('startTimeLabel', () => {
   });
 
   it('shows the span, not the first three, once a set gets large', () => {
-    // 137607P22 runs 14 times from 10:00 to 16:30. Listing the earliest three
-    // named nothing after lunch and made an all-day product read as a morning
-    // one — the span is the honest summary.
-    expect(startTimeLabel('137607P22')).toBe('Departures 10:00am-4:30pm');
-    expect(startTimeLabel('137607P23')).toBe('Departures 7:00am-4:00pm');
+    // 137607P22 runs 14 times between 10:00 and 16:30. Listing the earliest
+    // three named nothing after lunch; a bare span claimed a continuum. The
+    // count states discreteness and the window without inventing either.
+    expect(startTimeLabel('137607P22')).toBe('14 departures between 10:00am and 4:30pm');
+    expect(startTimeLabel('137607P23')).toBe('19 departures between 7:00am and 4:00pm');
   });
 
   it('still lists in full at the boundary', () => {
-    // 3 is the largest set shown as a list; 4 flips to a span. Guards the
-    // off-by-one directly rather than trusting the <= .
+    // 3 is the largest set shown as a list; 4 flips to the counted window.
+    // Guards the off-by-one directly rather than trusting the <= .
     const three = Object.entries(SNAPSHOT as Record<string, string[]>)
       .find(([, t]) => t.length === 3);
     const four = Object.entries(SNAPSHOT as Record<string, string[]>)
@@ -52,7 +53,7 @@ describe('startTimeLabel', () => {
     expect(four, 'snapshot has no 4-time product to test with').toBeTruthy();
     expect(startTimeLabel(three![0])).toMatch(/, /);
     expect(startTimeLabel(three![0])).not.toMatch(/-/);
-    expect(startTimeLabel(four![0])).toMatch(/^Departures \d/);
+    expect(startTimeLabel(four![0])).toMatch(/^4 departures between /);
     expect(startTimeLabel(four![0])).not.toMatch(/, /);
   });
 
@@ -119,5 +120,33 @@ describe('the line a traveller actually reads', () => {
     expect(departureHedge(true, false)).not.toMatch(/meeting point/);
     expect(departureHedge(false, true)).toBe('Confirm the meeting point on your booking.');
     expect(departureHedge(false, true)).not.toMatch(/Times vary/);
+  });
+});
+
+describe('the snapshot agrees with the evidence it came from', () => {
+  // src/data/startTimes.json is derived BY HAND from the probe's output. Nothing
+  // regenerates it, so nothing but this test would notice the two drifting —
+  // and the card would then print a departure time the probe never saw.
+  it('matches docs/map/viator-start-times.json exactly', () => {
+    const evidence = JSON.parse(
+      readFileSync('docs/map/viator-start-times.json', 'utf8'),
+    ) as { products: Array<{ id: string; status: number; startTimes: string[] }> };
+
+    const expected = new Map(
+      evidence.products
+        .filter((p) => p.status === 200 && p.startTimes.length > 0)
+        .map((p) => [p.id, p.startTimes.join(',')]),
+    );
+    const actual = new Map(
+      Object.entries(SNAPSHOT as Record<string, string[]>).map(([id, t]) => [id, t.join(',')]),
+    );
+
+    const missing = [...expected.keys()].filter((id) => !actual.has(id));
+    const extra = [...actual.keys()].filter((id) => !expected.has(id));
+    const differing = [...expected.entries()]
+      .filter(([id, v]) => actual.has(id) && actual.get(id) !== v)
+      .map(([id]) => id);
+
+    expect({ missing, extra, differing }).toEqual({ missing: [], extra: [], differing: [] });
   });
 });

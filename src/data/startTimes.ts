@@ -79,13 +79,19 @@ export function scheduleTimeOfDay(id: string): 'morning' | 'afternoon' | undefin
  *
  *   1        "Departs 9:00am"
  *   2-3      "Departures 3:30pm, 5:00pm"
- *   4+       "Departures 7:00am-6:00pm"
+ *   4+       "4 departures between 6:30am and 3:45pm"
  *
- * The span, rather than the first three plus a count. Listing the earliest
- * three made an all-day product read as a morning one: 137607P22 runs 14 times
- * from 10:00 to 17:30, and "10:00am, 10:30am, 11:00am +11 more" names nothing
- * after lunch. The span is the honest summary of a set that large, and the card
- * links to the booking page for the exact list.
+ * The COUNT is what makes the fourth case honest, and it took two tries to get
+ * there. Listing the earliest three made an all-day product read as a morning
+ * one — 137607P22 runs 14 times between 10:00 and 16:30, and "10:00am, 10:30am,
+ * 11:00am +11 more" names nothing after lunch. But a bare span invented the
+ * opposite fiction: 472918P1 departs 06:30, 07:45, 09:00 and 15:45, and
+ * "Departures 6:30am-3:45pm" reads as continuous across a six-hour hole. Eleven
+ * of the thirty products in this case have a gap of four hours or more.
+ *
+ * "4 departures between X and Y" states discreteness and the window without
+ * claiming anything about what lies between them. The card links to the booking
+ * page for the exact list.
  */
 export function startTimeLabel(id: string): string | null {
   const times = startTimesFor(id);
@@ -94,6 +100,8 @@ export function startTimeLabel(id: string): string | null {
   if (times.length <= MAX_LISTED) {
     return `Departures ${times.map(formatStartTime).join(', ')}`;
   }
-  // Sorted ascending — guarded by a test on the snapshot — so ends are the span.
-  return `Departures ${formatStartTime(times[0])}-${formatStartTime(times[times.length - 1])}`;
+  // Sorted ascending — guarded by a test on the snapshot — so ends are the window.
+  const first = formatStartTime(times[0]);
+  const last = formatStartTime(times[times.length - 1]);
+  return `${times.length} departures between ${first} and ${last}`;
 }

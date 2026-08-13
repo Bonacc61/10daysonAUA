@@ -138,10 +138,11 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
   font-size: 12px; font-weight: 600; color: var(--ink);
 }
 
-/* Where a boat collects you, and — when the operator states it — when to be
-   there. Rendered only from committed, human-verified data (see CHECKIN_QUOTES
-   in src/data/itemCoords.ts); absent on most cards by design. Boxed rather than
-   set as body text because missing a departure is not a recoverable mistake. */
+/* When a trip departs and where it collects you. Rendered from committed data
+   of two different provenances: hand-verified pins and verbatim operator quotes
+   (CHECKIN_QUOTES in src/data/itemCoords.ts), plus Viator's own start-time
+   schedule (src/data/startTimes.json). Boxed rather than set as body text
+   because missing a departure is not a recoverable mistake. */
 .card-departure {
   display: flex; align-items: flex-start; gap: 7px;
   background: var(--sand-50); border: 2px solid var(--ink); border-radius: 10px;
@@ -507,6 +508,17 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
    - X axis (top ↔ bottom): triggered by clicking Swap → one full revolution
      while the activity content swaps at the half-way (edge-on) point.       */
 .flip-card { perspective: 1200px; transition: height 0.3s ease; }
+
+/* The Dashboard renders the SAME fixed-height card beside a 220px sidebar, so
+   its cards are ~220px narrower than the itinerary page's at every viewport.
+   ItineraryCard's height terms are derived from the itinerary page's width, and
+   the departure box wraps to more lines in the narrower column than any of them
+   budget for — against `.itin-card-front`'s overflow:hidden that clipped the
+   booking hedge, which is the one line making an undated schedule safe to print.
+   One constant cannot serve both widths, so the Dashboard opts out of the fixed
+   height entirely. Same escape the ≤640px block already uses, and the flip still
+   works there; only the height transition stops animating. */
+.dashboard-content .flip-card { height: auto !important; }
 .flip-inner {
   position: relative;
   transition: transform 0.55s cubic-bezier(0.4, 0.0, 0.2, 1);

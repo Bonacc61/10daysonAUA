@@ -171,8 +171,9 @@ export function itemSlotOk(item: ViatorItem, slot: Slot): boolean {
 // showing something other than what was shared is a worse outcome than an
 // imperfectly-slotted card in an old plan.
 // Since 2026-08-13 the product's own Viator SCHEDULE is consulted where the
-// title says nothing, which is most of the catalog: 266 of 328 products carry no
-// time word, and 114 of those depart only ever before noon or only ever after.
+// title says nothing, which is most of the catalog: 316 of 328 carry no
+// morning/afternoon word at all, and 114 of those sit outside the evening regex
+// and depart only ever before noon or only ever after.
 // That is what stopped a 9am walking tour being offered as an afternoon card
 // while its own card said "Departs 9:00am".
 //
@@ -186,6 +187,15 @@ export function itemSlotOk(item: ViatorItem, slot: Slot): boolean {
 export function itemSlotOkForFill(item: ViatorItem, slot: Slot): boolean {
   if (!itemSlotOk(item, slot)) return false;
   if (slot === 'evening') return true;
+  // The Arikok gate wins outright where the two disagree. 441143P8 ("Natural
+  // Pool Jeep Adventure") publishes a single 14:00 departure, but the park
+  // closes at 16:00 and `itemSlotOk` has already pinned it to a morning — so
+  // applying the schedule here made it false for morning AND false for
+  // afternoon, and the product vanished from the fill ladder, the swap pool and
+  // the rotate path with nothing anywhere saying why. Two sources of truth
+  // conflict on that product; dropping it is the one response that helps
+  // nobody. Physical access beats a published time.
+  if (isNaturalPool(item)) return true;
   const tod = titleTimeOfDay(item) ?? scheduleTimeOfDay(item.id);
   return tod === undefined || tod === slot;
 }
