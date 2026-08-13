@@ -25,11 +25,13 @@ Live production app. Dutch law (GDPR) applies. Reddit launch imminent.
 - **Never log text a traveller typed** — not to console, not into an error body, not into a
   database column. Log the derived result instead. `itinerary-edit` logs the parsed
   constraint; `search` logs the result count. Neither logs the words.
-- **Two feature flags gate the AI features and both default OFF:** `VITE_NL_EDIT` and
-  `VITE_SEMANTIC_SEARCH`. They send a traveller's own words to a US sub-processor, so the
-  switch is a legal decision, not a technical one. Neither appears in `.env.production`.
-  Enable checklists live in `docs/superpowers/specs/2026-08-11-natural-language-edit-design.md`
-  and `docs/superpowers/specs/2026-08-12-semantic-search-design.md`.
+- **Two feature flags gate the AI features:** `VITE_NL_EDIT` and `VITE_SEMANTIC_SEARCH`.
+  They send a traveller's own words to a US sub-processor, so flipping one is a legal
+  decision, not a technical one — never enable either without working its checklist first
+  (`docs/superpowers/specs/2026-08-11-natural-language-edit-design.md`,
+  `docs/superpowers/specs/2026-08-12-semantic-search-design.md`). Both default off in code;
+  `.env.production` is the source of truth for which are actually on. A flag that is ON
+  carries its rationale and its rollback there; a flag that is off is simply absent.
 - Contact submissions auto-purge after 12 months (cron job exists). New tables need matching retention.
 
 ## Data flow
@@ -43,7 +45,8 @@ User → React app (localStorage) → Supabase (trips, feedback_events, shared_i
                                 → PostHog (analytics, EU hosted)
                                 → Viator (affiliate clicks, no return signal)
 
-AI features (both dark by default — see the flags below):
+AI features (each gated by a flag — see "Two feature flags" above;
+`.env.production` says which are on):
   itinerary-edit → Anthropic (US)   free text → an EditConstraint. Nothing stored.
   search         → OpenAI (US)      query → a vector. Hash + vector cached 30 days.
   viator-cards   → OpenAI (US)      product text → vectors, at ingest. Always on.

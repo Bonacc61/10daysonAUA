@@ -1,7 +1,8 @@
 # Semantic search — enable checklist and what shipped
 
 **Date:** 2026-08-12
-**Status:** Implemented behind `VITE_SEMANTIC_SEARCH` (default off)
+**Status:** **LIVE in production since 2026-08-12 (`d5e2d95`)** — enabled below its own
+quality bar, deliberately. See "What the golden set actually measured" before touching this.
 **PRD:** `tasks/prd-semantic-search.md`
 
 ## What shipped
@@ -13,7 +14,7 @@
 | Query embedding, cache, ranking | `supabase/functions/search/index.ts` |
 | Client library behind the flag | `src/lib/semanticSearch.ts` (+ tests) |
 | Keyword-first blending | `blendSearchResults` in `src/data/exploreItems.ts` (+ tests) |
-| Armed-on-space UI | `src/pages/Explore.tsx`, `.search-arm-hint` in `src/index.css` |
+| Armed-on-space UI | `src/pages/Explore.tsx`, `.search-meaning-*` in `src/index.css` (was `.search-arm-hint`, a "press Enter" text hint — replaced 2026-08-12 with a real button, because a phone has no Enter key and the semantic path was therefore unreachable on mobile) |
 | Golden set + runner | `tools/search-golden.json`, `tools/run-search-golden.cjs` |
 
 Verified in the browser, flag on and flag off:
@@ -23,9 +24,16 @@ Verified in the browser, flag on and flag off:
 - Enter → **exactly one** request; on failure the hint becomes *"Couldn't search by meaning just now — keyword results still below."* and keyword results are untouched.
 - Flag off → hint never renders, Enter issues no request, substring search unchanged.
 
-## Enable checklist
+## Enable checklist — worked through on 2026-08-12, all steps done
 
-Nothing below is optional, and the order matters.
+Kept in full rather than deleted: it is the record of what enabling cost, and the
+natural-language-edit flag has to walk the same path. Nothing below was optional, and the
+order mattered. Three things bit that the list did not predict, all recorded in `d5e2d95`:
+`supabase db push` refused to apply anything while two hand-applied migrations sat
+unrecorded in CLI history; `item_embeddings.sql` then failed with `type "vector" does not
+exist` because the CLI's search path excludes `extensions`; and there was no way at all to
+force a catalog rebuild, so the corpus would have stayed empty until a 6h TTL expired and a
+visitor happened to arrive — `op=refresh` on `viator-cards` exists now because of that.
 
 1. **Apply the migration.** `supabase db push`, then confirm the `vector` extension is
    enabled, `item_embeddings_hnsw_idx` exists, and both `purge-old-query-embeddings` and
@@ -48,10 +56,37 @@ Nothing below is optional, and the order matters.
    in the same commit as the feature. Re-read it rather than redo it.
 8. Only then: `VITE_SEMANTIC_SEARCH=true` in `.env.production`.
 
+## What the golden set actually measured
+
+Run on the live corpus, 2026-08-12, `MIN_SIMILARITY = 0.20`:
+
+| | Score |
+|---|---|
+| Intent queries | 9/15 |
+| Name queries | 8/10 |
+| **Overall recall** | **66%** against the 80% target the set itself declares |
+
+The gap is not spread evenly — it is concentrated in **negation**. `we get seasick` scores
+0/3 and `no walking, we are tired` 1/3, because an embedding of a sentence about seasickness
+sits next to boat trips: the vector encodes the topic, and the word doing the excluding is
+one token among many. This is the weakness that was flagged in the PRD before any of it was
+built, so it is a confirmation, not a surprise. Threshold tuning cannot fix it; only a
+negation pre-pass, or a decision to treat negated queries as out of scope, can.
+
+Adversarial cases all passed: empty and over-long queries both 400, prompt-injection text
+returns ordinary results, an injection-shaped string is blocked at the gateway, table intact.
+
+**Why it shipped anyway:** `blendSearchResults` appends semantic hits *below* substring
+results rather than replacing them, so the failure mode of a bad match is a mediocre extra
+suggestion at the bottom of a list that already works. Rollback is deleting one line from
+`.env.production`.
+
 ## Known gaps, recorded rather than hidden
 
-- **`MIN_SIMILARITY = 0.20` is unmeasured.** Too low pads results with noise; too high
-  recreates the empty page the feature exists to fix. Step 5 is how it gets a real value.
+- **`MIN_SIMILARITY = 0.20` is still an unmeasured guess.** The golden run above used it
+  but never swept it — one number at one threshold is not a measurement of the threshold.
+  Too low pads results with noise; too high recreates the empty page the feature exists to
+  fix. The runner works now, so this is a sweep away.
 - **Voyage is unsupported.** It produces 512 dimensions against a `vector(256)` column, so
   `viator-cards` skips the write and `search` returns 503 rather than ranking on a
   mismatch — which would be confident nonsense, not an error.
