@@ -510,7 +510,9 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 .flip-card { perspective: 1200px; transition: height 0.3s ease; }
 
 /* The Dashboard renders the SAME fixed-height card beside a 220px sidebar, so
-   its cards are ~220px narrower than the itinerary page's at every viewport.
+   its cards are ~308px narrower than the itinerary page's at every viewport
+   (measured 1144px vs 836px at ≥1280px — the sidebar, its border and the
+   content padding all count, not just the sidebar).
    ItineraryCard's height terms are derived from the itinerary page's width, and
    the departure box wraps to more lines in the narrower column than any of them
    budget for — against `.itin-card-front`'s overflow:hidden that clipped the
@@ -519,15 +521,24 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
    height entirely. Same escape the ≤640px block already uses, and the flip still
    works there; only the height transition stops animating.
 
-   min-height keeps the floor: `height: auto` shrinks as well as grows, and
-   without it a short card dropped from 284px to 248px. */
+   min-height keeps the floor, because `height: auto` shrinks as well as grows
+   and a short card otherwise drops below the 284px it has on the itinerary page.
+   It has to be repeated on the two inner wrappers: `.flip-inner` and
+   `.itin-card-front` both carry an INLINE `height: 100%`, and a percentage
+   height does not resolve against a parent sized only by `min-height` — so a
+   floor on the outer element alone left the wrapper at 284px while the visible
+   bordered card stayed at its content height, adding up to 81px of dead space
+   under it instead of a floor. */
 .dashboard-content .flip-card { height: auto !important; min-height: 284px; }
-/* The companion the ≤640px block ships and this rule needs for the same reason:
-   `.itin-card-image-btn` carries an INLINE `height: 100%`, which against an
-   auto-height ancestor resolves to `auto` — so the image collapsed to its
-   intrinsic aspect ratio and left a blank sand strip below it, up to 269px tall
-   on a narrow column. Its computed height must be `auto` before `align-self`
-   can stretch it back to the row. */
+.dashboard-content .flip-inner,
+.dashboard-content .itin-card-front { min-height: 284px; }
+/* Same class of problem, and the reason this rule exists: `.itin-card-image-btn`
+   also carries an inline `height: 100%`, which against an auto-height ancestor
+   resolves to `auto` — so the image collapsed to its intrinsic aspect ratio and
+   left a blank sand strip below it, measured up to 398px on a narrow column. Its
+   computed height must be `auto` before `align-self` can stretch it to the row.
+   (The ≤640px block solves the same collapse differently — an explicit 160px in
+   a column-direction split — so it is not the precedent to copy here.) */
 .dashboard-content .itin-card-image-btn { height: auto !important; align-self: stretch; }
 .flip-inner {
   position: relative;

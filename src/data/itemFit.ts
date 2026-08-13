@@ -123,9 +123,9 @@ export function isEveningItem(item: ViatorItem): boolean {
 // gates close at 16:00. Anything that has to drive through Arikok to reach it is
 // a MORNING trip or it does not happen: an afternoon departure cannot get in,
 // round the north coast and back out before closing. Matched on the title
-// because it is the only reliable signal — 21 live products mention it and they
-// classify as three different activity kinds (17 off-road, 3 hike, 1 cruise), so
-// nothing derived from tags covers them all.
+// because it is the only reliable signal — 22 live products mention it and they
+// classify as four different activity kinds (off-road, hike, cruise, snorkel),
+// so nothing derived from tags covers them all.
 const NATURAL_POOL_RE = /natural pool|conchi/i;
 export function isNaturalPool(item: { title: string }): boolean {
   return NATURAL_POOL_RE.test(item.title);
