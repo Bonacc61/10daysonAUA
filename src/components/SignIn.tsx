@@ -24,9 +24,10 @@ export default function SignIn() {
   if (user) {
     return (
       <Section>
-        <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 8px', color: 'var(--ink)' }}>Your trip is saved. ✓</h2>
+        {/* Same correction as LoginModal: logging in is not saving a trip. */}
+        <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 8px', color: 'var(--ink)' }}>Logged in ✓</h2>
         <p style={{ fontStyle: 'italic', fontSize: 15, color: 'rgba(0,0,0,0.65)', margin: '0 0 24px' }}>
-          Signed in as {user.email}. Edits save automatically and follow you across devices.
+          Signed in as {user.email}. Edits to your itinerary now save automatically and follow you across devices.
         </p>
         <button type="button" className="btn-ghost" onClick={() => signOut()} style={{ padding: '10px 18px', fontSize: 14 }}>
           Sign out

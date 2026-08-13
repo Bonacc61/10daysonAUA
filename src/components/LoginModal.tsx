@@ -30,9 +30,14 @@ export default function LoginModal({ open, onClose }: { open: boolean; onClose: 
 
         {loading ? null : user ? (
           <>
-            <h2 className="font-display" style={{ fontSize: 24, margin: '0 0 6px', color: 'var(--ink)' }}>Your trip is saved. ✓</h2>
+            {/* "Logged in", not "Trip saved". Signing in is the thing that just
+                happened; saving a trip is a separate deliberate act with its own
+                confirmation (the Save trip modal in Itinerary.tsx). Announcing a
+                save here claimed credit for something the traveller had not done
+                and made the real "Trip saved ✓" mean nothing when it arrived. */}
+            <h2 className="font-display" style={{ fontSize: 24, margin: '0 0 6px', color: 'var(--ink)' }}>Logged in ✓</h2>
             <p style={{ fontStyle: 'italic', fontSize: 14, color: 'rgba(0,0,0,0.65)', margin: '0 0 20px' }}>
-              Signed in as {user.email}. Edits save automatically and follow you across devices.
+              Signed in as {user.email}. Edits to your itinerary now save automatically and follow you across devices.
             </p>
             <button type="button" className="btn-ghost" onClick={() => signOut()} style={{ padding: '10px 18px', fontSize: 14 }}>Sign out</button>
           </>
