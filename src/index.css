@@ -507,39 +507,31 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
    - Y axis (left ↔ right): triggered by clicking the image → shows ratings.
    - X axis (top ↔ bottom): triggered by clicking Swap → one full revolution
      while the activity content swaps at the half-way (edge-on) point.       */
-.flip-card { perspective: 1200px; transition: height 0.3s ease; }
+/* Cards size to their content, with a floor at the old fixed height.
 
-/* The Dashboard renders the SAME fixed-height card beside a 220px sidebar, so
-   its cards are ~308px narrower than the itinerary page's at every viewport
-   (measured 1144px vs 836px at ≥1280px — the sidebar, its border and the
-   content padding all count, not just the sidebar).
-   ItineraryCard's height terms are derived from the itinerary page's width, and
-   the departure box wraps to more lines in the narrower column than any of them
-   budget for — against `.itin-card-front`'s overflow:hidden that clipped the
-   booking hedge, which is the one line making an undated schedule safe to print.
-   One constant cannot serve both widths, so the Dashboard opts out of the fixed
-   height entirely. Same escape the ≤640px block already uses, and the flip still
-   works there; only the height transition stops animating.
+   They used to carry a computed pixel height, because the flip animation needs
+   the two faces to agree on one. Every optional row therefore needed a term in
+   that sum, and a term that was too small clipped (`.itin-card-front` is
+   overflow:hidden) while a term sized for the worst case wasted the difference
+   on every other card. The departure box made that trade untenable: budgeting
+   for a 3-line headline plus a 2-line hedge reserved 113px, the box actually
+   renders at 52px on a wide card, and the leftover 215px opened as dead space
+   above "Book now". Three separate clipping bugs came out of that arithmetic in
+   one week; this retires it.
 
-   min-height keeps the floor, because `height: auto` shrinks as well as grows
-   and a short card otherwise drops below the 284px it has on the itinerary page.
-   It has to be repeated on the two inner wrappers: `.flip-inner` and
-   `.itin-card-front` both carry an INLINE `height: 100%`, and a percentage
-   height does not resolve against a parent sized only by `min-height` — so a
-   floor on the outer element alone left the wrapper at 284px while the visible
-   bordered card stayed at its content height, adding up to 81px of dead space
-   under it instead of a floor. */
-.dashboard-content .flip-card { height: auto !important; min-height: 284px; }
-.dashboard-content .flip-inner,
-.dashboard-content .itin-card-front { min-height: 284px; }
-/* Same class of problem, and the reason this rule exists: `.itin-card-image-btn`
-   also carries an inline `height: 100%`, which against an auto-height ancestor
-   resolves to `auto` — so the image collapsed to its intrinsic aspect ratio and
-   left a blank sand strip below it, measured up to 398px on a narrow column. Its
-   computed height must be `auto` before `align-self` can stretch it to the row.
-   (The ≤640px block solves the same collapse differently — an explicit 160px in
-   a column-direction split — so it is not the precedent to copy here.) */
-.dashboard-content .itin-card-image-btn { height: auto !important; align-self: stretch; }
+   min-height has to be repeated on the two inner wrappers: both carry an inline
+   `height: 100%`, and a percentage height does not resolve against a parent
+   sized only by min-height, so a floor on the outer element alone leaves the
+   wrapper tall and the visible card short. Same reason `.itin-card-image-btn`
+   needs its height released before `align-self` can stretch it — otherwise it
+   collapses to the image's intrinsic ratio and leaves a blank strip.
+
+   Cost, accepted: `transition: height` no longer animates, because there is no
+   numeric height to interpolate. Expanding "Other suggestions" now snaps. */
+.flip-card { perspective: 1200px; height: auto !important; min-height: 284px; }
+.flip-inner, .itin-card-front { min-height: 284px; }
+.itin-card-image-btn { height: auto !important; align-self: stretch; }
+
 .flip-inner {
   position: relative;
   transition: transform 0.55s cubic-bezier(0.4, 0.0, 0.2, 1);

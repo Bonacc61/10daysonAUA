@@ -4,12 +4,9 @@ import type { CardEntry, SwapReason, ViatorItem, Section } from '../types';
 import { Star, MapPin, Clock, Dollar, Swap } from './Icons';
 import GroupCard from './GroupCard';
 import CardBack from './CardBack';
-import SwapReasons, { SWAP_REASONS_OPEN_PX, SWAP_REASONS_TEXT_OPEN_PX, type SwapTextProps } from './SwapReasons';
-import { otherSuggestionsExpandedPx } from './OtherSuggestionsList';
+import SwapReasons, { type SwapTextProps } from './SwapReasons';
 import { productUrlFor, viatorLink, primarySection } from '../data/exploreItems';
 import { parseActivityCost } from '../data/matcher';
-import { departurePointFor } from '../data/itemFit';
-import { startTimeLabel } from '../data/startTimes';
 
 type Props = {
   entry: CardEntry;
@@ -29,44 +26,10 @@ type Props = {
   onNavigateToSection?: (section: Section) => void;
 };
 
-// Base height — accommodates the green header band (~44px) on top of both
-// front faces. Itinerary cards grow vertically when the group "Other
-// suggestions" list is expanded; see EXPANDED_PER_ITEM below.
-const BASE_HEIGHT = 284;
-// Card growth when the chip strip is open = strip height + its 8px margin-top.
-// Must equal the strip's open footprint so the action row stays put.
-const REASONS_EXTRA = SWAP_REASONS_OPEN_PX;
-// The applied-constraint caption is one line under the action row.
-const ECHO_EXTRA = 18;
-// The departure box (`.card-departure`). The flip card's height is fixed — the
-// flip animation needs it — so every optional row it can contain needs a term
-// here, and `.itin-card-front` is overflow:hidden, so a term that is too small
-// silently cuts content off rather than looking wrong.
-//
-// 30px chrome (4 border + 14 padding + 12 margin) + 3 headline lines + the 2px
-// hedge margin + 2 hedge lines = 112.5 at 11.5px/1.4 (16.1px per line, NOT 16 —
-// rounding that down is what left an earlier value 1.6px short). The worst real
-// content is an `approx` pin at "Hyatt Regency Aruba Resort Spa and Casino"
-// carrying several departures, which wraps the headline to three lines at the
-// narrowest width where the height is still fixed (641px; the `height: auto`
-// override lives in the ≤640px block).
-//
-// History, because this term has been wrong twice. 79 predated start times and
-// covered a place alone. 95 added a line for the time but attributed all four
-// budgeted lines to the HEADLINE, forgetting that DepartureNote ALWAYS renders
-// the hedge too — DEPARTURE_QUOTE_EXTRA below covers only the OPTIONAL check-in
-// quote. The hedge also got longer ("Times vary by season and day…"), so it now
-// wraps to two lines across most of the band where the old one fit on one.
-//
-// This term is derived from the ITINERARY page's width. The Dashboard renders
-// the same card ~220px narrower and no single constant serves both, so it opts
-// out of the fixed height entirely — see `.dashboard-content .flip-card` in
-// src/index.css. Any new row added to the box needs a term here and a thought
-// about that column.
-const DEPARTURE_EXTRA = 113;
-// A check-in quote adds a line that wraps at card width — three of them for the
-// longest quote on record (95 characters), at 11.5px/1.4 plus its 2px margin.
-const DEPARTURE_QUOTE_EXTRA = 51;
+// Card height is CSS's job now, not arithmetic's — see `.flip-card` in
+// src/index.css. Cards size to their content with a min-height floor, which is
+// why nothing here computes pixels any more. Three clipping bugs in one week
+// came out of the sum this replaced.
 
 export default function ItineraryCard({
   entry, flipped, swapping, pinned, splurge, staple, dupeFamily, onFlip, onSwap,
@@ -85,18 +48,6 @@ export default function ItineraryCard({
     : (entry.activity.viator_item_url && parseActivityCost(entry.activity.cost) > 0 ? viatorLink(entry.activity.viator_item_url) : null);
 
   const otherCount = entry.kind === 'group' ? entry.others.length : 0;
-  // Must mirror DepartureNote's render condition exactly, or the card clips.
-  // That box now appears for a start time alone, not just a departure point —
-  // 281 of 328 products have one, against 35 with a pin — so this is the common
-  // case rather than the rare one.
-  const departure = entry.kind === 'group' ? departurePointFor(entry.bestSeller) : null;
-  const startTime = entry.kind === 'group' ? startTimeLabel(entry.bestSeller.id) : null;
-  const hasDepartureBox = Boolean(departure || startTime);
-  const height = BASE_HEIGHT
-    + (suggestionsOpen ? otherSuggestionsExpandedPx(otherCount) : 0)
-    + (showReasons ? (onSubmitReasonText ? SWAP_REASONS_TEXT_OPEN_PX : REASONS_EXTRA) : 0)
-    + (echo?.length ? ECHO_EXTRA : 0)
-    + (hasDepartureBox ? DEPARTURE_EXTRA + (departure?.checkin ? DEPARTURE_QUOTE_EXTRA : 0) : 0);
 
   const classes = ['flip-card', 'fade-in'];
   if (flipped)  classes.push('flipped');
@@ -123,7 +74,7 @@ export default function ItineraryCard({
                  onNavigateToSection={onNavigateToSection} />;
 
   return (
-    <div className={classes.join(' ')} style={{ height }}>
+    <div className={classes.join(' ')}>
       <div className="flip-inner" style={{ height: '100%' }}>
         {front}
         {back}
