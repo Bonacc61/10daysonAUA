@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generatePlan } from './itineraryGenerator';
+import { generatePlan, REVISITABLE_MIN_DAY_GAP } from './itineraryGenerator';
 import { getCatalog } from './activitySource';
 import { DEFAULT_ANSWERS } from '../App';
 import { BALANCED_TEMPLATE, isBalancedTraveller, resolveBalancedTemplate } from './balancedTemplate';
@@ -43,8 +43,11 @@ describe('balanced template', () => {
   it('claims the arrival afternoon the engine would otherwise leave open', () => {
     // Day 1 afternoon is normally kept open for pacing; the template's answer
     // there is a free beach, which is exactly the light thing that rule wants.
+    // The card changed on 2026-08-12 (eagle-beach-morning -> divi-beach, which
+    // is an actual Afternoon card); the guarantee under test is that the slot
+    // is CLAIMED, so assert that rather than a particular beach.
     const plan = generatePlan(BALANCED, cat, { seed: 0 });
-    expect(idsAt(plan, 1, 'afternoon')).toContain('eagle-beach-morning');
+    expect(idsAt(plan, 1, 'afternoon')).toContain('divi-beach');
   });
 
   it('leaves the template alone for other personas', () => {
@@ -89,5 +92,73 @@ describe('balanced template', () => {
       .filter((e) => e.kind === 'activity' && e.id === 'rodgers-beach');
     expect(placed.length).toBe(1);
     expect(placed[0].pinned).toBe(true);
+  });
+});
+
+describe('template slots never contradict the card text', () => {
+  it('places Eagle Beach only in mornings', () => {
+    // Regression, 2026-08-12: it sat in the day 1 and day 9 AFTERNOONS while
+    // the card is titled "Morning Session" and describes sand "uncrowded
+    // before 9am". The template is allowed to override a card's timeOfDay —
+    // that is why it names slots itself — but not when the card's own words
+    // give the slot away to the traveller reading it.
+    const slots = BALANCED_TEMPLATE
+      .filter((e) => e.id === 'eagle-beach-morning')
+      .map((e) => e.slot);
+    expect(slots.length).toBeGreaterThan(0);
+    expect(slots.every((s) => s === 'morning')).toBe(true);
+  });
+
+  it('leaves a clear day between two placements of the same card', () => {
+    // The template repeats free beaches on purpose, but its own contract is the
+    // engine's: revisitable after a CLEAR day (REVISITABLE_MIN_DAY_GAP = 2).
+    // Nothing enforced that here — template entries are placed by construction
+    // and never pass the fill ladder — so putting Palm Beach on day 9 while it
+    // already sat on day 10 produced the same beach on consecutive days, and
+    // every test still passed. Caught in review on 2026-08-13, guarded now.
+    const days = new Map<string, number[]>();
+    for (const e of BALANCED_TEMPLATE) {
+      days.set(e.id, [...(days.get(e.id) ?? []), e.day]);
+    }
+    const tooClose = [...days.entries()].flatMap(([id, ds]) => {
+      const sorted = [...ds].sort((a, b) => a - b);
+      // slice(1) offsets by one, so sorted[i] IS the previous placement. Kept as
+      // a single flatMap rather than filter().map() — filtering first renumbers
+      // the indices, and the message would then name the wrong preceding day.
+      return sorted.slice(1).flatMap((d, i) => (
+        d - sorted[i] < REVISITABLE_MIN_DAY_GAP ? [`${id}: day ${sorted[i]} then day ${d}`] : []
+      ));
+    });
+    expect(tooClose).toEqual([]);
+  });
+
+  it('never places a card whose title names a time of day into a conflicting slot', () => {
+    // Generalises the above to the one signal a traveller can actually see:
+    // the title. A card called "... Sunrise ..." or "... Morning ..." belongs
+    // in a morning; "... Sunset ..." or "... Evening ..." belongs in an evening.
+    const TITLE_TOD: Array<[RegExp, Slot]> = [
+      [/\b(sunrise|morning|breakfast)\b/i, 'morning'],
+      [/\b(sunset|evening|night|dinner)\b/i, 'evening'],
+    ];
+    const catalog = getCatalog();
+    const byId = new Map(catalog.activities.map((a) => [a.id, a]));
+
+    // One pre-existing exception, recorded rather than silently fixed: the
+    // curated plan puts "California Dunes at Sunset" in the day 6 AFTERNOON.
+    // It is the same defect this test exists to catch, but moving it is a
+    // product decision about the canonical template, not a bug fix — the
+    // template does not model evening slots at all. Documented in
+    // balancedTemplate.ts; first candidate if this class comes up again.
+    const KNOWN = ['day 6 afternoon: "California Dunes at Sunset" (title implies evening)'];
+
+    const offenders = BALANCED_TEMPLATE.flatMap((e) => {
+      const a = byId.get(e.id);
+      if (!a) return [];
+      const rule = TITLE_TOD.find(([re]) => re.test(a.title));
+      if (!rule || rule[1] === e.slot) return [];
+      return [`day ${e.day} ${e.slot}: "${a.title}" (title implies ${rule[1]})`];
+    });
+    // Anything NEW fails; the known one may only ever shrink out of this list.
+    expect(offenders.filter((o) => !KNOWN.includes(o))).toEqual([]);
   });
 });

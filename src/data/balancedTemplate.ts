@@ -14,14 +14,29 @@ import type { MatchTag, Slot } from '../types';
  *
  * Why a table of (day, slot, id) rather than pins: a pin lands in the
  * slot its CARD declares (`getPinSlotPrefs` reads `timeOfDay`), and the
- * template deliberately disagrees with several cards — Eagle Beach is a
- * morning card placed here in an afternoon, Palm Beach an afternoon card
- * placed in a morning. The curated distribution is the point, so the
- * template names the slot itself.
+ * template deliberately disagrees with several cards — Palm Beach is an
+ * afternoon card placed here in a morning. The curated distribution is the
+ * point, so the template names the slot itself.
  *
- * Repeats are intentional and legal: Eagle Beach on 1/6/9, Palm Beach on
- * 5/10, Mangel Halto on 3/8. Free local beaches may be revisited after a
- * clear day (see REVISITABLE_MIN_DAY_GAP) — you do go back to a beach.
+ * That freedom has a limit, learned 2026-08-12: it must not produce a card
+ * whose OWN TEXT contradicts the slot it sits in. "Eagle Beach Morning
+ * Session", describing sand "uncrowded before 9am", was placed in the day 1
+ * and day 9 afternoons — a contradiction any traveller can read straight off
+ * the card, and the exact thing `strictTimeOfDay` exists to stop on the
+ * auto-placed paths. Both were removed; Eagle Beach keeps day 6 morning.
+ *
+ * Six disagreements remain (re-measured 2026-08-13) and are tolerated because
+ * the card text does not name a time: baby-beach-snorkel d3, arashi-beach d4,
+ * mangel-halto d8 (morning cards in afternoons), palm-beach-strip d5 and
+ * divi-beach d10 (afternoon cards in mornings), and california-dunes-sunset d6.
+ * That last one is the closest to the line — an Evening card titled "at Sunset"
+ * sitting in an afternoon — and is the first to revisit if this comes up again.
+ *
+ * Repeats are intentional and legal: Palm Beach on 5/9, Mangel Halto on 3/8,
+ * Druif on 1/10. Free local beaches may be revisited after a clear day (see
+ * REVISITABLE_MIN_DAY_GAP) — you do go back to a beach. That gap is on YOU
+ * here: the template places by construction and never passes the fill ladder
+ * that enforces it, so a repeat added a day apart will ship unchallenged.
  *
  * Gaps are intentional too. Day 5 afternoon (a sunset sail) and day 8
  * morning are left to the engine: the sail has no curated card, and the
@@ -95,7 +110,14 @@ export function pickAlternative(entry: TemplateEntry, tags: Set<MatchTag>): Alte
 
 export const BALANCED_TEMPLATE: TemplateEntry[] = [
   { day: 1,  slot: 'morning',   id: 'tres-trapi' },
-  { day: 1,  slot: 'afternoon', id: 'eagle-beach-morning' },
+  // Was eagle-beach-morning until 2026-08-12: a card titled "Morning Session",
+  // describing sand "uncrowded before 9am", sitting in an afternoon slot is a
+  // contradiction the traveller can read straight off the card. It is REPLACED
+  // rather than dropped — the template deliberately claims the arrival
+  // afternoon the engine would otherwise leave open, and a test guards that.
+  // Druif is the natural swap: a genuine Afternoon card, a calm low-rise beach,
+  // and the right register for the day you land.
+  { day: 1,  slot: 'afternoon', id: 'divi-beach' },
   { day: 2,  slot: 'morning',   id: 'antilla-wreck-dive',
     alternatives: [{ type: 'highBudget', activity: 'Private snorkel sail', privateUpgrade: true }] },
   { day: 2,  slot: 'afternoon', id: 'alto-vista-chapel',
@@ -131,8 +153,28 @@ export const BALANCED_TEMPLATE: TemplateEntry[] = [
   // day 8 morning — free in the template
   { day: 8,  slot: 'afternoon', id: 'mangel-halto' },
   { day: 9,  slot: 'morning',   id: 'boca-catalina-shore' },
-  { day: 9,  slot: 'afternoon', id: 'eagle-beach-morning' },
-  { day: 10, slot: 'morning',   id: 'palm-beach-strip' },
+  // Eagle Beach was here until 2026-08-12 and keeps its one correct placement on
+  // day 6 morning. Left empty at first, which was a mistake: the fill ladder
+  // claimed the slot with a $120 adventure-85 kitesurfing lesson on every seed,
+  // so a curated free beach became the most intense outing of the trip.
+  //
+  // Palm Beach is the one card that fits: free, genuinely an Afternoon card, and
+  // a short hop from the Boca Catalina morning without leaving Malmok. It is
+  // also the ONLY slot in this table where Palm Beach sits in its own declared
+  // time of day — day 5 still puts an Afternoon card in a morning.
+  //
+  // Only balanced travellers ever see it: the generator still gates the whole
+  // template on isBalancedTraveller (itineraryGenerator.ts:1420). A high-
+  // adventure traveller keeps the kitesurfing the ladder was already choosing.
+  { day: 9,  slot: 'afternoon', id: 'palm-beach-strip' },
+  // Was palm-beach-strip. Moved to Druif on 2026-08-13 because day 9 afternoon
+  // took the strip: two Palm Beach cards on consecutive days breaks the clear-day
+  // rule this table otherwise respects everywhere (5→9 and 3→8 both clear it).
+  // Nothing catches that automatically — template entries are placed by
+  // construction and never pass the fill ladder that enforces the gap.
+  // Druif last saw day 1, so the gap is 9, and it is the closer beach to the
+  // airport on a departure morning.
+  { day: 10, slot: 'morning',   id: 'divi-beach' },
   // day 10 afternoon — free in the template
 ];
 
@@ -166,11 +208,18 @@ export const HIGH_ADVENTURE_TEMPLATE_ENTRIES = 10;
 /**
  * The template entries this traveller gets, most-suitable first.
  *
- * Everyone gets the curated shape (2026-08-12) — it used to be gated to the
- * middle of both sliders, which reached about 8% of answer combinations and left
- * everyone else on raw fill. Raw fill is where the niche products come from: the
- * ladder widens as it runs out of good matches, so the more slots it has to
+ * NOT everyone reaches this function, despite what the trimming below implies:
+ * the caller still gates the whole template on `isBalancedTraveller`
+ * (itineraryGenerator.ts:1420), so in production only the middle of both
+ * sliders — about 8% of answer combinations — gets the curated shape, and
+ * everyone else is on raw fill. Raw fill is where the niche products come from:
+ * the ladder widens as it runs out of good matches, so the more slots it has to
  * cover the deeper it digs.
+ *
+ * Widening it is built and measured but deliberately NOT enabled (`dc381c5`) —
+ * removing the gate takes reseed overlap to 100%, which costs the Regenerate
+ * button. The high-adventure trimming below is therefore unreachable on live
+ * answers today; it is the half that is ready for when the gate opens.
  *
  * A high-adventure traveller keeps a SPINE — the most adventurous entry of each
  * day, so the beach-heavy shape survives — and then the next most adventurous

@@ -491,7 +491,10 @@ type Ctx = {
 // the submarine tour twice — so they are the one exception to the trip-wide
 // no-repeat rule. Everything else (any Viator product, anything with a price,
 // any tour) stays once-only.
-const REVISITABLE_MIN_DAY_GAP = 2;   // at least one clear day before returning
+// Exported so the balanced template can be tested against the real number
+// rather than a copy of it — the template places by construction and never
+// passes the ladder below that enforces this, so its guard lives in its own test.
+export const REVISITABLE_MIN_DAY_GAP = 2;   // at least one clear day before returning
 // A revisitable beach may appear at most this many times in one trip. With 13
 // curated beaches, a 14-day plan should be working through them, not looping.
 const MAX_REVISITABLE_PLACEMENTS = 2;
