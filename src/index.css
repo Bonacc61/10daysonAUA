@@ -122,6 +122,19 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
   background: var(--sand-50);
 }
 
+/* Where a boat collects you, and — when the operator states it — when to be
+   there. Rendered only from committed, human-verified data (see CHECKIN_QUOTES
+   in src/data/itemCoords.ts); absent on most cards by design. Boxed rather than
+   set as body text because missing a departure is not a recoverable mistake. */
+.card-departure {
+  display: flex; align-items: flex-start; gap: 7px;
+  background: var(--sand-50); border: 2px solid var(--ink); border-radius: 10px;
+  padding: 7px 10px; margin-bottom: 12px;
+  font-size: 11.5px; line-height: 1.4; color: var(--ink);
+}
+.card-departure strong { font-weight: 700; }
+.card-departure .checkin-quote { display: block; margin-top: 2px; font-style: italic; }
+
 /* What the swap actually applied, shown on the new card. */
 .swap-echo {
   font-size: 10px; color: var(--sand-700); font-style: italic;

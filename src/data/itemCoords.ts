@@ -101,6 +101,37 @@ export type Pin = {
   offshore?: true;
 };
 
+/**
+ * When to turn up for a boat — quoted VERBATIM from the product's own Viator
+ * listing, never paraphrased and never reformatted into a tidy time.
+ *
+ * The same discipline as `ViatorItem.evidence`: quoting the operator is not the
+ * site making a claim. A rewritten "Check-in 09:30" would be this site asserting
+ * a fact; "Check-in time is at 9:30 A.M" is the operator saying it, and the card
+ * links to the booking page that governs.
+ *
+ * Provenance: these were captured during the 2026-08-03 pin research and sat
+ * unread inside `Pin.cite` until 2026-08-12. They are NOT fetched — there is no
+ * automatic source. Measured 2026-08-12: of 135 water-based catalog items, one
+ * description mentions a clock time and one mentions boarding; and the Viator
+ * API's meeting-point data was already found unusable
+ * (docs/map/viator-location-probe.md). Nine of 53 departure pins stated it.
+ *
+ * Absence is the normal case and the card simply omits the line — the same rule
+ * the pin registry itself follows.
+ */
+export const CHECKIN_QUOTES: Record<string, string> = {
+  '6593P7':     'Check-in time is at 9:30 A.M',
+  '6593BRUNCH': 'Check-in time is at 8:30AM',
+  '6593P11':    'Check in time is at 4:30pm',
+  '6593P10':    'Check-in time is at 5:00 P.M',
+  '6593DINNER': 'Check-in time is at 5:00 P.M.',
+  '6593P14':    'Check-in is at 5:00 P.M.',
+  '2785DINNER': 'Please check in at our pier located behind the Hyatt Regency 30 minutes prior to departure time',
+  '2785P10':    'Please check in at our pier located behind the Hyatt Regency 30 min prior to departure.',
+  '119085P2':   'Check in time is 30 minutes before the start time of the tour.',
+};
+
 export const ITEM_PINS: Record<string, Pin> = {
   // ── Curated editorial activities ────────────────────────────────────────────
   // Migrated verbatim from the old ACTIVITY_COORDS; citations lifted from the
@@ -231,7 +262,17 @@ export const ITEM_PINS: Record<string, Pin> = {
   '245508': { coord: { lng: -70.0487, lat: 12.5682 }, source: 'departure', place: 'De Palm Pier', cite: 'OpenStreetMap way/335257951 (De Palm Pier); Bugaloe sits on it — meeting point per Viator: "Walk down the walkway between the Hilton and RIU Palace. You will see the Coconuts Gift Shop on De Palm Pier. Enter the "' },  // Aruba Sunset Sail with Open Bar
   '103088P1': { coord: { lng: -70.049, lat: 12.5748 }, source: 'departure', place: 'Palm Beach', cite: 'OpenStreetMap way/23060047, verified 2026-08-03 — meeting point per Viator: "Palm Beach Pier SURF CLUB (Marriott)"' },  // VIP Morning Delight Champagne Sailing and Snorkeling with Lunc
   '6593P7': { coord: { lng: -70.0461, lat: 12.5744 }, source: 'departure', place: 'Pelican Pier', cite: 'OpenStreetMap way/555476889, verified 2026-08-03 — meeting point per Viator: "Pelican Pier is located between the Holiday Inn Hotel and the Playa Linda Beach Resort. Check-in time is at 9:30 A.M"' },  // Luxury Lagoon Cruise with Onboard Chef and Signature Cocktails
-  '2785DINNER': { coord: { lng: -70.0461, lat: 12.5744 }, source: 'departure', place: 'Pelican Pier', cite: 'OpenStreetMap way/555476889, verified 2026-08-03 — meeting point per Viator: "Please check in at our pier located behind the Hyatt Regency 30 minutes prior to departure time"' },  // Aruba Sunset Sail Dinner Cruise with Open Bar by Catamaran
+  // Corrected 2026-08-13. This carried the Pelican Pier coordinate — OSM
+  // way/555476889, shared verbatim with the six 6593* pins — while its OWN cite
+  // quotes the operator saying "behind the Hyatt Regency". Pelican Pier is
+  // between the Holiday Inn and Playa Linda, ~290m north of the Hyatt, so the
+  // two disagreed. Harmless while it was only a map dot; the check-in line put
+  // both on a card, which is what surfaced it.
+  //
+  // Moved to match 2785P10 — same supplier prefix, same meeting-point sentence
+  // word for word — rather than re-derived independently. The cite says so:
+  // this is an inference from a researched neighbour, not its own field check.
+  '2785DINNER': { coord: { lng: -70.0471, lat: 12.5717 }, source: 'departure', place: 'Piet\'s Pier', cite: 'OpenStreetMap way/613967713 (pier, unnamed, 163m west of the Hyatt Regency); INFERRED from 2785P10 — same operator, same verbatim meeting point — which the product owner identified as Piet\'s Pier, 2026-08-03 — meeting point per Viator: "Please check in at our pier located behind the Hyatt Regency 30 minutes prior to departure time"' },  // Aruba Sunset Sail Dinner Cruise with Open Bar by Catamaran
   '6593P11': { coord: { lng: -70.0461, lat: 12.5744 }, source: 'departure', place: 'Pelican Pier', cite: 'OpenStreetMap way/555476889, verified 2026-08-03 — meeting point per Viator: "Check in time is at 4:30pm at Pelican Pier which is between the Holiday Inn Hotel and Playa Linda Beach Resort."' },  // Luxury Four-Course Caribbean Dinner Cruise Experience
   '6593P10': { coord: { lng: -70.0461, lat: 12.5744 }, source: 'departure', place: 'Pelican Pier', cite: 'OpenStreetMap way/555476889, verified 2026-08-03 — meeting point per Viator: "Check-in time is at 5:00 P.M at the front desk of the Pelican Pier located between the Holiday Inn & Playa Linda Beach R"' },  // Aruba Sunset Sail Experience
   '47607P2': { coord: { lng: -70.0449, lat: 12.5759 }, source: 'departure', place: 'Holiday Inn Resort', cite: 'APPROX — pinned at the named hotel; the pier sits ~150-200m seaward. OpenStreetMap way/370372887, verified 2026-08-03 — meeting point per Viator: "Your tour departs from the Octopus Aruba beach hut which is located on Palm Beach behind the Holiday Inn. Once you reach"', approx: true },  // Premium Catamaran Afternoon Sail: Snorkeling and Lunch

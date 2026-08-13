@@ -4,7 +4,7 @@ import GroupHeader from './GroupHeader';
 import OtherSuggestionsList from './OtherSuggestionsList';
 import SwapReasons, { type SwapTextProps } from './SwapReasons';
 import { productUrlFor, primarySection } from '../data/exploreItems';
-import { itemSections } from '../data/itemFit';
+import { itemSections, departurePointFor } from '../data/itemFit';
 
 // Region code → display label, shown with a MapPin in the itinerary card body.
 const REGION_LABELS: Record<Region, string> = {
@@ -247,6 +247,11 @@ function ItineraryBody({
   staple?: boolean;
   dupeFamily?: string;
 } & SwapTextProps) {
+  // Boats only, and only where a collection point is on record. This matters
+  // more here than on Explore: by the itinerary the traveller has committed to
+  // the day, and "where do I actually turn up?" is the next question.
+  const departure = departurePointFor(bestSeller);
+
   return (
     <div className="itin-card-split" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
       {/* Bleeding-edge image — full card height; clicking flips to ratings */}
@@ -328,6 +333,26 @@ function ItineraryBody({
           {staple && !pinned && !splurge && <span className="itin-staple-badge">◑ Island classic</span>}
           {dupeFamily && <span className="itin-dupe-badge">⚠ 2nd {dupeFamily} this trip</span>}
         </div>
+
+        {/* "near" rather than "from" when the pin is a known approximation —
+            the hotel a meeting-point description names, not the pier on its
+            beach. The check-in line is the operator's own wording in quotes:
+            this site never states a departure time in its own voice, because
+            the booking page governs and a wrong time means a missed boat. The
+            hedge is unconditional for the same reason — the place alone is not
+            a meeting point. */}
+        {departure && (
+          <div className="card-departure">
+            <MapPin size={12} aria-hidden style={{ flexShrink: 0, marginTop: 1 }} />
+            <span>
+              <strong>Departs {departure.approx ? 'near' : 'from'} {departure.place}</strong>
+              {departure.checkin && (
+                <span className="checkin-quote">“{departure.checkin}”</span>
+              )}
+              <span className="checkin-quote">Confirm the meeting point on your booking.</span>
+            </span>
+          </div>
+        )}
 
         <div style={{ marginTop: 'auto' }}>
           {/* "Book now" leads, "Swap this" follows — same order as

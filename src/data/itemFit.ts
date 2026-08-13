@@ -1,6 +1,7 @@
 import type { CardEntry, MatchTag, Section, Slot, ViatorItem } from '../types';
 import { classifyTags } from './classify';
 import { sectionsForTags, primarySection } from './exploreItems';
+import { ITEM_PINS, CHECKIN_QUOTES } from './itemCoords';
 
 // === Per-item fit scoring — the granular half of the matching engine ========
 // The matcher used to match whole GROUPS by a single overlapping tag and then
@@ -243,6 +244,51 @@ export function isWaterBased(item: ViatorItem): boolean {
   if (itemSections(item).includes('cruises-water')) return true;
   if (WATER_KINDS.has(activityKind(item))) return true;
   return WATER_TITLE_RE.test(item.title);
+}
+
+/**
+ * Where a water-based trip collects you — the one thing you must get right or
+ * you miss the boat. Returns null unless a HUMAN-VERIFIED collection point is
+ * on record.
+ *
+ * Scoped by `isWaterBased`, which is deliberately broad (it also backs the
+ * "we get seasick" exclusion), so a couple of shore-launched off-road tours
+ * qualify too. That is fine — they have a real departure point and the line
+ * reads correctly for them.
+ *
+ * There is no automatic source for this. Measured 2026-08-12 across the live
+ * catalog: of 135 water-based items, exactly ONE description mentions a clock
+ * time and ONE mentions check-in or boarding — zero carry a time, a check-in
+ * cue and a place together. The 2026-08-03 Viator probe
+ * (docs/map/viator-location-probe.md) independently found the API's
+ * meeting-point refs unusable: ~29% resolve at all, and the ones that do are
+ * hotels on a pickup round. So this reads the committed pin registry and
+ * nothing else, exactly as coordinates do.
+ *
+ * A check-in line is therefore absent on most cards and omitted rather than
+ * guessed. Adding a verbatim entry to CHECKIN_QUOTES makes it appear with no
+ * code change.
+ *
+ * `Pin.pickup` is deliberately NOT consulted: no pin in the registry carries
+ * one, so a branch for it would be untested code standing in for data that
+ * does not exist.
+ */
+export function departurePointFor(
+  item: ViatorItem,
+): { place: string; checkin?: string; approx: boolean } | null {
+  if (!isWaterBased(item)) return null;
+  const pin = ITEM_PINS[item.id];
+  // ONLY a 'departure' pin means "this is the collection point". A
+  // 'known-place' pin is the DESTINATION — rendering "departs from SS Antilla
+  // wreck" would point a traveller at a WW2 shipwreck lying offshore, and two
+  // live sail products are pinned exactly that way.
+  if (!pin || pin.source !== 'departure' || !pin.place) return null;
+  // `approx` marks a pin the registry itself calls a deliberate approximation —
+  // the hotel a meeting-point description names rather than the pier on its
+  // beach, or a bare street name. 11 of the 35 qualifying cards are these. They
+  // are still worth showing (right beach, right hotel) but must not be stated
+  // as the doorway, so the card says "near" there and never "from".
+  return { place: pin.place, checkin: CHECKIN_QUOTES[item.id], approx: !!pin.approx };
 }
 
 // --- Crowd-pleasers (universal high-bookability picks) ----------------------

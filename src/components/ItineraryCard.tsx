@@ -8,6 +8,7 @@ import SwapReasons, { SWAP_REASONS_OPEN_PX, SWAP_REASONS_TEXT_OPEN_PX, type Swap
 import { otherSuggestionsExpandedPx } from './OtherSuggestionsList';
 import { productUrlFor, viatorLink, primarySection } from '../data/exploreItems';
 import { parseActivityCost } from '../data/matcher';
+import { departurePointFor } from '../data/itemFit';
 
 type Props = {
   entry: CardEntry;
@@ -36,6 +37,21 @@ const BASE_HEIGHT = 284;
 const REASONS_EXTRA = SWAP_REASONS_OPEN_PX;
 // The applied-constraint caption is one line under the action row.
 const ECHO_EXTRA = 18;
+// The departure box (`.card-departure`): 4px borders + 14px padding + 12px
+// margin-bottom + two 16px lines — the place, and the unconditional "confirm
+// on booking" hedge. Without this term the flip card's fixed height clips it,
+// measured at 11px into the "Other suggestions" row.
+// Sized to the WIDEST measured case, not the typical one: the flip card keeps a
+// fixed height down to 641px (the `height: auto` override is in the ≤640px
+// block), and in the 641-768px band a long place name wraps. "Hyatt Regency
+// Aruba Resort Spa and Casino" — two live products pin there — takes the box to
+// 78px, and 127px with a quote. Costs some dead space on wide cards; the
+// alternative is moving that CSS override up to ≤768px, which changes card
+// layout for the whole band and is a product call rather than a bug fix.
+const DEPARTURE_EXTRA = 78;
+// A check-in quote adds a line that wraps at card width — three of them for the
+// longest quote on record (95 characters), at 11.5px/1.4 plus its 2px margin.
+const DEPARTURE_QUOTE_EXTRA = 49;
 
 export default function ItineraryCard({
   entry, flipped, swapping, pinned, splurge, staple, dupeFamily, onFlip, onSwap,
@@ -54,10 +70,13 @@ export default function ItineraryCard({
     : (entry.activity.viator_item_url && parseActivityCost(entry.activity.cost) > 0 ? viatorLink(entry.activity.viator_item_url) : null);
 
   const otherCount = entry.kind === 'group' ? entry.others.length : 0;
+  // Must mirror what GroupCard actually renders, or the card clips.
+  const departure = entry.kind === 'group' ? departurePointFor(entry.bestSeller) : null;
   const height = BASE_HEIGHT
     + (suggestionsOpen ? otherSuggestionsExpandedPx(otherCount) : 0)
     + (showReasons ? (onSubmitReasonText ? SWAP_REASONS_TEXT_OPEN_PX : REASONS_EXTRA) : 0)
-    + (echo?.length ? ECHO_EXTRA : 0);
+    + (echo?.length ? ECHO_EXTRA : 0)
+    + (departure ? DEPARTURE_EXTRA + (departure.checkin ? DEPARTURE_QUOTE_EXTRA : 0) : 0);
 
   const classes = ['flip-card', 'fade-in'];
   if (flipped)  classes.push('flipped');

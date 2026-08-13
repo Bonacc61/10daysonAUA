@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { fitItem, bestItemForAnswers, itemTags, refaceForAnswers, isEveningItem, itemSlotOk, activityKind, isCrowdPleaser, isWaterBased, itemAdventure, matchingSection, isKidsOriented, isFullDayProduct, itemSlotOkForFill, isContentProduct, isAutoFillExcluded, contentCreatorBonus } from './itemFit';
+import { fitItem, bestItemForAnswers, itemTags, refaceForAnswers, isEveningItem, itemSlotOk, activityKind, isCrowdPleaser, isWaterBased, itemAdventure, matchingSection, isKidsOriented, isFullDayProduct, itemSlotOkForFill, isContentProduct, isAutoFillExcluded, contentCreatorBonus, departurePointFor } from './itemFit';
+import { ITEM_PINS, CHECKIN_QUOTES } from './itemCoords';
 import type { CardEntry, MatchTag, Section, ViatorItem } from '../types';
 
 function item(over: Partial<ViatorItem>): ViatorItem {
@@ -423,5 +424,73 @@ describe('itemAdventure — kind, not section', () => {
 
   it('honours an explicit curated adventure number over the kind default', () => {
     expect(itemAdventure(item({ title: 'Sail', tags: [11888], adventure: 90, sections: undefined }))).toBe(90);
+  });
+});
+
+describe('departurePointFor', () => {
+  it('gives the departure point and the operator check-in quote', () => {
+    // '6593P7' is a live sunset-sail product pinned at Pelican Pier, whose
+    // Viator listing states the time. Quote is rendered verbatim, never reworded.
+    expect(departurePointFor(item({ id: '6593P7' }))).toEqual({
+      place: 'Pelican Pier',
+      checkin: 'Check-in time is at 9:30 A.M',
+      approx: false,
+    });
+  });
+
+  it('flags an approximate pin so the card can say "near" instead of "from"', () => {
+    // '47607P2' pins on the Holiday Inn Resort because that is the landmark the
+    // operator's meeting-point text names; the actual hut is on the beach
+    // behind it. Right hotel, wrong doorway — stating it as "departs from"
+    // would be a confident near-miss.
+    expect(departurePointFor(item({ id: '47607P2' }))?.approx).toBe(true);
+    expect(departurePointFor(item({ id: '6593P7' }))?.approx).toBe(false);
+  });
+
+  it('gives the place alone when the operator never stated a check-in time', () => {
+    // The normal case: 44 of 53 departure pins say nothing about timing.
+    const out = departurePointFor(item({ id: '103088P1' }));
+    expect(out?.place).toBe('Palm Beach');
+    expect(out?.checkin).toBeUndefined();
+  });
+
+  it('never offers a DESTINATION pin as a departure point', () => {
+    // '445910P2' is pinned on the SS Antilla wreck — where the boat goes, not
+    // where you board. Printing "departs from" here sends someone to a WW2
+    // shipwreck lying offshore.
+    expect(departurePointFor(item({ id: '445910P2' }))).toBeNull();
+  });
+
+  it('stays silent for items with no pin on record', () => {
+    expect(departurePointFor(item({ id: 'no-such-product' }))).toBeNull();
+  });
+
+  it('does not label a land activity with a departure point', () => {
+    expect(departurePointFor(item({
+      id: '6593P7', title: 'Jeep Safari', sections: ['adventures-outdoor'],
+    }))).toBeNull();
+  });
+
+  it('every check-in quote belongs to a pin that actually exists', () => {
+    // A typo in the id would silently drop the quote rather than fail loudly.
+    const orphans = Object.keys(CHECKIN_QUOTES).filter((id) => !ITEM_PINS[id]);
+    expect(orphans).toEqual([]);
+  });
+
+  it('every check-in quote appears verbatim in its own pin citation', () => {
+    // Guards the invariant that makes this safe to display: we quote, never
+    // assert. A tidied "Check-in 17:00" would be this site stating a fact.
+    //
+    // Checking the quote against the PIN CITATION is what gives that teeth. An
+    // earlier version asserted only that the string contained "check in", which
+    // the synthesised "Check-in 17:00" it names as the thing to prevent passes
+    // cleanly — it tested nothing. The citation is the researched record of what
+    // the operator actually published, so requiring the quote to be a substring
+    // of it means a quote can only ever be copied, never composed.
+    const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
+    for (const [id, q] of Object.entries(CHECKIN_QUOTES)) {
+      const cite = ITEM_PINS[id]?.cite ?? '';
+      expect(norm(cite).includes(norm(q)), `${id}: ${q}`).toBe(true);
+    }
   });
 });
