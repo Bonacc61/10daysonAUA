@@ -40,7 +40,7 @@ Accumulates trip-wide state across the day loop:
 
 | Field | Purpose |
 |---|---|
-| `lastUsedDay` | item-id → day number; no id repeats, except a free local `Beaches` activity, which may return after `REVISITABLE_MIN_DAY_GAP` (2) clear days — unless the traveller pinned it |
+| `lastUsedDay` | item-id → day number; no id repeats, except a free local `Beaches` activity, which may return after ONE clear day (`REVISITABLE_MIN_DAY_GAP` = 2 is a gap of two day NUMBERS, so day 5 → day 7) — unless the traveller pinned it |
 | `pinnedIds` | ids the traveller pinned; exempt from the beach-revisit allowance, so a pinned pick is placed exactly once |
 | `usedClusterIds` | embedding clusters placed; a hit is conclusive, a miss falls through |
 | `usedTagSets` | tag arrays of placed items; trip-wide Jaccard at 0.35 |

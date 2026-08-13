@@ -45,13 +45,17 @@ const ECHO_EXTRA = 18;
 // fixed height down to 641px (the `height: auto` override is in the ≤640px
 // block), and in the 641-768px band a long place name wraps. "Hyatt Regency
 // Aruba Resort Spa and Casino" — two live products pin there — takes the box to
-// 78px, and 127px with a quote. Costs some dead space on wide cards; the
+// 79px, and 130px with a quote. Costs some dead space on wide cards; the
 // alternative is moving that CSS override up to ≤768px, which changes card
 // layout for the whole band and is a product call rather than a bug fix.
-const DEPARTURE_EXTRA = 78;
+//
+// Both terms round UP off the real line height: 11.5px × 1.4 is 16.1px, not 16.
+// Rounding down left the widest case ~1.6px short of its own arithmetic, and
+// `.itin-card-front` is overflow:hidden, so short means clipped.
+const DEPARTURE_EXTRA = 79;
 // A check-in quote adds a line that wraps at card width — three of them for the
 // longest quote on record (95 characters), at 11.5px/1.4 plus its 2px margin.
-const DEPARTURE_QUOTE_EXTRA = 49;
+const DEPARTURE_QUOTE_EXTRA = 51;
 
 export default function ItineraryCard({
   entry, flipped, swapping, pinned, splurge, staple, dupeFamily, onFlip, onSwap,

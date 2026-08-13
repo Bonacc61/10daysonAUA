@@ -164,8 +164,8 @@ export const BALANCED_TEMPLATE: TemplateEntry[] = [
   // time of day — day 5 still puts an Afternoon card in a morning.
   //
   // Only balanced travellers ever see it: the generator still gates the whole
-  // template on isBalancedTraveller (itineraryGenerator.ts:1420). A high-
-  // adventure traveller keeps the kitesurfing the ladder was already choosing.
+  // template on `isBalancedTraveller`, its single call site. A high-adventure
+  // traveller keeps the kitesurfing the ladder was already choosing.
   { day: 9,  slot: 'afternoon', id: 'palm-beach-strip' },
   // Was palm-beach-strip. Moved to Druif on 2026-08-13 because day 9 afternoon
   // took the strip: two Palm Beach cards on consecutive days breaks the clear-day
@@ -209,8 +209,8 @@ export const HIGH_ADVENTURE_TEMPLATE_ENTRIES = 10;
  * The template entries this traveller gets, most-suitable first.
  *
  * NOT everyone reaches this function, despite what the trimming below implies:
- * the caller still gates the whole template on `isBalancedTraveller`
- * (itineraryGenerator.ts:1420), so in production only the middle of both
+ * the caller still gates the whole template on `isBalancedTraveller`, its single
+ * call site, so in production only the middle of both
  * sliders — about 8% of answer combinations — gets the curated shape, and
  * everyone else is on raw fill. Raw fill is where the niche products come from:
  * the ladder widens as it runs out of good matches, so the more slots it has to
