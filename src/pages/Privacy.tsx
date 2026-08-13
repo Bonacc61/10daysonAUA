@@ -40,7 +40,7 @@ export default function Privacy({ setPage }: Props) {
                   ['Text you type into an AI feature', 'To turn what you asked for into a change to your plan, or into search results', 'Contract', 'Not stored — see “AI features” below'],
                   ['Your IP address, hashed (AI features only)', 'Rate-limiting, so nobody can run up our costs', 'Legitimate interest', '24 hours'],
                   ['A scrambled fingerprint of a search phrase, and its numeric form (only if you use search-by-meaning)', 'So a repeat search costs nothing and is not sent abroad again', 'Legitimate interest', '30 days'],
-                  ['Which activities you swap, add, remove or move, against a random id stored in your browser', 'To learn which suggestions actually work and improve the matching for everyone', 'Legitimate interest', '24 months'],
+                  ['Which activities you swap, add, remove or move, against a random id stored in your browser', 'To learn which suggestions actually work and improve the matching for everyone', 'Consent — only if you accept', '24 months'],
                 ].map(([what, why, basis, kept]) => (
                   <tr key={what} style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
                     <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>{what}</td>
@@ -53,7 +53,9 @@ export default function Privacy({ setPage }: Props) {
             </table>
             <p style={{ fontSize: 14, margin: '16px 0 0', opacity: 0.6 }}>No advertising trackers. No third-party analytics.</p>
             <p style={{ fontSize: 14, margin: '10px 0 0', opacity: 0.6 }}>
-              That last row is the only thing we watch you do, and it is deliberately thin: the id is
+              That last row is the only thing we watch you do, and it happens only if you accepted
+              the cookie banner. Decline, or simply never answer it, and nothing is recorded and no
+              id is written to your browser at all. It is deliberately thin either way: the id is
               random, belongs to a browser rather than a person, and is never joined to your account.
               When you tell us <em>why</em> you swapped something we record which of the fixed reasons
               you picked &mdash; never anything you typed in your own words.
