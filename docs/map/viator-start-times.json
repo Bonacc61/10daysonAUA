@@ -1,0 +1,3906 @@
+{
+  "probedAt": "2026-08-13T12:18:13.124Z",
+  "base": "https://api.viator.com/partner",
+  "cutoff": "12:00",
+  "counts": {
+    "probed": 328,
+    "ok": 328,
+    "timed": 281,
+    "morningOnly": 104,
+    "afternoonOnly": 58,
+    "spansCutoff": 119,
+    "untimed": 47,
+    "error": 0,
+    "blindToday": 266,
+    "rescued": 114,
+    "titleContradicted": 0
+  },
+  "products": [
+    {
+      "id": "5595462P1",
+      "title": "Discovery Papiamento Distillery",
+      "status": 200,
+      "startTimes": [
+        "15:30",
+        "17:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "5493518P2",
+      "title": "Aruba Romantic Sunset Photoshoot & Beach Picnic in Luxury Cabana",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "untimed"
+    },
+    {
+      "id": "444239P2",
+      "title": "Blue Parrot Snorkel Sail with 4 course lunch or dinner in Aruba",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "15:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5595462P2",
+      "title": "Rum and Chocolate Sensory Journey",
+      "status": 200,
+      "startTimes": [
+        "15:30",
+        "17:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "5595462P3",
+      "title": "Papiamento VIP Tasting",
+      "status": 200,
+      "startTimes": [
+        "15:30",
+        "17:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "116935P5",
+      "title": "Private Sunset Tour in Aruba",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "untimed"
+    },
+    {
+      "id": "6180P13",
+      "title": "Aruba Nightlife Food Tour with Wine and Tequila Tastings",
+      "status": 200,
+      "startTimes": [
+        "18:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "445910P23",
+      "title": "Morning Champagne and Lobster Sail on Shamwari",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "morning",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "444239P1",
+      "title": "Private Angelfish Snorkeling with Brunch in Aruba",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "16:00"
+      ],
+      "blocks": 7,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "429943P4",
+      "title": "Aruban Gastronomy Exclusive Culinary with Local Private Chef",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "445910P16",
+      "title": "Sunset Champagne and Lobster sail on Shamwari",
+      "status": 200,
+      "startTimes": [
+        "14:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "5599636P5",
+      "title": "Mimosa Style Morning Sip and Painting Activity",
+      "status": 200,
+      "startTimes": [
+        "10:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "morning",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "5497600P5",
+      "title": "Aruba's Finest Sip and Paint Experience by the Beach",
+      "status": 200,
+      "startTimes": [
+        "17:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "5552066P3",
+      "title": "Aruba Private Sunset Tour Snorkeling Turtles and Cheese Platter",
+      "status": 200,
+      "startTimes": [
+        "16:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "5493518P1",
+      "title": "Aruba Eagle Beach Romantic Sunset Picnic in a Luxury Cabana",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "untimed"
+    },
+    {
+      "id": "444239P8",
+      "title": "Tropical Sailing Experience with BBQ Lunch or BBQ Dinner in Aruba",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "15:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "103088P1",
+      "title": "VIP Morning Delight Champagne Sailing and Snorkeling with Lunch",
+      "status": 200,
+      "startTimes": [
+        "09:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "morning",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "6593P7",
+      "title": "Luxury Lagoon Cruise with Onboard Chef and Signature Cocktails",
+      "status": 200,
+      "startTimes": [
+        "10:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "364486P1",
+      "title": "Caribbean Cooking Class in Aruba",
+      "status": 200,
+      "startTimes": [
+        "10:30",
+        "16:30"
+      ],
+      "blocks": 3,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "62666P1",
+      "title": "Aruba Downtown Historic and Cultural Walking Tour",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "2785DINNER",
+      "title": "Aruba Sunset Sail Dinner Cruise with Open Bar by Catamaran",
+      "status": 200,
+      "startTimes": [
+        "17:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "6593P11",
+      "title": "Luxury Four-Course Caribbean Dinner Cruise Experience",
+      "status": 200,
+      "startTimes": [
+        "17:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "47607P2",
+      "title": "Premium Catamaran Afternoon Sail: Snorkeling and Lunch",
+      "status": 200,
+      "startTimes": [
+        "13:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "afternoon",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "2785P10",
+      "title": "Aruba Sunset Sail with Caribbean Dinner and Live Music",
+      "status": 200,
+      "startTimes": [
+        "17:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "6593P10",
+      "title": "Aruba Sunset Sail Experience",
+      "status": 200,
+      "startTimes": [
+        "17:30"
+      ],
+      "blocks": 2,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "47607P3",
+      "title": "Premium Catamaran Morning Sail: Snorkeling, Mimosas and Brunch",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "morning",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "445910P2",
+      "title": "Aruba Sail and Snorkel with Turtles at WW2 Shipwreck Includes BBQ",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "445910P1",
+      "title": "Snorkel with Turtles at WW2 Shipwreck Includes Sunset & BBQ",
+      "status": 200,
+      "startTimes": [
+        "14:30"
+      ],
+      "blocks": 2,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "6593DINNER",
+      "title": "Aruba Sunset Cruise plus Seaside Dinner",
+      "status": 200,
+      "startTimes": [
+        "17:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "5497600P1",
+      "title": "Private Sip and Paint Experience for Couples in Aruba",
+      "status": 200,
+      "startTimes": [
+        "17:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "62666P3",
+      "title": "Aruba Food Fusion Tour: World Flavors to Savor",
+      "status": 200,
+      "startTimes": [
+        "17:45"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "2455P18",
+      "title": "Aruba De Palm Island Day Pass",
+      "status": 200,
+      "startTimes": [
+        "10:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "400174P5",
+      "title": "Aruba Floating Breakfast FREE Drone Videos, Champagne & Mimosas",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5655605P1",
+      "title": "Golden Hour Sunset Cruise, Private Yacht Experience in Aruba",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 2,
+      "titleSignal": "evening",
+      "verdict": "untimed"
+    },
+    {
+      "id": "6180P14",
+      "title": "Aruba Mural Food and Culture Tour Taste of San Nicolas",
+      "status": 200,
+      "startTimes": [
+        "16:45"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "5595462P6",
+      "title": "Bodegas Papiamento Pairing Experience",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5595462P5",
+      "title": "Fill Your Own Bottle Experience at Bodegas Papiamento",
+      "status": 200,
+      "startTimes": [
+        "15:30",
+        "17:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "103020P7",
+      "title": "Luxury Private Yacht Charter Aruba - Eden Luca Yachts",
+      "status": 200,
+      "startTimes": [
+        "10:00",
+        "11:00",
+        "15:00",
+        "16:00"
+      ],
+      "blocks": 4,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "459169P1",
+      "title": "Aruba Small-Group UTV Adventure|Private Off-Road Tour Max 4 UTVs",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 4,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "459169P2",
+      "title": "Private Aruba Jeep Adventure|Custom Island Tour with Local Guide",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "392509P1",
+      "title": "Epic Off-Road Surron Electric Bike Tour in Aruba",
+      "status": 200,
+      "startTimes": [
+        "09:30",
+        "14:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "441143P5",
+      "title": "Private 4x4 Natural Pool, Caves & Baby Beach by Cross Aruba Tours",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "10:00",
+        "11:00",
+        "12:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5585429P2",
+      "title": "Aruba Island Private Jeep Tour Arikok Park & Baby beach",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "106422P2",
+      "title": "Aruba 2-Tank guided Dive for certified divers / own equipment",
+      "status": 200,
+      "startTimes": [
+        "08:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "324189P3",
+      "title": "Baby Beach and San Nicolas Art Murals Private EZ Raider Adventure",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "300281P4",
+      "title": "Half Day Hike at Arikok National Park & Snorkel",
+      "status": 200,
+      "startTimes": [
+        "06:30",
+        "07:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "358826P1",
+      "title": "PRIVATE Jeep Safari Natural Pool, Indian Caves & Baby Beach with Snorkeling",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5585429P11",
+      "title": "Aruba Private Jeep Tour with Local Guide",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "09:30"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "139296P1",
+      "title": "Aruba Private Tours on a ac bus",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5552066P1",
+      "title": "Private Boat Tour in Aruba",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "434780P1",
+      "title": "Natural Pool Caves and Beach Private Tour",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "383257P2",
+      "title": "Aruba Island Tours (Private)",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "13835P19",
+      "title": "Private Sunset Horseback Ride",
+      "status": 200,
+      "startTimes": [
+        "17:00",
+        "17:30"
+      ],
+      "blocks": 27,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "116935P6",
+      "title": "Private Beach Cruisin & Snorkeling Experience in Aruba",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5617356P3",
+      "title": "Baby Beach Sunrise Adventure Bike, Hike & Snorkel",
+      "status": 200,
+      "startTimes": [
+        "06:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "459169P3",
+      "title": "Aruba UTV Rental | Explore the Island at Your Own Pace",
+      "status": 200,
+      "startTimes": [
+        "08:00"
+      ],
+      "blocks": 3,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "109524P10",
+      "title": "Explore On Your Offroad UTV 4 Seat",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "10:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "62666P2",
+      "title": "Private Sightseeing Boat Tour at Aruba with Snorkeling & Swimming",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "186518P2",
+      "title": "Night Shore Diving Mangel Halto Aruba for Certified Divers",
+      "status": 200,
+      "startTimes": [
+        "19:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "300281P1",
+      "title": "Private Guided Beach Meditation & Hike + Transfer",
+      "status": 200,
+      "startTimes": [
+        "05:30",
+        "06:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "358826P2",
+      "title": "Private Off-Road Adventure to Cave Pool and Tres Trapi",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "474314P2",
+      "title": "Aruba Professional Sunset Photo Shoot Experience With A Local",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 3,
+      "titleSignal": "evening",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5617356P8",
+      "title": "Safari Jeep Tour Adventure by B&H PM Tour - Natural Bridge",
+      "status": 200,
+      "startTimes": [
+        "14:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "5585429P3",
+      "title": "Private Tour - Rock formations and Turtle Viewing",
+      "status": 200,
+      "startTimes": [
+        "08:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "115682P11",
+      "title": "5 Seater UTV Honda Pioneer",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "08:30",
+        "09:00",
+        "09:30",
+        "10:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "5526774P1",
+      "title": "Aruba Private Island tour A/C Van",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "5568850P1",
+      "title": "Aruba Cruise Port Tours",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "2455P35",
+      "title": "Fortunata Half Day Private Sailing",
+      "status": 200,
+      "startTimes": [
+        "09:30",
+        "13:15"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "109524P13",
+      "title": "Explore On Your Own 8 Hours Single Seat ATV",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "10:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "115682P12",
+      "title": "Honda Talon 4 Seater Rental",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "212359P3",
+      "title": "Aruba Island Private Express Tour",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "474314P3",
+      "title": "Aruba Private Bali Floating Breakfast Photo Shoot for 2–4 Guests",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 3,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "317324P1",
+      "title": "Private Transportation & Tour",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 3,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5616292P7",
+      "title": "Aruba Island Tour",
+      "status": 200,
+      "startTimes": [
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "476164P10",
+      "title": "E-Scooter Rental Aruba Full Day Self-Guided (1 or 2-seater)",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "09:00",
+        "10:00",
+        "11:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "109524P11",
+      "title": "Explore On Your Own Offroad UTV 3 Seat",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "10:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "5629889P6",
+      "title": "Private Jeep Tour to Arikok National Park",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "10:00",
+        "11:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "5586794P1",
+      "title": "Convenient Jeep Rentals for Island Adventures",
+      "status": 200,
+      "startTimes": [
+        "08:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "429943P3",
+      "title": "Sunset Cruise Fully Private with Nos Isla",
+      "status": 200,
+      "startTimes": [
+        "17:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "5617356P2",
+      "title": "Oranjestad City Sunset Bike Tour",
+      "status": 200,
+      "startTimes": [
+        "17:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "13835P24",
+      "title": "Half Day Private Island Tour in Aruba",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "09:30",
+        "13:00"
+      ],
+      "blocks": 18,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5585429P13",
+      "title": "Private 4WD Plaza Turismo Tour of Oranjestad Aruba",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "383257P5",
+      "title": "Aruba Cave Pool and Beach Tours",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "300281P11",
+      "title": "Sunset Kayak and Snorkeling Tour",
+      "status": 200,
+      "startTimes": [
+        "16:30",
+        "17:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "341419P1",
+      "title": "Kids Parasailing Experience Aruba",
+      "status": 200,
+      "startTimes": [
+        "10:00",
+        "11:00",
+        "12:00",
+        "13:00",
+        "14:00",
+        "15:00",
+        "16:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5593159P4",
+      "title": "50%OFF Aruba‘s #1Clear Kayak Experience@arubaphotoshootexperience",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "6841P12",
+      "title": "Elite Jeep Safari with lunch and beer and open bar",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "476164P4",
+      "title": "Guided 3-Hour E-Scooter Island Tour in Aruba (1 or 2-seater)",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "16:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "250774P1",
+      "title": "Small-Group Sea Scooters Snorkel at Mangel Halto Beach in Aruba",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "13:30",
+        "16:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5595542P1",
+      "title": "3 Hours Private Boat Includes Snorkeling & Swim with turtles",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "12:30",
+        "16:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "6687P13",
+      "title": "Art, Beach and Culture Island Tour with Kini Kini",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "324189P1",
+      "title": "Aruba EZ Raider North Coast Ultimate Adventure",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "10:40",
+        "16:00"
+      ],
+      "blocks": 3,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "6687P10",
+      "title": "Aruba 2-Seater UTV Tour Adventure with Kini Kini",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 5,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "119085P9",
+      "title": "Private Sunset Catamaran Adventure Cruise with Open Bar",
+      "status": 200,
+      "startTimes": [
+        "16:30",
+        "17:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "137607P19",
+      "title": "Aruba Private Luxury AC Jeep Tour with Attractions",
+      "status": 200,
+      "startTimes": [
+        "07:00",
+        "07:30",
+        "08:00",
+        "08:30",
+        "09:00",
+        "09:30",
+        "10:00",
+        "10:30",
+        "11:00",
+        "11:30",
+        "12:00",
+        "12:30",
+        "13:00",
+        "13:30",
+        "14:00",
+        "14:30",
+        "15:00",
+        "15:30",
+        "16:00"
+      ],
+      "blocks": 6,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "137607P20",
+      "title": "Aruba Private Open-Air Safari Jeep Tour + Arikok and Conchi Pool",
+      "status": 200,
+      "startTimes": [
+        "07:00",
+        "07:30",
+        "08:00",
+        "08:30",
+        "09:00",
+        "09:30",
+        "10:00",
+        "10:30",
+        "11:00",
+        "11:30",
+        "12:00",
+        "12:30",
+        "13:00",
+        "13:30",
+        "14:00",
+        "14:30",
+        "15:00",
+        "15:30",
+        "16:00"
+      ],
+      "blocks": 6,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "367744P4",
+      "title": "Aruba Private Tour with SeaFood/Caribbean Food Included",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "476164P1",
+      "title": "Guided Electric Scooter Island Tour in Aruba (1 or 2-seater)",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "16:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "476164P3",
+      "title": "Sunset Island Tour in Aruba on Electric Scooter (1 or 2-seater)",
+      "status": 200,
+      "startTimes": [
+        "16:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "324189P2",
+      "title": "Private Jeep Tour National Park",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "115682P8",
+      "title": "6 Seater Utv Rental Aruba",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5569033P1",
+      "title": "Jeep Wrangler Jk Hardtop 4 door",
+      "status": 200,
+      "startTimes": [
+        "08:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "6687P12",
+      "title": "Aruban Roots 3 Hours Adventure by ATV & UTV with Kini Kini",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 3,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "324189P4",
+      "title": "National Park Arikok Jeep Safari Adventures",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "12:30",
+        "14:00",
+        "14:45"
+      ],
+      "blocks": 4,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "33158P1",
+      "title": "Aruba Off-Road ATV Tour",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 4,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "441143P1",
+      "title": "Aruba Arikok National Park Jeep Safari: Natural Pool & Baby Beach",
+      "status": 200,
+      "startTimes": [
+        "08:15"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "300281P9",
+      "title": "Arikok Sunrise Hiking Tour to Natural Pool + Transportation",
+      "status": 200,
+      "startTimes": [
+        "05:30",
+        "06:30"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "325347P3",
+      "title": "Private Turtle Snorkel Tour in Aruba +Professional video footage",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "11:00",
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "377394P9",
+      "title": "5-seater UTV 4 Hours Island tour in Aruba",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "377394P8",
+      "title": "4-seater UTV Island 4hr Tour in Aruba, morning or afternoon",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "325347P2",
+      "title": "Private First-Time Dive in Aruba. Reef, Wreck or Turtle site",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "13:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "178836P1",
+      "title": "Harley-Davidson Guided Island Tours",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 108,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "325347P4",
+      "title": "Private Dive + videographer/Photographer (Certified divers only)",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "13:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "6687ATV",
+      "title": "Aruba North Coast ATV Desert Adventure",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 7,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "292552P2",
+      "title": "Aruba Create Your Own Island Tour",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 28,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "109524P9",
+      "title": "Explore On Your Own Offroad UTV 6 Seat",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "10:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "200215P1",
+      "title": "Aruba's Northern Coast Horseback Adventure",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "419440P1",
+      "title": "Sea Glass Island Aruba Tour",
+      "status": 200,
+      "startTimes": [
+        "08:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "6593P14",
+      "title": "Salsa, Sunsets & Mojitos at Sea",
+      "status": 200,
+      "startTimes": [
+        "17:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "178836P3",
+      "title": "Harley-Davidson RENTALS ONLY 8 hrs",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 141,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5585429P1",
+      "title": "Aruba Half day Private Jeep Tour - Sightseeing and more",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "47774P3",
+      "title": "Aruba UTV & ATV Adventure",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:30"
+      ],
+      "blocks": 7,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "441143P8",
+      "title": "Aruba Natural Pool Jeep Adventure – Natural Bridge & Casibari",
+      "status": 200,
+      "startTimes": [
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "109524P2",
+      "title": "Aruba Rental Explore On Your Own",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "10:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "33158P4",
+      "title": "UTV Off Road Tour",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 3,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "137607P17",
+      "title": "Aruba Outback Safari Jeep Tour - Lighthouse, Arikok & Conchi Pool",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "377394P7",
+      "title": "2-Seater UTV Island Tour in Aruba",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 18,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "137607P12",
+      "title": "Aruba UTV Tour with Natural Cave Pool and Cliff Jumping",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:30"
+      ],
+      "blocks": 4,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "39473P5",
+      "title": "UTV Morning Tour: Discover Aruba's Hidden Treasures",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "morning",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "178836P2",
+      "title": "Harley-Davidson RENTALS ONLY 4 hrs",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 108,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "377394P1",
+      "title": "UTV Island Tour around Aruba",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 7,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "337516P1",
+      "title": "2-Hour Horseback Riding Tour to Little Natural Bridge in Aruba",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "16:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "200215P3",
+      "title": "Horseback Riding and Natural Pool Adventure in Aruba",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "13526P12",
+      "title": "Aruba Kayak Explorers",
+      "status": 200,
+      "startTimes": [
+        "08:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "13526P5",
+      "title": "Antilla Shipwreck Seabob Tour",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "12:00",
+        "12:30"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "14261P1",
+      "title": "Horseback Ride Tour to Natural Pool in Arikok National Park",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "15:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "212359P5",
+      "title": "Aruba Full Island Private Tour: 4 Hours",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "330511P1",
+      "title": "Horseback Riding Wariruri Beach Tour in Aruba",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "16:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "47774P4",
+      "title": "Aruba Natural Pools Northshore Safari Tour",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "8936P1",
+      "title": "Arusun Catamaran Sail with Snorkeling in Aruba",
+      "status": 200,
+      "startTimes": [
+        "09:30",
+        "13:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "367744P2",
+      "title": "Full-Day Aruba Sightseeing island Tour with Baby Beach Swim",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "10:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "13835P20",
+      "title": "Horseback Riding 2 Hr SUNSET , Rock formation & North Coast Ride",
+      "status": 200,
+      "startTimes": [
+        "16:30",
+        "17:00"
+      ],
+      "blocks": 56,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "117113P1",
+      "title": "The Whole Story Tour with A Ride",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "09:30",
+        "16:00"
+      ],
+      "blocks": 8,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "47774P7",
+      "title": "Aruba Safari Jeep Tour and Beach Cliff Jumping",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "441143P2",
+      "title": "Aruba Half-Day Full Island Safari Adventure with Baby Beach Swim",
+      "status": 200,
+      "startTimes": [
+        "08:15",
+        "14:15"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "115682P2",
+      "title": "Aruba UTV Rental: 4-Seater for Adventure Exploration",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "08:30",
+        "09:00",
+        "09:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "300281P10",
+      "title": "Discover Sea Glass Island: Aruba’s Must-Do Adventure",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "13:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "6687P4",
+      "title": "Highlights of Aruba Island Tour",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "39473P6",
+      "title": "Aruba Northcoast UTV Afternoon Tour",
+      "status": 200,
+      "startTimes": [
+        "14:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "afternoon",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "3046P8",
+      "title": "Private Tour: Essential Tour of Aruba",
+      "status": 200,
+      "startTimes": [
+        "08:15"
+      ],
+      "blocks": 11,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "153287P4",
+      "title": "Baby Beach Day Roundtrip",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "6593P8",
+      "title": "Iconic Aruba Sail and Snorkel Experience",
+      "status": 200,
+      "startTimes": [
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "13526P9",
+      "title": "Action-Packed Half Day Aruba UTV Tour and Arashi Beach",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "212359P4",
+      "title": "Aruba Island Private Tour: 3 Hours",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "7389P10",
+      "title": "Half-Day Aruba Animal Sanctuary Guided Tour",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "186518P4",
+      "title": "Aruba PADI Scuba Diving Program Non Certified Divers",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "13:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "128740P13",
+      "title": "6-Seat UTV Rental: Your Own Aruba Adventure",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "08:30",
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "2785MORSNORKEL",
+      "title": "Half-Day Snorkel Sail Tour with Caribbean Lunch",
+      "status": 200,
+      "startTimes": [
+        "09:15"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "103088P3",
+      "title": "Adults Only Catalina Bay Small Group Snorkel & Sunset Sail",
+      "status": 200,
+      "startTimes": [
+        "15:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "13526P13",
+      "title": "Banana Adventure Catamaran Shipwreck Snorkel and Turtle Swim",
+      "status": 200,
+      "startTimes": [
+        "09:30",
+        "13:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "13835P2",
+      "title": "Aruba Horseback Riding Tour to Alto Vista Chapel",
+      "status": 200,
+      "startTimes": [
+        "07:00",
+        "10:00"
+      ],
+      "blocks": 34,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "3046P7",
+      "title": "Made in Aruba Sightseeing Tour",
+      "status": 200,
+      "startTimes": [
+        "08:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "13526P14",
+      "title": "Banana Adventure Catamaran Tropical Sunset Sail",
+      "status": 200,
+      "startTimes": [
+        "17:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "444239P7",
+      "title": "Coral Sunset Sail with 3 Course Dinner in Aruba",
+      "status": 200,
+      "startTimes": [
+        "16:00",
+        "17:00"
+      ],
+      "blocks": 5,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "200215P2",
+      "title": "Aruba North Coastline: Small-Group Horseback Riding Tour",
+      "status": 200,
+      "startTimes": [
+        "16:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "128740P9",
+      "title": "5 seat UTV Rental: Your Adventure, Your Way",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "08:30",
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "119085P1",
+      "title": "Dolphin Catamaran Snorkel and Sail with Open Bar",
+      "status": 200,
+      "startTimes": [
+        "09:30",
+        "13:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "13526P6",
+      "title": "Aruba Seabob Scooter Reef Tour",
+      "status": 200,
+      "startTimes": [
+        "10:00",
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "13835P11",
+      "title": "Aruba Horseback Riding Tour For Advanced Riders",
+      "status": 200,
+      "startTimes": [
+        "07:00",
+        "10:00"
+      ],
+      "blocks": 77,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "12431P1",
+      "title": "Half-Day Aruba Island Tour from Oranjestad",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "10:00",
+        "14:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "12431P3",
+      "title": "Full-Day Aruba History and Must-See Landmarks Tour",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "10:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "13835P3",
+      "title": "Aruba Countryside: Horseback Adventure to Urirama Cove",
+      "status": 200,
+      "startTimes": [
+        "07:00",
+        "10:00",
+        "14:30"
+      ],
+      "blocks": 71,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "39473P3",
+      "title": "Customized Aruba Island Private Tour for All Ages",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5494168P1",
+      "title": "Guided Trikes Tour Around Aruba Island",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "13:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "300281P2",
+      "title": "Spanish Lagoon Mangrove Trail & Bird Watching",
+      "status": 200,
+      "startTimes": [
+        "07:30"
+      ],
+      "blocks": 3,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "6593BRUNCH",
+      "title": "Premium Morning Snorkel Sail with Champagne Brunch",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "morning",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "39473P2",
+      "title": "Aruba Countryside Tour",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "47607P4",
+      "title": "Aruba Happy Hour Sunset Sail with Savory Bites and Cocktails",
+      "status": 200,
+      "startTimes": [
+        "17:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "106422P3",
+      "title": "Aruba 2-Tank Guided Dive for Certified Divers / rental equipment",
+      "status": 200,
+      "startTimes": [
+        "08:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "476164P2",
+      "title": "E-Scooter Rental Aruba – 4 Hours Self-Guided (1 or 2-seater)",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "10:00",
+        "11:00",
+        "12:00",
+        "13:00",
+        "14:00",
+        "15:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "47774P1",
+      "title": "Colorful Beach Bus Sightseeing Tour of Aruba",
+      "status": 200,
+      "startTimes": [
+        "10:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "15815P2",
+      "title": "Aruba 2-Tank Dive Excursion for Certified Divers",
+      "status": 200,
+      "startTimes": [
+        "08:30"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "7389P1",
+      "title": "Aruba Island Sightseeing Tour",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "14:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "39473P4",
+      "title": "Aruba Jeep Tour: Natural Pool, Caves and Baby Beach Adventure",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "13835P15",
+      "title": "Sunset Horseback Ride in Aruba",
+      "status": 200,
+      "startTimes": [
+        "17:00",
+        "17:30"
+      ],
+      "blocks": 25,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "292552P5",
+      "title": "Aruba Private Full Island Tour",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 4,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "13526P10",
+      "title": "Half Day UTV Rentals",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "12431P9",
+      "title": "Aruba Baby Beach Express Tour",
+      "status": 200,
+      "startTimes": [
+        "10:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "186518P3",
+      "title": "Aruba Snorkeling Tour: Mangel Halto and Baby Beach",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "13:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "186518P13",
+      "title": "Baby Beach Scuba Diving for Non Certified, Beginner Diver",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "13:00",
+        "13:30",
+        "14:30"
+      ],
+      "blocks": 3,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "2785AFTSNORKEL",
+      "title": "Antilla Shipwreck and Catalina Bay Snorkel Sail",
+      "status": 200,
+      "startTimes": [
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "7927P1",
+      "title": "Aruba Ecological & Coastline Horseback Ride with Beach Photo Stop",
+      "status": 200,
+      "startTimes": [
+        "06:00",
+        "06:30",
+        "07:30",
+        "08:00",
+        "10:30",
+        "15:30",
+        "17:00",
+        "17:30"
+      ],
+      "blocks": 5,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "119085P2",
+      "title": "Aruba Sunset Sail Cruise Aboard The Dolphin Catamaran",
+      "status": 200,
+      "startTimes": [
+        "16:30",
+        "17:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "37387P3",
+      "title": "Aruba Jolly Pirate Afternoon Sail with Snorkeling",
+      "status": 200,
+      "startTimes": [
+        "14:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "afternoon",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "300281P8",
+      "title": "Adventure Kayak & Snorkeling at Reef Island Aruba",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "13:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "2455HAPPY",
+      "title": "Aruba Afternoon Snorkel Sail aboard Palm Pleasure Catamaran",
+      "status": 200,
+      "startTimes": [
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "afternoon",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "137607P23",
+      "title": "Aruba Private Luxury Boat Tours - Sail, Snorkel, Fishing and More",
+      "status": 200,
+      "startTimes": [
+        "07:00",
+        "07:30",
+        "08:00",
+        "08:30",
+        "09:00",
+        "09:30",
+        "10:00",
+        "10:30",
+        "11:00",
+        "11:30",
+        "12:00",
+        "12:30",
+        "13:00",
+        "13:30",
+        "14:00",
+        "14:30",
+        "15:00",
+        "15:30",
+        "16:00"
+      ],
+      "blocks": 6,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "6593P18",
+      "title": "An Astronomical Moment: Aruba Celestial Sunset Cruise",
+      "status": 200,
+      "startTimes": [
+        "17:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "37387P2",
+      "title": "Aruba Sunset Jolly Pirate Sail with Open Bar",
+      "status": 200,
+      "startTimes": [
+        "17:30"
+      ],
+      "blocks": 2,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "292552P4",
+      "title": "Private Aruba Beach Hop and Snorkel Experience",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 4,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "186518P5",
+      "title": "Small Group Snorkeling at Mangel Halto Aruba",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "2785SUNSET",
+      "title": "Aruba Sunset Catamaran Sail with Appetizers and Open Bar",
+      "status": 200,
+      "startTimes": [
+        "17:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "13835P17",
+      "title": "Aruba Private, 2 Hour Horseback Riding Tour For Advanced Riders",
+      "status": 200,
+      "startTimes": [
+        "07:00",
+        "10:00"
+      ],
+      "blocks": 45,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "300281P5",
+      "title": "Private Aruba Kayak & Snorkeling Tour + Transortation",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "13:00",
+        "16:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "245508",
+      "title": "Aruba Sunset Sail with Open Bar",
+      "status": 200,
+      "startTimes": [
+        "17:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "13835P16",
+      "title": "Aruba 2,5 hrs Horseback Riding For Advanced Riders",
+      "status": 200,
+      "startTimes": [
+        "06:30"
+      ],
+      "blocks": 28,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "128740P6",
+      "title": "4-Seat UTV Rentals: Your Adventure, Your Way",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "08:30",
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "300281P7",
+      "title": "Sunset Sea Glass Island Kayak Tour",
+      "status": 200,
+      "startTimes": [
+        "16:30"
+      ],
+      "blocks": 2,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "128740P14",
+      "title": "Private Jeep Tour: Explore Aruba's National Park Off-Road",
+      "status": 200,
+      "startTimes": [
+        "08:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "476164P5",
+      "title": "Electric Scooter Rental Aruba – 1 or Multiple Days Rental",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "10:00",
+        "11:00"
+      ],
+      "blocks": 7,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "214149P3",
+      "title": "Private German Speaking Jeep Tours",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "106422P5",
+      "title": "Aruba 1-Tank guided Dive for certified divers with own equipment",
+      "status": 200,
+      "startTimes": [
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "7389P8",
+      "title": "Aruba Mangel Halto and Baby Beach Snorkeling Guided Tour",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "128740P5",
+      "title": "Aruba Jeep Rental Adventure",
+      "status": 200,
+      "startTimes": [
+        "07:30",
+        "08:00",
+        "08:30",
+        "08:45",
+        "09:00",
+        "09:30",
+        "10:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "13835P1",
+      "title": "Aruba Horseback Riding Tour to Hidden Lagoon",
+      "status": 200,
+      "startTimes": [
+        "10:00",
+        "14:30"
+      ],
+      "blocks": 38,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "7389P2",
+      "title": "Aruba Island Sightseeing Tour Plus Arashi Beach Visit",
+      "status": 200,
+      "startTimes": [
+        "08:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "137607P22",
+      "title": "Aruba Jet Ski Rental — Exciting Water Adventures Await",
+      "status": 200,
+      "startTimes": [
+        "10:00",
+        "10:30",
+        "11:00",
+        "11:30",
+        "12:00",
+        "12:30",
+        "13:00",
+        "13:30",
+        "14:00",
+        "14:30",
+        "15:00",
+        "15:30",
+        "16:00",
+        "16:30"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "106422P4",
+      "title": "Aruba 1-Tank guided Dive for certified divers with rental equipment",
+      "status": 200,
+      "startTimes": [
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "474314P1",
+      "title": "Aruba‘s #1 Clear Kayak INSTANT DELIVERY@arubaphotoshootexperience",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "186518P1",
+      "title": "Shore Dive Aruba for Certified Divers",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "13:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "300281P12",
+      "title": "Private Sea Glass Island Kayak Morning + Transfer",
+      "status": 200,
+      "startTimes": [
+        "08:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "morning",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "325347P5",
+      "title": "Private Dive at Shipwreck + Beautiful Reef Spot(Certified divers)",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "13:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "186518P7",
+      "title": "Boat Dive Shipwreck/ Airplanes/ Reef /2 tanks",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "7927P13",
+      "title": "Cruise Shore Excursion Aruba’s Eco and Beach Horseback Riding",
+      "status": 200,
+      "startTimes": [
+        "10:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "5585429P7",
+      "title": "Snorkeling with sea turtles Beach hopping Private Jeep Tour",
+      "status": 200,
+      "startTimes": [
+        "08:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "89829P36",
+      "title": "Aruba Shore Excursion: The Highlights and Delights Tour",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5617356P7",
+      "title": "Safari Jeep Tour Adventure by B&H AM Tour - Caves & Natural Pool",
+      "status": 200,
+      "startTimes": [
+        "08:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "5665562P4",
+      "title": "Sea Glass Island Kayak Tour Aruba in Morning or Midday",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "13:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "13835P27",
+      "title": "Aruba Sunrise Horse ride with hotel transfer",
+      "status": 200,
+      "startTimes": [
+        "06:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "383257P1",
+      "title": "All of Aruba Island & beach Tour",
+      "status": 200,
+      "startTimes": [
+        "10:30",
+        "13:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5581415P1",
+      "title": "Private Island Tour in Premium A/C Jeeps",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "11:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "320728P2280",
+      "title": "Full Day Private Shore Tour in Oranjestad from Oranjestad Port",
+      "status": 200,
+      "startTimes": [
+        "07:30",
+        "09:00"
+      ],
+      "blocks": 8,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "5683525P1",
+      "title": "THE LOCAL WAY : Turtle & reef coral Snorkeling experience",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "10:30",
+        "12:30",
+        "14:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "186518P14",
+      "title": "Mangel Halto Adventure Sea Scooters",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00",
+        "15:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5665562P3",
+      "title": "Sunset Sea Glass Island Kayak Tour Aruba",
+      "status": 200,
+      "startTimes": [
+        "17:00"
+      ],
+      "blocks": 7,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "5665562P6",
+      "title": "Sunset Kayak and Snorkel Tour at Mangel Halto Aruba",
+      "status": 200,
+      "startTimes": [
+        "16:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "115682P14",
+      "title": "Private Jeep Excursion in Aruba",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "10:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "45382P429",
+      "title": "Aruba Sunset Catamaran Cruise with Open Bar and Light Bites",
+      "status": 200,
+      "startTimes": [
+        "17:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "320728P484",
+      "title": "Private Transfer from Oranjestad Cruise Port to Oranjestad city",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 16,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "13835P21",
+      "title": "Aruba Customized eco friendly Private Island Tour",
+      "status": 200,
+      "startTimes": [
+        "07:30",
+        "08:30",
+        "13:00",
+        "14:00"
+      ],
+      "blocks": 3,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "45382P428",
+      "title": "Aruba Snorkel Cruise to the Antilla Shipwreck with Brunch",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "45382P430",
+      "title": "Private Catamaran Charter in Aruba for Up to 45 Guests",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "13:00"
+      ],
+      "blocks": 7,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "45382P418",
+      "title": "Aruba Afternoon Snorkel Sail with Two Stops Lunch and Open Bar",
+      "status": 200,
+      "startTimes": [
+        "13:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "afternoon",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "5526774P7",
+      "title": "Private Island Experience Local Sites Culture and Coastal Beauty",
+      "status": 200,
+      "startTimes": [
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "461868P1",
+      "title": "Private Racket Sport Experience with Elite Athlete in Aruba",
+      "status": 200,
+      "startTimes": [
+        "11:30",
+        "12:00"
+      ],
+      "blocks": 4,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5665562P5",
+      "title": "Kayak and Snorkel Tour at Mangel Halto Aruba",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "13:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "102406P5",
+      "title": "Aruba Element Private Boat Charter (L-Lounge)",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "13:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "429943P2",
+      "title": "Classic Half‑Day Private Adventure:Snorkel & Explore Hidden Spots",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "419440P2",
+      "title": "Aruba Kayak Fishing Tour",
+      "status": 200,
+      "startTimes": [
+        "18:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "429943P1",
+      "title": "Premium Full‑Day Private Adventure:Snorkel & Explore Hidden Spots",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "6841P6",
+      "title": "Aruba UTV Off-Road Driving Experience North Coast Stops",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "14:00"
+      ],
+      "blocks": 4,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "6841P7",
+      "title": "Aruba UTV Adventure to Natural Pool Jeep Transfer",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "13:30"
+      ],
+      "blocks": 4,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "6841POOL",
+      "title": "Aruba Natural Pool and Indian Cave Rugged Jeep Safari",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "14:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "299932P2",
+      "title": "Sunrise Hike & Swim in Natural Pool: Escape the Crowds and Heat",
+      "status": 200,
+      "startTimes": [
+        "06:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "119085P10",
+      "title": "Private Boat Cruise with Snorkeling",
+      "status": 200,
+      "startTimes": [
+        "09:30",
+        "10:00",
+        "11:00",
+        "12:00",
+        "13:00",
+        "14:00",
+        "15:00",
+        "16:00"
+      ],
+      "blocks": 7,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "102406P4",
+      "title": "Aruba Element Private Boat Charter (After-Lounge)",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "13:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "245504",
+      "title": "Best of Aruba by Bus",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "122173P3",
+      "title": "Kayak Tour to Seaglass Island",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "14:00",
+        "16:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "122173P1",
+      "title": "Kayak Tour at Mangel Halto and Spanish Lagoon",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "14:00",
+        "16:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "2455SUB",
+      "title": "Aruba Atlantis Submarine Tour",
+      "status": 200,
+      "startTimes": [
+        "11:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "70453P2",
+      "title": "Aruba Night Glass Kayak Tour",
+      "status": 200,
+      "startTimes": [
+        "18:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "70453P1",
+      "title": "Aruba Glass Bottom Kayak Tour through the Mangrove Forest",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "16:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "2455SEMI",
+      "title": "Aruba Semi-Submarine Cruise from Palm Beach",
+      "status": 200,
+      "startTimes": [
+        "11:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "358117P10",
+      "title": "Sea Glass Island Tour By Boat",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "13:00",
+        "13:30",
+        "16:00",
+        "16:30",
+        "19:00",
+        "20:00",
+        "21:00"
+      ],
+      "blocks": 28,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "358117P7",
+      "title": "Aruba Private Boat Tour with Snorkeling",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "09:00",
+        "10:00",
+        "11:00",
+        "12:00",
+        "13:00",
+        "14:00",
+        "15:00",
+        "16:00",
+        "17:00"
+      ],
+      "blocks": 6,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "446074P1",
+      "title": "Private Aruba National Park Hiking & Natural Pool Swimming",
+      "status": 200,
+      "startTimes": [
+        "08:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "6593P17",
+      "title": "Open Air Beach Bus Tour of Aruba",
+      "status": 200,
+      "startTimes": [
+        "09:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "5629889P1",
+      "title": "Full Day Jeep Tour with Arikok National Park and Caves",
+      "status": 200,
+      "startTimes": [
+        "08:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "342849P3",
+      "title": "Semi - Private Spanish Lagoon Culture Heritage E-Bike Experience",
+      "status": 200,
+      "startTimes": [
+        "06:00",
+        "07:00",
+        "08:00",
+        "09:00",
+        "10:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "6841ISLAND",
+      "title": "Island Jeep Safari with Natural Pool Baby Beach and Lunch",
+      "status": 200,
+      "startTimes": [
+        "08:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "19808P5",
+      "title": "Half-Day Aruba UTV Adventure Tour",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "13:30"
+      ],
+      "blocks": 19,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "19808P11",
+      "title": "UTV and Jeep Island Adventure Mix Up",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "13:30"
+      ],
+      "blocks": 16,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "2455NPJEEP",
+      "title": "Aruba Off Road Safari Tour to Natural Pool",
+      "status": 200,
+      "startTimes": [
+        "08:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "139296P2",
+      "title": "Sunday Open Bus Tours",
+      "status": 200,
+      "startTimes": [
+        "10:30"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "7470P2",
+      "title": "Aruba UTV Adventure",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "14:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "367744P1",
+      "title": "Half-Day Aruba Sightseeing Tour & Beach in an Air-condition Bus",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "10:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "5505210P3",
+      "title": "Sunrise Hike and Beach Meditation to Rancho Curason",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "283728P3",
+      "title": "Private Mountain Bike Tour in Aruba",
+      "status": 200,
+      "startTimes": [
+        "08:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "5555310P1",
+      "title": "Hooiberg Hill Hike (Sunrise, Sunset, Night)",
+      "status": 200,
+      "startTimes": [
+        "06:30",
+        "18:30",
+        "19:00"
+      ],
+      "blocks": 3,
+      "titleSignal": "evening",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "342849P9",
+      "title": "Semi-Private Malmok and Lighthouse coastal e-bike ride experience",
+      "status": 200,
+      "startTimes": [
+        "07:00",
+        "08:00",
+        "09:00",
+        "10:00",
+        "15:00",
+        "16:00",
+        "17:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "139296P3",
+      "title": "Aruba open bus Shore Excursion",
+      "status": 200,
+      "startTimes": [
+        "10:00",
+        "14:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5590739P2",
+      "title": "Aruba Highlights 7 Days and 6 Nights",
+      "status": 200,
+      "startTimes": [
+        "08:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "5566924P9",
+      "title": "Aruba 6 Hours Private Island Tour",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "342849P5",
+      "title": "Semi-Private Twilight Glow Electric Bike Tour Downtown Oranjestad",
+      "status": 200,
+      "startTimes": [
+        "17:30",
+        "18:00"
+      ],
+      "blocks": 5,
+      "titleSignal": "none",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "5566924P1",
+      "title": "Private Tour: Swim with Turtles, Scenic Tour & Floating Breakfast",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5566924P4",
+      "title": "Aruba Private 8 Hour Full Island Customized Adventure Tour",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5505210P1",
+      "title": "The Essential Island Highlights Tour",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "14:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "350808P2417",
+      "title": "Aruba Private Jeep Tours With Exciting Attractions",
+      "status": 200,
+      "startTimes": [
+        "07:00",
+        "07:30",
+        "08:00",
+        "09:00",
+        "10:00"
+      ],
+      "blocks": 8,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "118537P3",
+      "title": "Half Day Private Tour in Aruba with Guide",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "13:00",
+        "15:00",
+        "19:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "342849P2",
+      "title": "Private Street Art Murals and Coastal San Nicolas E-Bike Aruba",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "09:00",
+        "10:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "222222P227",
+      "title": "Oranjestad, Aruba Historical GPS Self Guided Audio Walking Tour",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5671292P1",
+      "title": "Philip's Animal Garden: Explore Aruba Wildlife",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "08:30",
+        "09:00",
+        "09:30",
+        "10:00",
+        "10:30",
+        "11:00",
+        "11:30",
+        "12:00",
+        "12:30",
+        "13:00",
+        "13:30",
+        "14:00",
+        "14:30",
+        "15:00",
+        "15:30",
+        "16:00",
+        "16:30",
+        "17:00",
+        "17:30",
+        "18:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "259665P12",
+      "title": "Scenic Aruba Self-Guided Driving and Walking Audio Tour",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5566924P8",
+      "title": "Private Aruba Jeep Tour Natural Pool and Beyond",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "350808P2418",
+      "title": "Private Essential Tour of Aruba",
+      "status": 200,
+      "startTimes": [
+        "07:30",
+        "09:00",
+        "10:00"
+      ],
+      "blocks": 8,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "5652763P1",
+      "title": "Aruba Discovery Tour Explore Investment Opportunities",
+      "status": 200,
+      "startTimes": [
+        "09:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "5607727P3",
+      "title": "Aruba Private Cruise Terminal Half Day Island Tour",
+      "status": 200,
+      "startTimes": [
+        "09:30",
+        "13:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "350808P2629",
+      "title": "Private Full Island Tour in Aruba",
+      "status": 200,
+      "startTimes": [
+        "07:30",
+        "09:00"
+      ],
+      "blocks": 8,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "5599636P2",
+      "title": "Sip and Paint Aruba Sunset Creative Experience",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 2,
+      "titleSignal": "evening",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5574243P1",
+      "title": "Clear kayak & Bamboo raft ARUBA! Same Day Delivery! PACKAGE DEAL!",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5636214P1",
+      "title": "Sense and Paint Intuitive Art Experience in Aruba",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "400174P13",
+      "title": "Aruba Bamboo Raft Photo| Videoshoot + Free Cocktails Edits 24Hrs",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "untimed"
+    },
+    {
+      "id": "342849P4",
+      "title": "Oranjestad Culture Heritage and Coastal Electric Bike Experience",
+      "status": 200,
+      "startTimes": [
+        "06:00",
+        "07:00",
+        "08:00",
+        "09:00",
+        "10:00",
+        "15:00",
+        "16:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "6593P15",
+      "title": "Baby Beach & Mangel Halto Off-Road Safari",
+      "status": 200,
+      "startTimes": [
+        "08:30",
+        "14:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5562515P2",
+      "title": "Photographer-Capture Memories in Aruba-Candid Photography Session",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "18:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5593159P6",
+      "title": "Aruba Professional Photo Shoot Experience W’ FREE Drone Shots",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "296594P4",
+      "title": "Feel Like a Star: Nighttime Paparazzi Flash Photoshoot",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 2,
+      "titleSignal": "evening",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5576013P3",
+      "title": "Aruba Clear Kayak Group Photoshoot Photos Videos in 24H",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5626463P3",
+      "title": "Family Photoshoot Portraits Activity",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "09:00",
+        "17:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5634943P2",
+      "title": "Custom Tattoo Experience at Uncle Jah in Aruba",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5626463P2",
+      "title": "Editorial Couples Session in Aruba",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "09:30",
+        "17:30"
+      ],
+      "blocks": 14,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5593159P5",
+      "title": "Aruba Private Bali Floating Breakfast Photo Shoot 2-4 Guest",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "172188P109",
+      "title": "Private Vacation Photoshoot with Photographer in Aruba",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 4,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "472918P1",
+      "title": "Award-Winning Private Turtle Snorkeling Aruba | Video Included",
+      "status": 200,
+      "startTimes": [
+        "06:30",
+        "07:45",
+        "09:00",
+        "15:45"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "19808P9",
+      "title": "Aruba Signature Jeep Tour: Natural Pool and Baby Beach",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "13:30"
+      ],
+      "blocks": 33,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5563642P1",
+      "title": "Professional Sunset Photoshoot in Aruba",
+      "status": 200,
+      "startTimes": [
+        "17:00",
+        "17:30",
+        "18:00",
+        "18:30"
+      ],
+      "blocks": 2,
+      "titleSignal": "evening",
+      "verdict": "afternoon-only"
+    },
+    {
+      "id": "117113P2",
+      "title": "The Whole Story Tour of San Nicolas in Aruba",
+      "status": 200,
+      "startTimes": [
+        "09:30",
+        "16:00"
+      ],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5628877P6",
+      "title": "Aruba Sunset Photoshoot",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "untimed"
+    },
+    {
+      "id": "6593P16",
+      "title": "Aruba Natural Wonders Caves and Natural Pool Jeep Tour",
+      "status": 200,
+      "startTimes": [
+        "08:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "6593P19",
+      "title": "Full Island Tour Off Road Safari",
+      "status": 200,
+      "startTimes": [
+        "08:30"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "5576013P1",
+      "title": "Aruba Clear Kayak Photoshoot | Same-Day Photo + Video",
+      "status": 200,
+      "startTimes": [
+        "09:00",
+        "09:30",
+        "10:15",
+        "10:45",
+        "11:15",
+        "11:45",
+        "12:15"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "2455P17",
+      "title": "Aruba Sightseeing Tour with Transport",
+      "status": 200,
+      "startTimes": [
+        "10:00"
+      ],
+      "blocks": 1,
+      "titleSignal": "none",
+      "verdict": "morning-only"
+    },
+    {
+      "id": "400174P2",
+      "title": "#1Clear Kayak Aruba Shoot| FREE Cocktail|Edits 24hr|+Free Coupons",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 3,
+      "titleSignal": "evening",
+      "verdict": "untimed"
+    },
+    {
+      "id": "358117P1",
+      "title": "Aruba Unique Clear Kayak Drone Photoshoot with Video",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 18,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5616292P5",
+      "title": "Family and Couple Engagement Photography in Aruba",
+      "status": 200,
+      "startTimes": [
+        "07:00",
+        "07:45",
+        "08:00",
+        "08:30",
+        "09:15",
+        "09:30",
+        "10:00",
+        "16:00",
+        "16:30",
+        "17:00",
+        "17:15",
+        "17:30",
+        "18:00",
+        "18:15",
+        "18:45",
+        "19:00"
+      ],
+      "blocks": 3,
+      "titleSignal": "none",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "358117P17",
+      "title": "Aruba Flying Dress Clear Kayak Drone Photoshoot and Video",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    },
+    {
+      "id": "5644576P3",
+      "title": "Aruba Sunset Couples and Proposal Beach Photoshoot",
+      "status": 200,
+      "startTimes": [
+        "08:00",
+        "17:55"
+      ],
+      "blocks": 1,
+      "titleSignal": "evening",
+      "verdict": "spans-cutoff"
+    },
+    {
+      "id": "5563642P2",
+      "title": "On-Site Photo Studio Experience for Events in Aruba",
+      "status": 200,
+      "startTimes": [],
+      "blocks": 2,
+      "titleSignal": "none",
+      "verdict": "untimed"
+    }
+  ]
+}
