@@ -1,6 +1,7 @@
 import { useState, type CSSProperties, type MouseEvent } from 'react';
 import { Search, Star, MapPin, Clock, Dollar, X } from '../components/Icons';
 import AddButton from '../components/AddButton';
+import DepartureNote from '../components/DepartureNote';
 import Footer from '../components/Footer';
 import { useShortlist } from '../lib/shortlist';
 import type { Activity } from '../data/activities';
@@ -315,6 +316,11 @@ function ItemTile({ item, section, sectionUrl: _sectionUrl, region, adventure, b
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Clock size={11} /> {item.duration}</span>
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Dollar size={11} /> {item.price_usd}</span>
         </div>
+        {/* Same box the itinerary card shows, and the reason it belongs here too:
+            Explore is where a traveller decides, and a boat you cannot reach is
+            not a real option. `.a-card` is auto-height, so unlike the flip card
+            this needs no size term — it just makes the tile taller. */}
+        <DepartureNote item={item} />
         <div style={{ marginTop: 'auto' }}><CardActions bookNow={bookNow} free={item.price_usd === 0} added={added} onAdd={onAdd} /></div>
       </div>
     </div>
