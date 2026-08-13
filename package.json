@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "enrich": "node tools/run-enrich.cjs",
     "drift": "node tools/run-drift.cjs",
-    "plan-diff": "node tools/run-plan-diff.cjs"
+    "plan-diff": "node tools/run-plan-diff.cjs",
+    "probe:start-times": "node tools/run-probe-start-times.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
