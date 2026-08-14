@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { overviewExtraFor } from '../data/overviewExtra';
 import RatingBreakdown from './RatingBreakdown';
 import { hasBreakdown } from '../data/reviewBreakdown';
 import type { Activity } from '../data/activities';
@@ -76,7 +77,12 @@ export default function CardBack(props: Props) {
   // each unreadably narrow. Local picks keep it: they have no Viator listing to
   // show instead, which is exactly when a traveller's own words are worth most.
   const productId = isActivity ? null : props.bestSeller.id;
-  const overview = isActivity ? '' : (props.bestSeller.description ?? '').trim();
+  // Both operator texts, longest-lead first. See overviewExtra.ts: the page
+  // renders one or the other depending on the product, and they differ where
+  // both exist, so showing both is what guarantees the card agrees with the page.
+  const overviewMain = isActivity ? '' : (props.bestSeller.description ?? '').trim();
+  const overviewAlt = isActivity ? '' : overviewExtraFor(props.bestSeller.id);
+  const overview = [overviewAlt, overviewMain].filter(Boolean).join('\n\n');
   const showBreakdown = Boolean(productId && hasBreakdown(productId));
   const twoHalves = Boolean(productId) && (showBreakdown || showTravellers) && overview.length > 0;
 
@@ -161,10 +167,14 @@ export default function CardBack(props: Props) {
                     borderRadius: 12, padding: 12, minHeight: 0,
                     display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--ink)' }}>Overview</span>
-        <p style={{ fontSize: 11.5, lineHeight: 1.45, color: 'var(--sand-700)', margin: 0,
-                    overflowY: 'auto', minHeight: 0 }}>
-          {overview}
-        </p>
+        <div style={{ overflowY: 'auto', minHeight: 0, display: 'flex',
+                      flexDirection: 'column', gap: 6 }}>
+          {overview.split('\n\n').filter(Boolean).map((para, i) => (
+            <p key={i} style={{ fontSize: 11.5, lineHeight: 1.45, color: 'var(--sand-700)', margin: 0 }}>
+              {para}
+            </p>
+          ))}
+        </div>
       </div>,
     );
   }

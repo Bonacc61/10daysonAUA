@@ -115,35 +115,14 @@ describe('no fabricated social proof anywhere in the app', () => {
     // a real number, which is the same defect as inventing one. Comments may
     // still discuss it — only rendered strings matter.
     //
-    // ONE allowance, narrowed on 2026-08-14 rather than dropped. The rule was
-    // written when the only number available was `combinedAverageRating`, a
-    // blend Viator computes — calling that "TripAdvisor" attributes to a
-    // platform a figure it never published. `/products/{code}` also returns
-    // `reviews.sources[]`, where a TRIPADVISOR entry carries its OWN total,
-    // average and star histogram. Naming that one is accurate attribution, and
-    // refusing to name it would be its own dishonesty: it would merge two
-    // audiences that visibly disagree into a consensus neither reported.
-    //
-    // The allowance is a single file, and the test below pins what it may do.
-    const ALLOWED = new Set(['src/data/reviewBreakdown.ts']);
-    const hits = files
-      .filter(([, src]) => stripComments(src).includes('TripAdvisor'))
-      .map(([f]) => f)
-      .filter((f) => ![...ALLOWED].some((a) => f.endsWith(a)));
+    // This was briefly relaxed on 2026-08-14 to let the card back name each
+    // platform separately, and un-relaxed the same day: naming them was accurate
+    // but wrong for the reader, because the figure they can check on the Viator
+    // page is the COMBINED one. reviewBreakdown.ts now sums the platforms, so
+    // there is a single number, no platform is named, and the original rule
+    // stands unweakened.
+    const hits = files.filter(([, src]) => stripComments(src).includes('TripAdvisor')).map(([f]) => f);
     expect(hits).toEqual([]);
-  });
-
-  it('the one allowed file names a platform only from that platform\'s own data', () => {
-    // What keeps the allowance honest: the label is looked up from the provider
-    // field the API supplied, never attached to a combined figure. If someone
-    // maps a bare average onto a platform name here, this fails.
-    const src = readFileSync(join(SRC, 'data/reviewBreakdown.ts'), 'utf8');
-    const code = stripComments(src);
-    // The string appears exactly once, inside the provider lookup table.
-    expect((code.match(/TripAdvisor/g) ?? []).length).toBe(1);
-    expect(code).toMatch(/PROVIDER_LABEL[\s\S]*?T:\s*'TripAdvisor'/);
-    // And nothing here reads a combined/average field to produce that label.
-    expect(code).not.toMatch(/combined[A-Za-z]*\s*[:=]/);
   });
 });
 
