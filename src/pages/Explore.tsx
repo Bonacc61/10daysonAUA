@@ -7,7 +7,8 @@ import Footer from '../components/Footer';
 import { useShortlist } from '../lib/shortlist';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
-import { filterExploreEntries, blendSearchResults, bookingUrl, viatorLink, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint } from '../data/exploreItems';
+import { filterExploreEntries, blendSearchResults, entryExcludedByFlags, bookingUrl, viatorLink, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint } from '../data/exploreItems';
+import { flagsFromNotes } from '../data/notesFlags';
 import { searchByMeaning, semanticSearchEnabled } from '../lib/semanticSearch';
 import { parseActivityCost } from '../data/matcher';
 import type { Section } from '../types';
@@ -128,9 +129,20 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   // otherwise this allocated ~328 entries and re-derived every section on every
   // keystroke, for a branch that is not taken while the feature is dark.
   const blendable = search.trim() === semanticFor && semanticIds.length > 0;
-  const entries = blendable
+  const blended = blendable
     ? blendSearchResults(substringHits, semanticIds, filterExploreEntries(catalog, { section, search: '', vibe, price }))
     : substringHits;
+
+  // Contraindications the traveller typed, honoured as exclusions. "We get
+  // seasick" scores 0/3 by similarity alone — the sentence embeds next to the
+  // boats it rules out — and this is the same parser the questionnaire's
+  // free-text box already uses, so the two paths cannot disagree about what
+  // "seasick" means. Applied to keyword hits as well: a substring match on a
+  // boat is no more wanted than a semantic one.
+  const searchFlags = new Set(flagsFromNotes(search));
+  const entries = searchFlags.size > 0
+    ? blended.filter((e) => !entryExcludedByFlags(e, searchFlags))
+    : blended;
 
   const totalCount = entries.length;
 

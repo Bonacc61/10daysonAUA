@@ -2,6 +2,7 @@ import type { Activity } from './activities';
 import type { ViatorGroup, ViatorItem, MatchTag, Section } from '../types';
 import type { Catalog } from './activitySource';
 import { parseActivityCost } from './matcher';
+import { isWaterBased, adventureCapForFlags } from './itemFit';
 
 // Content bucket for a tile — CATEGORIES without the 'All' filter sentinel.
 // Retained only as the last-resort input to the adventure (vibe) proxy.
@@ -320,6 +321,50 @@ export function priceHint(p: number): string {
 /** The catalog id behind an entry, whichever shape it is. */
 export function entryId(e: ExploreEntry): string {
   return e.kind === 'item' ? e.item.id : e.activity.id;
+}
+
+/**
+ * Contraindications a traveller typed into the SEARCH box, honoured as
+ * exclusions rather than left to the ranker.
+ *
+ * "We get seasick" scores 0/3 on the golden set because an embedding of that
+ * sentence sits next to the very boats it rules out — cosine similarity has no
+ * representation of "not". The site already parses that exact phrase, though:
+ * `flagsFromNotes` maps seasickness to `no-boats`, wheelchair/limited mobility
+ * to `mobility`, and "no car" to `no-car`, and it is the tested code behind the
+ * questionnaire's free-text box.
+ *
+ * So search consults it too. This mirrors the rules `applyCatalogFlags` applies
+ * to a generated plan, per ENTRY rather than per catalog, for the three flags
+ * that parser can produce. It is deliberately the same three: the file's own
+ * comment says its patterns stay conservative because a false exclusion is worse
+ * than a miss, and that judgement is right for a search box too.
+ *
+ * This is the tactical half of the design in
+ * docs/superpowers/specs/2026-08-14-search-query-understanding-design.md. Three
+ * regexes understand three phrasings; the next traveller writes "I can't be on
+ * the water". The parser described there is the general answer, and this is the
+ * floor it falls back to.
+ */
+export function entryExcludedByFlags(e: ExploreEntry, flags: ReadonlySet<string>): boolean {
+  if (flags.size === 0) return false;
+
+  if (flags.has('no-boats')) {
+    if (e.kind === 'item' && isWaterBased(e.item)) return true;
+    if (e.kind === 'activity' && (e.activity.sections ?? []).includes('cruises-water')) return true;
+  }
+
+  if (flags.has('no-car') && e.kind === 'activity' && e.activity.requires_car) return true;
+
+  if (flags.has('mobility')) {
+    // Same ceiling applyCatalogFlags uses, from the shared FLAG_ADVENTURE_CAP
+    // table, so a mobility-limited traveller gets the same answer whether they
+    // ticked the pill or typed the words.
+    const cap = adventureCapForFlags(flags);
+    if (cap !== null && e.adventure > cap) return true;
+  }
+
+  return false;
 }
 
 /**

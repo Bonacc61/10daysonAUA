@@ -90,7 +90,7 @@ export const FLAG_ADVENTURE_CAP: ReadonlyArray<readonly [flag: string, cap: numb
   ['with-baby', 25],      // keeps beaches, food, sunsets; drops snorkel, hikes, watersports
 ];
 
-export function adventureCapForFlags(flags: Set<string>): number | null {
+export function adventureCapForFlags(flags: ReadonlySet<string>): number | null {
   for (const [flag, cap] of FLAG_ADVENTURE_CAP) if (flags.has(flag)) return cap;
   return null;
 }
