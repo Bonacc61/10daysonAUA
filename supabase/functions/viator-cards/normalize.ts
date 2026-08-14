@@ -22,6 +22,8 @@ export type ViatorProduct = {
   pricing?: { summary?: { fromPrice?: number }; currency?: string };
   productUrl?: string;
   tags?: number[];
+  /** Viator's own merchandising flags, e.g. LIKELY_TO_SELL_OUT, NEW_ON_VIATOR. */
+  flags?: string[];
 };
 
 export type NormalizedItem = {
@@ -36,6 +38,7 @@ export type NormalizedItem = {
   viator_item_url: string; // productUrl (PID already included by the API)
   description: string;   // the product's full Overview, whitespace-collapsed
   tags: number[];
+  flags: string[];       // Viator merchandising flags, passed through verbatim
 };
 
 // Collapse whitespace on the product's Overview. Kept WHOLE since 2026-08-14.
@@ -142,6 +145,9 @@ export function normalizeProduct(p: ViatorProduct): NormalizedItem {
     image_url: coverImage(p.images),
     viator_item_url: productPageUrl(p.productCode, p.title, p.productUrl ?? ''),
     description: collapseWhitespace(p.description),
+    // Passed through untouched. These are Viator's own assessments of their own
+    // inventory — the site reports them, it does not compute them.
+    flags: Array.isArray(p.flags) ? p.flags : [],
     tags: p.tags ?? [],
   };
 }

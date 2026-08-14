@@ -158,6 +158,10 @@ serve(async (req) => {
           viator_item_url: it.viator_item_url,
           description: it.description,
           tags: it.tags,
+          // Viator's own merchandising flags (LIKELY_TO_SELL_OUT and friends).
+          // The item is assembled field-by-field here, so anything added to
+          // NormalizedItem has to be listed or it silently never arrives.
+          flags: it.flags,
           is_best_seller: order === 0,
           display_order: order,
         });

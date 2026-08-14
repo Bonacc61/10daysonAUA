@@ -144,6 +144,10 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
    schedule (src/data/startTimes.json). Boxed rather than set as body text
    because missing a departure is not a recoverable mistake. */
 .card-departure {
+  /* Half width, not full: it is a short factual line, and stretched to the card
+     edge it read as a banner rather than a detail. Capped rather than fixed at
+     50% so it does not become a sliver on a narrow card. */
+  max-width: 58%;
   display: flex; align-items: flex-start; gap: 7px;
   background: var(--sand-50); border: 2px solid var(--ink); border-radius: 10px;
   padding: 7px 10px; margin-bottom: 12px;

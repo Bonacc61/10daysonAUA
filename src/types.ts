@@ -96,6 +96,16 @@ export type ViatorItem = {
   // scores 1.0; the least scores 0.0. Self-normalising: rescales automatically
   // as the catalog grows or review counts compound.
   popularity_score?: number;
+  /**
+   * Viator's own merchandising flags, verbatim: LIKELY_TO_SELL_OUT,
+   * FREE_CANCELLATION, PRIVATE_TOUR, NEW_ON_VIATOR, SPECIAL_OFFER.
+   *
+   * Reported, never computed. Viator's product page also shows a demand stat
+   * ("booked 30 days in advance on average") and that figure is NOT in the API —
+   * not in /products/search, not in /products/{code}. LIKELY_TO_SELL_OUT is the
+   * nearest thing they actually publish, and it is theirs to assert.
+   */
+  flags?: string[];
 };
 
 // === Slot pointers + card entries ===

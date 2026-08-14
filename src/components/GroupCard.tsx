@@ -1,4 +1,5 @@
 import type { ViatorGroup, ViatorItem, SwapReason, Region, Section } from '../types';
+import BookAheadBadge from './BookAheadBadge';
 import { RatingChipInline, hasRealRating } from './RatingChip';
 import { Star, MapPin, Clock, Dollar, Check, Swap, Plus } from './Icons';
 import GroupHeader from './GroupHeader';
@@ -363,6 +364,10 @@ function ItineraryBody({
                 <Swap size={13} aria-hidden /> Swap this
               </button>
             )}
+            {/* Bottom-right of the card, beside the actions — Viator's own note
+                on how the product is selling. marginLeft:auto pushes it to the
+                corner without a second row. */}
+            <BookAheadBadge item={bestSeller} />
           </div>
           <SwapReasons open={!!showReasons} onPick={(r) => onPickReason?.(r)}
             onSubmitText={onSubmitReasonText} pending={reasonPending} failed={reasonFailed} />
