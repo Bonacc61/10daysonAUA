@@ -14,7 +14,10 @@ Live production app. Dutch law (GDPR) applies. Reddit launch imminent.
 
 - Supabase RLS is enabled on ALL tables. Never disable it, never bypass it.
 - `VITE_SUPABASE_ANON_KEY` is intentionally public (anon key only). `SERVICE_ROLE_KEY` must never appear in client code.
-- localStorage keys are stable contracts: `10doa:answers`, `10doa:starred`, `10doa:booked`, `10doa:analytics-consent`, `aruba.session`, `qDone`. Shape changes need migration.
+- localStorage keys are stable contracts: `10doa:answers`, `10doa:starred`, `10doa:booked`, `10doa:analytics-consent`, `10doa:trip-id`, `aruba.session`, `qDone`. Shape changes need migration.
+- An account holds MANY saved itineraries (`trips` is keyed on its own `id`, not
+  on `user_id`). `10doa:trip-id` is which one the planner is editing; saving under
+  a different name branches a new row rather than overwriting.
 - `specialNotes` (free-text PII) is stripped from all shared itinerary snapshots in `src/lib/shares.ts`.
 - Viator affiliate params (`pid`, `mcid`, `medium`) must survive any URL rewrite.
 

@@ -14,7 +14,8 @@ import { useShortlist } from '../lib/shortlist';
 import AddButton from '../components/AddButton';
 import { useBooked } from '../lib/booked';
 import { useAuth } from '../lib/auth';
-import { loadTrip } from '../lib/trips';
+import { listTrips, deleteTrip, tripTitle, type SavedTrip } from '../lib/trips';
+import { readActiveTripId, writeActiveTripId } from '../lib/activeTrip';
 import { createShare } from '../lib/shares';
 import { capture } from '../lib/analytics';
 import { matchPool, blendPools, parseActivityCost } from '../data/matcher';
@@ -673,18 +674,23 @@ function buildShareText(
   return lines.join('\n');
 }
 
+// The two unbuilt variants. The traveller's real itineraries are no longer a
+// row in here — an account can hold any number of them now, so they are listed
+// from the database and these are appended after.
 const ITINERARY_VARIANTS: { id: string; label: string; description: string; available: boolean }[] = [
-  { id: 'saved',     label: 'Your trip',         description: 'Your personalised itinerary',      available: true  },
   { id: 'adventure', label: 'Adventure-leaning',  description: 'Adrenaline-first, beaches second', available: false },
   { id: 'chill',     label: 'Chill-leaning',      description: 'Slow mornings, easy afternoons',   available: false },
 ];
 
 function ItineraryPanel({
-  setPage, trip, onLogin,
+  setPage, trips, onLogin, onOpenTrip, onDeleteTrip, activeTripId,
 }: {
   setPage: (p: PageId) => void;
-  trip: TripLoadState;
+  trips: SavedTrip[] | 'loading';
   onLogin: () => void;
+  onOpenTrip: (id: string) => void;
+  onDeleteTrip: (id: string) => void;
+  activeTripId: string | null;
 }) {
   const { user, session, loading: authLoading } = useAuth();
   const { catalog } = useCatalog();
@@ -694,21 +700,26 @@ function ItineraryPanel({
   const [exportOpen,   setExportOpen]   = useState<string | null>(null);
   const [shareOpen,    setShareOpen]    = useState<string | null>(null);
   const [emailOpen,    setEmailOpen]    = useState(false);
+  // Which itinerary the email dialog is about. The dialog is a single modal
+  // shared by every row, so it has to carry the row it was opened from.
+  const [emailTrip,    setEmailTrip]    = useState<SavedTrip | null>(null);
   const [emailTo,      setEmailTo]      = useState('');
   const [emailNote,    setEmailNote]    = useState('');
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent,    setEmailSent]    = useState(false);
   const [emailError,   setEmailError]   = useState<string | null>(null);
 
-  const tags = useMemo(
-    () => trip && trip !== 'loading' ? answersToTags(trip.answers) : new Set<never>(),
-    [trip],
-  );
-
-  const resolveEntry = useCallback(
-    (slotEntry: SlotEntry, slot?: Slot): CardEntry | null =>
-      resolveSlotEntry(slotEntry, catalog, tags as never, slot),
-    [catalog, tags],
+  // A resolver per itinerary, not one for the panel: each saved trip carries its
+  // own answers, and the answers are what decide which items a card may show.
+  // Sharing one resolver across rows would render trip B's cards through trip
+  // A's budget and interests.
+  const resolverFor = useCallback(
+    (t: TripState) => {
+      const tags = answersToTags(t.answers);
+      return (slotEntry: SlotEntry, slot?: Slot): CardEntry | null =>
+        resolveSlotEntry(slotEntry, catalog, tags as never, slot);
+    },
+    [catalog],
   );
 
   const toggleDay = (day: number) => setCollapsedDays((prev) => {
@@ -717,9 +728,8 @@ function ItineraryPanel({
     return next;
   });
 
-  const handleIcsExport = () => {
-    if (!trip || trip === 'loading') return;
-    const ics = buildIcs(trip.plan, trip.answers, resolveEntry, booked);
+  const handleIcsExport = (t: SavedTrip) => {
+    const ics = buildIcs(t.plan, t.answers, resolverFor(t), booked);
     downloadIcs(ics);
     setExportOpen(null);
   };
@@ -730,14 +740,15 @@ function ItineraryPanel({
   };
 
   const handleSendEmail = async () => {
-    if (!trip || trip === 'loading' || !session) return;
+    const t = emailTrip;
+    if (!t || !session) return;
     setEmailSending(true);
     setEmailError(null);
     try {
-      const text = buildShareText(trip, resolveEntry);
+      const text = buildShareText(t, resolverFor(t));
       // Create a share link so the email includes a direct "Book your activities" URL.
       // If it fails we still send the email — the button falls back to the homepage.
-      const { id: shareId } = await createShare(trip).catch(() => ({ id: null }));
+      const { id: shareId } = await createShare(t).catch(() => ({ id: null }));
       const itinerary_url = shareId ? `${window.location.origin}/i/${shareId}` : null;
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
       const res = await fetch(`${supabaseUrl}/functions/v1/itinerary-share`, {
@@ -779,32 +790,52 @@ function ItineraryPanel({
     );
   }
 
-  if (trip === 'loading') {
+  if (trips === 'loading') {
     return (
       <div>
         <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Itineraries</h2>
-        <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading your trip…</p>
+        <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading your trips…</p>
       </div>
     );
   }
 
-  const totalActivities = trip
-    ? trip.plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening]).length
-    : 0;
-  const bookedCount = trip
-    ? trip.plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening]).filter((c) => booked.has(c.uid)).length
-    : 0;
+  // One row per saved itinerary, newest first, then the two unbuilt variants.
+  // When nothing is saved yet a single placeholder row stands in, so the panel
+  // still offers the way in to the questionnaire.
+  type Row = { id: string; label: string; description: string; available: boolean; trip: SavedTrip | null };
+  const savedRows: Row[] = trips.map((t) => ({
+    id: t.id,
+    label: tripTitle(t),
+    description: '',
+    available: true,
+    trip: t,
+  }));
+  const rows: Row[] = [
+    ...(savedRows.length ? savedRows : [{ id: 'saved', label: 'Your trip', description: 'Your personalised itinerary', available: true, trip: null }]),
+    ...ITINERARY_VARIANTS.map((v) => ({ ...v, trip: null })),
+  ];
 
   return (
     <div>
       <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Itineraries</h2>
+      {savedRows.length > 1 && (
+        <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: '-10px 0 16px' }}>
+          {savedRows.length} saved itineraries — “Open” loads one into the planner.
+        </p>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {ITINERARY_VARIANTS.map((variant) => {
-
+        {rows.map((variant) => {
+          const rowTrip = variant.trip;
           const isExpanded = expanded === variant.id;
-          const hasTrip    = variant.id === 'saved' && !!trip;
+          const hasTrip    = !!rowTrip;
           const isLocked   = !variant.available;
+          const totalActivities = rowTrip
+            ? rowTrip.plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening]).length
+            : 0;
+          const bookedCount = rowTrip
+            ? rowTrip.plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening]).filter((c) => booked.has(c.uid)).length
+            : 0;
 
           return (
             <div key={variant.id} className="chunky" style={{ padding: 0, opacity: isLocked ? 0.55 : 1 }}>
@@ -823,10 +854,8 @@ function ItineraryPanel({
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {variant.id === 'saved' && trip && (trip as TripState).answers.tripName
-                        ? (trip as TripState).answers.tripName
-                        : variant.label}
-                      {variant.id === 'saved' && trip && (
+                      {variant.label}
+                      {rowTrip && rowTrip.id === activeTripId && (
                         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'var(--yellow)', border: '1.5px solid var(--ink)', borderRadius: 6, padding: '2px 7px', boxShadow: '1px 1px 0 var(--ink)' }}>Active</span>
                       )}
                       {isLocked && (
@@ -834,8 +863,8 @@ function ItineraryPanel({
                       )}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--sand-500)', marginTop: 2 }}>
-                      {variant.id === 'saved' && trip
-                        ? `${trip.answers.days} days · ${totalActivities} activities${bookedCount > 0 ? ` · ${bookedCount} confirmed` : ''}`
+                      {rowTrip
+                        ? `${rowTrip.answers.days} days · ${totalActivities} activities${bookedCount > 0 ? ` · ${bookedCount} confirmed` : ''}`
                         : variant.description}
                     </div>
                   </div>
@@ -846,8 +875,9 @@ function ItineraryPanel({
                   )}
                 </button>
 
-                {/* Export + Share icons — visible on the active row; handlers guard against missing trip */}
-                {variant.id === 'saved' && !isLocked && (
+                {/* Export + Share icons — one set per saved itinerary; the row
+                    carries its own trip, so a menu can never act on another row. */}
+                {!isLocked && (
                   <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                     {/* Export dropdown */}
                     <div style={{ position: 'relative' }}>
@@ -866,7 +896,7 @@ function ItineraryPanel({
                       </button>
                       {exportOpen === variant.id && (
                         <div className="chunky" style={{ position: 'absolute', ...(isExpanded ? { top: 'calc(100% + 6px)' } : { bottom: 'calc(100% + 6px)' }), right: 0, padding: '6px 0', minWidth: 190, zIndex: 20, background: 'var(--cream)' }}>
-                          <button onClick={handleIcsExport}
+                          <button onClick={() => rowTrip && handleIcsExport(rowTrip)}
                             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
                             <Calendar size={14} /><span>.ics — Calendar</span>
                           </button>
@@ -896,7 +926,7 @@ function ItineraryPanel({
                       {shareOpen === variant.id && (
                         <div className="chunky" style={{ position: 'absolute', ...(isExpanded ? { top: 'calc(100% + 6px)' } : { bottom: 'calc(100% + 6px)' }), right: 0, padding: '6px 0', minWidth: 190, zIndex: 20, background: 'var(--cream)' }}>
                           <button
-                            onClick={() => { setShareOpen(null); setEmailOpen(true); setEmailSent(false); setEmailError(null); }}
+                            onClick={() => { setShareOpen(null); setEmailTrip(rowTrip); setEmailOpen(true); setEmailSent(false); setEmailError(null); }}
                             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
                             <Mail size={14} /><span>Share via email</span>
                           </button>
@@ -908,12 +938,12 @@ function ItineraryPanel({
               </div>
 
               {/* Expanded content — full Itinerary-page style, days collapsible */}
-              {isExpanded && hasTrip && trip && (
+              {isExpanded && rowTrip && (
                 <div style={{ borderTop: '2px solid var(--sand-100)' }}>
                   {/* Day list */}
                   <div style={{ padding: '24px 28px 8px' }}>
-                    {trip.plan.map((day, i) => {
-                      const isLast      = i === trip.plan.length - 1;
+                    {rowTrip.plan.map((day, i) => {
+                      const isLast      = i === rowTrip.plan.length - 1;
                       const isDayCollapsed = collapsedDays.has(day.day);
                       const count       = day.morning.length + day.afternoon.length + day.evening.length;
                       const slots: { slot: Slot; cards: PlannedCard[] }[] = (
@@ -957,7 +987,7 @@ function ItineraryPanel({
                               <div key={slot} style={{ marginBottom: 16 }}>
                                 <div className="itin-section-label">{SLOT_LABEL[slot]}</div>
                                 {cards.map((card) => {
-                                  const entry = resolveEntry(card.entry, slot);
+                                  const entry = resolverFor(rowTrip)(card.entry, slot);
                                   if (!entry) return null;
                                   return (
                                     <div key={card.uid} style={{ marginBottom: 16 }}>
@@ -999,7 +1029,7 @@ function ItineraryPanel({
                       </button>
                       {exportOpen === variant.id && (
                         <div className="chunky" style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: 0, padding: '6px 0', minWidth: 190, zIndex: 10, background: 'var(--cream)' }}>
-                          <button onClick={handleIcsExport}
+                          <button onClick={() => rowTrip && handleIcsExport(rowTrip)}
                             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
                             <Calendar size={14} /><span>.ics — Calendar</span>
                           </button>
@@ -1010,15 +1040,31 @@ function ItineraryPanel({
                         </div>
                       )}
                     </div>
-                    <button className="btn-red" onClick={() => setPage('itinerary')} style={{ padding: '9px 14px', fontSize: 13 }}>
-                      Edit itinerary →
+                    {/* Opens THIS itinerary, not whichever was last touched —
+                        the whole point of holding more than one. */}
+                    <button
+                      className="btn-red"
+                      onClick={() => { onOpenTrip(rowTrip.id); setPage('itinerary'); }}
+                      style={{ padding: '9px 14px', fontSize: 13 }}
+                    >
+                      {rowTrip.id === activeTripId ? 'Edit itinerary →' : 'Open in planner →'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Delete “${tripTitle(rowTrip)}”? This cannot be undone.`)) {
+                          onDeleteTrip(rowTrip.id);
+                        }
+                      }}
+                      style={{ padding: '9px 14px', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', borderRadius: 10, border: '2px solid var(--sand-200)', background: 'transparent', color: 'var(--sand-600)', cursor: 'pointer' }}
+                    >
+                      Delete
                     </button>
                   </div>
                 </div>
               )}
 
               {/* No trip yet — prompt */}
-              {isExpanded && variant.id === 'saved' && !trip && (
+              {isExpanded && variant.id === 'saved' && !rowTrip && (
                 <div style={{ borderTop: '2px solid var(--sand-100)', padding: '20px' }}>
                   <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: '0 0 14px' }}>Complete the questionnaire to generate your personalised itinerary.</p>
                   <button className="btn-red" onClick={() => setPage('questionnaire')} style={{ padding: '9px 14px', fontSize: 13 }}>
@@ -1152,13 +1198,37 @@ export default function Dashboard({ setPage, initialSection = 'starred', onLogin
     () => typeof window !== 'undefined' && window.innerWidth < 720,
   );
 
-  // Trip state loaded once at the Dashboard level — shared by Itinerary + Bookings panels.
-  const [trip, setTrip] = useState<TripLoadState>('loading');
+  // Every saved itinerary, loaded once at the Dashboard level. The Personalized
+  // panel only needs one — it reads the answers to match on — so it gets the
+  // most recently touched, which is the first of the list.
+  const [trips, setTrips] = useState<SavedTrip[] | 'loading'>('loading');
+  const [activeTripId, setActiveTripId] = useState<string | null>(() => readActiveTripId());
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { setTrip(null); return; }
-    loadTrip(user.id).then((t) => setTrip(t ?? null));
+    if (!user) { setTrips([]); return; }
+    listTrips(user.id).then(setTrips);
   }, [user, authLoading]);
+
+  const openTrip = (id: string) => {
+    setActiveTripId(id);
+    writeActiveTripId(id);
+  };
+
+  const removeTrip = async (id: string) => {
+    if (!user) return;
+    const { error } = await deleteTrip(user.id, id);
+    if (error) return;
+    const left = await listTrips(user.id);
+    setTrips(left);
+    // The planner must not be left pointing at a row that no longer exists.
+    if (activeTripId === id) {
+      const next = left[0]?.id ?? null;
+      setActiveTripId(next);
+      writeActiveTripId(next);
+    }
+  };
+
+  const trip: TripLoadState = trips === 'loading' ? 'loading' : (trips[0] ?? null);
 
   return (
     <>
@@ -1232,7 +1302,7 @@ export default function Dashboard({ setPage, initialSection = 'starred', onLogin
             {section === 'surprise'  && <SurprisePanel      setPage={setPage} trip={trip} answers={answers} />}
             {section === 'starred'   && activitiesTab === 'shortlisted'  && <StarredPanel       setPage={setPage} />}
             {section === 'starred'   && activitiesTab === 'personalized' && <PersonalizedPanel  setPage={setPage} trip={trip} />}
-            {section === 'itinerary' && <ItineraryPanel   setPage={setPage} trip={trip} onLogin={onLogin} />}
+            {section === 'itinerary' && <ItineraryPanel   setPage={setPage} trips={trips} onLogin={onLogin} onOpenTrip={openTrip} onDeleteTrip={removeTrip} activeTripId={activeTripId} />}
             {section === 'practical' && <PracticalPanel />}
           </div>
         </div>

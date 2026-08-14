@@ -15,9 +15,12 @@
 //     Deleting the row is what makes that sentence true.
 //
 //   trips              — by CASCADE. `trips.user_id references auth.users(id)
-//     on delete cascade`, so dropping the user takes the itinerary with it. Not
-//     deleted here explicitly: two mechanisms for one row means one of them
-//     eventually rots, and the cascade is the one the schema guarantees.
+//     on delete cascade`, so dropping the user takes their itineraries with it.
+//     An account can hold several since 2026-08-14, when the primary key moved
+//     off user_id; the cascade is on the user_id FK, so it still takes every one
+//     of them and needed no change. Not deleted here explicitly: two mechanisms
+//     for one table means one of them eventually rots, and the cascade is the
+//     one the schema guarantees.
 //
 //   auth.users         — last, via the admin API. Last on purpose: if it went
 //     first, the cascade would fire and a failure on the following step would

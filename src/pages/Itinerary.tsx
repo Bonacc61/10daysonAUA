@@ -25,7 +25,8 @@ import { useShortlist } from '../lib/shortlist';
 import { logEvent } from '../data/feedback';
 import { useAuth } from '../lib/auth';
 import { useBooked } from '../lib/booked';
-import { loadTrip, upsertTrip } from '../lib/trips';
+import { loadTrip, loadTripById, saveTrip, updateTrip, createTrip } from '../lib/trips';
+import { readActiveTripId, writeActiveTripId } from '../lib/activeTrip';
 import { createShare, loadShare } from '../lib/shares';
 import { capture } from '../lib/analytics';
 import { supabase } from '../lib/supabase';
@@ -177,6 +178,13 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   // On sign-in, load the saved trip and hydrate it — unless the user just filled
   // out a new questionnaire (detected by answers differing from the saved ones),
   // in which case the freshly generated plan takes precedence.
+  // Which saved itinerary is open. null until the first save, or while signed
+  // out. `savedName` is the name that itinerary was last STORED under — the
+  // autosave compares against it to tell a rename apart from any other edit.
+  const [tripId, setTripId] = useState<string | null>(() => readActiveTripId());
+  const savedName = useRef<string>('');
+  const creating = useRef(false);
+
   const answersAtMount = useRef(answers);
   useEffect(() => {
     if (shareId) return;               // a shared view never loads the visitor's own trip
@@ -185,7 +193,14 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
     hydratedUser.current = user.id;
     setHydrated(false);
     const currentAnswers = answersAtMount.current;
-    loadTrip(user.id).then((t) => {
+    // Reopen whatever was last being edited. Falling back to loadTrip (the most
+    // recently touched) covers a first visit on this browser, and a stored id
+    // that no longer resolves — a trip deleted from another device.
+    const wanted = readActiveTripId();
+    const fetch = wanted
+      ? loadTripById(user.id, wanted).then((t) => t ?? loadTrip(user.id))
+      : loadTrip(user.id);
+    fetch.then((t) => {
       if (t) {
         const freshQuestionnaire = JSON.stringify(t.answers) !== JSON.stringify(currentAnswers);
         if (!freshQuestionnaire) {
@@ -193,6 +208,9 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
           setRejected(t.rejected);
           setRejectedGroups(t.rejectedGroups);
           setAnswers(t.answers);
+          setTripId(t.id);
+          writeActiveTripId(t.id);
+          savedName.current = t.answers.tripName ?? '';
         }
       }
       setHydrated(true);
@@ -205,11 +223,33 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   useEffect(() => {
     if (shareId || !user || !hydrated) return;   // never autosave a shared snapshot
     const id = window.setTimeout(() => {
-      void upsertTrip(user.id, { answers, plan, rejected, rejectedGroups });
-      capture('itinerary_saved', { trigger: 'auto' });
+      void (async () => {
+        const state = { answers, plan, rejected, rejectedGroups };
+        // An autosave always writes to the itinerary that is OPEN. It must never
+        // branch a new one — only the Save dialog does that, deliberately, when
+        // the traveller renames. Otherwise every keystroke that reached
+        // `answers` would litter the account with copies.
+        if (tripId) {
+          await updateTrip(user.id, tripId, state);
+        } else {
+          // Nothing saved yet. Create exactly one row and hold it: without the
+          // in-flight guard, two edits 800ms apart would each insert, because
+          // neither would have seen the other's id yet.
+          if (creating.current) return;
+          creating.current = true;
+          const { id: newId } = await createTrip(user.id, state);
+          creating.current = false;
+          if (newId) {
+            setTripId(newId);
+            writeActiveTripId(newId);
+            savedName.current = answers.tripName ?? '';
+          }
+        }
+        capture('itinerary_saved', { trigger: 'auto' });
+      })();
     }, 800);
     return () => window.clearTimeout(id);
-  }, [user, hydrated, answers, plan, rejected, rejectedGroups, shareId]);
+  }, [user, hydrated, answers, plan, rejected, rejectedGroups, shareId, tripId]);
 
   // Pass the questionnaire answers so the card face + "Other suggestions" only
   // ever show items that fit (e.g. nothing far over budget). This is the display
@@ -259,6 +299,10 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   const [saveTripOpen, setSaveTripOpen] = useState(false);
   const [tripNameDraft, setTripNameDraft] = useState('');
   const [saveTripStatus, setSaveTripStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  // Whether the last save branched a new itinerary, so the confirmation can say
+  // so — "saved" reading the same for an overwrite and for a new copy is how a
+  // traveller ends up unsure which one they just changed.
+  const [savedAsNew, setSavedAsNew] = useState(false);
 
   const openSaveTrip = () => {
     setTripNameDraft(answers.tripName ?? '');
@@ -274,14 +318,25 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
 
     if (user) {
       setSaveTripStatus('saving');
-      const { error } = await upsertTrip(user.id, { answers: newAnswers, plan, rejected, rejectedGroups });
+      // A different name means a second itinerary, not a rename of the first.
+      // saveTrip decides that from `savedName` — the name this trip was last
+      // stored under — so the original stays exactly where the traveller left it.
+      const { id: savedId, error, created } = await saveTrip(
+        user.id, tripId, { answers: newAnswers, plan, rejected, rejectedGroups }, savedName.current,
+      );
       if (error) {
         setSaveTripStatus('error');
         return;
       }
-      capture('itinerary_saved', { trigger: 'manual' });
+      if (savedId) {
+        setTripId(savedId);
+        writeActiveTripId(savedId);
+      }
+      savedName.current = name;
+      setSavedAsNew(created);
+      capture('itinerary_saved', { trigger: 'manual', created_copy: created });
       setSaveTripStatus('saved');
-      window.setTimeout(() => setSaveTripOpen(false), 1200);
+      window.setTimeout(() => setSaveTripOpen(false), 1600);
     } else {
       setSaveTripOpen(false);
       onLogin();
@@ -768,10 +823,17 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
 
             {saveTripStatus === 'saved' ? (
               <>
-                <h2 className="font-display" style={{ fontSize: 26, margin: '0 0 8px', color: 'var(--ink)' }}>Trip saved ✓</h2>
+                <h2 className="font-display" style={{ fontSize: 26, margin: '0 0 8px', color: 'var(--ink)' }}>
+                  {savedAsNew ? 'Saved as a new itinerary ✓' : 'Trip saved ✓'}
+                </h2>
                 <p style={{ fontSize: 14, color: 'rgba(0,0,0,0.65)', margin: 0 }}>
                   {tripNameDraft.trim() ? <><b>{tripNameDraft.trim()}</b> — saved to your account.</> : 'Saved to your account.'}
                 </p>
+                {savedAsNew && (
+                  <p style={{ fontSize: 13, color: 'rgba(0,0,0,0.55)', margin: '8px 0 0' }}>
+                    Your earlier itinerary is untouched — both are under Itineraries in My Aruba.
+                  </p>
+                )}
               </>
             ) : (
               <>

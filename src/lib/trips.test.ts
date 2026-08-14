@@ -31,15 +31,16 @@ describe('trips serialization (carries answers + itinerary + its activities)', (
 
   it('round-trips through fromRow (arrays → Sets)', () => {
     const s = sample();
-    const back = fromRow(toRow('u', s));
+    const back = fromRow({ id: 't1', ...toRow('u', s) });
     expect(back.answers).toEqual(s.answers);
     expect(back.plan).toEqual(s.plan);
+    expect(back.id).toBe('t1');
     expect([...back.rejected]).toEqual(['r1', 'r2']);
     expect([...back.rejectedGroups]).toEqual(['g1']);
   });
 
   it('fromRow tolerates null arrays', () => {
-    const back = fromRow({ user_id: 'u', answers: DEFAULT_ANSWERS, plan: [], rejected: null as unknown as string[], rejected_groups: null as unknown as string[] });
+    const back = fromRow({ id: 't1', user_id: 'u', answers: DEFAULT_ANSWERS, plan: [], rejected: null as unknown as string[], rejected_groups: null as unknown as string[] });
     expect([...back.rejected]).toEqual([]);
     expect([...back.rejectedGroups]).toEqual([]);
   });
