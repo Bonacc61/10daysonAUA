@@ -189,9 +189,10 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
   padding: 4px 14px 6px;
   /* The scrollbar stays VISIBLE here, unlike the shortlist shelf it copies.
      That shelf sits on the page, where a trackpad swipe is the natural gesture;
-     this one sits inside a card, where a mouse wheel scrolls the page vertically
-     and hiding the bar left no way at all to reach the cards off the right edge.
-     A slim bar is the only affordance that works for a mouse. */
+     this one sits inside a card. A wheel handler in OtherSuggestionsList turns a
+     vertical wheel into horizontal scroll, so the bar is no longer the only way
+     across — it stays as the visible affordance that says there is more to the
+     right. */
   scrollbar-width: thin;
   scrollbar-color: var(--ink) transparent;
   overscroll-behavior-x: contain;

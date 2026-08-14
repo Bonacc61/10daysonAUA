@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { RatingChipInline, hasRealRating } from './RatingChip';
 import type { ViatorItem } from '../types';
 
@@ -25,6 +25,40 @@ export default function OtherSuggestionsList({
   const open = controlled ? (openProp as boolean) : openLocal;
   const toggle = controlled ? (onToggle as () => void) : () => setOpenLocal((v) => !v);
 
+  // The shelf scrolls sideways only, so a mouse wheel's deltaY went straight
+  // past it to the nearest VERTICALLY scrollable ancestor — the page — and the
+  // cards off the right edge were reachable only by dragging the scrollbar.
+  // Turn a vertical wheel over the shelf into horizontal scroll.
+  // This has to be a native listener: React registers onWheel as passive at the
+  // root, where preventDefault is ignored and the page would scroll too.
+  const shelf = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = shelf.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      // A trackpad's sideways swipe arrives as deltaX and already scrolls this
+      // element natively — stepping in would move it twice.
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      const max = el.scrollWidth - el.clientWidth;
+      if (max <= 0) return; // nothing off the edge, or the drawer is closed
+      // Firefox sends lines (deltaMode 1), not pixels; taken literally a notch
+      // is a 3px nudge that still reads as broken. 16 is a chosen px-per-line,
+      // not a derived one — it puts a Firefox notch within a card's width.
+      const step = e.deltaMode === 1 ? 16 : 1;
+      const next = Math.max(0, Math.min(max, el.scrollLeft + e.deltaY * step));
+      if (next === el.scrollLeft) return; // at an end — let the page have it
+      el.scrollLeft = next;
+      e.preventDefault();
+    };
+    // The deps are not `[]`: a card with no suggestions renders null, so there
+    // is no element to bind on that first pass. Swapping it to a group that HAS
+    // suggestions reuses the card's uid and reconciles in place rather than
+    // remounting, so a mount-only listener would never attach and the shelf
+    // would silently go back to scrollbar-only.
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [items.length]);
+
   if (items.length === 0) return null;
 
   return (
@@ -45,7 +79,7 @@ export default function OtherSuggestionsList({
           you push the suggestions sideways, same gesture as "Add from
           shortlist". */}
       <div className={`other-suggestions-body${open ? ' open' : ''}`}>
-        <div className="other-suggestions-picker">
+        <div className="other-suggestions-picker" ref={shelf}>
           <div className="other-suggestions-track">
             {items.map((item) => (
               <div key={item.id} className="other-suggestions-item">

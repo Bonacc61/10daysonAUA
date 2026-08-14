@@ -4,6 +4,25 @@ import { render, screen } from '@testing-library/react';
 import OtherSuggestionsList from './OtherSuggestionsList';
 import type { ViatorItem } from '../types';
 
+// jsdom has no layout: scrollWidth/clientWidth are always 0 and scrollLeft is a
+// stub that swallows writes. Give the shelf a fake geometry so the wheel handler
+// has something to scroll.
+function giveShelfWidth(el: Element, { scrollWidth = 1200, clientWidth = 400, scrollLeft = 0 } = {}) {
+  let left = scrollLeft;
+  Object.defineProperty(el, 'scrollWidth', { value: scrollWidth, configurable: true });
+  Object.defineProperty(el, 'clientWidth', { value: clientWidth, configurable: true });
+  Object.defineProperty(el, 'scrollLeft', {
+    get: () => left, set: (v: number) => { left = v; }, configurable: true,
+  });
+  return el as HTMLElement;
+}
+
+function wheel(el: Element, init: WheelEventInit) {
+  const ev = new WheelEvent('wheel', { bubbles: true, cancelable: true, ...init });
+  el.dispatchEvent(ev);
+  return ev;
+}
+
 const item = (n: number): ViatorItem => ({
   id: `p${n}`, group_id: 'g', title: `Suggestion ${n}`,
   image_url: `https://cdn.example/${n}.jpg`, price_usd: 60 + n, duration: '2 hrs',
@@ -48,5 +67,71 @@ describe('OtherSuggestionsList — the horizontal shelf', () => {
   it('offers an add button per suggestion when the itinerary passes one', () => {
     render(<OtherSuggestionsList items={items} open onToggle={() => {}} onAddItem={() => {}} />);
     expect(screen.getAllByRole('button', { name: /Add Suggestion/ }).length).toBe(items.length);
+  });
+});
+
+describe('OtherSuggestionsList — reaching the cards off the right edge', () => {
+  // The bug: the shelf only scrolls sideways, so a mouse wheel's deltaY went to
+  // the nearest vertically scrollable ancestor — the page — and the shelf never
+  // moved. Dragging the scrollbar was the only way across.
+  it('scrolls the shelf sideways when the wheel turns over it', () => {
+    render(<OtherSuggestionsList items={items} open onToggle={() => {}} />);
+    const shelf = giveShelfWidth(document.querySelector('.other-suggestions-picker')!);
+
+    const ev = wheel(shelf, { deltaY: 120 });
+
+    expect(shelf.scrollLeft).toBe(120);
+    expect(ev.defaultPrevented).toBe(true); // ...and the page stayed put
+  });
+
+  it('converts a line-mode wheel into a useful distance', () => {
+    // Firefox reports deltaMode=1 with deltaY≈3 per notch. Taken literally that
+    // is a 3px nudge, which reads as "still broken".
+    render(<OtherSuggestionsList items={items} open onToggle={() => {}} />);
+    const shelf = giveShelfWidth(document.querySelector('.other-suggestions-picker')!);
+
+    wheel(shelf, { deltaY: 3, deltaMode: 1 });
+
+    expect(shelf.scrollLeft).toBeGreaterThan(30);
+  });
+
+  it('hands the wheel back to the page once the shelf is at its end', () => {
+    render(<OtherSuggestionsList items={items} open onToggle={() => {}} />);
+    const shelf = giveShelfWidth(document.querySelector('.other-suggestions-picker')!, {
+      scrollWidth: 1200, clientWidth: 400, scrollLeft: 800,
+    });
+
+    const ev = wheel(shelf, { deltaY: 120 });
+
+    expect(shelf.scrollLeft).toBe(800);
+    expect(ev.defaultPrevented).toBe(false);
+  });
+
+  it('still scrolls after the shelf arrives on a later render', () => {
+    // A card with one suggestion renders nothing at all, so there is no element
+    // for the wheel listener to attach to. Swapping that card to a group with
+    // several suggestions reuses the same uid, so React reconciles in place
+    // rather than remounting — and a listener bound once on mount would never
+    // get a second chance.
+    const { rerender } = render(<OtherSuggestionsList items={[]} open onToggle={() => {}} />);
+    expect(document.querySelector('.other-suggestions-picker')).toBeNull();
+
+    rerender(<OtherSuggestionsList items={items} open onToggle={() => {}} />);
+    const shelf = giveShelfWidth(document.querySelector('.other-suggestions-picker')!);
+
+    wheel(shelf, { deltaY: 120 });
+
+    expect(shelf.scrollLeft).toBe(120);
+  });
+
+  it('leaves a trackpad sideways swipe to the browser', () => {
+    // deltaX already scrolls this element natively; stepping in would double it.
+    render(<OtherSuggestionsList items={items} open onToggle={() => {}} />);
+    const shelf = giveShelfWidth(document.querySelector('.other-suggestions-picker')!);
+
+    const ev = wheel(shelf, { deltaX: 90, deltaY: 4 });
+
+    expect(shelf.scrollLeft).toBe(0);
+    expect(ev.defaultPrevented).toBe(false);
   });
 });
