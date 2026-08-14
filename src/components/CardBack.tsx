@@ -49,6 +49,32 @@ const ACTIVITY_TA: Record<string, string> = {
   'antilla-wreck-dive':        'Top dive of our trip. Visibility was incredible.',
 };
 
+/**
+ * Cut text at a SENTENCE boundary within a budget, never mid-sentence.
+ *
+ * The card back is height-constrained by the front — `.flip-back` is
+ * `position: absolute; inset: 0` — so a long Overview ran past the fold and left
+ * a sentence hanging with no full stop. Scrolling reached the rest, but a
+ * half-sentence at the bottom edge reads as broken text rather than as more
+ * text, and nobody scrolls a card back to find out.
+ *
+ * Cuts at the last `.`, `!` or `?` at or before the budget. If the very first
+ * sentence is already longer than the budget, that sentence is kept whole rather
+ * than chopped: an over-long paragraph is a worse look than an over-full card,
+ * and the container still scrolls.
+ */
+function trimToSentence(text: string, maxChars: number): string {
+  const t = text.trim();
+  if (t.length <= maxChars) return t;
+  const head = t.slice(0, maxChars);
+  const cut = Math.max(head.lastIndexOf('. '), head.lastIndexOf('! '), head.lastIndexOf('? '),
+                       head.lastIndexOf('.\n'), head.lastIndexOf('!\n'), head.lastIndexOf('?\n'));
+  if (cut > 0) return t.slice(0, cut + 1);
+  // No sentence ended inside the budget — keep the first whole one.
+  const first = t.search(/[.!?](\s|$)/);
+  return first > 0 ? t.slice(0, first + 1) : t;
+}
+
 export default function CardBack(props: Props) {
   const isActivity = props.kind === 'activity';
   const title = isActivity ? props.activity.title : props.bestSeller.title;
@@ -97,10 +123,15 @@ export default function CardBack(props: Props) {
   // merged. `description` is the Overview; `activityInfo.description` is What to
   // expect. Concatenating them put "After check in at our desk, our crew will
   // shuttle you with a zodiac…" at the top of a block headed Overview.
-  const overview = isActivity
+  const overviewRaw = isActivity
     ? (isMatchedLocal ? (props.activity.description ?? '').trim() : '')
     : (props.bestSeller.description ?? '').trim();
-  const whatToExpect = productId ? whatToExpectFor(productId) : '';
+  const whatToExpectRaw = productId ? whatToExpectFor(productId) : '';
+  // Budgets, not a single cap: with both sections present they share the space,
+  // and with only an Overview it can have the lot. Numbers chosen against the
+  // narrowest card that still has a fixed height, at 11.5px/1.45.
+  const whatToExpect = trimToSentence(whatToExpectRaw, 320);
+  const overview = trimToSentence(overviewRaw, whatToExpect ? 420 : 700);
   const showBreakdown = Boolean(productId && hasBreakdown(productId));
   const twoHalves = Boolean(productId) && (showBreakdown || showTravellers)
     && (overview.length > 0 || whatToExpect.length > 0);

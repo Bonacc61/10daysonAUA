@@ -167,15 +167,31 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
   .swap-reasons-wrap.open.with-text { height: auto; }
 }
 
-/* "Other suggestions" drawer — height animates in lockstep with the card so
-   the content above stays put. Inline --sug-h carries the computed open height. */
-.other-suggestions-body {
-  height: var(--sug-h, 0);
-  overflow: hidden;
-  transition: height 0.3s ease;
+/* "Other suggestions" drawer.
+   
+   It used to animate its own height from an inline --sug-h computed in JS, with
+   overflow:hidden clipping the content mid-transition — which is what put a
+   half-faded band across the top of the card while the bottom sat fully
+   saturated. The card sizes itself now (see .flip-card), so the drawer simply
+   is or is not there, and the clipping band goes with it. */
+.other-suggestions-body { display: none; }
+.other-suggestions-body.open { display: block; }
+
+/* Same horizontal shelf as "Add from shortlist" — one row of cards you push
+   sideways rather than a list that grows the card downwards. Padding not margin,
+   because overflow would otherwise clip each card's offset shadow. */
+.other-suggestions-picker {
+  overflow-x: auto; scrollbar-width: none;
+  padding: 4px 14px 12px;
 }
-@media (max-width: 768px) {
-  .other-suggestions-body.open { height: auto; }
+.other-suggestions-picker::-webkit-scrollbar { display: none; }
+.other-suggestions-track { display: inline-flex; gap: 10px; min-width: min-content; }
+.other-suggestions-item {
+  flex: 0 0 196px; width: 196px;
+  display: flex; flex-direction: column; gap: 4;
+  text-align: left; padding: 9px 10px;
+  background: var(--cream); color: var(--ink);
+  border: 2px solid var(--ink); border-radius: 12px; box-shadow: 3px 3px 0 var(--ink);
 }
 
 /* "+ Add" button on each Other-suggestions row (Itinerary only). */

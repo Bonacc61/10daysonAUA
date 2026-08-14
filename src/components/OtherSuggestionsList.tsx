@@ -1,17 +1,6 @@
 import { useState } from 'react';
 import { RatingChipInline, hasRealRating } from './RatingChip';
 import type { ViatorItem } from '../types';
-import { Star } from './Icons';
-
-// Per-item row height (incl. its gap) used to size the expandable drawer.
-// ItineraryCard grows the fixed-height flip-card by exactly the same amount so
-// the content above the drawer stays put while it opens. Single source here.
-const OTHER_ITEM_PX = 52;
-const OTHER_LIST_PAD = 16;
-
-export function otherSuggestionsExpandedPx(n: number): number {
-  return n === 0 ? 0 : n * OTHER_ITEM_PX + OTHER_LIST_PAD;
-}
 
 type Props = {
   items: ViatorItem[];
@@ -52,58 +41,51 @@ export default function OtherSuggestionsList({
       >
         Other suggestions {open ? '−' : '+'}
       </button>
-      {/* Drawer height animates in lockstep with the card height (see
-          otherSuggestionsExpandedPx). CSS var lets the mobile media query
-          override to height:auto where the card is already auto-sized. */}
-      <div
-        className={`other-suggestions-body${open ? ' open' : ''}`}
-        style={{ ['--sug-h' as string]: `${open ? otherSuggestionsExpandedPx(items.length) : 0}px` }}
-      >
-        <div style={{ padding: '4px 14px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {items.map((item) => (
-            <div
-              key={item.id}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '8px 10px',
-                border: '1px solid #ddd', borderRadius: 6,
-              }}
-            >
-              <a
-                href={item.viator_item_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                tabIndex={open ? 0 : -1}
-                style={{ minWidth: 0, flex: 1, textDecoration: 'none', color: 'inherit' }}
-              >
-                <div style={{ fontWeight: 600, fontSize: 12, lineHeight: 1.2 }}>{item.title}</div>
-                <div style={{ fontSize: 10, color: '#888', marginTop: 2,
-                              display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {hasRealRating(item.rating, item.review_count) && (
-                    <>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-                        <RatingChipInline rating={item.rating} reviewCount={item.review_count} size={10} />
-                      </span>
-                      <span>·</span>
-                    </>
-                  )}
-                  <span>${item.price_usd}</span>
-                  {item.duration && (<><span>·</span><span>{item.duration}</span></>)}
-                </div>
-              </a>
-              {onAddItem && (
-                <button
-                  type="button"
+      {/* A horizontal shelf, not a growing list: the card keeps its height and
+          you push the suggestions sideways, same gesture as "Add from
+          shortlist". */}
+      <div className={`other-suggestions-body${open ? ' open' : ''}`}>
+        <div className="other-suggestions-picker">
+          <div className="other-suggestions-track">
+            {items.map((item) => (
+              <div key={item.id} className="other-suggestions-item">
+                <a
+                  href={item.viator_item_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   tabIndex={open ? 0 : -1}
-                  onClick={() => onAddItem(item)}
-                  aria-label={`Add ${item.title} to itinerary`}
-                  className="other-suggestion-add"
+                  style={{ minWidth: 0, textDecoration: 'none', color: 'inherit' }}
                 >
-                  + Add
-                </button>
-              )}
-            </div>
-          ))}
+                  <div style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.25 }}>{item.title}</div>
+                  <div style={{ fontSize: 10, color: 'var(--sand-700)', marginTop: 4,
+                                display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+                    {hasRealRating(item.rating, item.review_count) && (
+                      <>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                          <RatingChipInline rating={item.rating} reviewCount={item.review_count} size={10} />
+                        </span>
+                        <span>·</span>
+                      </>
+                    )}
+                    <span>${item.price_usd}</span>
+                    {item.duration && (<><span>·</span><span>{item.duration}</span></>)}
+                  </div>
+                </a>
+                {onAddItem && (
+                  <button
+                    type="button"
+                    tabIndex={open ? 0 : -1}
+                    onClick={() => onAddItem(item)}
+                    aria-label={`Add ${item.title} to itinerary`}
+                    className="other-suggestion-add"
+                    style={{ marginTop: 'auto', alignSelf: 'flex-start' }}
+                  >
+                    + Add
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
