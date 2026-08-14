@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { RatingChipInline, hasRealRating } from '../components/RatingChip';
 import { Clock, Dice, Dollar, MapPin, Star } from '../components/Icons';
 import Footer from '../components/Footer';
 import { useCatalog } from '../data/useCatalog';
@@ -237,9 +238,13 @@ export default function SurpriseMe({ setPage, answers }: Props) {
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                   />
                   {/* Rating badge — only where a real platform rating backs it */}
-                  {(pick.kind === 'activity' ? pick.activity.ratingSource === 'viator' : true) && (
+                  {(pick.kind === 'activity' ? pick.activity.ratingSource === 'viator' : true)
+                    && hasRealRating(pick.kind === 'activity' ? pick.activity.rating : pick.item.rating,
+                                     pick.kind === 'activity' ? pick.activity.reviewCount : pick.item.review_count) && (
                     <span style={{ position: 'absolute', top: 12, right: 12, background: 'var(--ink)', color: 'var(--yellow)', padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      <Star size={11} aria-hidden /> {pick.kind === 'activity' ? pick.activity.rating : pick.item.rating}
+                      <RatingChipInline size={11}
+                        rating={pick.kind === 'activity' ? pick.activity.rating : pick.item.rating}
+                        reviewCount={pick.kind === 'activity' ? pick.activity.reviewCount : pick.item.review_count} />
                     </span>
                   )}
                 </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { RatingChipInline, hasRealRating } from './RatingChip';
 import type { Activity } from '../data/activities';
 import type { CardEntry, SwapReason, ViatorItem, Section } from '../types';
 import { Star, MapPin, Clock, Dollar, Swap } from './Icons';
@@ -158,11 +159,11 @@ function ActivityCardFront({
                 <MapPin size={12} /><span>{a.location}</span>
               </div>
             </div>
-            {a.ratingSource === 'viator' && (
+            {a.ratingSource === 'viator' && hasRealRating(a.rating, a.reviewCount) && (
               <span className="chip-outline" style={{
                 fontSize: 11, background: 'var(--yellow)', flexShrink: 0,
               }}>
-                <Star size={11} /> {a.rating}
+                <RatingChipInline rating={a.rating} reviewCount={a.reviewCount} size={11} />
               </span>
             )}
           </div>

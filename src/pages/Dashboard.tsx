@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import RatingChip, { RatingChipInline, hasRealRating } from '../components/RatingChip';
 import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
 import { Calendar, Check, Chev, Clock, Dice, Doc, Dollar, Download, Info, IOSShare, Mail, MapPin, Star } from '../components/Icons';
@@ -286,9 +287,13 @@ function SurprisePanel({ setPage, trip, answers }: { setPage: (p: PageId) => voi
                 alt={pick.kind === 'activity' ? pick.activity.title : pick.item.title}
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               />
-              {(pick.kind === 'activity' ? pick.activity.ratingSource === 'viator' : true) && (
+              {(pick.kind === 'activity' ? pick.activity.ratingSource === 'viator' : true)
+                && hasRealRating(pick.kind === 'activity' ? pick.activity.rating : pick.item.rating,
+                                 pick.kind === 'activity' ? pick.activity.reviewCount : pick.item.review_count) && (
                 <span style={{ position: 'absolute', top: 12, right: 12, background: 'var(--ink)', color: 'var(--yellow)', padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  <Star size={11} /> {pick.kind === 'activity' ? pick.activity.rating : pick.item.rating}
+                  <RatingChipInline size={11}
+                    rating={pick.kind === 'activity' ? pick.activity.rating : pick.item.rating}
+                    reviewCount={pick.kind === 'activity' ? pick.activity.reviewCount : pick.item.review_count} />
                 </span>
               )}
             </div>
@@ -353,7 +358,7 @@ function StarredActivityCard({ entry, added, onAdd }: { entry: ExploreEntry & { 
     <div className="a-card fade-in">
       <div className="a-img">
         <img src={a.image} alt={a.title} />
-        {a.ratingSource === 'viator' && <span className="a-rating"><Star size={10} /> {a.rating}</span>}
+        {a.ratingSource === 'viator' && <RatingChip rating={a.rating} reviewCount={a.reviewCount} size={10} />}
       </div>
       <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-500)', marginBottom: 4 }}>{a.category}</div>
@@ -392,7 +397,7 @@ function StarredItemCard({ entry, added, onAdd }: { entry: ExploreEntry & { kind
     <div className="a-card fade-in">
       <div className="a-img">
         <img src={item.image_url} alt={item.title} />
-        <span className="a-rating"><Star size={10} /> {item.rating}</span>
+        <RatingChip rating={item.rating} reviewCount={item.review_count} size={10} />
       </div>
       <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-500)', marginBottom: 4 }}>{sec}</div>

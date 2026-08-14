@@ -2,6 +2,7 @@ import { useState, type CSSProperties, type MouseEvent } from 'react';
 import { Search, Star, MapPin, Clock, Dollar, X } from '../components/Icons';
 import AddButton from '../components/AddButton';
 import DepartureNote from '../components/DepartureNote';
+import RatingChip from '../components/RatingChip';
 import Footer from '../components/Footer';
 import { useShortlist } from '../lib/shortlist';
 import type { Activity } from '../data/activities';
@@ -300,7 +301,7 @@ function ItemTile({ item, section, sectionUrl: _sectionUrl, region, adventure, b
       <div className="card-header-band">{headerInner}</div>
       <div className="a-img">
         <img src={item.image_url} alt={item.title} loading="lazy" />
-        <span className="a-rating"><Star size={12} aria-hidden /> {item.rating}</span>
+        <RatingChip rating={item.rating} reviewCount={item.review_count} size={12} />
       </div>
       <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
         <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{item.title}</h3>
@@ -335,7 +336,7 @@ function ActivityTile({ a, section, sectionUrl: _sectionUrl, adventure, bookNow,
       <div className="card-header-band">{headerInner}</div>
       <div className="a-img">
         <img src={a.image} alt={a.title} loading="lazy" />
-        {a.ratingSource === 'viator' && <span className="a-rating"><Star size={12} aria-hidden /> {a.rating}</span>}
+        {a.ratingSource === 'viator' && <RatingChip rating={a.rating} reviewCount={a.reviewCount} size={12} />}
       </div>
       <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
         <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{a.title}</h3>

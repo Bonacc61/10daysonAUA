@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { RatingChipInline, hasRealRating } from './RatingChip';
 import type { ViatorItem } from '../types';
 import { Star } from './Icons';
 
@@ -78,10 +79,14 @@ export default function OtherSuggestionsList({
                 <div style={{ fontWeight: 600, fontSize: 12, lineHeight: 1.2 }}>{item.title}</div>
                 <div style={{ fontSize: 10, color: '#888', marginTop: 2,
                               display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-                    <Star size={10} aria-hidden /> {item.rating}
-                  </span>
-                  <span>·</span>
+                  {hasRealRating(item.rating, item.review_count) && (
+                    <>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                        <RatingChipInline rating={item.rating} reviewCount={item.review_count} size={10} />
+                      </span>
+                      <span>·</span>
+                    </>
+                  )}
                   <span>${item.price_usd}</span>
                   {item.duration && (<><span>·</span><span>{item.duration}</span></>)}
                 </div>
