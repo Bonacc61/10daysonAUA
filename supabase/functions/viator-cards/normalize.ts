@@ -34,16 +34,26 @@ export type NormalizedItem = {
   review_count: number;  // reviews.totalReviews
   image_url: string;     // largest cover-image variant
   viator_item_url: string; // productUrl (PID already included by the API)
-  description: string;   // short blurb from the product summary (trimmed)
+  description: string;   // the product's full Overview, whitespace-collapsed
   tags: number[];
 };
 
-// Collapse whitespace and trim a product description to a short card blurb.
-function shortDescription(d?: string): string {
+// Collapse whitespace on the product's Overview. Kept WHOLE since 2026-08-14.
+//
+// This used to cut at 200 characters, which threw away most of the text: the
+// median Overview is 601 characters and 348 of 366 products exceeded the cap, so
+// nearly every description on the site ended in an ellipsis mid-sentence. Card
+// fronts never needed more — they clamp to three lines in CSS — but the card
+// BACK shows the Overview in full, and it cannot show what ingest discarded.
+//
+// The cost is real and bounded: about 216KB more across the whole catalog, ~55KB
+// gzipped, on a payload that is server-cached for 6h and fetched once per
+// visitor. The cap is not reintroduced as a smaller number because any cap puts
+// an ellipsis in the middle of a sentence on the card back; the longest Overview
+// Viator returns is 1000 characters, which is a bounded worst case, not a tail.
+function collapseWhitespace(d?: string): string {
   if (!d) return '';
-  const s = d.replace(/\s+/g, ' ').trim();
-  if (s.length <= 200) return s;
-  return s.slice(0, 197).replace(/\s+\S*$/, '') + '…';
+  return d.replace(/\s+/g, ' ').trim();
 }
 
 // Minutes → compact hours/minutes label. 180 → "3 hrs", 90 → "1.5 hrs", 45 → "45 min".
@@ -131,7 +141,7 @@ export function normalizeProduct(p: ViatorProduct): NormalizedItem {
     review_count: p.reviews?.totalReviews ?? 0,
     image_url: coverImage(p.images),
     viator_item_url: productPageUrl(p.productCode, p.title, p.productUrl ?? ''),
-    description: shortDescription(p.description),
+    description: collapseWhitespace(p.description),
     tags: p.tags ?? [],
   };
 }

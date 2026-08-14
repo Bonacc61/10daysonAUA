@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import RatingBreakdown from './RatingBreakdown';
+import { hasBreakdown } from '../data/reviewBreakdown';
 import type { Activity } from '../data/activities';
 import type { ViatorItem } from '../types';
 import { Star } from './Icons';
@@ -66,9 +68,21 @@ export default function CardBack(props: Props) {
   const showTravellers =
     ratingIsReal && typeof rating === 'number' && rating > 0 && typeof reviewCount === 'number';
 
+  // A Viator card's back is two halves, by design: how people rated it, and what
+  // the operator says it is. Both come from the product's own listing.
+  //
+  // The Reddit quote is skipped on those cards — not because it is worthless,
+  // but because the grid below lays out two columns and three blocks would make
+  // each unreadably narrow. Local picks keep it: they have no Viator listing to
+  // show instead, which is exactly when a traveller's own words are worth most.
+  const productId = isActivity ? null : props.bestSeller.id;
+  const overview = isActivity ? '' : (props.bestSeller.description ?? '').trim();
+  const showBreakdown = Boolean(productId && hasBreakdown(productId));
+  const twoHalves = Boolean(productId) && (showBreakdown || showTravellers) && overview.length > 0;
+
   const blocks: ReactNode[] = [];
 
-  if (reddit) {
+  if (reddit && !twoHalves) {
     blocks.push(
       <div key="reddit" style={{ background: '#FFF4E6', border: '2px solid #FF4500',
                     borderRadius: 12, padding: 12,
@@ -105,10 +119,15 @@ export default function CardBack(props: Props) {
     );
   }
 
-  if (showTravellers) {
-    // Deliberately unbranded. These numbers come from the booking API, not from
-    // TripAdvisor, and the cards carry no Viator branding by design — so the
-    // block says what the number is rather than borrowing a logo for it.
+  if (showBreakdown && productId) {
+    // The distribution, when we captured one. Strictly better than the average
+    // alone — see RatingBreakdown for why five bars beat one number.
+    blocks.push(<RatingBreakdown key="breakdown" id={productId} />);
+  } else if (showTravellers) {
+    // Fallback for the 44 products with no captured histogram. Deliberately
+    // unbranded: these numbers come from the booking API, not from TripAdvisor,
+    // and the cards carry no Viator branding by design — so the block says what
+    // the number is rather than borrowing a logo for it.
     blocks.push(
       <div key="travellers" style={{ background: '#E9F7EF', border: '2px solid #22C55E',
                     borderRadius: 12, padding: 12,
@@ -121,32 +140,35 @@ export default function CardBack(props: Props) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <div style={{ display: 'flex', gap: 1 }}>
-            {[1, 2, 3, 4, 5].map((s) => (
-              <Star key={s} size={12}
-                    fill={s <= Math.round(rating) ? '#22C55E' : 'transparent'}
-                    color="#22C55E" />
+            {[1, 2, 3, 4, 5].map((sIdx) => (
+              <Star key={sIdx} size={13}
+                    fill={sIdx <= Math.round(rating as number) ? '#22C55E' : 'transparent'}
+                    color="#22C55E" aria-hidden />
             ))}
           </div>
           <span style={{ fontWeight: 700, fontSize: 12, color: '#155724' }}>{rating}</span>
         </div>
-        {travellerQuote && (
-          <p style={{ fontSize: 11.5, lineHeight: 1.4, color: '#155724',
-                      margin: 0, fontStyle: 'italic', overflow: 'hidden',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
-            "{travellerQuote}"
-          </p>
-        )}
       </div>,
     );
   }
 
-  // Nothing sourced: fall back to our own voice rather than a borrowed one.
-  // `localsSay` is the first choice — it was written for most picks and rendered
-  // nowhere — but 7 of the 26 have it empty, so this must chain rather than
-  // trust it. An unguarded read here rendered a headed, full-height, EMPTY panel
-  // on arashi-beach, palm-beach-strip, boca-catalina-shore, alto-vista-chapel,
-  // california-dunes-sunset, bushiribana-loop and san-nicolas-murals.
+  // The other half: the operator's own Overview, in full. It used to arrive
+  // truncated at 200 characters by the ingest — the median is 601 — so this
+  // block would have been an ellipsis with a sentence in front of it.
+  if (twoHalves && overview) {
+    blocks.push(
+      <div key="overview" style={{ background: 'var(--sand-50)', border: '2px solid var(--ink)',
+                    borderRadius: 12, padding: 12, minHeight: 0,
+                    display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--ink)' }}>Overview</span>
+        <p style={{ fontSize: 11.5, lineHeight: 1.45, color: 'var(--sand-700)', margin: 0,
+                    overflowY: 'auto', minHeight: 0 }}>
+          {overview}
+        </p>
+      </div>,
+    );
+  }
+
   const tip = isActivity
     ? (props.activity.localsSay?.trim() || props.activity.description?.trim())
     : props.bestSeller.description?.trim();
