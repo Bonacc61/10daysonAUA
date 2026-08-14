@@ -228,7 +228,15 @@ it. It owns two invariants that are currently held only by convention:
   `viatorLink` and `productUrlFor`);
 - the click is counted.
 
-It fires via `navigator.sendBeacon`, which is built to survive the navigation.
+It fires via `fetch(..., { keepalive: true })` — **not** `navigator.sendBeacon`,
+which was this design's original choice and does not work here. Supabase edge
+functions verify JWT by default (there is no `[functions]` block in
+`config.toml`, and `search` depends on that), so every call must carry an
+`apikey` header, and `sendBeacon` cannot set headers. `keepalive` fetch survives
+unload and takes headers; `src/data/feedback.ts` already uses it for this exact
+reason. Unload is also the easy case here — every Book-now link is
+`target="_blank"`, so the page stays alive while the new tab opens.
+
 It must **not** `preventDefault` and re-navigate on a timer — that breaks popup
 blocking, delays the traveller, and loses the click when the beacon is slow.
 The link proceeds normally; the beacon is fire-and-forget.
