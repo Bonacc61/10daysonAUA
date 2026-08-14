@@ -34,8 +34,18 @@ describe('saving under a different name', () => {
     expect(savingBranchesNew('trip-1', '', undefined)).toBe(false);
   });
 
-  it('branches when a name is added to a trip that had none', () => {
-    expect(savingBranchesNew('trip-1', 'Now it has a name', undefined)).toBe(true);
+  it('RENAMES rather than branches when the stored trip has no name', () => {
+    // The autosave creates a row within a second of a signed-in visit, and has
+    // no name to give it. If naming that row branched, every user would get a
+    // ghost "Untitled itinerary" beside their real trip the first time they
+    // ever pressed Save.
+    expect(savingBranchesNew('trip-1', 'Now it has a name', undefined)).toBe(false);
+    expect(savingBranchesNew('trip-1', 'Now it has a name', '')).toBe(false);
+    expect(savingBranchesNew('trip-1', 'Now it has a name', '   ')).toBe(false);
+  });
+
+  it('still branches once the trip HAS a name', () => {
+    expect(savingBranchesNew('trip-1', 'Second version', 'First draft')).toBe(true);
   });
 });
 

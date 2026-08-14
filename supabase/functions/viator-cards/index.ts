@@ -9,6 +9,8 @@ import { GROUPS, ARUBA_DESTINATION_ID } from './groups.ts';
 import { normalizeProduct } from './normalize.ts';
 import { hasKey, ping, searchProducts, searchProductsPaged, freetextSearch, getProduct, getTags } from './viator.ts';
 import { embedBatch, clusterByEmbedding, activeProvider, MODEL_ID, isSearchableProvider } from './embeddings.ts';
+import { searchText } from './suitability.ts';
+import { SUITABILITY_PROFILES } from './suitabilityData.ts';
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
@@ -219,17 +221,22 @@ serve(async (req) => {
         console.log(`[viator-cards] ${provider}: ${(items as Row[]).length} items → ${nClusters} experience clusters`);
 
         // ── Persist the vectors for semantic search ────────────────────────
-        // These used to be discarded the moment clustering finished, so every
-        // refresh paid to compute something it then binned. They are written
-        // here, never added to the payload — no vector reaches the browser.
+        // Never added to the payload — no vector reaches the browser.
         //
-        // WHAT IS EMBEDDED, and why it is written down: `${it.title}. ${it.description}`
-        // truncated to 500 chars (see `texts` above). The search function must
-        // embed queries into the SAME space, so changing this composition
-        // silently degrades ranking without failing anything. If golden-set
-        // recall is poor, a trimmed description is the first thing to try —
-        // long prose tends to embed to a bland, generic position, which is
-        // fine for spotting duplicates and mediocre for search.
+        // WHAT IS EMBEDDED, and why it is written down: NOT the clustering text
+        // above. Search embeds `searchText()` — title + description + the
+        // product's own suitability lines from ./suitabilityData.ts. The search
+        // function embeds queries into the SAME space, so changing this
+        // composition silently degrades ranking without failing anything.
+        //
+        // Why a SECOND embedding pass rather than reusing `embeddings`:
+        // clustering asks "is this the same product", search asks "does this
+        // suit me", and they want different text. The suitability lines are
+        // shared boilerplate — 234 of 328 products say "Suitable for all
+        // physical fitness levels" — so folding them into the clustering text
+        // would make every listing more alike and destabilise
+        // EMBEDDING_CLUSTER_THRESHOLD, which is measured and load-bearing for
+        // plan variety. The extra pass costs ~$0.001 per refresh.
         //
         // Only the 256-dim provider is storable: the column is vector(256).
         // Under Voyage (512) we skip and say so, rather than corrupting the
@@ -240,9 +247,17 @@ serve(async (req) => {
           try {
             const db = supabaseAdmin();
             const runStart = new Date().toISOString();
+            const searchTexts = sorted.map((it) => searchText(
+              String(it.title),
+              String(it.description ?? ''),
+              SUITABILITY_PROFILES[String(it.id)] ?? '',
+            ));
+            const searchVectors = await embedBatch(searchTexts);
+            const profiled = sorted.filter((it) => SUITABILITY_PROFILES[String(it.id)]).length;
+            console.log(`[viator-cards] search corpus: ${profiled}/${sorted.length} items carry a suitability profile`);
             const rows = sorted.map((it, i) => ({
               item_id: String(it.id),
-              embedding: JSON.stringify(embeddings[i]),   // pgvector accepts the JSON array form
+              embedding: JSON.stringify(searchVectors[i]),   // pgvector accepts the JSON array form
               model: MODEL_ID[provider],
               updated_at: new Date().toISOString(),
             }));

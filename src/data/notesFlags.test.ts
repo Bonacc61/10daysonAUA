@@ -64,7 +64,7 @@ describe('flagAppliesTo — group-type gating', () => {
     for (const g of ['Solo', 'Couple', 'Friends', 'Family with young kids', 'Family with teens', 'Multi-gen']) {
       expect(flagAppliesTo('no-boats', g)).toBe(true);
       expect(flagAppliesTo('mobility', g)).toBe(true);
-      expect(flagAppliesTo('birthday', g)).toBe(true);
+      expect(flagAppliesTo('avoid-crowds', g)).toBe(true);
     }
   });
 

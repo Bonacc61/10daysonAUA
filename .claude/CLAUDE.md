@@ -82,7 +82,7 @@ Our key is **Basic access**. Verified, not assumed:
 
 ## Tests
 
-- ~650 tests. `npm test` is offline and free; anything needing a network or an
+- ~700 tests. `npm test` is offline and free; anything needing a network or an
   API key is a `tools/` script run by hand, never a vitest file.
 - **Component tests render.** jsdom + testing-library, opted in PER FILE with a
   `// @vitest-environment jsdom` docblock so the pure-logic tests stay in node.

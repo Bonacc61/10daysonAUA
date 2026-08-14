@@ -34,6 +34,21 @@ const LOADING_MESSAGES = [
 type QuestionId = 'q1' | 'q2' | 'q3' | 'q4' | 'q5' | 'q6' | 'q7' | 'q8';
 type Question = { id: QuestionId; title: string; subtitle?: string };
 
+// q7 (lodging) is PARKED, not deleted: its entry is absent here, so the flow
+// runs q1–q6 then q8 and reads 7/7. Everything it needs is still in place — the
+// `q7` render branch below, LODGING_OPTS, `Answers.lodging`, LODGING_MAP in
+// answerTags.ts and the `a.lodging` entry in hashAnswers — so restoring it for
+// v2 means re-adding this one line.
+//
+// Why it was pulled: its subtitle promised "tells us where your day should
+// start", and the engine has no way to honour that. Measured 2026-08-14 on the
+// live catalog, ZERO of 328 Viator products carry their own region; all six
+// groups resolve to just `islandwide` or `palm-beach`, so Eagle Beach, Downtown
+// and Noord matched nothing at all. The only answer with a real effect is
+// `Cruise` (→ `cruise-day`, one of three tags opening the 73-product
+// sailing-cruises group). Everything else reached the plan solely through
+// hashAnswers, i.e. it reshuffled the plan without improving it. Real wiring
+// needs per-item location data the catalog does not have — roadmap item 7.
 const QUESTIONS: Question[] = [
   { id: 'q1', title: 'How long is your stay?',           subtitle: 'Drag to set your length. We size every plan around this.' },
   { id: 'q2', title: "Who's with you?",                  subtitle: 'So we pace days for the group.' },
@@ -41,7 +56,6 @@ const QUESTIONS: Question[] = [
   { id: 'q4', title: 'What energizes you on vacation?',  subtitle: 'Pick up to 3.' },
   { id: 'q5', title: 'Adventure level?',                 subtitle: 'Slide between full chill and full send.' },
   { id: 'q6', title: 'When are you visiting?',           subtitle: "We'll align around weather, tides, and crowds." },
-  { id: 'q7', title: 'Where are you staying?',           subtitle: 'Optional — but tells us where your day should start.' },
   { id: 'q8', title: 'Anything we should know?',         subtitle: 'Optional. Select what applies — we\'ll plan around it.' },
 ];
 
@@ -58,7 +72,7 @@ export default function Questionnaire({ setPage, answers, setAnswers, onComplete
     if (q.id === 'q2') return answers.groupType !== '';
     if (q.id === 'q3') return answers.budget !== '';
     if (q.id === 'q4') return answers.interests.length > 0;
-    return true; // q5/q6/q7/q8 always advanceable (have defaults / optional)
+    return true; // q5/q6/q8 always advanceable (have defaults / optional)
   };
 
   const handleNext = () => {
@@ -111,6 +125,8 @@ export default function Questionnaire({ setPage, answers, setAnswers, onComplete
             {q.id === 'q4' && <MultiPills options={INTERESTS}         value={answers.interests}     onChange={(v) => update('interests', v)} max={3} />}
             {q.id === 'q5' && <Adventure value={answers.adventureLevel} onChange={(v) => update('adventureLevel', v)} />}
             {q.id === 'q6' && <When    value={answers.startOffset}    onChange={(v) => update('startOffset', v)} />}
+            {/* Parked with the q7 entry in QUESTIONS — unreachable until that line
+                returns. Kept so v2 is a one-line restore; see the note above. */}
             {q.id === 'q7' && <Pills   options={LODGING_OPTS}         value={answers.lodging}       onChange={(v) => update('lodging', v)} />}
             {q.id === 'q8' && <FlagsQ8 flags={answers.flags} notes={answers.specialNotes} groupType={answers.groupType} onFlags={(v) => update('flags', v)} onNotes={(v) => update('specialNotes', v)} />}
           </div>
@@ -296,10 +312,14 @@ function When({ value, onChange }: { value: number; onChange: (v: number) => voi
 
 type FlagItem = { flag: string; label: string };
 
+// `birthday` and `work-trip` were removed on 2026-08-14. Neither had a single
+// reader outside this file: they reached the engine only through hashAnswers,
+// so ticking one reshuffled the plan without changing a rule — a control that
+// fakes a response is worse than one that plainly does nothing. Wiring them
+// would have meant inventing what they mean to a scorer, since the catalog
+// carries no celebration or business-travel signal to match on.
 const OCCASION_FLAGS: FlagItem[] = [
   { flag: 'honeymoon', label: 'Honeymoon / anniversary' },
-  { flag: 'birthday',  label: 'Birthday' },
-  { flag: 'work-trip', label: 'Work trip' },
 ];
 const SKIP_FLAGS: FlagItem[] = [
   { flag: 'no-boats',         label: 'Boats & water tours' },

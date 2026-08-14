@@ -11,6 +11,7 @@ import { Bookmark, Calendar, Chev, Share, X } from '../components/Icons';
 import { buildIcs, downloadIcs } from '../lib/icsExport';
 import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
+import CollapsedDaySummary, { type CollapsedVariant } from '../components/CollapsedDaySummary';
 import { resolveSlotEntry } from '../data/activitySource';
 import { claimedRouteFamilies, withoutClaimedFamilies, tripRouteFamily } from '../data/itineraryGenerator';
 import { useCatalog } from '../data/useCatalog';
@@ -27,6 +28,7 @@ import { useAuth } from '../lib/auth';
 import { useBooked } from '../lib/booked';
 import { loadTrip, loadTripById, saveTrip, updateTrip, createTrip } from '../lib/trips';
 import { readActiveTripId, writeActiveTripId } from '../lib/activeTrip';
+import { sameAnswers } from '../lib/sameAnswers';
 import { createShare, loadShare } from '../lib/shares';
 import { capture } from '../lib/analytics';
 import { supabase } from '../lib/supabase';
@@ -41,6 +43,18 @@ import type { CardEntry, SlotEntry, Slot, SwapReason, ViatorItem, Section } from
 import type { PageId, Answers } from '../App';
 
 type Props = { setPage: (p: PageId) => void; answers: Answers; setAnswers: (a: Answers) => void; onLogin: () => void; shareId: string | null; onNavigateToExplore?: (section: Section) => void };
+
+// TEMPORARY — remove once the collapsed-day layout is chosen (2026-08-14).
+// `?collapse=list` switches a folded day from a row of circles to one activity
+// per line with its title. Exists only so the two can be compared side by side
+// on a preview build; the shipped default is `row`.
+// A function, not a module-level const: this file is imported transitively by
+// ~13 node-environment test files, where `window` does not exist, and reading it
+// at module scope threw before a single test ran.
+function collapseVariant(): CollapsedVariant {
+  if (typeof window === 'undefined') return 'row';
+  return new URLSearchParams(window.location.search).get('collapse') === 'list' ? 'list' : 'row';
+}
 
 const SECTION_META: { id: Slot; label: string }[] = [
   { id: 'morning',   label: 'Morning' },
@@ -181,9 +195,25 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   // Which saved itinerary is open. null until the first save, or while signed
   // out. `savedName` is the name that itinerary was last STORED under — the
   // autosave compares against it to tell a rename apart from any other edit.
-  const [tripId, setTripId] = useState<string | null>(() => readActiveTripId());
+  const tripIdRef = useRef<string | null>(readActiveTripId());
+  const [tripId, setTripId] = useState<string | null>(() => tripIdRef.current);
   const savedName = useRef<string>('');
-  const creating = useRef(false);
+  // Autosave writes run one at a time, appended to this chain. See the comment
+  // at the autosave effect for why a mutex is the wrong tool here.
+  const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
+
+  // The ONLY way the open-itinerary id is written. Three things have to agree —
+  // React state for rendering, a ref so an async callback sitting past an await
+  // can see an id adopted since it started, and localStorage so a refresh
+  // reopens the same trip — and writing them separately is how they drift.
+  const applyTripId = (id: string | null) => {
+    tripIdRef.current = id;
+    setTripId(id);
+    writeActiveTripId(id);
+  };
+  // Set when a background save errors, so a traveller editing for an hour is not
+  // left believing it is all stored when none of it is.
+  const [autosaveFailed, setAutosaveFailed] = useState(false);
 
   const answersAtMount = useRef(answers);
   useEffect(() => {
@@ -201,55 +231,110 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
       ? loadTripById(user.id, wanted).then((t) => t ?? loadTrip(user.id))
       : loadTrip(user.id);
     fetch.then((t) => {
-      if (t) {
-        const freshQuestionnaire = JSON.stringify(t.answers) !== JSON.stringify(currentAnswers);
-        if (!freshQuestionnaire) {
-          setPlan(t.plan);
-          setRejected(t.rejected);
-          setRejectedGroups(t.rejectedGroups);
-          setAnswers(t.answers);
-          setTripId(t.id);
-          writeActiveTripId(t.id);
-          savedName.current = t.answers.tripName ?? '';
-        }
+      if (t && sameAnswers(t.answers, currentAnswers)) {
+        // Reopening this trip: adopt its content AND its identity, so the
+        // autosave writes back to the row it came from.
+        setPlan(t.plan);
+        setRejected(t.rejected);
+        setRejectedGroups(t.rejectedGroups);
+        setAnswers(t.answers);
+        applyTripId(t.id);
+        savedName.current = t.answers.tripName ?? '';
+      } else {
+        // Either nothing is saved, or the questionnaire has been retaken and
+        // this is a different trip from anything on file. Start unattached: the
+        // autosave then CREATES rather than overwriting, which is what keeps the
+        // saved itinerary the traveller already has.
+        //
+        // Clearing matters most on a shared browser. `tripId` seeds from
+        // localStorage before auth resolves, so without this, signing in as
+        // someone else leaves the previous account's id in place and every
+        // update matches zero rows — a save that reports success and writes
+        // nothing, forever.
+        applyTripId(null);
+        savedName.current = '';
+        // Drop the inherited name. The questionnaire updates answers by spread,
+        // so `tripName` SURVIVES a retake — change 10 days to 7 and the new trip
+        // would be created still called "Beach week", leaving two rows with the
+        // same title in the Itineraries list and only the Active badge to tell
+        // them apart. Starting untitled means naming it later renames rather
+        // than branching, so this does not reintroduce a ghost row.
+        if (currentAnswers.tripName) setAnswers({ ...currentAnswers, tripName: undefined });
       }
       setHydrated(true);
     });
   }, [user, setAnswers, shareId]);
+
+  // --- Save Trip modal (name-your-trip before persisting) ------------------
+  const [saveTripOpen, setSaveTripOpen] = useState(false);
+  const [tripNameDraft, setTripNameDraft] = useState('');
+  const [saveTripStatus, setSaveTripStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  // Whether the last save branched a new itinerary, so the confirmation can say
+  // so — "saved" reading the same for an overwrite and for a new copy is how a
+  // traveller ends up unsure which one they just changed.
+  const [savedAsNew, setSavedAsNew] = useState(false);
 
   // Debounced persist once hydrated — so we never overwrite the saved plan with
   // the freshly-generated one before it has loaded. Writes answers + plan (which
   // carries the activities) + swap memory.
   useEffect(() => {
     if (shareId || !user || !hydrated) return;   // never autosave a shared snapshot
+    // Hold off while the Save dialog is mid-flight. It calls setAnswers before
+    // it awaits, which re-arms this timer with the NEW name but the PRE-branch
+    // tripId — so a slow round trip would let the autosave write the new name
+    // onto the original row, leaving two itineraries with identical titles.
+    if (saveTripStatus === 'saving') return;
     const id = window.setTimeout(() => {
-      void (async () => {
-        const state = { answers, plan, rejected, rejectedGroups };
+      const state = { answers, plan, rejected, rejectedGroups };
+      // Returns false when there is no id to adopt. Unreachable today —
+      // createTrip selects the id back, so a null id implies an error we have
+      // already returned on — but the caller must not fall through to reporting
+      // a save that attached to nothing, or the next link would create again.
+      const adopt = (newId: string | null) => {
+        if (!newId) return false;
+        applyTripId(newId);
+        savedName.current = answers.tripName ?? '';
+        return true;
+      };
+      // Writes are CHAINED, never concurrent. The effect cleanup cannot cancel a
+      // timer that has already fired, so several of these callbacks can be in
+      // flight at once — and two of them each discovering the row missing would
+      // each create one, which is the duplicate this used to produce. A mutex
+      // would fix that by dropping the loser's write, but dropping a write loses
+      // the traveller's last edit whenever they stop editing mid-save. Queueing
+      // serialises without discarding anything.
+      saveQueue.current = saveQueue.current.then(async () => {
+        // Read the id at EXECUTION time, not from the closure: an earlier link
+        // in this chain may have just created the row this one should write to.
+        const openId = tripIdRef.current;
         // An autosave always writes to the itinerary that is OPEN. It must never
         // branch a new one — only the Save dialog does that, deliberately, when
         // the traveller renames. Otherwise every keystroke that reached
         // `answers` would litter the account with copies.
-        if (tripId) {
-          await updateTrip(user.id, tripId, state);
-        } else {
-          // Nothing saved yet. Create exactly one row and hold it: without the
-          // in-flight guard, two edits 800ms apart would each insert, because
-          // neither would have seen the other's id yet.
-          if (creating.current) return;
-          creating.current = true;
-          const { id: newId } = await createTrip(user.id, state);
-          creating.current = false;
-          if (newId) {
-            setTripId(newId);
-            writeActiveTripId(newId);
-            savedName.current = answers.tripName ?? '';
+        if (openId) {
+          const { error, missing } = await updateTrip(user.id, openId, state);
+          if (error) { setAutosaveFailed(true); return; }
+          // The row is gone — deleted from another device, or this browser is
+          // still holding the id of an account that has since signed out. Take
+          // the open trip into a new row instead of writing into a void.
+          if (missing) {
+            const { id: newId, error: createErr } = await createTrip(user.id, state);
+            if (createErr) { setAutosaveFailed(true); return; }
+            if (!adopt(newId)) { setAutosaveFailed(true); return; }
           }
+        } else {
+          const { id: newId, error } = await createTrip(user.id, state);
+          if (error) { setAutosaveFailed(true); return; }
+          if (!adopt(newId)) { setAutosaveFailed(true); return; }
         }
+        setAutosaveFailed(false);
         capture('itinerary_saved', { trigger: 'auto' });
-      })();
+      // A rejected link would poison every write after it, so the chain is
+      // always handed back resolved.
+      }).catch(() => { setAutosaveFailed(true); });
     }, 800);
     return () => window.clearTimeout(id);
-  }, [user, hydrated, answers, plan, rejected, rejectedGroups, shareId, tripId]);
+  }, [user, hydrated, answers, plan, rejected, rejectedGroups, shareId, tripId, saveTripStatus]);
 
   // Pass the questionnaire answers so the card face + "Other suggestions" only
   // ever show items that fit (e.g. nothing far over budget). This is the display
@@ -295,15 +380,6 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   const onFlip     = (uid: string) => setFlipped((s) => toggle(s, uid));
   const onOpenSwap = (uid: string) => setReasonOpen((s) => toggle(s, uid));
 
-  // --- Save Trip modal (name-your-trip before persisting) ------------------
-  const [saveTripOpen, setSaveTripOpen] = useState(false);
-  const [tripNameDraft, setTripNameDraft] = useState('');
-  const [saveTripStatus, setSaveTripStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  // Whether the last save branched a new itinerary, so the confirmation can say
-  // so — "saved" reading the same for an overwrite and for a new copy is how a
-  // traveller ends up unsure which one they just changed.
-  const [savedAsNew, setSavedAsNew] = useState(false);
-
   const openSaveTrip = () => {
     setTripNameDraft(answers.tripName ?? '');
     setSaveTripStatus('idle');
@@ -320,20 +396,33 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
       setSaveTripStatus('saving');
       // A different name means a second itinerary, not a rename of the first.
       // saveTrip decides that from `savedName` — the name this trip was last
-      // stored under — so the original stays exactly where the traveller left it.
-      const { id: savedId, error, created } = await saveTrip(
-        user.id, tripId, { answers: newAnswers, plan, rejected, rejectedGroups }, savedName.current,
+      // stored under — so the original row stays where the traveller left it.
+      //
+      // Queued behind the autosaves rather than racing them, so there is ONE
+      // ordering authority for every write to `trips`. Not queueing it left a
+      // gap the 'saving' guard could not close: that guard stops new timers
+      // being armed, but a link already appended keeps running, reads the id at
+      // execution time, and would land its pre-rename answers on the row this
+      // save had just branched — two itineraries with the same name again, by a
+      // different route. `tripIdRef`, not the `tripId` state, for the same
+      // reason: the ref is the authority once writes are ordered.
+      const queued = saveQueue.current.then(() => saveTrip(
+        user.id, tripIdRef.current, { answers: newAnswers, plan, rejected, rejectedGroups }, savedName.current,
+      ));
+      // The chain must be handed on resolved, or one failed save stops every
+      // autosave that follows it.
+      saveQueue.current = queued.catch(() => {});
+      const { id: savedId, error, created } = await queued.catch(
+        () => ({ id: null, error: 'Could not save. Please try again.', created: false }),
       );
       if (error) {
         setSaveTripStatus('error');
         return;
       }
-      if (savedId) {
-        setTripId(savedId);
-        writeActiveTripId(savedId);
-      }
+      if (savedId) applyTripId(savedId);
       savedName.current = name;
       setSavedAsNew(created);
+      setAutosaveFailed(false);   // an explicit save that worked clears the warning
       capture('itinerary_saved', { trigger: 'manual', created_copy: created });
       setSaveTripStatus('saved');
       window.setTimeout(() => setSaveTripOpen(false), 1600);
@@ -805,6 +894,14 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
                         {shareErr}
                       </div>
                     )}
+                    {/* Background saves are invisible when they work, which is
+                        the point — but silence when they FAIL means an hour of
+                        edits the traveller believes are stored. */}
+                    {autosaveFailed && !shareErr && (
+                      <div role="alert" style={{ position: 'absolute', top: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)', whiteSpace: 'nowrap', background: 'var(--red)', color: '#fff', padding: '6px 12px', borderRadius: 6, fontSize: 13 }}>
+                        Not saving right now — press Save to retry.
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -933,6 +1030,25 @@ function ItineraryDay({
 
   const count = d.morning.length + d.afternoon.length + d.evening.length;
 
+  // The faces a collapsed day shows. Resolved through the same resolveEntry the
+  // cards use, so the thumbnail is the face the card would display — a swapped
+  // card's new photo, not the one the plan was generated with. Only computed
+  // while collapsed; an expanded day pays nothing for it.
+  const collapsedActivities = useMemo(
+    () => (collapsed
+      ? SECTION_META.flatMap(({ id }) => d[id].map((card) => {
+        const entry = h.resolveEntry(card.entry, id);
+        if (!entry) return null;
+        return {
+          key: card.uid,
+          title: entry.kind === 'activity' ? entry.activity.title : entry.bestSeller.title,
+          image: entry.kind === 'activity' ? entry.activity.image : entry.bestSeller.image_url,
+        };
+      }).filter((a): a is { key: string; title: string; image: string } => a !== null))
+      : []),
+    [collapsed, d, h],
+  );
+
   return (
     <div className="itin-day-wrapper" style={{ position: 'relative', paddingLeft: 64, paddingBottom: isLast ? 0 : 40 }}>
       {!isLast && <div className="timeline-rail" />}
@@ -979,9 +1095,7 @@ function ItineraryDay({
         </button>
       </div>
       {collapsed ? (
-        <button type="button" className="itin-day-collapsed-note" onClick={() => setCollapsed(false)}>
-          {count} {count === 1 ? 'activity' : 'activities'} · tap to expand
-        </button>
+        <CollapsedDaySummary activities={collapsedActivities} dayNum={d.day} onExpand={() => setCollapsed(false)} variant={collapseVariant()} />
       ) : (
         SECTION_META.map(({ id, label }) => (
           <Section

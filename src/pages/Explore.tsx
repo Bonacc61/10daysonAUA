@@ -1,15 +1,16 @@
 import { useState, type CSSProperties, type MouseEvent } from 'react';
-import { Search, Star, MapPin, Clock, Dollar, X } from '../components/Icons';
+import { Star, MapPin, Clock, Dollar } from '../components/Icons';
 import AddButton from '../components/AddButton';
+import SearchBar from '../components/SearchBar';
 import DepartureNote from '../components/DepartureNote';
 import RatingChip from '../components/RatingChip';
 import Footer from '../components/Footer';
 import { useShortlist } from '../lib/shortlist';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
-import { filterExploreEntries, blendSearchResults, entryExcludedByFlags, bookingUrl, viatorLink, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint } from '../data/exploreItems';
-import { flagsFromNotes } from '../data/notesFlags';
-import { searchByMeaning, semanticSearchEnabled } from '../lib/semanticSearch';
+import { filterExploreEntries, bookingUrl, viatorLink, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint } from '../data/exploreItems';
+import { searchEntries } from '../lib/entrySearch';
+import { useSearchBox } from '../lib/useSearchBox';
 import { parseActivityCost } from '../data/matcher';
 import type { Section } from '../types';
 import type { ViatorItem } from '../types';
@@ -86,20 +87,10 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   const { catalog, loading } = useCatalog();
 
   const [section, setSection] = useState<string>(initialSection ?? 'All');
-  const [search, setSearch] = useState('');
-  // Semantic search state (VITE_SEMANTIC_SEARCH only).
-  //
-  // The space bar ARMS it rather than switching to it. One word is nearly always
-  // a name or a noun — "Zeerover", "snorkel" — and substring matching answers
-  // those instantly, locally and for free. Two or more words is where people
-  // start describing intent, and that is the only case worth a network round
-  // trip. Substring results stay live throughout: arming never blanks or delays
-  // what is already on screen, so a two-word KEYWORD search ("baby beach") keeps
-  // working exactly as it does today and Enter merely adds to it.
-  const [semanticIds, setSemanticIds] = useState<string[]>([]);
-  const [semanticFor, setSemanticFor] = useState('');      // the query those ids answer
-  const [semanticPending, setSemanticPending] = useState(false);
-  const [semanticFailed, setSemanticFailed] = useState(false);
+  // Query + search-by-meaning state. Shared with My Aruba > Personalized, which
+  // draws the same box: see useSearchBox for why a space arms the semantic layer.
+  const box = useSearchBox();
+  const search = box.query;
   // Both filters open BALANCED (50), not seeded from the questionnaire. Seeding
   // vibe from answers.adventureLevel meant a traveller who answered "chill"
   // arrived at Explore with the catalog already narrowed to 🌴 Chill and no
@@ -122,45 +113,18 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   // Every individual Viator item URL + local pick, as its own filterable tile.
   const substringHits = filterExploreEntries(catalog, { section, search, vibe, price });
 
-  // Only blend results that answer the query currently in the box. Without this
-  // an edited query would keep showing matches for the previous one.
-  //
-  // The unsearched pool is built ONLY when there is something to blend into it —
-  // otherwise this allocated ~328 entries and re-derived every section on every
-  // keystroke, for a branch that is not taken while the feature is dark.
-  const blendable = search.trim() === semanticFor && semanticIds.length > 0;
-  const blended = blendable
-    ? blendSearchResults(substringHits, semanticIds, filterExploreEntries(catalog, { section, search: '', vibe, price }))
-    : substringHits;
-
-  // Contraindications the traveller typed, honoured as exclusions. "We get
-  // seasick" scores 0/3 by similarity alone — the sentence embeds next to the
-  // boats it rules out — and this is the same parser the questionnaire's
-  // free-text box already uses, so the two paths cannot disagree about what
-  // "seasick" means. Applied to keyword hits as well: a substring match on a
-  // boat is no more wanted than a semantic one.
-  const searchFlags = new Set(flagsFromNotes(search));
-  const entries = searchFlags.size > 0
-    ? blended.filter((e) => !entryExcludedByFlags(e, searchFlags))
-    : blended;
+  // Semantic blending + typed contraindications, shared with the Personalized
+  // panel. The unsearched pool is a thunk so it is built ONLY when there is
+  // something to blend into it — eagerly it allocated ~328 entries and
+  // re-derived every section on every keystroke.
+  const { entries, addedByMeaning } = searchEntries(
+    search,
+    substringHits,
+    () => filterExploreEntries(catalog, { section, search: '', vibe, price }),
+    box.semantic,
+  );
 
   const totalCount = entries.length;
-
-  const armed = semanticSearchEnabled() && search.trim().includes(' ');
-  const semanticAnswered = search.trim() === semanticFor && semanticFor !== '';
-
-  const runSemantic = async () => {
-    const q = search.trim();
-    if (!armed || semanticPending || !q) return;
-    if (q === semanticFor) return;      // already answered; don't spend a quota row on it
-    setSemanticPending(true);
-    setSemanticFailed(false);
-    const out = await searchByMeaning(q);
-    setSemanticPending(false);
-    if (!out.ok) { setSemanticFailed(true); return; }
-    setSemanticIds(out.ids);
-    setSemanticFor(q);
-  };
 
   return (
     <>
@@ -171,55 +135,7 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
             {catalog.items.length} activities + {catalog.activities.length} local picks — filter by vibe, price, and category.
           </p>
 
-          {/* The icons are anchored to the INPUT, not to this wrapper. They are
-              positioned at top:50%, so any sibling the wrapper gains — the
-              search-by-meaning button below — would drag them down past the
-              input's bottom border. That is exactly what happened when the
-              button replaced the one-line hint. */}
-          <div style={{ maxWidth: 520, marginTop: 22 }}>
-            <div style={{ position: 'relative' }}>
-            <span style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--sand-500)' }}>
-              <Search />
-            </span>
-            <input
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setSemanticFailed(false); }}
-              onKeyDown={(e) => { if (e.key === 'Enter' && armed) { e.preventDefault(); void runSemantic(); } }}
-              placeholder="Search beaches, activities, food…"
-              style={{ width: '100%', padding: '14px 14px 14px 44px', border: '2px solid var(--ink)', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', background: 'var(--cream)', outline: 'none' }}
-            />
-            {search && (
-              <button onClick={() => setSearch('')} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
-                <X />
-              </button>
-            )}
-            </div>
-            {armed && (
-              <div className="search-meaning-row">
-                <button
-                  type="button"
-                  className="search-meaning-btn"
-                  onClick={() => void runSemantic()}
-                  disabled={semanticPending || semanticAnswered}
-                >
-                  {semanticPending ? 'Searching…' : 'Search by meaning'}
-                </button>
-                {/* Say what happened. Otherwise the button just greys out and
-                    nothing else changes, which reads as the feature ignoring
-                    you — and that is the guaranteed experience whenever the
-                    query matches nothing beyond the keyword hits. */}
-                {(semanticFailed || semanticAnswered) && (
-                  <span className="search-meaning-note">
-                    {semanticFailed
-                      ? "Couldn't search by meaning just now — keyword results still below."
-                      : semanticIds.length === 0
-                        ? 'Nothing else matched what you meant.'
-                        : `Added ${semanticIds.length} match${semanticIds.length === 1 ? '' : 'es'} by meaning.`}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
+          <SearchBar box={box} addedByMeaning={addedByMeaning} placeholder="Search beaches, activities, food…" style={{ marginTop: 22 }} />
 
           <div style={{ display: 'flex', gap: 6, marginTop: 18, overflowX: 'auto' }}>
             {[{ key: 'All', label: 'All' }, ...SECTIONS].map((tab) => (
@@ -268,7 +184,7 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
                 <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--sand-500)' }}>
                   <p className="font-display" style={{ fontSize: 24, margin: 0 }}>No results found</p>
                   <p style={{ fontSize: 14, marginTop: 6 }}>
-                    {semanticAnswered && semanticIds.length === 0
+                    {box.answered && addedByMeaning === 0
                       ? 'We looked for what you meant as well as what you typed, and still found nothing here. Try recentering the Vibe / Price sliders.'
                       : 'Recenter the Vibe / Price sliders or clear search.'}
                   </p>

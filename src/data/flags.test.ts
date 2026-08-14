@@ -118,7 +118,7 @@ describe('answersToTags — flag effects', () => {
   });
 
   it('unrelated flags leave adventure bands untouched', () => {
-    const tags = answersToTags({ ...DEFAULT_ANSWERS, adventureLevel: 50, flags: ['birthday', 'no-car'] });
+    const tags = answersToTags({ ...DEFAULT_ANSWERS, adventureLevel: 50, flags: ['avoid-crowds', 'no-car'] });
     expect(tags.has('med-adventure')).toBe(true);
   });
 });
@@ -348,12 +348,16 @@ describe('generatePlan — real catalog spot-checks', () => {
     }
   });
 
-  it('flags with no effect on a given activity leave it reachable (baby beach with birthday flag)', () => {
-    // birthday has no generator effect — a plain local pick should still be
-    // reachable. (Probe with baby-beach-snorkel, which has no Viator equivalent;
+  it('flags with no effect on a given activity leave it reachable (baby beach with avoid-crowds)', () => {
+    // avoid-crowds reorders VIATOR picks by inverting the popularity term; it
+    // must never exclude a curated local, which carries no popularity signal at
+    // all. (Probe with baby-beach-snorkel, which has no Viator equivalent;
     // arikok-hiking is intentionally suppressed when the catalog sells a guided
     // Arikok tour — see the viatorDupe test below.)
-    const { actIds } = sweepSeeds({ ...BASE, days: 9, flags: ['birthday'] }, catalog, 12);
+    //
+    // Was written against `birthday`, a pill removed on 2026-08-14 for having no
+    // reader anywhere; repointed at a live flag so it guards something real.
+    const { actIds } = sweepSeeds({ ...BASE, days: 9, flags: ['avoid-crowds'] }, catalog, 12);
     expect(actIds.has('baby-beach-snorkel')).toBe(true);
   });
 

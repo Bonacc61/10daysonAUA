@@ -12,6 +12,9 @@ import { resolveSlotEntry } from '../data/activitySource';
 import { buildIcs, downloadIcs } from '../lib/icsExport';
 import { useShortlist } from '../lib/shortlist';
 import AddButton from '../components/AddButton';
+import SearchBar from '../components/SearchBar';
+import { searchEntries } from '../lib/entrySearch';
+import { useSearchBox } from '../lib/useSearchBox';
 import { useBooked } from '../lib/booked';
 import { useAuth } from '../lib/auth';
 import { listTrips, deleteTrip, tripTitle, type SavedTrip } from '../lib/trips';
@@ -506,11 +509,19 @@ function StarredPanel({ setPage }: { setPage: (p: PageId) => void }) {
 
 // ──────────────────────────────────── Personalized activities panel ────────── //
 
-function PersonalizedPanel({ setPage, trip }: { setPage: (p: PageId) => void; trip: TripLoadState }) {
+// Exported for Dashboard.personalized.dom.test.tsx — the search box it draws is
+// shared with Explore, and a render is the only thing that can tell you it is
+// actually filtering rather than merely present.
+export function PersonalizedPanel({ setPage, trip }: { setPage: (p: PageId) => void; trip: TripLoadState }) {
   const { catalog, loading } = useCatalog();
   const { shortlist, toggle: toggleAdd } = useShortlist();
   const [vibe,  setVibe]  = useState(50);
   const [price, setPrice] = useState(50);
+  // The same box Explore draws — substring hits, search-by-meaning and the
+  // contraindications a traveller types — from one implementation, so the two
+  // surfaces cannot drift apart.
+  const box = useSearchBox();
+  const search = box.query;
 
   const tags = useMemo(
     () => (trip && trip !== 'loading') ? answersToTags(trip.answers) : new Set<MatchTag>(),
@@ -518,8 +529,8 @@ function PersonalizedPanel({ setPage, trip }: { setPage: (p: PageId) => void; tr
   );
 
   // Build matched id sets across all slots, then post-filter all ExploreEntries.
-  const entries = useMemo((): ExploreEntry[] => {
-    if (loading || !tags.size) return [];
+  const result = useMemo(() => {
+    if (loading || !tags.size) return { entries: [] as ExploreEntry[], addedByMeaning: 0 };
     const matchedGroupIds = new Set<string>();
     for (const slot of ['morning', 'afternoon', 'evening'] as const) {
       // Groups only — the local picks are matched below. matchPool still wants
@@ -539,11 +550,23 @@ function PersonalizedPanel({ setPage, trip }: { setPage: (p: PageId) => void; tr
         .filter((a) => activityTags(a).some((t) => tags.has(t)))
         .map((a) => a.id),
     );
-    return filterExploreEntries(catalog, { section: 'All', search: '', vibe, price })
-      .filter((e) => e.kind === 'item'
-        ? matchedGroupIds.has(e.item.group_id)
-        : matchedActIds.has(e.activity.id));
-  }, [catalog, tags, loading, vibe, price]);
+    const inProfile = (e: ExploreEntry) => e.kind === 'item'
+      ? matchedGroupIds.has(e.item.group_id)
+      : matchedActIds.has(e.activity.id);
+
+    const hits = filterExploreEntries(catalog, { section: 'All', search, vibe, price }).filter(inProfile);
+    // The pool semantic ids resolve against is the PROFILE-MATCHED one, not the
+    // whole catalog: this panel's own heading says everything below it matches
+    // your profile, and search-by-meaning must not make that false. Explore,
+    // which promises nothing of the kind, passes its full filtered catalog.
+    return searchEntries(
+      search,
+      hits,
+      () => filterExploreEntries(catalog, { section: 'All', search: '', vibe, price }).filter(inProfile),
+      box.semantic,
+    );
+  }, [catalog, tags, loading, vibe, price, search, box.semantic]);
+  const { entries, addedByMeaning } = result;
 
   if (!trip || trip === 'loading') {
     return (
@@ -569,6 +592,7 @@ function PersonalizedPanel({ setPage, trip }: { setPage: (p: PageId) => void; tr
       <p style={{ fontSize: 13, color: 'var(--sand-700)', fontStyle: 'italic', margin: '0 0 24px' }}>
         Based on your questionnaire — {trip.answers.days} days, {trip.answers.groupType || 'your group'}, {trip.answers.budget || 'any budget'}.
       </p>
+      <SearchBar box={box} addedByMeaning={addedByMeaning} placeholder="Search your matches…" style={{ margin: '0 0 18px' }} />
       <div className="dash-filter-row">
         <Slider label="Vibe"  value={vibe}  onChange={setVibe}  lo="🌴 Chill" hi="Adrenaline 🪂" hint={vibeHint(vibe)} />
         <Slider label="Price" value={price} onChange={setPrice} lo="✨ Free"   hi="Splurge 💸"    hint={priceHint(price)} />
@@ -576,11 +600,17 @@ function PersonalizedPanel({ setPage, trip }: { setPage: (p: PageId) => void; tr
       {loading ? (
         <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading…</p>
       ) : entries.length === 0 ? (
-        <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>No matches found — try adjusting the sliders or updating your questionnaire answers.</p>
+        <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>
+          {search.trim()
+            ? (box.answered && addedByMeaning === 0
+              ? 'We looked for what you meant as well as what you typed, and found nothing among your matches. Try clearing the search or recentering the sliders.'
+              : 'Nothing among your matches for that search — try clearing it or recentering the sliders.')
+            : 'No matches found — try adjusting the sliders or updating your questionnaire answers.'}
+        </p>
       ) : (
         <>
           <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: '0 0 16px' }}>
-            <strong style={{ color: 'var(--ink)' }}>{entries.length}</strong> activit{entries.length === 1 ? 'y' : 'ies'} matched to your profile
+            <strong style={{ color: 'var(--ink)' }}>{entries.length}</strong> activit{entries.length === 1 ? 'y' : 'ies'} matched to your profile{search.trim() ? ' and your search' : ''}
           </p>
           <div className="explore-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20 }}>
             {entries.map((e) =>
@@ -1214,10 +1244,14 @@ export default function Dashboard({ setPage, initialSection = 'starred', onLogin
     writeActiveTripId(id);
   };
 
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const removeTrip = async (id: string) => {
     if (!user) return;
+    setDeleteError(null);
     const { error } = await deleteTrip(user.id, id);
-    if (error) return;
+    // The traveller confirmed a destructive prompt; if the row is still there
+    // they need to be told, not left watching it not disappear.
+    if (error) { setDeleteError('Could not delete that itinerary. Please try again.'); return; }
     const left = await listTrips(user.id);
     setTrips(left);
     // The planner must not be left pointing at a row that no longer exists.
@@ -1228,7 +1262,12 @@ export default function Dashboard({ setPage, initialSection = 'starred', onLogin
     }
   };
 
-  const trip: TripLoadState = trips === 'loading' ? 'loading' : (trips[0] ?? null);
+  // The trip the OTHER panels read (Personalized matches on its answers). It has
+  // to be the one the planner has open, or the Itineraries list badges one trip
+  // "Active" while Personalized quietly matches against a different one.
+  const trip: TripLoadState = trips === 'loading'
+    ? 'loading'
+    : (trips.find((t) => t.id === activeTripId) ?? trips[0] ?? null);
 
   return (
     <>
@@ -1302,7 +1341,16 @@ export default function Dashboard({ setPage, initialSection = 'starred', onLogin
             {section === 'surprise'  && <SurprisePanel      setPage={setPage} trip={trip} answers={answers} />}
             {section === 'starred'   && activitiesTab === 'shortlisted'  && <StarredPanel       setPage={setPage} />}
             {section === 'starred'   && activitiesTab === 'personalized' && <PersonalizedPanel  setPage={setPage} trip={trip} />}
-            {section === 'itinerary' && <ItineraryPanel   setPage={setPage} trips={trips} onLogin={onLogin} onOpenTrip={openTrip} onDeleteTrip={removeTrip} activeTripId={activeTripId} />}
+            {section === 'itinerary' && (
+              <>
+                {deleteError && (
+                  <div role="alert" style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 8, border: '2px solid var(--ink)', background: 'var(--red)', color: '#fff', fontSize: 13, fontWeight: 600 }}>
+                    {deleteError}
+                  </div>
+                )}
+                <ItineraryPanel setPage={setPage} trips={trips} onLogin={onLogin} onOpenTrip={openTrip} onDeleteTrip={removeTrip} activeTripId={activeTripId} />
+              </>
+            )}
             {section === 'practical' && <PracticalPanel />}
           </div>
         </div>
