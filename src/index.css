@@ -319,6 +319,18 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
   background: var(--green); color: var(--cream);
   border-radius: 999px; padding: 1px 7px; opacity: 1;
 }
+/* The same pill the Other-suggestions shelf carries (.other-suggestion-add), so
+   both shelves offer the same visible affordance. Inert by design — the card
+   around it is the button — so no cursor or hover of its own; the card's
+   :hover and :active carry it. */
+.itin-shortlist-item-add {
+  align-self: flex-start; margin: 9px 11px 0;
+  font-size: 11px; font-weight: 700;
+  padding: 5px 10px; border-radius: 999px;
+  border: 2px solid var(--ink); background: var(--coral); color: var(--cream);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.itin-shortlist-item:hover .itin-shortlist-item-add { background: #ed5d3c; }
 /* Same scroll-driven reveal the itinerary cards use (see @keyframes reveal),
    retargeted to the inline axis so favourites fade and slide in as the strip
    scrolls sideways. Gated on @supports exactly like the vertical one — where

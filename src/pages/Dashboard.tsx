@@ -7,7 +7,7 @@ import GoodToKnowTimeline from '../components/GoodToKnowTimeline';
 import { useCatalog } from '../data/useCatalog';
 import { filterExploreEntries, bookingUrl, vibeHint, priceHint } from '../data/exploreItems';
 import { INFO_TOPICS } from '../data/activities';
-import { answersToTags } from '../data/answerTags';
+import { answersToTags, activityTags } from '../data/answerTags';
 import { resolveSlotEntry } from '../data/activitySource';
 import { buildIcs, downloadIcs } from '../lib/icsExport';
 import { useShortlist } from '../lib/shortlist';
@@ -30,13 +30,21 @@ import type { Slot, SlotEntry, CardEntry, MatchTag } from '../types';
 
 // ─────────────────────────────────────────────────────────── types ──────── //
 
-type DashSection = 'surprise' | 'starred' | 'itinerary' | 'bookings' | 'practical';
+// No 'bookings' section. A Viator booking is completed on viator.com and
+// attributed to us by Viator's own 30-day affiliate cookie — the sale is
+// reported to the partner account, never back to this browser. Nothing in the
+// affiliate programme (Basic or Full Access) hands us a per-visitor "they
+// booked" signal; only a merchant/booking partnership, where the traveller pays
+// us directly, would know. So a Bookings panel could only ever have listed what
+// the traveller re-typed by hand, which is bookkeeping we asked them to do
+// twice. The per-card "mark as booked" flag stays: it drives the calendar
+// export and the "N confirmed" line under Itineraries.
+type DashSection = 'surprise' | 'starred' | 'itinerary' | 'practical';
 
 type IconFC = (p: { size?: number }) => JSX.Element;
 const SECTIONS: { id: DashSection; label: string; NavIcon: IconFC }[] = [
   { id: 'starred',    label: 'Activities',             NavIcon: Check    },
   { id: 'itinerary',  label: 'Itineraries',           NavIcon: Calendar },
-  { id: 'bookings',   label: 'Bookings',              NavIcon: Check    },
   { id: 'surprise',   label: 'Surprise me',           NavIcon: Dice     },
   { id: 'practical',  label: 'Practical Info',        NavIcon: Info     },
 ];
@@ -511,13 +519,25 @@ function PersonalizedPanel({ setPage, trip }: { setPage: (p: PageId) => void; tr
   // Build matched id sets across all slots, then post-filter all ExploreEntries.
   const entries = useMemo((): ExploreEntry[] => {
     if (loading || !tags.size) return [];
-    const matchedActIds   = new Set<string>();
     const matchedGroupIds = new Set<string>();
     for (const slot of ['morning', 'afternoon', 'evening'] as const) {
-      const { activities: ma, groups: mg } = matchPool(catalog.activities, catalog.groups, tags, slot);
-      ma.forEach((a) => matchedActIds.add(a.id));
+      // Groups only — the local picks are matched below. matchPool still wants
+      // an activities argument, so it gets an empty one.
+      const { groups: mg } = matchPool([], catalog.groups, tags, slot);
       mg.forEach((g) => matchedGroupIds.add(g.id));
     }
+    // Local picks are matched here rather than through matchPool. Every pick
+    // ships `matched_by: []`, which the matcher treats as a wildcard, so
+    // matchPool handed back all 26 of them to every profile — the panel said
+    // "matched to your profile" over a list that ignored the profile entirely.
+    // activityTags derives real tags from each pick's section and adventure
+    // score, leaving the generator's wildcard alone. Slot is not a filter here:
+    // this panel is for browsing, not for filling a morning.
+    const matchedActIds = new Set(
+      catalog.activities
+        .filter((a) => activityTags(a).some((t) => tags.has(t)))
+        .map((a) => a.id),
+    );
     return filterExploreEntries(catalog, { section: 'All', search: '', vibe, price })
       .filter((e) => e.kind === 'item'
         ? matchedGroupIds.has(e.item.group_id)
@@ -1077,131 +1097,6 @@ function ItineraryPanel({
   );
 }
 
-// ───────��────────���───────────────────────────────── Bookings panel ────────── //
-
-function BookingsPanel({
-  trip, onLogin,
-}: {
-  trip: TripLoadState;
-  onLogin: () => void;
-}) {
-  const { user, loading: authLoading } = useAuth();
-  const { catalog } = useCatalog();
-  const { booked, toggle: toggleBooked } = useBooked();
-
-  const tags = useMemo(
-    () => trip && trip !== 'loading' ? answersToTags(trip.answers) : new Set<never>(),
-    [trip],
-  );
-
-  const resolveEntry = useCallback(
-    (slotEntry: SlotEntry, slot?: Slot): CardEntry | null =>
-      resolveSlotEntry(slotEntry, catalog, tags as never, slot),
-    [catalog, tags],
-  );
-
-  const handleExportConfirmed = () => {
-    if (!trip || trip === 'loading') return;
-    const ics = buildIcs(trip.plan, trip.answers, resolveEntry, booked);
-    downloadIcs(ics, 'aruba-confirmed.ics');
-  };
-
-  if (authLoading) return <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading…</p>;
-
-  if (!user) {
-    return (
-      <div>
-        <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Bookings</h2>
-        <div className="chunky" style={{ padding: '32px 28px', textAlign: 'center', maxWidth: 440 }}>
-          <div style={{ fontSize: 36, marginBottom: 14 }}>✓</div>
-          <p className="font-display" style={{ fontSize: 20, margin: '0 0 8px', color: 'var(--ink)' }}>Sign in to track bookings.</p>
-          <button className="btn-red" onClick={onLogin} style={{ padding: '11px 22px', fontSize: 14 }}>Log in</button>
-        </div>
-      </div>
-    );
-  }
-
-  if (trip === 'loading') return <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading…</p>;
-
-  // Collect all booked cards across the plan, preserving day + slot context.
-  type BookedEntry = { card: PlannedCard; day: number; slot: Slot };
-  const bookedCards: BookedEntry[] = trip
-    ? trip.plan.flatMap((d) =>
-        (['morning', 'afternoon', 'evening'] as Slot[]).flatMap((slot) =>
-          d[slot]
-            .filter((c) => booked.has(c.uid))
-            .map((card) => ({ card, day: d.day, slot }))
-        )
-      )
-    : [];
-
-  if (bookedCards.length === 0) {
-    return (
-      <div>
-        <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Bookings</h2>
-        <div className="chunky" style={{ padding: '32px 28px', maxWidth: 440 }}>
-          <p className="font-display" style={{ fontSize: 20, margin: '0 0 8px', color: 'var(--ink)' }}>Nothing confirmed yet.</p>
-          <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: 0 }}>
-            Check the box next to any activity in Itineraries to mark it as booked.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
-        <div>
-          <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 4px', color: 'var(--ink)' }}>Bookings</h2>
-          <p style={{ fontSize: 13, color: 'var(--sand-700)', margin: 0 }}>
-            {bookedCards.length} confirmed activit{bookedCards.length === 1 ? 'y' : 'ies'}
-          </p>
-        </div>
-        <button
-          onClick={handleExportConfirmed}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 14px', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--cream)', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)', cursor: 'pointer' }}
-        >
-          <Calendar size={13} /> Export confirmed .ics
-        </button>
-      </div>
-
-      <div className="chunky" style={{ padding: '8px 20px' }}>
-        {bookedCards.map(({ card, day, slot }) => {
-          const entry = resolveEntry(card.entry, slot);
-          if (!entry) return null;
-          return (
-            <div key={card.uid}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--sand-100)' }}>
-              <button
-                onClick={() => toggleBooked(card.uid)}
-                style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 6, border: '2px solid var(--ink)', background: 'var(--green)', color: 'var(--cream)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                aria-label="Unmark as booked"
-              >
-                <Check size={12} sw={3} />
-              </button>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {entryTitle(entry)}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--sand-500)' }}>
-                  Day {day} · {SLOT_LABEL[slot]}
-                </div>
-              </div>
-              <span className="chip-outline" style={{ fontSize: 10, padding: '2px 8px', flexShrink: 0 }}>
-                <Clock size={10} /> {entryDuration(entry)}
-              </span>
-              <span className="chip-outline" style={{ fontSize: 10, padding: '2px 8px', flexShrink: 0 }}>
-                <Dollar size={10} /> {entryCost(entry)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // ──────────��─────────────────────────────────── Practical panel ──────────── //
 
 function PracticalPanel() {
@@ -1338,7 +1233,6 @@ export default function Dashboard({ setPage, initialSection = 'starred', onLogin
             {section === 'starred'   && activitiesTab === 'shortlisted'  && <StarredPanel       setPage={setPage} />}
             {section === 'starred'   && activitiesTab === 'personalized' && <PersonalizedPanel  setPage={setPage} trip={trip} />}
             {section === 'itinerary' && <ItineraryPanel   setPage={setPage} trip={trip} onLogin={onLogin} />}
-            {section === 'bookings'  && <BookingsPanel    trip={trip} onLogin={onLogin} />}
             {section === 'practical' && <PracticalPanel />}
           </div>
         </div>

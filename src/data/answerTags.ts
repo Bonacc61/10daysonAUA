@@ -1,5 +1,6 @@
 import type { Answers } from '../App';
 import type { MatchTag } from '../types';
+import type { Activity } from './activities';
 import { effectiveFlags } from './notesFlags';
 
 const INTEREST_MAP: Record<string, MatchTag> = {
@@ -37,6 +38,42 @@ const LODGING_MAP: Record<string, MatchTag> = {
   'Cruise':           'cruise-day',
   // 'Not booked yet' and 'Other' → no tag
 };
+
+// Every local pick ships `matched_by: []`, which the matcher reads as a wildcard
+// — deliberately, so a pick is always eligible to fill a slot the Viator catalog
+// cannot. That is right for the generator and wrong for a browse surface: it
+// made "Personalized for you" hand back all 26 picks to every traveller, whatever
+// they answered.
+//
+// So derive the tags a pick would carry, from the two fields it already has:
+// its Explore section and its 0-100 `adventure` score. Nothing is invented and
+// `matched_by` is untouched, so the generator's wildcard survives intact.
+const SECTION_TAGS: Record<string, MatchTag[]> = {
+  'beaches':            ['beach-chill'],
+  'cruises-water':      ['watersports'],
+  // These are the Arikok hike, the 4x4 to the natural pool, the dunes and the
+  // ruins loop — genuinely both, so they answer to either interest.
+  'adventures-outdoor': ['adventure', 'nature-hiking'],
+  'culture-history':    ['culture-history'],
+  'food-drink':         ['food-drink'],
+};
+
+export function activityTags(a: Activity): MatchTag[] {
+  const tags = new Set<MatchTag>();
+  for (const s of a.sections ?? []) {
+    for (const t of SECTION_TAGS[s] ?? []) tags.add(t);
+  }
+  // Same bands answersToTags uses, so the two sides compare like with like.
+  // A pick with no score gets no band rather than a guessed one; the test that
+  // every pick yields at least one tag is what catches it if that ever leaves a
+  // pick unreachable.
+  if (typeof a.adventure === 'number') {
+    if (a.adventure <= 33)      tags.add('low-adventure');
+    else if (a.adventure <= 66) tags.add('med-adventure');
+    else                        tags.add('high-adventure');
+  }
+  return [...tags];
+}
 
 export function answersToTags(a: Answers): Set<MatchTag> {
   const tags = new Set<MatchTag>();

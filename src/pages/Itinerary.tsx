@@ -1019,6 +1019,12 @@ function Section({
                               ? <span className="itin-shortlist-free">Free</span>
                               : <span>{price}</span>}
                           </span>
+                          {/* Matches the "+ Add" on the Other-suggestions shelf, so
+                              both shelves read the same way. A span, not a button:
+                              the whole card is already the button, and nesting one
+                              inside another is invalid and unreachable by keyboard.
+                              Clicking the pill hits the card, which is the add. */}
+                          <span className="itin-shortlist-item-add" aria-hidden>+ Add</span>
                         </button>
                       );
                     })}
