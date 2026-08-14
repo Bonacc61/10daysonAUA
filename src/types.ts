@@ -25,7 +25,11 @@ export type MatchTag =
   // classifyTags() ever emits this for a product — no group or activity carries
   // it in matched_by, so it never scores through the normal overlap loop. It is
   // read explicitly by contentCreatorBonus() and by the auto-fill gate.
-  | 'influencer';
+  | 'influencer'
+  // From the Q8 `avoid-crowds` flag. Same shape as `influencer` above: no
+  // product carries it, so it never scores through the overlap loop — fitItem
+  // reads it explicitly to invert the popularity preference.
+  | 'avoid-crowds';
 
 export type Region =
   | 'palm-beach' | 'eagle-beach' | 'noord' | 'oranjestad'

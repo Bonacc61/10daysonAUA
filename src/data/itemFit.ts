@@ -597,6 +597,10 @@ export function fitItem(item: ViatorItem, tags: Set<MatchTag>): ItemFit {
   const ibi = budgetIdx(itags.find(isBudgetTag));
 
   const cp = isCrowdPleaser(item);
+  // Q8 "Crowded spots" — see the tag's note in types.ts. Read here rather than
+  // in applyCatalogFlags because the honest answer is a reordering, not an
+  // exclusion, and applyCatalogFlags only knows how to remove things.
+  const quiet = tags.has('avoid-crowds');
 
   let score = 0;
   // Interest + adventure-band overlap — the strongest fit signal.
@@ -614,14 +618,27 @@ export function fitItem(item: ViatorItem, tags: Set<MatchTag>): ItemFit {
   }
   // Curation boost: nudge universally-loved experiences to the top of the slot,
   // budget- and adrenaline-agnostic, to maximise the odds the traveller books.
-  if (cp) score += CROWD_PLEASER_BOOST;
+  // Suppressed for a traveller who asked to avoid crowds — `isCrowdPleaser` is
+  // literally the "everyone books this" signal, and boosting it for someone who
+  // ticked "crowded spots" would fight the answer they gave.
+  if (cp && !quiet) score += CROWD_PLEASER_BOOST;
   // Popularity — catalog-relative percentile (0–1), scaled to 0–3 so a
   // broadly-loved item (catamaran, sunset sail) reliably outscores a niche one
   // (kayak photo shoot, submarine) within the same interest/budget tier.
   // popularity_score is set at catalog load time by normalizePopularity() and
   // self-adjusts as the catalog grows; ?? 0 keeps test fixtures that don't set
   // it from throwing.
-  score += (item.popularity_score ?? 0) * 3;
+  // Inverted for avoid-crowds, not zeroed: neutrality would only stop PREFERRING
+  // the busy ones, and the traveller asked for the opposite of busy. A quiet
+  // beach at the 10th percentile now scores where a headline catamaran did.
+  //
+  // Deliberately a preference and not a filter. Popularity is a proxy for crowds
+  // — a good one on this catalog, where the most-reviewed products are the mass
+  // catamarans and the island day-pass — but only a proxy, and hard-excluding on
+  // a proxy would strip the plan of things that are simply well-loved. This
+  // reorders; it never removes.
+  const pop = item.popularity_score ?? 0;
+  score += (quiet ? 1 - pop : pop) * 3;
   return { score, rejected: false };
 }
 

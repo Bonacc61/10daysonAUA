@@ -494,3 +494,34 @@ describe('departurePointFor', () => {
     }
   });
 });
+
+describe('avoid-crowds', () => {
+  // A headline crowd-pleaser (sail kind) against a niche item, same price band.
+  const busy = item({ id: 'busy', title: 'Catamaran Sail', tags: [11888], popularity_score: 0.97 });
+  const quietOne = item({ id: 'quiet', title: 'Papiamento Language Walk', sections: ['culture-history'], popularity_score: 0.05 });
+
+  it('prefers the busy one by default', () => {
+    expect(fitItem(busy, tags()).score).toBeGreaterThan(fitItem(quietOne, tags()).score);
+  });
+
+  it('flips the preference when the traveller ticked "crowded spots"', () => {
+    const q = tags('avoid-crowds');
+    expect(fitItem(quietOne, q).score).toBeGreaterThan(fitItem(busy, q).score);
+  });
+
+  it('reorders rather than excluding — nothing is rejected', () => {
+    // The flag is a proxy for crowds, and hard-excluding on a proxy would strip
+    // out things that are merely well-loved.
+    expect(fitItem(busy, tags('avoid-crowds')).rejected).toBe(false);
+    expect(fitItem(busy, tags('avoid-crowds')).score).toBeGreaterThan(-Infinity);
+  });
+
+  it('drops the crowd-pleaser boost, not just the popularity term', () => {
+    // If only popularity were inverted, the +3 for being a crowd-pleaser would
+    // still be pulling the busiest products up for someone avoiding crowds.
+    const withFlag = fitItem(busy, tags('avoid-crowds')).score;
+    const withoutFlag = fitItem(busy, tags()).score;
+    // 3 (boost) + 0.97*3 lost, then (1-0.97)*3 regained.
+    expect(withoutFlag - withFlag).toBeCloseTo(3 + 0.97 * 3 - 0.03 * 3, 5);
+  });
+});

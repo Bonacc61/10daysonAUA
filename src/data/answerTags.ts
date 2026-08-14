@@ -64,6 +64,10 @@ export function answersToTags(a: Answers): Set<MatchTag> {
   // here too, so the flag surfaces photo/video products on every surface, not
   // just in the generated plan.
   if (flags.has('influencer')) tags.add('influencer');
+  // Carried as a tag for the same reason as `influencer`: the scorer sees only
+  // the tag set, and this has to reach fitItem on every surface — Explore and
+  // the Map derive their tags here too, not just the generated plan.
+  if (flags.has('avoid-crowds')) tags.add('avoid-crowds');
   if (flags.has('mobility')) {
     // Override adventure level — mobility-limited travellers only get easy picks
     tags.delete('med-adventure');
