@@ -144,6 +144,37 @@ Before any flag flips:
   keyword hits and 60 doubles the scroll. That is a product call, and it should be made
   with a number: what recall does 45 or 60 buy on the golden set?
 
+## Measured 2026-08-14: almost nobody uses this yet
+
+The spec above says the caching argument rests on a number nobody has. That
+number is now partly in hand, and it argues for waiting.
+
+`query_embeddings` upserts on `query_hash`, so its row count is **distinct
+queries ever**, not request volume. Two days after launch it holds **31 rows** —
+30 of them dated 2026-08-12, which is the golden set (25 scored + 5 adversarial)
+being run by hand, and 1 on 2026-08-13. Real traveller usage of search-by-meaning
+is indistinguishable from zero.
+
+That is not a criticism of the feature. Traffic is pre-launch, the affordance
+only became reachable on a phone on 2026-08-13 (it said "press Enter" until
+then), and semantic hits are appended below keyword results where they are easy
+to miss. But it does mean:
+
+- **Recall against the golden set is currently a lab measurement.** 66% is real,
+  and no traveller has yet been failed by it.
+- **The distinct-query volume that decides the caching economics cannot be
+  estimated from this.** 31 lifetime queries tells us nothing about 5,000
+  visitors a day.
+- **Building the parser now would be optimising an unused path.** The regex pass
+  shipped on 2026-08-14 costs nothing and covers the worst golden-set case; that
+  is the right amount of investment until someone is actually searching.
+
+Re-read this table after the Reddit launch. If distinct queries per day land in
+the hundreds, the design above is worth building. If they land in the thousands,
+its own "not worth doing" section applies. If they stay near zero, the honest
+conclusion is that the feature needs to be more discoverable before it needs to
+be more accurate.
+
 ## What would make this not worth doing
 
 If the distinct-query count turns out to be in the thousands per day rather than the
