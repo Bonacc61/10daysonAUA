@@ -13,4 +13,9 @@ export default defineConfig({
   server: {
     allowedHosts: true,
   },
+  test: {
+    // jsdom is opted into per FILE, not globally — see src/test/setup.ts. The
+    // setup file itself is cheap enough to load everywhere.
+    setupFiles: ['./src/test/setup.ts'],
+  },
 });
