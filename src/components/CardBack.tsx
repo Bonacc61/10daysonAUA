@@ -133,7 +133,11 @@ export default function CardBack(props: Props) {
   const whatToExpect = trimToSentence(whatToExpectRaw, 320);
   const overview = trimToSentence(overviewRaw, whatToExpect ? 420 : 700);
   const showBreakdown = Boolean(productId && hasBreakdown(productId));
-  const twoHalves = Boolean(productId) && (showBreakdown || showTravellers)
+  // A product card gets two halves whenever it has words to show. The ratings
+  // half no longer depends on there BEING ratings: 45 of 368 products have none
+  // yet, and dropping the half for those left a card that looked half-built
+  // rather than one whose product is simply new. It says so instead.
+  const twoHalves = Boolean(productId)
     && (overview.length > 0 || whatToExpect.length > 0);
 
   const blocks: ReactNode[] = [];
@@ -175,7 +179,21 @@ export default function CardBack(props: Props) {
     );
   }
 
-  if (showBreakdown && productId) {
+  if (twoHalves && !showBreakdown && !showTravellers) {
+    // No reviews on any platform. Saying nothing reads as a broken card; a zero
+    // reads as a bad product. Neither is true — nobody has been yet.
+    blocks.push(
+      <div key="noreviews" style={{ background: 'var(--sand-50)', border: '2px dashed var(--ink)',
+                    borderRadius: 12, padding: 12, minHeight: 0,
+                    display: 'flex', flexDirection: 'column', gap: 6, justifyContent: 'center' }}>
+        <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--ink)' }}>No reviews yet</span>
+        <p style={{ fontSize: 11.5, lineHeight: 1.45, color: 'var(--sand-700)', margin: 0 }}>
+          This one is new to the catalogue, so nobody has rated it yet. Check the booking page for
+          the latest.
+        </p>
+      </div>,
+    );
+  } else if (showBreakdown && productId) {
     // The distribution, when we captured one. Strictly better than the average
     // alone — see RatingBreakdown for why five bars beat one number.
     blocks.push(<RatingBreakdown key="breakdown" id={productId} />);

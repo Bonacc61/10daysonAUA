@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { combinedBreakdown, reviewSourcesFor, hasBreakdown } from './reviewBreakdown';
 import { whatToExpectFor } from './whatToExpect';
 import SNAPSHOT from './reviewBreakdown.json';
@@ -58,5 +59,31 @@ describe('whatToExpect — a different page section, not a second Overview', () 
 
   it('is empty for a product that publishes only an Overview', () => {
     expect(whatToExpectFor('no-such-product')).toBe('');
+  });
+});
+
+describe('every product card has both halves', () => {
+  // The audit that found the gap: 45 of 368 products have no reviews on any
+  // platform, and the ratings half used to vanish for those — a card that looks
+  // half-built rather than one whose product is simply new.
+  it('classifies the no-review products rather than dropping them', () => {
+    const snap = SNAPSHOT as Record<string, unknown>;
+    // A product either has a histogram, or it has none and the card must fall
+    // back to the explicit "No reviews yet" state — never to an empty half.
+    const ids = Object.keys(snap);
+    expect(ids.length).toBeGreaterThan(300);
+    // 45382P429 is the card that exposed this: zero reviews, no histogram.
+    expect(snap['45382P429']).toBeUndefined();
+    expect(combinedBreakdown('45382P429')).toBeNull();
+  });
+
+  it('CardBack renders a no-reviews half instead of omitting it', () => {
+    // No DOM to render in, so this pins the branch in source — the same gap
+    // that let the r/Aruba misattribution ship.
+    const src = readFileSync(new URL('../components/CardBack.tsx', import.meta.url), 'utf8');
+    expect(src).toMatch(/twoHalves && !showBreakdown && !showTravellers/);
+    expect(src).toMatch(/No reviews yet/);
+    // And two halves must no longer be conditional on having ratings at all.
+    expect(src).not.toMatch(/twoHalves =[\s\S]{0,120}showBreakdown \|\| showTravellers/);
   });
 });
