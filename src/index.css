@@ -181,18 +181,38 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
    sideways rather than a list that grows the card downwards. Padding not margin,
    because overflow would otherwise clip each card's offset shadow. */
 .other-suggestions-picker {
-  overflow-x: auto; scrollbar-width: none;
-  padding: 4px 14px 12px;
+  overflow-x: auto;
+  padding: 4px 14px 6px;
+  /* The scrollbar stays VISIBLE here, unlike the shortlist shelf it copies.
+     That shelf sits on the page, where a trackpad swipe is the natural gesture;
+     this one sits inside a card, where a mouse wheel scrolls the page vertically
+     and hiding the bar left no way at all to reach the cards off the right edge.
+     A slim bar is the only affordance that works for a mouse. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink) transparent;
+  overscroll-behavior-x: contain;
 }
-.other-suggestions-picker::-webkit-scrollbar { display: none; }
+.other-suggestions-picker::-webkit-scrollbar { height: 8px; }
+.other-suggestions-picker::-webkit-scrollbar-track { background: transparent; }
+.other-suggestions-picker::-webkit-scrollbar-thumb {
+  background: var(--ink); border-radius: 999px;
+}
 .other-suggestions-track { display: inline-flex; gap: 10px; min-width: min-content; }
 .other-suggestions-item {
   flex: 0 0 196px; width: 196px;
-  display: flex; flex-direction: column; gap: 4;
-  text-align: left; padding: 9px 10px;
+  display: flex; flex-direction: column;
+  text-align: left; overflow: hidden;
   background: var(--cream); color: var(--ink);
   border: 2px solid var(--ink); border-radius: 12px; box-shadow: 3px 3px 0 var(--ink);
 }
+/* Same treatment as the shortlist card: a dead Viator image collapses to the
+   sand placeholder rather than showing a broken-image glyph. */
+.other-suggestions-media {
+  display: block; width: 100%; flex: 0 0 96px; overflow: hidden;
+  background: var(--sand-200); border-bottom: 2px solid var(--ink);
+}
+.other-suggestions-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.other-suggestions-body-text { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 4; flex: 1; }
 
 /* "+ Add" button on each Other-suggestions row (Itinerary only). */
 .other-suggestion-add {

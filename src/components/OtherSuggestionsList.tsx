@@ -49,6 +49,17 @@ export default function OtherSuggestionsList({
           <div className="other-suggestions-track">
             {items.map((item) => (
               <div key={item.id} className="other-suggestions-item">
+                <span className="other-suggestions-media">
+                  {item.image_url && (
+                    <img
+                      src={item.image_url}
+                      alt=""
+                      loading="lazy"
+                      onError={(ev) => { (ev.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  )}
+                </span>
+                <div className="other-suggestions-body-text">
                 <a
                   href={item.viator_item_url}
                   target="_blank"
@@ -83,6 +94,7 @@ export default function OtherSuggestionsList({
                     + Add
                   </button>
                 )}
+                </div>
               </div>
             ))}
           </div>
