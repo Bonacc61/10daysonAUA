@@ -104,14 +104,10 @@ async function pool(items, n, fn) {
       // from the first. What the evidence is for is proving the API HAS it.
       overviewLen: (body?.description ?? '').trim().length,
       overviewHead: (body?.description ?? '').trim().slice(0, 120),
-      // A SECOND supplier text, present on a minority of products and absent
-      // from /products/search entirely — which is why the catalog cannot carry
-      // it and this probe must. On 472918P1 the rendered Viator page shows THIS
-      // and not `description`, which is how the mismatch was found: our card
-      // was faithful to the API field the docs call the overview, and still did
-      // not match the page. Where both exist they differ (2 of 2 sampled), so
-      // they are complementary rather than duplicates.
-      activityInfo: (body?.itinerary?.activityInfo?.description ?? '').trim(),
+      // The "What to expect" narrative — a DIFFERENT page section from the
+      // Overview, not another copy of it. Absent from /products/search, so only
+      // this probe can see it. 89 of 366 products publish one.
+      whatToExpect: (body?.itinerary?.activityInfo?.description ?? '').trim(),
     };
   });
 
@@ -134,8 +130,8 @@ async function pool(items, n, fn) {
     console.log(`  …longer than the 200-char cap the catalog applies today: ${lens.filter((l) => l > 200).length}`);
   }
 
-  const withExtra = ok.filter((r) => r.activityInfo.length > 0);
-  console.log(`  with activityInfo text ${withExtra.length}  ← absent from /products/search, so only this probe can see it`);
+  const withExtra = ok.filter((r) => r.whatToExpect.length > 0);
+  console.log(`  with What-to-expect   ${withExtra.length}  ← absent from /products/search, so only this probe can see it`);
 
   const providers = {};
   ok.forEach((r) => r.sources.forEach((s) => { providers[s.provider] = (providers[s.provider] ?? 0) + 1; }));
@@ -170,13 +166,13 @@ async function pool(items, n, fn) {
   // No pretty-printing: this is bundled, and the indentation was 40% of it.
   writeFileSync('src/data/reviewBreakdown.json', JSON.stringify(snapshot) + '\n');
 
-  // The extra Overview text, for the minority of products that have it. Kept in
-  // its own file rather than folded into the histogram snapshot so that each is
-  // regenerated, reviewed and reasoned about on its own terms.
+  // The "What to expect" narrative, for the minority of products that publish
+  // one. Kept in its own file rather than folded into the histogram snapshot so
+  // that each is regenerated, reviewed and reasoned about on its own terms.
   const extra = {};
-  for (const r of ok) if (r.activityInfo) extra[r.id] = r.activityInfo;
-  writeFileSync('src/data/overviewExtra.json', JSON.stringify(extra) + '\n');
-  console.log(`Wrote src/data/overviewExtra.json (${Object.keys(extra).length} entries).`);
+  for (const r of ok) if (r.whatToExpect) extra[r.id] = r.whatToExpect;
+  writeFileSync('src/data/whatToExpect.json', JSON.stringify(extra) + '\n');
+  console.log(`Wrote src/data/whatToExpect.json (${Object.keys(extra).length} entries).`);
   console.log(`\nWrote docs/map/viator-reviews.json (evidence) and src/data/reviewBreakdown.json (${Object.keys(snapshot).length} entries).`);
   console.log('Nothing is wired into the app by this tool — read the numbers, then decide.');
 })();

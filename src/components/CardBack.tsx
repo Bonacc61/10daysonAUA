@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { overviewExtraFor } from '../data/overviewExtra';
+import { whatToExpectFor } from '../data/whatToExpect';
 import RatingBreakdown from './RatingBreakdown';
 import { hasBreakdown } from '../data/reviewBreakdown';
 import type { Activity } from '../data/activities';
@@ -77,14 +77,15 @@ export default function CardBack(props: Props) {
   // each unreadably narrow. Local picks keep it: they have no Viator listing to
   // show instead, which is exactly when a traveller's own words are worth most.
   const productId = isActivity ? null : props.bestSeller.id;
-  // Both operator texts, longest-lead first. See overviewExtra.ts: the page
-  // renders one or the other depending on the product, and they differ where
-  // both exist, so showing both is what guarantees the card agrees with the page.
-  const overviewMain = isActivity ? '' : (props.bestSeller.description ?? '').trim();
-  const overviewAlt = isActivity ? '' : overviewExtraFor(props.bestSeller.id);
-  const overview = [overviewAlt, overviewMain].filter(Boolean).join('\n\n');
+  // Two DIFFERENT sections of the product's page, labelled as such rather than
+  // merged. `description` is the Overview; `activityInfo.description` is What to
+  // expect. Concatenating them put "After check in at our desk, our crew will
+  // shuttle you with a zodiac…" at the top of a block headed Overview.
+  const overview = isActivity ? '' : (props.bestSeller.description ?? '').trim();
+  const whatToExpect = isActivity ? '' : whatToExpectFor(props.bestSeller.id);
   const showBreakdown = Boolean(productId && hasBreakdown(productId));
-  const twoHalves = Boolean(productId) && (showBreakdown || showTravellers) && overview.length > 0;
+  const twoHalves = Boolean(productId) && (showBreakdown || showTravellers)
+    && (overview.length > 0 || whatToExpect.length > 0);
 
   const blocks: ReactNode[] = [];
 
@@ -158,22 +159,35 @@ export default function CardBack(props: Props) {
     );
   }
 
-  // The other half: the operator's own Overview, in full. It used to arrive
-  // truncated at 200 characters by the ingest — the median is 601 — so this
-  // block would have been an ellipsis with a sentence in front of it.
-  if (twoHalves && overview) {
+  // The other half: the operator's own words, under the same headings the Viator
+  // page uses. Overview arrived truncated at 200 characters until 2026-08-14 —
+  // the median is 601 — so this block was an ellipsis with a sentence in front.
+  if (twoHalves && (overview || whatToExpect)) {
+    const para = (text: string, key: string) =>
+      text.split('\n\n').filter(Boolean).map((p, i) => (
+        <p key={`${key}-${i}`} style={{ fontSize: 11.5, lineHeight: 1.45, color: 'var(--sand-700)', margin: 0 }}>
+          {p}
+        </p>
+      ));
     blocks.push(
       <div key="overview" style={{ background: 'var(--sand-50)', border: '2px solid var(--ink)',
                     borderRadius: 12, padding: 12, minHeight: 0,
                     display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--ink)' }}>Overview</span>
         <div style={{ overflowY: 'auto', minHeight: 0, display: 'flex',
                       flexDirection: 'column', gap: 6 }}>
-          {overview.split('\n\n').filter(Boolean).map((para, i) => (
-            <p key={i} style={{ fontSize: 11.5, lineHeight: 1.45, color: 'var(--sand-700)', margin: 0 }}>
-              {para}
-            </p>
-          ))}
+          {overview && (
+            <>
+              <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--ink)' }}>Overview</span>
+              {para(overview, 'ov')}
+            </>
+          )}
+          {whatToExpect && (
+            <>
+              <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--ink)',
+                             marginTop: overview ? 4 : 0 }}>What to expect</span>
+              {para(whatToExpect, 'wte')}
+            </>
+          )}
         </div>
       </div>,
     );

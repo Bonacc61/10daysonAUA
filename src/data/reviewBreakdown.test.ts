@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { combinedBreakdown, reviewSourcesFor, hasBreakdown } from './reviewBreakdown';
-import { overviewExtraFor } from './overviewExtra';
+import { whatToExpectFor } from './whatToExpect';
 import SNAPSHOT from './reviewBreakdown.json';
 
 /**
@@ -46,15 +46,17 @@ describe('combinedBreakdown — the card must agree with the Viator page', () =>
   });
 });
 
-describe('overviewExtra — the text the page shows that the catalog cannot', () => {
-  it('carries the second Overview for the product that exposed the mismatch', () => {
-    const extra = overviewExtraFor('472918P1');
-    expect(extra.length).toBeGreaterThan(200);
-    // The page's Overview leads with this line; `description` never mentions it.
-    expect(extra).toMatch(/first-time snorkelers/i);
+describe('whatToExpect — a different page section, not a second Overview', () => {
+  it('carries the running order, kept apart from the Overview', () => {
+    // 8936P1 is the case that proved these are different sections: its
+    // "What to expect" opens on check-in logistics, and merging it into the
+    // Overview put the zodiac shuttle above the pitch it was meant to follow.
+    const wte = whatToExpectFor('8936P1');
+    expect(wte).toMatch(/After check in at our desk/i);
+    expect(wte).not.toMatch(/Have a warm Aruban welcome/i);
   });
 
-  it('is empty for a product that only has the catalog description', () => {
-    expect(overviewExtraFor('no-such-product')).toBe('');
+  it('is empty for a product that publishes only an Overview', () => {
+    expect(whatToExpectFor('no-such-product')).toBe('');
   });
 });
