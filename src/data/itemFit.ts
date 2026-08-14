@@ -225,6 +225,54 @@ const KIND_BY_TAG: ReadonlyArray<readonly [readonly number[], string]> = [
   [[11973], 'horseback'],
   [[13143], 'zipline'],
 ];
+// A SECOND layer, read only where the tags say nothing.
+//
+// The tag feed is authoritative when it speaks, and silent for 144 of 328
+// products — which then fell back to `sec:<section>`, i.e. to the Explore
+// CATEGORY. That is far too coarse to dedupe on: 74 products shared
+// `sec:tours-sightseeing`, so the engine believed a submarine, a bus tour and a
+// walking tour were the same kind of thing and suppressed them as duplicates of
+// each other.
+//
+// The titles were carrying the answer the whole time. `sec:cruises-water` held
+// "2-Tank guided Dive", "Night Shore Diving", "Private Sailing", "Kids
+// Parasailing" and a horseback tour mis-filed into the water section;
+// `sec:adventures-outdoor` held four horseback tours, a UTV and a jeep.
+//
+// DELIBERATELY the same twelve kinds, no new vocabulary. Every kind carries an
+// adrenaline value in KIND_ADVENTURE that the contraindication caps read
+// (mobility 30, intense-hikes 52, with-baby 25), so inventing a thirteenth is a
+// decision about who gets excluded from a plan — a separate, product-level call.
+// This only recovers products that ARE one of the twelve and were missing a tag.
+//
+// Order is priority, not preference: a title naming two activities resolves to
+// the one that defines the outing. "Champagne Sailing and Snorkelling" is a sail
+// with snorkelling on it, not a snorkel trip on a boat.
+//
+// Word boundaries throughout, because the failure mode is a false positive on a
+// place name — Aruba has a Surfside Beach, and `surf` without a boundary would
+// file a beach picnic as a watersport.
+const KIND_BY_TITLE: ReadonlyArray<readonly [RegExp, string]> = [
+  [/\b(utv|atv|4x4|4wd|off[\s-]?road|jeep|buggy|dune ?buggy)\b/i, 'offroad'],
+  [/\bhorse ?back|\bhorse ?riding\b/i, 'horseback'],
+  [/\bparasail(ing)?\b/i, 'parasail'],
+  [/\bzip[\s-]?lin(e|ing)\b/i, 'zipline'],
+  [/\bjet[\s-]?ski/i, 'jetski'],
+  [/\bkayak/i, 'kayak'],
+  [/\bpaddle[\s-]?board(ing)?\b/i, 'sup'],
+  [/\b(scuba|padi)\b|\bdiv(e|ing)\b/i, 'dive'],
+  [/\b(sail(ing|boat)?|catamaran|trimaran)\b/i, 'sail'],
+  [/\bsnorkel(ing|ling)?\b/i, 'snorkel'],
+  [/\bsurf(ing|board)?\b/i, 'surf'],
+  [/\bhik(e|ing)\b|\btrek(king)?\b/i, 'hike'],
+];
+
+/** The kind a product's TITLE names, or '' when it names none of the twelve. */
+export function titleKind(item: { title: string }): string {
+  for (const [re, kind] of KIND_BY_TITLE) if (re.test(item.title)) return kind;
+  return '';
+}
+
 // Every kind KIND_BY_TAG can produce. Enrichment may only speak in this
 // vocabulary — a value outside it is a schema violation, not a new kind.
 export const KIND_VOCABULARY: ReadonlySet<string> = new Set(KIND_BY_TAG.map(([, kind]) => kind));
@@ -236,6 +284,13 @@ export function activityKind(item: ViatorItem): string {
   // would otherwise land in a generic `sec:` bucket. The 184 that KIND_BY_TAG
   // resolves are measured and are never overridden.
   if (item.enriched_kind) return item.enriched_kind;
+  // NOT `titleKind` — deliberately, and this is the trap. `activityKind` is not
+  // only a dedup key: regroupItems() calls matchingSection(), which reads
+  // KIND_SECTION, so changing an item's kind RE-FILES IT INTO A DIFFERENT GROUP.
+  // Wiring the title layer in here recovered 35 of the 144 generic items and
+  // filled six more slots per 20 plans — and also moved a $2,300 yacht into a
+  // group a budget-conscious traveller sees, failing two engine-coverage tests
+  // and one flags test. See ROADMAP item 13.
   return `sec:${primarySection(itemSections(item))}`;
 }
 
