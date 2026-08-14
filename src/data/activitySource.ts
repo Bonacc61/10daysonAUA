@@ -177,6 +177,8 @@ export function getCachedCatalog(): Catalog {
 export type LocalMatch = {
   title?: string; rating?: number; review_count?: number;
   image_url?: string; viator_item_url?: string;
+  /** The matched product's own Overview — see the note in mergeLocalMatches. */
+  description?: string;
 };
 
 /**
@@ -211,6 +213,11 @@ export function mergeLocalMatches(
       rating: real ? m.rating! : a.rating,
       reviewCount: real ? m.review_count! : a.reviewCount,
       ...(real ? { ratingSource: 'viator' as const } : {}),
+      // Only when the match is REAL. A pick that takes a product's title without
+      // a verified rating is still editorially ours, and should keep its own
+      // words; swapping in the operator's copy under a half-matched card would
+      // be the same misattribution from the other direction.
+      ...(real && m.description ? { description: m.description } : {}),
       viator_item_url: m.viator_item_url,
     };
   });

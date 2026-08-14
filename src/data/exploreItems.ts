@@ -357,3 +357,18 @@ export function blendSearchResults(
   }
   return [...substringHits, ...extra];
 }
+
+/**
+ * The Viator product code inside a product URL — `…/d28-8936P1?…` → `8936P1`.
+ *
+ * A curated local pick that `mergeLocalMatches` paired with a real product keeps
+ * `kind: 'activity'` but adopts the product's title, rating and review count. It
+ * therefore LOOKS like a Viator card to a traveller while carrying none of a
+ * Viator item's fields — including the id every product-level snapshot is keyed
+ * on. The URL is the only place that id survives, which is why it is parsed back
+ * out here rather than threaded through as a new field on Activity.
+ */
+export function viatorProductCode(url?: string): string {
+  if (!url) return '';
+  return url.match(/\/d\d+-([A-Za-z0-9]+)(?:[?/]|$)/)?.[1] ?? '';
+}

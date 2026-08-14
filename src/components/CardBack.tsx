@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { viatorProductCode } from '../data/exploreItems';
 import { whatToExpectFor } from '../data/whatToExpect';
 import RatingBreakdown from './RatingBreakdown';
 import { hasBreakdown } from '../data/reviewBreakdown';
@@ -52,12 +53,27 @@ export default function CardBack(props: Props) {
   const isActivity = props.kind === 'activity';
   const title = isActivity ? props.activity.title : props.bestSeller.title;
 
+  // A curated pick that mergeLocalMatches paired with a real product adopts that
+  // product's TITLE, rating and review count while staying kind:'activity'. So
+  // "Catamaran Sail & Snorkel at Boca Catalina" renders as "Arusun Catamaran
+  // Sail with Snorkeling in Aruba" — and used to bring its editorial r/Aruba
+  // quote along, a line written about a free snorkel spot, displayed under a
+  // commercial operator's name. That is misattribution of exactly the kind the
+  // honest-ratings rules exist to prevent, and it also meant the card missed the
+  // Overview, the running order and the rating histogram the product does have.
+  //
+  // So: once a pick has taken a product's identity, it is shown as that product.
+  const matchedCode = isActivity && props.activity.ratingSource === 'viator'
+    ? viatorProductCode(props.activity.viator_item_url)
+    : '';
+  const isMatchedLocal = matchedCode.length > 0;
+
   const reddit = isActivity
-    ? ACTIVITY_REDDIT[props.activity.id]
+    ? (isMatchedLocal ? undefined : ACTIVITY_REDDIT[props.activity.id])
     : props.bestSeller.reddit_quote;
 
   const travellerQuote = isActivity
-    ? ACTIVITY_TA[props.activity.id]
+    ? (isMatchedLocal ? undefined : ACTIVITY_TA[props.activity.id])
     : props.bestSeller.ta_quote;
 
   // Viator supplies rating + review count for every catalog item. A local pick
@@ -76,13 +92,15 @@ export default function CardBack(props: Props) {
   // but because the grid below lays out two columns and three blocks would make
   // each unreadably narrow. Local picks keep it: they have no Viator listing to
   // show instead, which is exactly when a traveller's own words are worth most.
-  const productId = isActivity ? null : props.bestSeller.id;
+  const productId = isActivity ? (matchedCode || null) : props.bestSeller.id;
   // Two DIFFERENT sections of the product's page, labelled as such rather than
   // merged. `description` is the Overview; `activityInfo.description` is What to
   // expect. Concatenating them put "After check in at our desk, our crew will
   // shuttle you with a zodiac…" at the top of a block headed Overview.
-  const overview = isActivity ? '' : (props.bestSeller.description ?? '').trim();
-  const whatToExpect = isActivity ? '' : whatToExpectFor(props.bestSeller.id);
+  const overview = isActivity
+    ? (isMatchedLocal ? (props.activity.description ?? '').trim() : '')
+    : (props.bestSeller.description ?? '').trim();
+  const whatToExpect = productId ? whatToExpectFor(productId) : '';
   const showBreakdown = Boolean(productId && hasBreakdown(productId));
   const twoHalves = Boolean(productId) && (showBreakdown || showTravellers)
     && (overview.length > 0 || whatToExpect.length > 0);

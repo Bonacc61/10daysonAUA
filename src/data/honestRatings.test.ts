@@ -231,3 +231,39 @@ function ungatedRatingSites(files: ReadonlyArray<readonly [string, string]>): st
   }
   return out;
 }
+
+describe('a pick that adopts a product identity is shown as that product', () => {
+  // 'boca-catalina-snorkel' is matched to Arusun (8936P1). mergeLocalMatches
+  // gives it the product's TITLE, rating and review count, so a traveller reads
+  // an Arusun card — while it stays kind:'activity'. It used to bring its
+  // editorial r/Aruba quote along, a line written about a free snorkel spot,
+  // displayed under a commercial operator's name.
+  it('takes the product description, so the Overview is the product\'s own', () => {
+    const [a] = mergeLocalMatches([local()], {
+      'test-pick': { title: 'Arusun Catamaran Sail', rating: 4.8, review_count: 2645,
+                     description: 'Have a warm Aruban welcome on board…' },
+    });
+    expect(a.title).toBe('Arusun Catamaran Sail');
+    expect(a.description).toBe('Have a warm Aruban welcome on board…');
+    expect(a.ratingSource).toBe('viator');
+  });
+
+  it('keeps its OWN words when the match is not a real rating', () => {
+    // Half a match is not an identity. Without a verified rating the card is
+    // still editorially ours, and swapping in operator copy would misattribute
+    // in the other direction.
+    const [a] = mergeLocalMatches([local({ description: 'Our own blurb.' })], {
+      'test-pick': { title: 'Arusun Catamaran Sail', description: 'Operator copy.' },
+    });
+    expect(a.description).toBe('Our own blurb.');
+    expect(a.ratingSource).toBeUndefined();
+  });
+
+  it('the card back suppresses curated quotes once a pick is matched', () => {
+    // The rule lives in CardBack: isMatchedLocal gates ACTIVITY_REDDIT and
+    // ACTIVITY_TA. Asserted on the source because there is no DOM to render in.
+    const src = stripComments(readFileSync(join(SRC, 'components/CardBack.tsx'), 'utf8'));
+    expect(src).toMatch(/isMatchedLocal \? undefined : ACTIVITY_REDDIT/);
+    expect(src).toMatch(/isMatchedLocal \? undefined : ACTIVITY_TA/);
+  });
+});

@@ -283,6 +283,11 @@ serve(async (req) => {
           viator_item_url: n.viator_item_url,
           price_usd: n.price_usd,
           duration: n.duration,
+          // The product's own Overview. A matched pick adopts the product's
+          // TITLE, so its card is read as that product — and without this it
+          // would show the editorial blurb written about the free local spot
+          // under a heading naming a commercial operator's tour.
+          description: n.description,
         };
       } catch { /* leave unmatched → card stays editorial */ }
     }));
