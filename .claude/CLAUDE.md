@@ -52,6 +52,42 @@ AI features (each gated by a flag — see "Two feature flags" above;
   viator-cards   → OpenAI (US)      product text → vectors, at ingest. Always on.
 ```
 
+## Local secrets and keys
+
+- `.env.local` (gitignored) holds the **Viator production key**. Every probe in
+  `tools/` reads it. `.env.production` is TRACKED IN GIT — never put a secret there.
+- The Supabase CLI is authenticated and linked. `supabase projects api-keys` can
+  fetch the **service-role key**, which is how account deletion was verified end
+  to end. Use it transiently, in one process, and never write it to disk.
+
+## What Viator will and will not give us
+
+Our key is **Basic access**. Verified, not assumed:
+
+- `/products/search` builds the catalog. It does NOT return `itinerary`, so
+  "What to expect" text can only come from per-product detail calls.
+- `/products/{code}` gives the star histogram, the full Overview, and
+  `itinerary.activityInfo.description`. One call per product — too slow for the
+  ingest, which is why those live in committed snapshots.
+- `/availability/schedules/{code}` **is** in Basic (start times). The `bulk`
+  variant is not.
+- `/reviews/product` returns **403** — review TEXT needs a Full Access
+  application, which also unlocks bulk availability.
+- **The product pages cannot be scraped.** DataDome returns 403 to curl and a bot
+  wall to headless Chromium. The "booked N days in advance" figure exists only
+  there, appears in no API field, and is therefore unobtainable.
+
+## Tests
+
+- ~650 tests. `npm test` is offline and free; anything needing a network or an
+  API key is a `tools/` script run by hand, never a vitest file.
+- **Component tests render.** jsdom + testing-library, opted in PER FILE with a
+  `// @vitest-environment jsdom` docblock so the pure-logic tests stay in node.
+  Prefer a render test over asserting on component source text.
+- Guard against tests that cannot fail: change the code, confirm the test breaks,
+  change it back. Several tests here passed against deliberately broken code
+  before that habit.
+
 ## Ship gate
 
 - Run `/code-review` before every push to main
@@ -71,6 +107,10 @@ npm run dev          # local dev server
 npm run build        # production build to dist/
 npm test             # vitest
 ```
+
+Never expose `npm run dev` publicly (a tunnel, a bound host). Vite's dev server
+carries known path-traversal advisories until the v8 upgrade — use
+`npm run build && npm run preview` to demo a change.
 
 **Pushing to `main` deploys to production.** `.github/workflows/deploy.yml` runs
 `npm run build` and mirrors `dist/` to TransIP over SFTP on every push to `main`
