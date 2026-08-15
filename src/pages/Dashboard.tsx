@@ -9,6 +9,7 @@ import { filterExploreEntries, bookingUrl, vibeHint, priceHint } from '../data/e
 import { INFO_TOPICS } from '../data/activities';
 import { answersToTags, activityTags } from '../data/answerTags';
 import { resolveSlotEntry } from '../data/activitySource';
+import CollapsedDaySummary from '../components/CollapsedDaySummary';
 import { buildIcs, downloadIcs } from '../lib/icsExport';
 import { useShortlist } from '../lib/shortlist';
 import AddButton from '../components/AddButton';
@@ -975,7 +976,6 @@ function ItineraryPanel({
                     {rowTrip.plan.map((day, i) => {
                       const isLast      = i === rowTrip.plan.length - 1;
                       const isDayCollapsed = collapsedDays.has(day.day);
-                      const count       = day.morning.length + day.afternoon.length + day.evening.length;
                       const slots: { slot: Slot; cards: PlannedCard[] }[] = (
                         [
                           { slot: 'morning'   as Slot, cards: day.morning },
@@ -1006,11 +1006,25 @@ function ItineraryPanel({
                             </button>
                           </div>
 
-                          {/* Collapsed summary */}
+                          {/* Collapsed summary — the same component the Itinerary
+                              page folds a day into, so the two surfaces agree. It
+                              used to be a hand-rolled "N activities · tap to
+                              expand" button whose CSS class was deleted when that
+                              component landed, leaving it unstyled here. */}
                           {isDayCollapsed ? (
-                            <button type="button" className="itin-day-collapsed-note" onClick={() => toggleDay(day.day)}>
-                              {count} {count === 1 ? 'activity' : 'activities'} · tap to expand
-                            </button>
+                            <CollapsedDaySummary
+                              dayNum={day.day}
+                              onExpand={() => toggleDay(day.day)}
+                              activities={slots.flatMap(({ slot, cards }) => cards.flatMap((card) => {
+                                const entry = resolverFor(rowTrip)(card.entry, slot);
+                                if (!entry) return [];
+                                return [{
+                                  key: card.uid,
+                                  title: entry.kind === 'activity' ? entry.activity.title : entry.bestSeller.title,
+                                  image: entry.kind === 'activity' ? entry.activity.image : entry.bestSeller.image_url,
+                                }];
+                              }))}
+                            />
                           ) : (
                             /* Full card view per slot */
                             slots.map(({ slot, cards }) => (

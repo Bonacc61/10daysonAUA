@@ -33,7 +33,14 @@ const activity = (id: string, title: string, over: Partial<Activity> = {}): Acti
 
 const CATALOG: Catalog = {
   groups: [group()],
-  items: [item('boat', 'Catamaran Sunset Sail'), item('sub', 'Submarine Dive')],
+  items: [
+    // The boat's description mentions seasickness ON PURPOSE, so the query
+    // below is a substring HIT on it. Without that the contraindication test
+    // below cannot fail: "we get seasick" matches no fixture, so the boat
+    // vanishes whether or not anything honours the flag.
+    item('boat', 'Catamaran Sunset Sail', { description: 'Open water — bring a remedy if you get seasick.' }),
+    item('sub', 'Submarine Dive'),
+  ],
   activities: [activity('eagle', 'Eagle Beach Morning Session')],
 };
 
@@ -62,7 +69,11 @@ describe('Explore — search after the shared-component refactor', () => {
   });
 
   it('still honours a typed contraindication', () => {
-    search('we get seasick');
+    // 'seasick' is BOTH a substring hit on the catamaran's description and a
+    // no-boats contraindication. So the boat is in the results and then taken
+    // out again — which is the only arrangement where this test can fail if the
+    // contraindication layer is removed.
+    search('seasick');
     expect(screen.queryByText('Catamaran Sunset Sail')).not.toBeInTheDocument();
     expect(screen.getByText('No results found')).toBeInTheDocument();
   });

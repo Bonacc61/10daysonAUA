@@ -9,8 +9,10 @@ import { GROUPS, ARUBA_DESTINATION_ID } from './groups.ts';
 import { normalizeProduct } from './normalize.ts';
 import { hasKey, ping, searchProducts, searchProductsPaged, freetextSearch, getProduct, getTags } from './viator.ts';
 import { embedBatch, clusterByEmbedding, activeProvider, MODEL_ID, isSearchableProvider } from './embeddings.ts';
-import { searchText } from './suitability.ts';
-import { SUITABILITY_PROFILES } from './suitabilityData.ts';
+// suitability.ts / suitabilityData.ts are NOT imported: the corpus they build
+// was deployed, measured at 63% against a 66% baseline, and reverted. They stay
+// on disk as measurement infrastructure for the next variant — see the note in
+// the embedding block below, and the spec.
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
@@ -247,17 +249,31 @@ serve(async (req) => {
           try {
             const db = supabaseAdmin();
             const runStart = new Date().toISOString();
-            const searchTexts = sorted.map((it) => searchText(
-              String(it.title),
-              String(it.description ?? ''),
-              SUITABILITY_PROFILES[String(it.id)] ?? '',
-            ));
-            const searchVectors = await embedBatch(searchTexts);
-            const profiled = sorted.filter((it) => SUITABILITY_PROFILES[String(it.id)]).length;
-            console.log(`[viator-cards] search corpus: ${profiled}/${sorted.length} items carry a suitability profile`);
+            // REVERTED 2026-08-15 — the suitability corpus was DEPLOYED AND
+            // MEASURED, and it made recall WORSE: 63% against the 66% baseline
+            // (`node tools/run-search-golden.cjs`). Not a deploy accident and
+            // not a composition bug — the text was exactly what the spec
+            // described. The hypothesis was wrong.
+            //
+            // What the numbers say went wrong: the added lines are dominated by
+            // boilerplate — "Suitable for all physical fitness levels" is on
+            // 234 of 327 products, the three "Not recommended for…" lines on
+            // 163-180 each — so appending them pulled every vector toward a
+            // common centroid instead of separating them. The signature is in
+            // the result set: "good with toddler" went from 9 distinct
+            // experience clusters in its 30 results to 5, i.e. MORE
+            // near-duplicates, and two name queries that used to work
+            // ("Zeerover", "kitesurfing") dropped to 0/1.
+            //
+            // The composer, the probe and the snapshot are kept: they are
+            // measurement infrastructure and the next variant needs them. The
+            // untried variant is to keep only the DISCRIMINATIVE lines — the
+            // stroller (116), infant-seat (50) and wheelchair (37) strings —
+            // and drop anything carried by more than ~60% of the catalog. See
+            // docs/superpowers/specs/2026-08-14-search-corpus-suitability-design.md.
             const rows = sorted.map((it, i) => ({
               item_id: String(it.id),
-              embedding: JSON.stringify(searchVectors[i]),   // pgvector accepts the JSON array form
+              embedding: JSON.stringify(embeddings[i]),   // pgvector accepts the JSON array form
               model: MODEL_ID[provider],
               updated_at: new Date().toISOString(),
             }));

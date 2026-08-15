@@ -37,7 +37,14 @@ const activity = (id: string, title: string, over: Partial<Activity> = {}): Acti
 
 const CATALOG: Catalog = {
   groups: [group()],
-  items: [item('boat', 'Catamaran Sunset Sail'), item('sub', 'Submarine Dive')],
+  items: [
+    // Both mention seasickness so the query below is a substring HIT on each,
+    // and the contraindication is what removes them. Without that the test
+    // passes even with the whole flag layer deleted, because "we get seasick"
+    // matches no fixture and everything disappears anyway.
+    item('boat', 'Catamaran Sunset Sail', { description: 'Open water — bring a remedy if you get seasick.' }),
+    item('sub', 'Submarine Dive', { description: 'Descends gently; rarely leaves anyone seasick.' }),
+  ],
   activities: [activity('eagle', 'Eagle Beach Morning Session')],
 };
 
@@ -78,7 +85,7 @@ describe('My Aruba > Personalized — the search box', () => {
     // "we get seasick" is the golden set's worst case for similarity alone —
     // the sentence embeds next to the very boats it rules out — so the same
     // parser the questionnaire uses excludes them here instead.
-    search('we get seasick');
+    search('seasick');
     expect(screen.queryByText('Catamaran Sunset Sail')).not.toBeInTheDocument();
     expect(screen.queryByText('Submarine Dive')).not.toBeInTheDocument();
   });

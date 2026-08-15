@@ -1016,7 +1016,6 @@ function ItineraryDay({
   };
   const cancel = () => { setEditing(false); setDraft(d.title); };
 
-  const count = d.morning.length + d.afternoon.length + d.evening.length;
 
   // The faces a collapsed day shows. Resolved through the same resolveEntry the
   // cards use, so the thumbnail is the face the card would display — a swapped
