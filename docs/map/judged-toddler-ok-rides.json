@@ -1,0 +1,488 @@
+{
+  "judgedAt": "2026-08-15T11:53:49.731Z",
+  "model": "gpt-5-mini",
+  "profile": "toddler-ok",
+  "counts": {
+    "suitable": 0,
+    "not": 68,
+    "errored": 0
+  },
+  "products": [
+    {
+      "id": "459169P1",
+      "title": "Aruba Small-Group UTV Adventure|Private Off-Road Tour Max 4 UTVs",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator minimum passenger age is 3 and the activity involves off‑road UTV terrain, noise, and a long 4‑hour tour making it unsuitable for 1–3 year‑olds."
+    },
+    {
+      "id": "459169P2",
+      "title": "Private Aruba Jeep Adventure|Custom Island Tour with Local Guide",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rough open‑air jeep terrain, long 4‑hour duration, and uncertain, potentially inadequate toddler restraints make it unsuitable for a 1–3 year‑old despite operator claims."
+    },
+    {
+      "id": "392509P1",
+      "title": "Epic Off-Road Surron Electric Bike Tour in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road electric bikes require an adult license and single riders on rough terrain with no safe child seating or restraints, so a 1–3 year old cannot be safely accommodated."
+    },
+    {
+      "id": "5585429P2",
+      "title": "Aruba Island Private Jeep Tour Arikok Park & Baby beach",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road jeep travel in Arikok involves bumpy, uneven terrain and likely unsecured seating/insufficient child restraints despite claims, making it unsafe for a 1–3 year‑old."
+    },
+    {
+      "id": "358826P1",
+      "title": "PRIVATE Jeep Safari Natural Pool, Indian Caves & Baby Beach with Snorkeling",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Six-hour jeep + snorkeling trip with bumpy terrain, likely no child restraints, water activities, and operator ticketing from age 4 make it unsafe/unsuited for a 1–3-year-old."
+    },
+    {
+      "id": "5585429P11",
+      "title": "Aruba Private Jeep Tour with Local Guide",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Unsecured lap seating and likely bumpy/off‑road jeep conditions make it unsafe for a 1–3‑year‑old despite operator claims of seats and flexibility."
+    },
+    {
+      "id": "459169P3",
+      "title": "Aruba UTV Rental | Explore the Island at Your Own Pace",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "UTVs are open, bumpy vehicles with no proper child restraints, prolonged exposure and terrain make them unsafe for a 1–3-year-old."
+    },
+    {
+      "id": "109524P10",
+      "title": "Explore On Your Offroad UTV 4 Seat",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rough off‑road UTV terrain, likely inadequate child restraints/seating, long 4‑hour outing, noise and exposure make it unsafe for a 1–3 year‑old."
+    },
+    {
+      "id": "5617356P8",
+      "title": "Safari Jeep Tour Adventure by B&H PM Tour - Natural Bridge",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Open/rough-terrain jeep safari for 4 hours with likely no child restraints, exposure to bumps, dust, noise and heat makes it unsuitable for a 1–3-year-old."
+    },
+    {
+      "id": "358826P2",
+      "title": "Private Off-Road Adventure to Cave Pool and Tres Trapi",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road travel with likely unrestrained seating, bumpy terrain, water/swimming at a cave pool, and the operator's child ticketing from age 4 make a 1–3‑year‑old unsafe."
+    },
+    {
+      "id": "115682P11",
+      "title": "5 Seater UTV Honda Pioneer",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Five‑seat UTV rides involve rough off‑road terrain, high noise/vibration, likely only basic seatbelts and no child restraints, long 8‑hour duration and limited ability to leave early, so a 1–3 year‑old is not safely accommodated."
+    },
+    {
+      "id": "109524P13",
+      "title": "Explore On Your Own 8 Hours Single Seat ATV",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Single-seat ATV on rough terrain for eight hours with speed, noise, and no suitable seating/restraints makes it unsafe for a toddler."
+    },
+    {
+      "id": "109524P11",
+      "title": "Explore On Your Own Offroad UTV 3 Seat",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road, bumpy UTV ride with unknown/no child restraints, long duration, noise and heat risks make it unsafe for a 1–3-year-old."
+    },
+    {
+      "id": "5629889P6",
+      "title": "Private Jeep Tour to Arikok National Park",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road jeep terrain, likely no child restraints, long ~4.75‑hour exposure to heat/noise and bumpy motion make it unsuitable for a 1–3 year old."
+    },
+    {
+      "id": "5586794P1",
+      "title": "Convenient Jeep Rentals for Island Adventures",
+      "verdict": false,
+      "confidence": "low",
+      "reason": "Restraints, proper car seat provision and off‑road terrain/speed are unclear for a 1–3 year old on potentially long/rough island Jeep outings, so a careful parent likely would not bring a toddler without confirmation."
+    },
+    {
+      "id": "5585429P13",
+      "title": "Private 4WD Plaza Turismo Tour of Oranjestad Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Long (4.5 hr) off‑road 4WD tour with potentially bumpy terrain, variable restraints (operator notes infants on laps/special seats optional), sun/heat exposure and noise make it unsuitable for a 1–3 year‑old."
+    },
+    {
+      "id": "6841P12",
+      "title": "Elite Jeep Safari with lunch and beer and open bar",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road jeep safaris are typically bumpy, 4 hours with alcohol service and uncertain proper toddler restraints makes it unsafe for a 1–3 year old."
+    },
+    {
+      "id": "6687P10",
+      "title": "Aruba 2-Seater UTV Tour Adventure with Kini Kini",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road UTV tour is bumpy, noisy, long (4 hrs), lacks child restraints/child seating and involves terrain/speed/exposure unsuitable for a 1–3 year‑old."
+    },
+    {
+      "id": "137607P19",
+      "title": "Aruba Private Luxury AC Jeep Tour with Attractions",
+      "verdict": false,
+      "confidence": "low",
+      "reason": "Private jeep tours often lack child car seats and can include bumpy off‑road sections, variable attractions and noise/exposure that make bringing a 1–3 year‑old inadvisable unless you can supply and securely install an appropriate restraint and accept the risks."
+    },
+    {
+      "id": "137607P20",
+      "title": "Aruba Private Open-Air Safari Jeep Tour + Arikok and Conchi Pool",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Open-air, bumpy off-road jeep and natural pools with uneven terrain, limited child restraints and water hazards make it unsafe for a 1–3 year-old."
+    },
+    {
+      "id": "324189P2",
+      "title": "Private Jeep Tour National Park",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Bumpy jeep rides, uneven cave/ Natural Pool terrain, swimming sections, and a long 6‑hour itinerary make it unsafe and impractical for a 1–3-year-old without guaranteed child restraints or shallow, controlled water areas."
+    },
+    {
+      "id": "115682P8",
+      "title": "6 Seater Utv Rental Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "UTV rides are bumpy, noisy, and often lack proper, certified child restraints for a 1–3‑year‑old and an 8‑hour rental makes heat/exposure and inability to easily leave early problematic."
+    },
+    {
+      "id": "5569033P1",
+      "title": "Jeep Wrangler Jk Hardtop 4 door",
+      "verdict": false,
+      "confidence": "low",
+      "reason": "Unclear if trips are off‑road and whether properly anchored toddler car seats are compatible for an 8‑hour jeep outing, so a careful parent likely would avoid it."
+    },
+    {
+      "id": "6687P12",
+      "title": "Aruban Roots 3 Hours Adventure by ATV & UTV with Kini Kini",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Three‑hour ATV/UTV tour involves rough terrain, high noise, limited proper restraints and seating for toddlers, and prolonged exposure making it unsafe for a 1–3 year old."
+    },
+    {
+      "id": "324189P4",
+      "title": "National Park Arikok Jeep Safari Adventures",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator disallows children under 4, no car/infant seats or lap seating, and terrain/water/cave conditions make it unsafe for a 1–3-year-old."
+    },
+    {
+      "id": "33158P1",
+      "title": "Aruba Off-Road ATV Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road ATV touring involves rough terrain, noise, lack of proper child restraints/seating and a long duration, making it unsafe for a 1–3 year‑old."
+    },
+    {
+      "id": "441143P1",
+      "title": "Aruba Arikok National Park Jeep Safari: Natural Pool & Baby Beach",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Bumpy open‑jeep off‑road rides, long 5‑hour outing, limited child restraints, sun/exposure and water sites with uneven/possibly deep areas make it unsuitable for a 1–3 year‑old."
+    },
+    {
+      "id": "377394P9",
+      "title": "5-seater UTV 4 Hours Island tour in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Open UTV on rough terrain for 4 hours without guaranteed child restraints, exposure to sun/noise/vibration makes it unsuitable for a 1–3-year-old."
+    },
+    {
+      "id": "377394P8",
+      "title": "4-seater UTV Island 4hr Tour in Aruba, morning or afternoon",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 4‑hour off‑road UTV tour involves bumpy terrain, open seating with likely no child restraints, loud noise, sun/heat exposure and no guaranteed car‑seat provision, so it is unsafe for a 1–3‑year‑old."
+    },
+    {
+      "id": "6687ATV",
+      "title": "Aruba North Coast ATV Desert Adventure",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rough off‑road ATV tour with no child seating/restraints, age limits and safety/fitness warnings, and long exposure to noise, dust and heat make it unsuitable for a 1–3-year-old."
+    },
+    {
+      "id": "109524P9",
+      "title": "Explore On Your Own Offroad UTV 6 Seat",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road UTV rides are long, bumpy, noisy and potentially hot with uncertain restraint/seat safety for toddlers despite operator claims, so a careful parent should not bring a 1–3 year old."
+    },
+    {
+      "id": "5585429P1",
+      "title": "Aruba Half day Private Jeep Tour - Sightseeing and more",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Unsecured lap seating, likely bumpy/off‑road terrain, sun exposure and a 4‑hour duration make this unsuitable for a 1–3‑year‑old without proper car‑seat restraints."
+    },
+    {
+      "id": "47774P3",
+      "title": "Aruba UTV & ATV Adventure",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road UTV/ATV with unknown child restraints, rough terrain, noise, heat and water stops over 4 hours makes it unsafe and impractical for a toddler."
+    },
+    {
+      "id": "441143P8",
+      "title": "Aruba Natural Pool Jeep Adventure – Natural Bridge & Casibari",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road jeep ride with bumpy terrain, likely no proper child restraints or seating, swimming/natural pool access and a 3.5‑hr duration make it unsafe and impractical for a 1–3‑year‑old."
+    },
+    {
+      "id": "33158P4",
+      "title": "UTV Off Road Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "UTV off‑roading involves rough terrain, high noise, no proper child restraint/booster seating, and long exposure, so a careful parent should not bring a 1–3 year old."
+    },
+    {
+      "id": "137607P17",
+      "title": "Aruba Outback Safari Jeep Tour - Lighthouse, Arikok & Conchi Pool",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Long (4.5h) off‑road jeep tour with rough terrain, likely no child restraints, heat/exposure and natural pools make it unsuitable for a 1–3 year‑old."
+    },
+    {
+      "id": "377394P7",
+      "title": "2-Seater UTV Island Tour in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Two-seater off-road UTV tour (4 hours) with likely high speeds, rough terrain, limited seating/restraints and adult-only ticketing makes it unsafe and impractical for a 1–3-year-old."
+    },
+    {
+      "id": "137607P12",
+      "title": "Aruba UTV Tour with Natural Cave Pool and Cliff Jumping",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator minimum passenger age is 4 and activity involves uneven terrain, open UTV seating, cliff-jumping/swimming and other hazards making it unsuitable for a 1–3-year-old."
+    },
+    {
+      "id": "377394P1",
+      "title": "UTV Island Tour around Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "UTV off‑road tours are bumpy, noisy, open, and lack appropriate child restraints and seating for a 1–3 year old, making them unsafe for toddlers."
+    },
+    {
+      "id": "39473P5",
+      "title": "UTV Morning Tour: Discover Aruba's Hidden Treasures",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Long (4.5h) bumpy off‑road UTV tour with likely no proper child restraints, exposure to noise, dust, heat and rough terrain makes it unsafe for a 1–3 year old."
+    },
+    {
+      "id": "47774P7",
+      "title": "Aruba Safari Jeep Tour and Beach Cliff Jumping",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Bumpy open-jeep terrain, lack of child restraints/seating, long duration and sun exposure plus risky cliff-jumping and deep water make it unsafe for a 1–3-year-old."
+    },
+    {
+      "id": "115682P2",
+      "title": "Aruba UTV Rental: 4-Seater for Adventure Exploration",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "No child restraints or minimum passenger age specified, long (8‑hr) rough-terrain UTV ride with noise/vibration and potential speed/roll risk makes it unsuitable for a 1–3 year‑old."
+    },
+    {
+      "id": "39473P6",
+      "title": "Aruba Northcoast UTV Afternoon Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rough, bumpy off‑road UTV ride lasting 4.5 hours with likely inadequate restraints/seating, noise and heat exposure make it unsafe and impractical for a 1–3 year‑old."
+    },
+    {
+      "id": "13526P9",
+      "title": "Action-Packed Half Day Aruba UTV Tour and Arashi Beach",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator excludes children under 6 and the off‑road UTV tour involves open vehicles, rough terrain, noise and exposure unsuitable for a 1–3 year‑old."
+    },
+    {
+      "id": "128740P13",
+      "title": "6-Seat UTV Rental: Your Own Aruba Adventure",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 6-seat UTV involves bumpy off‑road terrain, noise, possible high speeds and limited child restraint—making it unsafe for a 1–3-year-old despite operator claims of seats."
+    },
+    {
+      "id": "128740P9",
+      "title": "5 seat UTV Rental: Your Adventure, Your Way",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "UTVs lack proper child restraints/booster seats and expose toddlers to rough terrain, noise, dust, potential rollover and long-duration exposure, so a careful parent should not bring a 1–3 year old."
+    },
+    {
+      "id": "39473P4",
+      "title": "Aruba Jeep Tour: Natural Pool, Caves and Baby Beach Adventure",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator restricts children under 5 and the tour involves long duration, rough bumpy off‑road terrain and activities unsuitable for a 1–3-year-old."
+    },
+    {
+      "id": "13526P10",
+      "title": "Half Day UTV Rentals",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator explicitly disallows/does not recommend children under 4 and UTVs pose significant restraint, terrain, speed and exposure risks for 1–3-year-olds."
+    },
+    {
+      "id": "128740P6",
+      "title": "4-Seat UTV Rentals: Your Adventure, Your Way",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "UTV rides involve open seating, limited child restraints, rough terrain, noise and long rental duration making them unsafe for a 1–3 year‑old."
+    },
+    {
+      "id": "128740P14",
+      "title": "Private Jeep Tour: Explore Aruba's National Park Off-Road",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Four-hour off‑road jeep tour with prolonged bumpy terrain, sun/noise exposure and uncertain toddler-appropriate restraints makes it unsuitable for a 1–3 year old."
+    },
+    {
+      "id": "214149P3",
+      "title": "Private German Speaking Jeep Tours",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Jeep tours are likely bumpy/off‑road with no guaranteed child restraints, possible long/noisy segments and physical demands, so a careful parent would not bring a 1–3-year-old."
+    },
+    {
+      "id": "128740P5",
+      "title": "Aruba Jeep Rental Adventure",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "An 8‑hour open-air/off-road jeep adventure likely lacks proper child restraints and involves bumpy terrain, heat, noise and prolonged exposure, so it is unsafe for a 1–3‑year‑old."
+    },
+    {
+      "id": "5585429P7",
+      "title": "Snorkeling with sea turtles Beach hopping Private Jeep Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Four‑hour tour with off‑road jeeping, snorkeling in open water (no safe way for a 1–3 y/o to participate), uneven terrain, potential lack of child restraints and difficulty leaving early make it unsafe for a toddler."
+    },
+    {
+      "id": "5617356P7",
+      "title": "Safari Jeep Tour Adventure by B&H AM Tour - Caves & Natural Pool",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rugged bumpy jeep terrain, cave walking and a natural pool with water plus no guaranteed child restraints or seating make a 1–3-year-old unsafe for this 4‑hour tour."
+    },
+    {
+      "id": "115682P14",
+      "title": "Private Jeep Excursion in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Four-hour off-road jeep tour with uncertain, operator-claimed child restraints and significant bump/noise/heat exposure makes proper safe seating for a 1–3-year-old unlikely."
+    },
+    {
+      "id": "6841P6",
+      "title": "Aruba UTV Off-Road Driving Experience North Coast Stops",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rough off‑road UTVs, unclear or absent child restraints, hiking and water stops, long duration and safety risks make it unsuitable for a 1–3 year‑old."
+    },
+    {
+      "id": "6841P7",
+      "title": "Aruba UTV Adventure to Natural Pool Jeep Transfer",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road UTV/jeep transfer with bumpy terrain, unknown child restraints/seating, long duration and water access make it unsuitable for a 1–3 year‑old."
+    },
+    {
+      "id": "6841POOL",
+      "title": "Aruba Natural Pool and Indian Cave Rugged Jeep Safari",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rugged, bumpy jeep terrain, long duration, likely limited child restraints and water/swimming in natural pools make it unsafe for a 1–3-year-old despite operator claims of infant seats."
+    },
+    {
+      "id": "5629889P1",
+      "title": "Full Day Jeep Tour with Arikok National Park and Caves",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Full-day off‑road jeep travel with bumpy terrain, no child seats (infants on laps), heat/exertion and cave access make it unsuitable for a 1–3‑year‑old."
+    },
+    {
+      "id": "6841ISLAND",
+      "title": "Island Jeep Safari with Natural Pool Baby Beach and Lunch",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Long (8‑hr) bumpy jeep tour with likely no child restraints, minimum child age appears 3+, and water/terrain risks make it unsuitable for a 1–3-year-old."
+    },
+    {
+      "id": "19808P5",
+      "title": "Half-Day Aruba UTV Adventure Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Toddlers are too young for seating/restraint limits and the ride’s off‑road speed, noise, bumps, dust and half‑day exposure make it unsafe and impractical."
+    },
+    {
+      "id": "19808P11",
+      "title": "UTV and Jeep Island Adventure Mix Up",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off-road UTV/Jeep excursion involves rough terrain, speed, noise, likely inadequate child restraints/seating and exposure risks (water, heat), so a careful parent should not bring a toddler."
+    },
+    {
+      "id": "7470P2",
+      "title": "Aruba UTV Adventure",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator minimum passenger age is 9 and the UTV involves rough terrain, speed, noise, and seating/restraint conditions unsuitable for a 1–3‑year‑old."
+    },
+    {
+      "id": "350808P2417",
+      "title": "Aruba Private Jeep Tours With Exciting Attractions",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Six-hour off‑road jeep tour with likely rough terrain, prolonged exposure and limited secure restraint alternatives makes it unsuitable for a 1–3 year old despite operator claims of infant seats."
+    },
+    {
+      "id": "5566924P8",
+      "title": "Private Aruba Jeep Tour Natural Pool and Beyond",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rough off‑road jeep transfer to a remote natural pool with waves/depth, bumpy terrain, sun exposure and a 4‑hour outing make it unsafe for a 1–3 year old despite claimed infant seats."
+    },
+    {
+      "id": "6593P15",
+      "title": "Baby Beach & Mangel Halto Off-Road Safari",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator age band starts at 4 and the off‑road bumpy vehicle, long 4.5‑hour duration, beach/snorkel stops, and likely lack of suitable restraints make it unsuitable for a 1–3‑year‑old."
+    },
+    {
+      "id": "19808P9",
+      "title": "Aruba Signature Jeep Tour: Natural Pool and Baby Beach",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rough open-jeep off‑road travel, uneven/steep terrain at stops, long duration without child restraints, and sun/water exposure make it unsuitable for a 1–3 year‑old."
+    },
+    {
+      "id": "6593P16",
+      "title": "Aruba Natural Wonders Caves and Natural Pool Jeep Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Bumpy open-jeep terrain, likely lack of child restraints and rough access to caves and natural pools with water/depth hazards make it unsafe for a 1–3-year-old."
+    }
+  ]
+}

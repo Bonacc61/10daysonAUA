@@ -18,7 +18,8 @@
     "plan-diff": "node tools/run-plan-diff.cjs",
     "probe:start-times": "node tools/run-probe-start-times.cjs",
     "probe:suitability": "node tools/run-probe-suitability.cjs",
-    "build:suitability": "node tools/run-build-suitability.cjs"
+    "build:suitability": "node tools/run-build-suitability.cjs",
+    "build:curated": "node tools/run-build-curated.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

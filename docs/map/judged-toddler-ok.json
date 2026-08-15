@@ -1,0 +1,2301 @@
+{
+  "judgedAt": "2026-08-15T12:01:38.514Z",
+  "model": "gpt-5-mini",
+  "profile": "toddler-ok",
+  "counts": {
+    "suitable": 71,
+    "not": 256,
+    "errored": 0
+  },
+  "products": [
+    {
+      "id": "5595462P1",
+      "title": "Discovery Papiamento Distillery",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A short distillery tour centers on adult-focused tasting and safety considerations (alcohol, equipment, possible stairs/noisy areas) and offers little that a 1–3-year-old would safely enjoy."
+    },
+    {
+      "id": "5493518P2",
+      "title": "Aruba Romantic Sunset Photoshoot & Beach Picnic in Luxury Cabana",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A romantic sunset photoshoot and cabana picnic is primarily adult-focused and unlikely to engage a 1–3-year-old for the full 2-hour duration despite being physically feasible."
+    },
+    {
+      "id": "444239P2",
+      "title": "Blue Parrot Snorkel Sail with 4 course lunch or dinner in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 4‑hour snorkel sail is adult‑oriented (snorkeling and long boat time) and impractical/unsafe for a 1–3‑year‑old who cannot snorkel, may be unsteady on a moving boat, and would likely be bored or at risk in the water."
+    },
+    {
+      "id": "5595462P2",
+      "title": "Rum and Chocolate Sensory Journey",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is an adult-focused 60-minute alcohol and tasting experience that is impractical and unlikely to engage a 1–3-year-old and poses safety concerns around alcohol."
+    },
+    {
+      "id": "116935P5",
+      "title": "Private Sunset Tour in Aruba",
+      "verdict": false,
+      "confidence": "low",
+      "reason": "A two‑hour private sunset tour is primarily an adult-oriented boat experience with limited toddler engagement and potential safety/attention challenges on deck, making it impractical for a 1–3‑year‑old."
+    },
+    {
+      "id": "5595462P3",
+      "title": "Papiamento VIP Tasting",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is an adult-focused tasting (alcohol, 60 minutes) not suitable or engaging for a 1–3-year-old and is aimed at adults rather than children."
+    },
+    {
+      "id": "6180P13",
+      "title": "Aruba Nightlife Food Tour with Wine and Tequila Tastings",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is an adult-focused 3‑hour nightlife food and alcohol tasting tour with walking and late-evening venues, not safe/practical or engaging for a toddler."
+    },
+    {
+      "id": "445910P23",
+      "title": "Morning Champagne and Lobster Sail on Shamwari",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 4.5‑hour adult‑focused champagne and lobster sail on open water is long, potentially unsafe/uncomfortable for a toddler (seasickness, limited child activities, constrained boat space) and primarily aimed at adults rather than engaging young children."
+    },
+    {
+      "id": "444239P1",
+      "title": "Private Angelfish Snorkeling with Brunch in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Snorkeling and associated boat/water activity for 3 hours is neither safe nor practical for a 1–3 year old and offers little they would enjoy."
+    },
+    {
+      "id": "429943P4",
+      "title": "Aruban Gastronomy Exclusive Culinary with Local Private Chef",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Four-hour, adult-focused culinary experience with hot equipment and long seated/tasting segments is impractical and unlikely to engage a 1–3-year-old."
+    },
+    {
+      "id": "445910P16",
+      "title": "Sunset Champagne and Lobster sail on Shamwari",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is an adult-focused 4.5‑hour sunset champagne and lobster cruise on open water with limited toddler activities, potential safety hazards and a long duration unlikely to be practical or enjoyable for a 1–3 year old."
+    },
+    {
+      "id": "5552066P3",
+      "title": "Aruba Private Sunset Tour Snorkeling Turtles and Cheese Platter",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Activity centers on adult snorkeling and a sunset/cheese experience that is unsafe and not meaningful for a 1–3 year old and not practical to keep them engaged."
+    },
+    {
+      "id": "5599636P5",
+      "title": "Mimosa Style Morning Sip and Painting Activity",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Two-hour adult-focused sip-and-paint with alcohol and fine-motor painting is impractical and unlikely to engage a 1–3 year-old despite stroller access."
+    },
+    {
+      "id": "5497600P5",
+      "title": "Aruba's Finest Sip and Paint Experience by the Beach",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 90‑minute adult‑focused sip‑and‑paint requires attention and fine motor skills and is not suitable or engaging for a 1–3 year‑old despite stroller access."
+    },
+    {
+      "id": "5493518P1",
+      "title": "Aruba Eagle Beach Romantic Sunset Picnic in a Luxury Cabana",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "A shaded cabana picnic on the beach is safe and practical with parental supervision and offers snacks, shade, and space a 1–3 year‑old would enjoy for play and exploration."
+    },
+    {
+      "id": "444239P8",
+      "title": "Tropical Sailing Experience with BBQ Lunch or BBQ Dinner in Aruba",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A 4‑hour sail with a BBQ can be safe and enjoyable for a 1–3 year old if closely supervised (lap seating, shade, life jacket, breaks), but the duration, sun/exposure and limited facilities make this only conditionally practical so operator details matter."
+    },
+    {
+      "id": "103088P1",
+      "title": "VIP Morning Delight Champagne Sailing and Snorkeling with Lunch",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "The trip centers on snorkeling and an adult-oriented sailing/lunch experience—unsafe or impractical for a 1–3-year-old to participate in and unlikely to be engaging for a toddler."
+    },
+    {
+      "id": "6593P7",
+      "title": "Luxury Lagoon Cruise with Onboard Chef and Signature Cocktails",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator sets a minimum age of 18 and the activity is adult-focused (onboard chef and cocktails), so it is neither permitted nor appropriate for a toddler."
+    },
+    {
+      "id": "364486P1",
+      "title": "Caribbean Cooking Class in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 2.5-hour cooking class involves hot surfaces, sharp tools, prolonged standing and attention—unsafe and impractical for a 1–3-year-old who wouldn’t meaningfully participate."
+    },
+    {
+      "id": "62666P1",
+      "title": "Aruba Downtown Historic and Cultural Walking Tour",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Stroller-friendly 2.5-hour walking tour with a gentle pace and sightseeing stops is safe and practical for a toddler and offers enough visual and sensory interest to keep a 1–3-year-old engaged (bring shade, water and snacks for the heat)."
+    },
+    {
+      "id": "2785DINNER",
+      "title": "Aruba Sunset Sail Dinner Cruise with Open Bar by Catamaran",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Three-hour sunset dinner cruise aimed at adults with no child-focused amenities, probable minimum child ticketing (5+), and long duration/limited entertainment makes it impractical and not enjoyable for a toddler."
+    },
+    {
+      "id": "6593P11",
+      "title": "Luxury Four-Course Caribbean Dinner Cruise Experience",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A formal 3‑hour four‑course dinner cruise is adult‑focused, lengthy and impractical for a toddler who would likely be bored and constrained despite being safe."
+    },
+    {
+      "id": "47607P2",
+      "title": "Premium Catamaran Afternoon Sail: Snorkeling and Lunch",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Calm, short shuttle to a stable catamaran with children welcome, seating/meal and shade likely make a 3‑hour sail safe and enjoyable for a 1–3 year‑old though they won't join snorkeling."
+    },
+    {
+      "id": "2785P10",
+      "title": "Aruba Sunset Sail with Caribbean Dinner and Live Music",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 2.5-hour evening dinner cruise with live music is primarily adult-focused, potentially loud and late with water hazards and limited toddler-friendly seating/activities, so it’s not practical or engaging for a 1–3-year-old."
+    },
+    {
+      "id": "6593P10",
+      "title": "Aruba Sunset Sail Experience",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 2‑hour sunset sail is water-based with limited containment and adult-focused atmosphere, so while safe for an infant in theory it's impractical and unlikely a toddler will be engaged for the duration."
+    },
+    {
+      "id": "47607P3",
+      "title": "Premium Catamaran Morning Sail: Snorkeling, Mimosas and Brunch",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Calm, short shuttle transfer and a 3‑hour catamaran cruise that welcomes young children makes it safe and practical, and a toddler can enjoy the boat ride, views and brunch even if they won't join snorkeling."
+    },
+    {
+      "id": "445910P2",
+      "title": "Aruba Sail and Snorkel with Turtles at WW2 Shipwreck Includes BBQ",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "The trip centers on snorkeling and boarding a boat for ~4.5 hours with water safety, sun/exposure and activity unsuitable and unenjoyable for a 1–3-year-old."
+    },
+    {
+      "id": "445910P1",
+      "title": "Snorkel with Turtles at WW2 Shipwreck Includes Sunset & BBQ",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Minimum child age band starts at 3 and the activity centers on snorkeling and boat time unsuitable and impractical for a 1–3-year-old toddler."
+    },
+    {
+      "id": "6593DINNER",
+      "title": "Aruba Sunset Cruise plus Seaside Dinner",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 3‑hour sunset dinner cruise is primarily adult-oriented, lengthy and near open water making it impractical and unlikely to be enjoyable for a 1–3‑year‑old despite stroller allowance."
+    },
+    {
+      "id": "5497600P1",
+      "title": "Private Sip and Paint Experience for Couples in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A couples-focused sip-and-paint is adult-oriented, involves paint/brush hazards, alcohol, and sustained attention and seating that a 1–3-year-old would neither enjoy nor safely manage."
+    },
+    {
+      "id": "62666P3",
+      "title": "Aruba Food Fusion Tour: World Flavors to Savor",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Stroller-friendly, allows infants, and a paced 2.5‑hour food-walking tour offers sensory stimulation and short stops that a toddler can enjoy and tolerate."
+    },
+    {
+      "id": "2455P18",
+      "title": "Aruba De Palm Island Day Pass",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "The island day pass offers stroller access, kid-friendly food, shallow beach/play areas and animal viewing (flamingos) making it practical and enjoyable for a 1–3 year old, though avoid water attractions and bring sun/foot protection."
+    },
+    {
+      "id": "400174P5",
+      "title": "Aruba Floating Breakfast FREE Drone Videos, Champagne & Mimosas",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is an adults-oriented floating breakfast with alcohol and water hazards (pool/float) and offers little engaging or safe structure for a mobile 1–3-year-old."
+    },
+    {
+      "id": "6180P14",
+      "title": "Aruba Mural Food and Culture Tour Taste of San Nicolas",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 4‑hour mural and food tasting walking tour is lengthy, adult-focused and involves walking/standing and food stops that a 1–3 year old would likely not enjoy or handle well."
+    },
+    {
+      "id": "5595462P5",
+      "title": "Fill Your Own Bottle Experience at Bodegas Papiamento",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is an adult-focused wine bottling/tasting experience lasting 60 minutes and offers little engaging or appropriate activity for a 1–3 year-old despite being physically accessible."
+    },
+    {
+      "id": "5595462P6",
+      "title": "Bodegas Papiamento Pairing Experience",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 2.5-hour wine pairing experience is adult-focused, not age-appropriate or engaging for a toddler despite accessibility claims."
+    },
+    {
+      "id": "5655605P1",
+      "title": "Golden Hour Sunset Cruise, Private Yacht Experience in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A small private sunset yacht cruise poses water-safety and supervision risks and is primarily an adult-oriented experience with limited engagement for a 1–3 year‑old."
+    },
+    {
+      "id": "103020P7",
+      "title": "Luxury Private Yacht Charter Aruba - Eden Luca Yachts",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A private yacht can be enjoyable for a supervised toddler (short swims, sights) but requires constant supervision, life jacket use, careful boarding/steps and may be tiring or impractical for some families."
+    },
+    {
+      "id": "459169P1",
+      "title": "Aruba Small-Group UTV Adventure|Private Off-Road Tour Max 4 UTVs",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator requires passengers to be at least 3 years old and off-road UTVs are rough/noisy and not practical or safe for most toddlers under 3."
+    },
+    {
+      "id": "459169P2",
+      "title": "Private Aruba Jeep Adventure|Custom Island Tour with Local Guide",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A private jeep tour can be made safe and practical for a 1–3 year old if a proper child/infant seat is provided, the group keeps rides short and uses stroller-friendly stops like calm beaches, but bumpy terrain, noise, heat and the 4‑hour duration make this only conditionally suitable."
+    },
+    {
+      "id": "392509P1",
+      "title": "Epic Off-Road Surron Electric Bike Tour in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Requires adult drivers (min age 18, license), involves off-road e-bikes and moderate fitness on uneven terrain at speed, so it is neither safe nor appropriate or enjoyable for a toddler."
+    },
+    {
+      "id": "441143P5",
+      "title": "Private 4x4 Natural Pool, Caves & Baby Beach by Cross Aruba Tours",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "The tour includes rough off‑road driving, uneven cave terrain and potentially hazardous natural pool areas with deep/rough water and a long outing—only the baby beach is toddler‑friendly, so overall it’s not safe/practical as a toddler‑focused activity."
+    },
+    {
+      "id": "5585429P2",
+      "title": "Aruba Island Private Jeep Tour Arikok Park & Baby beach",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Bumpy off‑road jeep travel with unclear car‑seat policy and lap‑sitting requirements makes it impractical/unsafe despite toddler‑friendly stops like Baby Beach."
+    },
+    {
+      "id": "106422P2",
+      "title": "Aruba 2-Tank guided Dive for certified divers / own equipment",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is a certified 2-tank scuba dive for ages 10+, requiring adult equipment, certification, and conditions unsuitable and unenjoyable for a 1–3-year-old."
+    },
+    {
+      "id": "324189P3",
+      "title": "Baby Beach and San Nicolas Art Murals Private EZ Raider Adventure",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Open fast boat ride with water exposure, long 3-hour outing, adult-focused activity and likely lacking child-specific safety/seat/lifejacket arrangements makes it unsafe/impractical for a 1–3 year-old."
+    },
+    {
+      "id": "300281P4",
+      "title": "Half Day Hike at Arikok National Park & Snorkel",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rough hiking terrain, half‑day duration and a snorkel component unsuitable for 1–3 year olds (and operator age bands start at 5)."
+    },
+    {
+      "id": "358826P1",
+      "title": "PRIVATE Jeep Safari Natural Pool, Indian Caves & Baby Beach with Snorkeling",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Long (6‑hour) off‑road jeep with snorkeling and water/swim activities that a 1–3‑year‑old cannot safely or meaningfully participate in and which involve uneven terrain and water risks."
+    },
+    {
+      "id": "5585429P11",
+      "title": "Aruba Private Jeep Tour with Local Guide",
+      "verdict": false,
+      "confidence": "low",
+      "reason": "Open/bumpy jeep terrain and likely lap seating make it impractical/unsafe for a 1–3 year old despite operator claims, and the activity is mainly adult-focused rather than tailored for toddlers."
+    },
+    {
+      "id": "139296P1",
+      "title": "Aruba Private Tours on a ac bus",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "A 4‑hour air‑conditioned private bus tour with stroller/pram and infant seat options offers safe, practical travel and likely short stops and sights a toddler can enjoy."
+    },
+    {
+      "id": "5552066P1",
+      "title": "Private Boat Tour in Aruba",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A private boat tour can be safe and enjoyable for a 1–3-year-old if short, shaded, with toddler life jackets and the itinerary avoids swimming/snorkeling stops, but specifics (restroom, shade, seating, crew experience with children) are uncertain."
+    },
+    {
+      "id": "434780P1",
+      "title": "Natural Pool Caves and Beach Private Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "The tour involves uneven, potentially slippery cave and natural-pool terrain, moderate physical exertion and long duration that make it unsafe and impractical for a 1–3 year‑old despite beach elements."
+    },
+    {
+      "id": "383257P2",
+      "title": "Aruba Island Tours (Private)",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Private island tours are flexible, low‑impact sightseeing with pick‑up, stroller/wheelchair access and short stops (beaches/parks) that a 1–3 year‑old can safely enjoy for parts of a 4‑hour trip."
+    },
+    {
+      "id": "13835P19",
+      "title": "Private Sunset Horseback Ride",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Although the operator allows children under 5 to ride with a parent, a 90‑minute horseback ride poses safety/restraint and attention-span issues for a 1–3 year‑old and is unlikely to be enjoyable or practical for a toddler."
+    },
+    {
+      "id": "116935P6",
+      "title": "Private Beach Cruisin & Snorkeling Experience in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 4‑hour private beach cruising and snorkeling trip centers on adult snorkeling and boat time that toddlers cannot participate in and is impractical (safety, duration, and lack of toddler-appropriate activities)."
+    },
+    {
+      "id": "5617356P3",
+      "title": "Baby Beach Sunrise Adventure Bike, Hike & Snorkel",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "The multi-part activity (bike, hike, snorkel) is aimed at adults, involves water and active terrain and duration unsuitable and impractical for a 1–3 year old who cannot safely participate in snorkeling or sustained biking/hiking."
+    },
+    {
+      "id": "459169P3",
+      "title": "Aruba UTV Rental | Explore the Island at Your Own Pace",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Bumpy off‑road UTVs, long duration, limited child restraints and exposure make it unsafe and impractical for a toddler and unlikely to be enjoyable."
+    },
+    {
+      "id": "109524P10",
+      "title": "Explore On Your Offroad UTV 4 Seat",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road UTVs are typically bumpy, noisy, and lack appropriate child restraints or car‑seat provisions, making them unsafe and impractical for a 1–3 year old."
+    },
+    {
+      "id": "62666P2",
+      "title": "Private Sightseeing Boat Tour at Aruba with Snorkeling & Swimming",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Three-hour boat tour focused on snorkeling and swimming exposes a toddler to prolonged sun, waves and water risk and is primarily aimed at swimmers rather than providing safe, engaging activities for a 1–3-year-old."
+    },
+    {
+      "id": "300281P1",
+      "title": "Private Guided Beach Meditation & Hike + Transfer",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A guided beach meditation plus hike requires sustained walking/quiet participation and may involve uneven terrain and proximity to water—conditions that are unsafe or impractical for a toddler and the activity is aimed at adults rather than being enjoyable or appropriate for a 1–3 year old."
+    },
+    {
+      "id": "186518P2",
+      "title": "Night Shore Diving Mangel Halto Aruba for Certified Divers",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Minimum participant age is 10 and activity is scuba shore diving (unsafe and unsuitable for toddlers)."
+    },
+    {
+      "id": "5526774P1",
+      "title": "Aruba Private Island tour A/C Van",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A short A/C van tour to a private island with beach time is generally enjoyable for a 1–3 year old and practicable, but uncertain details about car seats, stroller use during the trip, supervision logistics and exact beach conditions reduce confidence."
+    },
+    {
+      "id": "5617356P8",
+      "title": "Safari Jeep Tour Adventure by B&H PM Tour - Natural Bridge",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Four-hour bumpy/open-jeep safari with likely no child-seat provision and ticketing that starts at age 7 makes it impractical and unsafe for a toddler and not designed for their enjoyment."
+    },
+    {
+      "id": "5585429P3",
+      "title": "Private Tour - Rock formations and Turtle Viewing",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "Outdoor rock- and turtle-viewing can be engaging for a 1–3 year old and operator notes stroller use and low fitness demands, but unknown terrain/boat details make this uncertain."
+    },
+    {
+      "id": "358826P2",
+      "title": "Private Off-Road Adventure to Cave Pool and Tres Trapi",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "The operator’s age band starts at 4 and the activity involves off‑road terrain and cave pools making it unsafe/impractical for a 1–3 year‑old."
+    },
+    {
+      "id": "115682P11",
+      "title": "5 Seater UTV Honda Pioneer",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Open UTV on rough terrain with no proper child restraints, high noise/vibration and long duration makes it unsafe and unsuitable for a toddler to enjoy."
+    },
+    {
+      "id": "474314P2",
+      "title": "Aruba Professional Sunset Photo Shoot Experience With A Local",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A sunset professional photo shoot is adult-focused, often requires posing and a long stationary period during low light which toddlers (1–3) are unlikely to enjoy or tolerate safely/comfortably."
+    },
+    {
+      "id": "5568850P1",
+      "title": "Aruba Cruise Port Tours",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "Most Aruba cruise port tours are stroller-accessible, low-impact sightseeing or beach stops that are safe and offer sensory activities a toddler can enjoy, though specifics and duration vary."
+    },
+    {
+      "id": "115682P12",
+      "title": "Honda Talon 4 Seater Rental",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road UTVs are noisy, bumpy, and lack appropriate child car‑seat/age safety provisions, so they’re not safe or practical for a 1–3 year old."
+    },
+    {
+      "id": "109524P13",
+      "title": "Explore On Your Own 8 Hours Single Seat ATV",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Single-seat ATV with a 25+ driver requirement, rough/noisy terrain and an eight-hour duration make it unsafe and impractical for a toddler and not an activity they would enjoy."
+    },
+    {
+      "id": "2455P35",
+      "title": "Fortunata Half Day Private Sailing",
+      "verdict": false,
+      "confidence": "low",
+      "reason": "Three-hour open-water private sailing often lacks guaranteed child-specific safety gear, shade and seating and can be unstable or too long for a toddler to safely enjoy."
+    },
+    {
+      "id": "212359P3",
+      "title": "Aruba Island Private Express Tour",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A two-hour private sightseeing tour with stroller-friendly access and short stops can be safe and practical for a 1–3 year old and offers changing scenery to keep a toddler engaged, though enjoyment depends on exact stops and pace."
+    },
+    {
+      "id": "474314P3",
+      "title": "Aruba Private Bali Floating Breakfast Photo Shoot for 2–4 Guests",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A private floating breakfast photoshoot is centered on adult shots around open water and involves a lengthy, staged session that is unsafe and impractical for a 1–3-year-old and unlikely to meaningfully engage them."
+    },
+    {
+      "id": "109524P11",
+      "title": "Explore On Your Own Offroad UTV 3 Seat",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "An off‑road UTV for an 8‑hour excursion involves rough, noisy, bumpy terrain, likely lacks appropriate child restraints and is unsafe/uncomfortable and not engaging for a 1–3‑year‑old."
+    },
+    {
+      "id": "317324P1",
+      "title": "Private Transportation & Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "No mention of required child restraints or toddler-focused content and a private transfer/tour is generally more adult-oriented than an activity a 1–3 year old would enjoy."
+    },
+    {
+      "id": "5616292P7",
+      "title": "Aruba Island Tour",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A 4‑hour island sightseeing tour with stops is generally safe and practical for a 1–3 year‑old (can sit on a lap or stroller, take breaks, and enjoy sights), but specifics about vehicle comfort, sun/exposure, and bumpy roads are unknown."
+    },
+    {
+      "id": "476164P10",
+      "title": "E-Scooter Rental Aruba Full Day Self-Guided (1 or 2-seater)",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Toddlers (1–3) are unsafe and unlikely to enjoy prolonged rides on motorized e-scooters even if seated on an adult’s lap, and the full-day, traffic-exposed format is impractical."
+    },
+    {
+      "id": "5629889P6",
+      "title": "Private Jeep Tour to Arikok National Park",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rough, potentially bumpy multi‑hour off‑road jeep tour with limited seating/restraint and long duration makes it unsafe/impractical for a 1–3‑year‑old and is unlikely to engage them for the full trip."
+    },
+    {
+      "id": "5586794P1",
+      "title": "Convenient Jeep Rentals for Island Adventures",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road jeep rentals are often bumpy, lack proper toddler car‑seat restraints and can be noisy/overstimulating so are not reliably safe or enjoyable for a 1–3‑year‑old."
+    },
+    {
+      "id": "429943P3",
+      "title": "Sunset Cruise Fully Private with Nos Isla",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "A private 2‑hour sunset boat cruise is generally safe and practical for a 1–3-year-old (lap seating allowed, calm sightseeing environment, and likely life‑jackets) and offers visual stimulation a toddler can enjoy."
+    },
+    {
+      "id": "341419P1",
+      "title": "Kids Parasailing Experience Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Minimum ticketed child age starts at 5 and the activity (parasailing) is unsafe/impractical and unsuitable for a 1–3-year-old."
+    },
+    {
+      "id": "383257P5",
+      "title": "Aruba Cave Pool and Beach Tours",
+      "verdict": false,
+      "confidence": "low",
+      "reason": "The tour likely involves uneven cave terrain, water access and a lengthy 5‑hour outing that is impractical and potentially unsafe for a 1–3 year‑old despite operator claims."
+    },
+    {
+      "id": "5617356P2",
+      "title": "Oranjestad City Sunset Bike Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 3‑hour city bike tour is active and aimed at adults and typically lacks appropriate child seating/rest options, so it’s neither practical nor enjoyable for a 1–3 year‑old."
+    },
+    {
+      "id": "300281P11",
+      "title": "Sunset Kayak and Snorkeling Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Toddlers can’t safely or meaningfully participate in snorkeling and a 2.5‑hour sunset kayak/snorkel tour involves prolonged water exposure, physical demands, and limited seating/rest options making it unsafe/impractical for ages 1–3."
+    },
+    {
+      "id": "5585429P13",
+      "title": "Private 4WD Plaza Turismo Tour of Oranjestad Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A private 4WD island tour is likely long and bumpy with limited secure seating/rest options for a 1–3-year-old, making it impractical and not especially engaging for a toddler."
+    },
+    {
+      "id": "5665562P3",
+      "title": "Sunset Sea Glass Island Kayak Tour Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Minimum ticketed child age is 6 and the activity involves open-water kayaking for 2.5 hours requiring physical ability and stable seating, so it is neither practical nor designed for a 1–3-year-old."
+    },
+    {
+      "id": "13835P24",
+      "title": "Half Day Private Island Tour in Aruba",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A four‑hour private island visit typically includes calm beach/shallow play and seating/infant seats making it practical and enjoyable for a 1–3‑year‑old, though water supervision and specific island facilities are uncertain."
+    },
+    {
+      "id": "5593159P4",
+      "title": "50%OFF Aruba‘s #1Clear Kayak Experience@arubaphotoshootexperience",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Clear kayak rides involve open water, balance and sitting still without clear child life-jacket/age provisions and are more suited to older children rather than a 1–3-year-old."
+    },
+    {
+      "id": "6841P12",
+      "title": "Elite Jeep Safari with lunch and beer and open bar",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road jeep safaris are typically bumpy, noisy and 4 hours long, making secure restraint, comfort and enjoyment for a 1–3 year‑old unlikely despite operator claims of infant seats."
+    },
+    {
+      "id": "476164P4",
+      "title": "Guided 3-Hour E-Scooter Island Tour in Aruba (1 or 2-seater)",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "E-scooter tours require adult riding ability, offer no safe child seating or restraint for a toddler, and a 3‑hour ride with road noise, bumps and sun exposure is neither safe nor enjoyable for a 1–3‑year‑old."
+    },
+    {
+      "id": "250774P1",
+      "title": "Small-Group Sea Scooters Snorkel at Mangel Halto Beach in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Requires swimming/snorkeling with sea scooters and minimum ages/fitness—unsafe and impractical for a 1–3-year-old who cannot snorkel or be accommodated safely."
+    },
+    {
+      "id": "5595542P1",
+      "title": "3 Hours Private Boat Includes Snorkeling & Swim with turtles",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Three-hour boat trip focused on snorkeling and swimming with turtles involves open water, long duration, and activities a 1–3‑year‑old cannot safely participate in or meaningfully enjoy."
+    },
+    {
+      "id": "6687P13",
+      "title": "Art, Beach and Culture Island Tour with Kini Kini",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Short beach and cultural stops over 4 hours are generally safe, stroller-friendly, and include tactile, visual activities a toddler can enjoy with adult supervision."
+    },
+    {
+      "id": "324189P1",
+      "title": "Aruba EZ Raider North Coast Ultimate Adventure",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road vehicle ride and active cliff‑jumping/swimming terrain with no child safety measures and adult-focused activities make it unsafe and unsuitable for toddlers."
+    },
+    {
+      "id": "6687P10",
+      "title": "Aruba 2-Seater UTV Tour Adventure with Kini Kini",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "UTV off-road tour is noisy, bumpy, long (4 hrs) with only 2 seats and likely no child restraints, so unsafe and impractical for a 1–3-year-old."
+    },
+    {
+      "id": "119085P9",
+      "title": "Private Sunset Catamaran Adventure Cruise with Open Bar",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A calm 2‑hour catamaran sunset cruise can be safe and enjoyable for a 1–3‑year‑old (gentle motion, stroller possible, sunset views), but unknowns about child life jackets, railings, seating and the adult‑focused open bar make this uncertain."
+    },
+    {
+      "id": "137607P19",
+      "title": "Aruba Private Luxury AC Jeep Tour with Attractions",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Likely bumpy off‑road jeep tour with no guaranteed child restraints or car‑seats and adult‑focused attractions, so not safe/practical or engaging for a 1–3‑year‑old."
+    },
+    {
+      "id": "137607P20",
+      "title": "Aruba Private Open-Air Safari Jeep Tour + Arikok and Conchi Pool",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Open-air off‑road jeep and rugged natural pools involve rough terrain, bumpy rides, limited child restraints and potential deep water, so it's neither safe nor age‑appropriate for a 1–3‑year‑old."
+    },
+    {
+      "id": "367744P4",
+      "title": "Aruba Private Tour with SeaFood/Caribbean Food Included",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A private, stroller-accessible 4‑hour sightseeing tour with included meal can be adapted for a 1–3 year‑old and offers sights and food that a toddler can enjoy, though specifics of stops (no boat/snorkel-heavy segments) would need confirmation."
+    },
+    {
+      "id": "476164P1",
+      "title": "Guided Electric Scooter Island Tour in Aruba (1 or 2-seater)",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Activity requires adult riders, involves two‑wheeled scooter operation, no child seating/restraint, and is unsafe and impractical for a 1–3 year old."
+    },
+    {
+      "id": "476164P3",
+      "title": "Sunset Island Tour in Aruba on Electric Scooter (1 or 2-seater)",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Requires riding a two-wheel scooter without appropriate child restraints or age accommodations and is long/exposed, so it’s unsafe and impractical for a 1–3-year-old."
+    },
+    {
+      "id": "324189P2",
+      "title": "Private Jeep Tour National Park",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Minimum child age is 4 and the 6‑hour jeep, cave walks and swimming/natural pool elements are impractical and potentially unsafe for a 1–3-year-old."
+    },
+    {
+      "id": "115682P8",
+      "title": "6 Seater Utv Rental Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "UTV rides are typically bumpy, exposed and long (8 hrs) with limited protection—despite claimed infant seats, it’s not reliably safe or enjoyable for a 1–3-year-old."
+    },
+    {
+      "id": "5569033P1",
+      "title": "Jeep Wrangler Jk Hardtop 4 door",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A 4‑door Jeep can be safe and fun for a toddler if a proper child seat/restraints are provided and the trip is paced with breaks, but details on car‑seat availability, terrain, and operator policies are unclear."
+    },
+    {
+      "id": "6687P12",
+      "title": "Aruban Roots 3 Hours Adventure by ATV & UTV with Kini Kini",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rough off‑road ATV/UTV terrain, lack of child restraints and safety gear for toddlers, long 3‑hour duration, noise and dust make it unsafe and impractical for a 1–3‑year‑old."
+    },
+    {
+      "id": "324189P4",
+      "title": "National Park Arikok Jeep Safari Adventures",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator explicitly excludes children under 4, there are no infant seats, rough/uneven terrain and potentially strenuous activities make it unsafe and impractical for a 1–3-year-old."
+    },
+    {
+      "id": "33158P1",
+      "title": "Aruba Off-Road ATV Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "ATV tours involve high noise, bumpy terrain, lack of proper child restraints and a long 4‑hour duration, making them unsafe and impractical for a 1–3 year‑old."
+    },
+    {
+      "id": "441143P1",
+      "title": "Aruba Arikok National Park Jeep Safari: Natural Pool & Baby Beach",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road jeep rides, uneven rocky access to the Natural Pool, long 5‑hour tour and operator child band starts at 4 make it unsafe/impractical for a 1–3‑year‑old."
+    },
+    {
+      "id": "300281P9",
+      "title": "Arikok Sunrise Hiking Tour to Natural Pool + Transportation",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "The tour involves moderate hiking and access to a natural pool with potentially uneven terrain and water hazards, making it impractical and unsafe for a 1–3-year-old and not an activity they’d meaningfully enjoy."
+    },
+    {
+      "id": "325347P3",
+      "title": "Private Turtle Snorkel Tour in Aruba +Professional video footage",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Snorkel-focused boat tour requires swimming and open-water activity unsuitable and impractical for a 1–3-year-old who cannot snorkel or safely participate."
+    },
+    {
+      "id": "377394P9",
+      "title": "5-seater UTV 4 Hours Island tour in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A bumpy 4‑hour off‑road UTV tour is unsafe and impractical for a 1–3 year old (no guaranteed child restraints, rough terrain, noise and duration make it unsuitable)."
+    },
+    {
+      "id": "377394P8",
+      "title": "4-seater UTV Island 4hr Tour in Aruba, morning or afternoon",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Bumpy, noisy, off‑road 4‑hour UTV tour lacks proper child restraints and is too long/uncomfortable and potentially unsafe for a 1–3‑year‑old."
+    },
+    {
+      "id": "325347P2",
+      "title": "Private First-Time Dive in Aruba. Reef, Wreck or Turtle site",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Diving requires participants aged 10+, involves boat time and water safety not suitable for toddlers and is designed for adult learners rather than entertaining a 1–3-year-old."
+    },
+    {
+      "id": "178836P1",
+      "title": "Harley-Davidson Guided Island Tours",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Motorcycle guided tours involve high noise, speed, prolonged exposure, and lack appropriate child restraints/helmets, making them unsafe and impractical for toddlers."
+    },
+    {
+      "id": "325347P4",
+      "title": "Private Dive + videographer/Photographer (Certified divers only)",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is an activity for certified adult divers in water and not safe or practical for a toddler, who cannot participate or be meaningfully engaged."
+    },
+    {
+      "id": "6687ATV",
+      "title": "Aruba North Coast ATV Desert Adventure",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "ATV desert adventure is unsafe and impractical for a toddler due to rough terrain, speed, legal/age restrictions, long duration, and lack of appropriate seating/restraints."
+    },
+    {
+      "id": "292552P2",
+      "title": "Aruba Create Your Own Island Tour",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A customizable 4‑hour island tour is likely safe and practical for a toddler (stroller seating, short stops, low exertion) and offers varied sights/brief beach/play stops that a toddler can enjoy, but specifics vary by chosen itinerary so certainty is limited."
+    },
+    {
+      "id": "109524P9",
+      "title": "Explore On Your Own Offroad UTV 6 Seat",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "An 8‑hour off‑road UTV ride is noisy, very bumpy, and impractical for a 1–3-year-old despite claimed infant seats, so it’s neither reliably safe nor enjoyable for a toddler."
+    },
+    {
+      "id": "200215P1",
+      "title": "Aruba's Northern Coast Horseback Adventure",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator age limits and the nature of guided horseback riding (minimum child age ~10, saddle/seat and safety unsuitable for toddlers) make it unsafe and impractical for a 1–3-year-old."
+    },
+    {
+      "id": "419440P1",
+      "title": "Sea Glass Island Aruba Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Activity appears to require moderate fitness, has age ticketing that excludes very young children, and is lengthy/physically demanding so it’s neither safe nor engaging for a 1–3‑year‑old."
+    },
+    {
+      "id": "178836P3",
+      "title": "Harley-Davidson RENTALS ONLY 8 hrs",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "An 8‑hour motorcycle rental requires a licensed rider and involves significant safety, seating and exposure risks making it neither safe nor age‑appropriate for a toddler."
+    },
+    {
+      "id": "6593P14",
+      "title": "Salsa, Sunsets & Mojitos at Sea",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "An adult-focused sunset salsa and mojito cruise is noisy, alcohol-centered, and not designed for under-4s so it’s unsafe/impractical and unlikely to engage a toddler."
+    },
+    {
+      "id": "5585429P1",
+      "title": "Aruba Half day Private Jeep Tour - Sightseeing and more",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Four-hour off‑road jeep tours typically lack proper child restraints and involve bumpy terrain, heat and noise that make them unsafe and impractical for a 1–3-year-old despite operator claims."
+    },
+    {
+      "id": "47774P3",
+      "title": "Aruba UTV & ATV Adventure",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road UTV/ATV rides are noisy, bumpy, and designed for adults with safety/age restrictions, making them unsafe and impractical for a 1–3‑year‑old."
+    },
+    {
+      "id": "441143P8",
+      "title": "Aruba Natural Pool Jeep Adventure – Natural Bridge & Casibari",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rough off‑road jeep ride, uneven rocky terrain and likely swimming/remote natural pool make it unsafe and impractical for a 1–3 year old."
+    },
+    {
+      "id": "109524P2",
+      "title": "Aruba Rental Explore On Your Own",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Self‑drive off‑road vehicle rental involves rough terrain, long exposure, likely no child restraints and is aimed at adults rather than an activity a toddler would safely enjoy."
+    },
+    {
+      "id": "33158P4",
+      "title": "UTV Off Road Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "UTV rides are bumpy, noisy, and lack appropriate child seating/restraints for toddlers, and the long off‑road tour is not practical or enjoyable for a 1–3 year old."
+    },
+    {
+      "id": "137607P17",
+      "title": "Aruba Outback Safari Jeep Tour - Lighthouse, Arikok & Conchi Pool",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rugged, bumpy 4.5‑hour off‑road jeep tour with likely no child restraints, long exposures and limited facilities makes it unsafe/impractical and offers little meaningful engagement for a 1–3‑year‑old."
+    },
+    {
+      "id": "377394P7",
+      "title": "2-Seater UTV Island Tour in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Two-seat off-road UTVs on a 4-hour island tour are noisy, bumpy, likely lack proper child restraints and the operator’s adult-only ticketing and warnings make it unsafe and impractical for a toddler to enjoy."
+    },
+    {
+      "id": "137607P12",
+      "title": "Aruba UTV Tour with Natural Cave Pool and Cliff Jumping",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Minimum passenger age is 4 and the activity involves rough UTV terrain, swimming and cliff-jumping not safe or practical for a 1–3‑year‑old."
+    },
+    {
+      "id": "178836P2",
+      "title": "Harley-Davidson RENTALS ONLY 4 hrs",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Motorcycle rentals are unsafe and impractical for toddlers due to lack of appropriate restraints, high noise/vibration, exposure, and they won’t meaningfully enjoy or benefit from the activity."
+    },
+    {
+      "id": "377394P1",
+      "title": "UTV Island Tour around Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A bumpy, off‑road UTV tour with long duration, noise, limited child restraints and safety risks is neither safe nor practical for a 1–3 year‑old and unlikely to be enjoyable."
+    },
+    {
+      "id": "39473P5",
+      "title": "UTV Morning Tour: Discover Aruba's Hidden Treasures",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Long, rough off‑road UTV ride with bumpy terrain, no child restraints, high noise and discomfort makes it unsafe and impractical for a 1–3 year‑old and unlikely to be enjoyable."
+    },
+    {
+      "id": "337516P1",
+      "title": "2-Hour Horseback Riding Tour to Little Natural Bridge in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Horseback tours like this typically require a minimum child age (operator ticketing starts at 6) and are unsafe/impractical for toddlers due to saddle restraints, duration, terrain and riding requirements."
+    },
+    {
+      "id": "200215P3",
+      "title": "Horseback Riding and Natural Pool Adventure in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Minimum recommended age is well above toddler range and the activity includes horseback riding and a natural pool with terrain and water risks unsuitable and impractical for 1–3 year olds."
+    },
+    {
+      "id": "13526P12",
+      "title": "Aruba Kayak Explorers",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Kayaking requires independent paddling, operator prohibits children under 10, and the long water-based activity is impractical and unsafe for a toddler."
+    },
+    {
+      "id": "13526P5",
+      "title": "Antilla Shipwreck Seabob Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "The activity involves seabob/water-based snorkeling with a stated ticket minimum of 12 years and safety/physical requirements, so it’s not safe or appropriate for a 1–3-year-old."
+    },
+    {
+      "id": "14261P1",
+      "title": "Horseback Ride Tour to Natural Pool in Arikok National Park",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Minimum age is 8 and the multi-hour horseback ride over rough terrain with strict weight/health limits makes it unsafe and impractical for a toddler."
+    },
+    {
+      "id": "212359P5",
+      "title": "Aruba Full Island Private Tour: 4 Hours",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "Private island drives with short stops are generally adaptable and entertaining for toddlers, but car-seat availability and exact stop activities are uncertain so suitability is not guaranteed."
+    },
+    {
+      "id": "330511P1",
+      "title": "Horseback Riding Wariruri Beach Tour in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Toddlers (1–3 yrs) are below the operator's stated infant/child bands and too young for safe, meaningful horseback riding on a 90‑minute beach tour."
+    },
+    {
+      "id": "47774P4",
+      "title": "Aruba Natural Pools Northshore Safari Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Long off‑road safari with rough terrain, rocky natural pools, no child ticket under 5 and significant safety/fitness demands make it unsafe and unsuitable for a 1–3 year‑old."
+    },
+    {
+      "id": "8936P1",
+      "title": "Arusun Catamaran Sail with Snorkeling in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Open-water snorkeling plus a 2.5-hour catamaran trip is aimed at adults and involves safety, supervision, and activity (snorkeling) toddlers can't participate in, so it's not safe/practical or engaging for a 1–3-year-old."
+    },
+    {
+      "id": "367744P2",
+      "title": "Full-Day Aruba Sightseeing island Tour with Baby Beach Swim",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Calm, shallow Baby Beach swim plus short sightseeing stops are safe and practical for a 1–3‑year‑old and include beach play a toddler will enjoy, though plan for sun breaks and naps during the long day."
+    },
+    {
+      "id": "13835P20",
+      "title": "Horseback Riding 2 Hr SUNSET , Rock formation & North Coast Ride",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A two‑hour sunset horseback trail is unsafe/impractical for a 1–3‑year‑old (balance, long duration, terrain and potential gait/pace) and unlikely to be enjoyable despite the operator note about under‑5s."
+    },
+    {
+      "id": "117113P1",
+      "title": "The Whole Story Tour with A Ride",
+      "verdict": false,
+      "confidence": "low",
+      "reason": "A two‑hour guided tour with a ride is likely aimed at older children/adults and may be too long/unstimulating for a 1–3 year old despite stroller access and no explicit minimum age."
+    },
+    {
+      "id": "47774P7",
+      "title": "Aruba Safari Jeep Tour and Beach Cliff Jumping",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Activity involves rough jeep terrain and cliff-jumping with a child minimum of 5 years and conditions unsafe/practical for toddlers, so it's neither suitable nor enjoyable for a 1–3-year-old."
+    },
+    {
+      "id": "441143P2",
+      "title": "Aruba Half-Day Full Island Safari Adventure with Baby Beach Swim",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road safari with bumpy open transport, 4‑hour duration and operator age bands starting at 4 make it impractical/unsuitable for a 1–3-year-old."
+    },
+    {
+      "id": "115682P2",
+      "title": "Aruba UTV Rental: 4-Seater for Adventure Exploration",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Open UTVs on rough terrain with high noise, lack of proper child restraints/seat requirements and long duration make it unsafe and impractical for a 1–3‑year‑old."
+    },
+    {
+      "id": "300281P10",
+      "title": "Discover Sea Glass Island: Aruba’s Must-Do Adventure",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Likely involves boat transfers, uneven terrain and moderate physical activity with no provision for very young children and child pricing starts at age 6, so it is neither safe nor practical for a 1–3-year-old."
+    },
+    {
+      "id": "6687P4",
+      "title": "Highlights of Aruba Island Tour",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "A 4-hour island sightseeing tour with stroller/pram and infant-seat options, short stops, and no strenuous activity is safe and practical for a toddler and offers enough varied sights and brief activities to keep them engaged."
+    },
+    {
+      "id": "39473P6",
+      "title": "Aruba Northcoast UTV Afternoon Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Long, rough off‑road UTV tour with no child restraints, high noise/bump exposure and 4.5‑hour duration makes it unsafe and impractical for a toddler and unlikely to be enjoyable."
+    },
+    {
+      "id": "3046P8",
+      "title": "Private Tour: Essential Tour of Aruba",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Three-hour private sightseeing tour with stroller/infant-seat options and gentle activity level is generally safe, practical, and offers varied sights a toddler can enjoy."
+    },
+    {
+      "id": "153287P4",
+      "title": "Baby Beach Day Roundtrip",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A beach day with lap seating and infant seats can be safe and enjoyable for a 1–3-year-old, but the long 6‑hour duration and limited operator details reduce certainty."
+    },
+    {
+      "id": "6593P8",
+      "title": "Iconic Aruba Sail and Snorkel Experience",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A sail-and-snorkel trip centers on swimming and snorkelling that toddlers cannot participate in and involves prolonged time on a boat and in open water where safety and enjoyment for a 1–3-year-old are poor."
+    },
+    {
+      "id": "13526P9",
+      "title": "Action-Packed Half Day Aruba UTV Tour and Arashi Beach",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator excludes children under 6 and the rough, fast UTV terrain and seating/noise make it unsafe and impractical for a 1–3-year-old."
+    },
+    {
+      "id": "212359P4",
+      "title": "Aruba Island Private Tour: 3 Hours",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "A 3-hour private island tour is generally safe and practical for a 1–3-year-old (short driven segments, option to stay seated, stroller-friendly stops and flexible pacing) and offers sights and beach stops that are engaging for toddlers."
+    },
+    {
+      "id": "7389P10",
+      "title": "Half-Day Aruba Animal Sanctuary Guided Tour",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "A supervised animal sanctuary visit is engaging for 1–3 year olds and the operator notes lap seating/prams and low physical demands, making it safe and practical for a toddler."
+    },
+    {
+      "id": "186518P4",
+      "title": "Aruba PADI Scuba Diving Program Non Certified Divers",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Minimum age/practical requirements (youth start at 10), water safety and equipment needs make it unsafe and inappropriate for a 1–3-year-old."
+    },
+    {
+      "id": "128740P13",
+      "title": "6-Seat UTV Rental: Your Own Aruba Adventure",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "UTVs are typically bumpy, noisy, and lack reliable child restraint/anchorage for 1–3-year-olds and an 8‑hour off‑road rental is impractical and unsafe for a toddler."
+    },
+    {
+      "id": "13526P13",
+      "title": "Banana Adventure Catamaran Shipwreck Snorkel and Turtle Swim",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 3‑hour catamaran trip focused on snorkeling and swimming around a shipwreck involves sea conditions, water activities toddlers can't participate in, and long sun/exposure and motion that make it unsafe/impractical and not engaging for a 1–3-year-old."
+    },
+    {
+      "id": "2785MORSNORKEL",
+      "title": "Half-Day Snorkel Sail Tour with Caribbean Lunch",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "The tour is adult‑focused snorkeling on a 4‑hour boat trip where a toddler cannot participate safely in the water and would likely be uncomfortable, bored, or at risk from sun/sea conditions despite life‑vest availability."
+    },
+    {
+      "id": "103088P3",
+      "title": "Adults Only Catalina Bay Small Group Snorkel & Sunset Sail",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Listing is adults-only and the activity centers on snorkeling and an adult-focused sunset sail, which is not safe or appropriate for a toddler."
+    },
+    {
+      "id": "13835P2",
+      "title": "Aruba Horseback Riding Tour to Alto Vista Chapel",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Horseback riding tour is unsafe/impractical for a 1–3 year old due to seating/restraint, minimum-age limits and the 2‑hour active ride on varied terrain."
+    },
+    {
+      "id": "3046P7",
+      "title": "Made in Aruba Sightseeing Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator states a minimum age of 6 years, which rules out toddlers aged 1–3."
+    },
+    {
+      "id": "13526P14",
+      "title": "Banana Adventure Catamaran Tropical Sunset Sail",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A calm catamaran sunset sail can be safe and engaging for a 1–3 year old (short ride, open space, novelty of water and views) but the 2-hour duration, variable sea conditions, lack of explicit child life-jacket/seat details, and possible nap schedule make this only conditionally practical."
+    },
+    {
+      "id": "444239P7",
+      "title": "Coral Sunset Sail with 3 Course Dinner in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 3‑hour sunset sail with a formal 3‑course dinner is adult‑focused, involves open water and motion, long seated dining, and is unlikely to be safe/practical or engaging for a 1–3‑year‑old."
+    },
+    {
+      "id": "200215P2",
+      "title": "Aruba North Coastline: Small-Group Horseback Riding Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Ride requires minimum age/size and safety (weight limit, group instruction for older children), so a 1–3-year-old cannot safely or practically participate."
+    },
+    {
+      "id": "128740P9",
+      "title": "5 seat UTV Rental: Your Adventure, Your Way",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "UTV rides lack appropriate child restraints/helmets and involve rough, noisy off‑road terrain and long durations unsuitable and unsafe for a 1–3 year‑old."
+    },
+    {
+      "id": "119085P1",
+      "title": "Dolphin Catamaran Snorkel and Sail with Open Bar",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Three-hour snorkel-and-open-bar catamaran is adult-focused with water activities unsuitable for a toddler and limited child-specific safety/entertainment provisions."
+    },
+    {
+      "id": "13526P6",
+      "title": "Aruba Seabob Scooter Reef Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Seabob reef tours require active rider participation and have a minimum/advertised age of 12, making them unsafe and unsuitable for a 1–3-year-old despite operator claims about infant seating."
+    },
+    {
+      "id": "13835P11",
+      "title": "Aruba Horseback Riding Tour For Advanced Riders",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is an advanced 2‑hour horseback ride with age limits, fitness requirements and safety risks that make it unsafe and impractical for a 1–3‑year‑old who also wouldn’t meaningfully participate."
+    },
+    {
+      "id": "12431P1",
+      "title": "Half-Day Aruba Island Tour from Oranjestad",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "A gentle half-day sightseeing tour with stroller/infant seat options, multiple short stops and low exertion is safe, practical and offers sights a 1–3-year-old can enjoy."
+    },
+    {
+      "id": "12431P3",
+      "title": "Full-Day Aruba History and Must-See Landmarks Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 7‑hour history/landmarks sightseeing tour is adult-focused and too long/structured for a 1–3 year‑old to safely enjoy despite lap seats and stops."
+    },
+    {
+      "id": "13835P3",
+      "title": "Aruba Countryside: Horseback Adventure to Urirama Cove",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is a 90‑minute trail horseback ride with a ticketed minimum age of 6 and uneven/active riding conditions, so it’s not safe or practical for a 1–3‑year‑old."
+    },
+    {
+      "id": "39473P3",
+      "title": "Customized Aruba Island Private Tour for All Ages",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Private, customizable 4‑hour island tours with claimed infant seats and low physical demands are safe, practical, and offer short, flexible stops that a 1–3 year‑old can enjoy."
+    },
+    {
+      "id": "5494168P1",
+      "title": "Guided Trikes Tour Around Aruba Island",
+      "verdict": false,
+      "confidence": "low",
+      "reason": "Most guided trike tours are aimed at adults and typically lack proper child seats/restraints and can be long, bumpy, and exposed—making them impractical and potentially unsafe for a 1–3-year-old despite operator claims."
+    },
+    {
+      "id": "300281P2",
+      "title": "Spanish Lagoon Mangrove Trail & Bird Watching",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Mangrove trail bird‑watching typically involves uneven terrain, slow quiet observation near water and adults‑paced activity that is neither safe nor engaging for a 1–3‑year‑old."
+    },
+    {
+      "id": "6593BRUNCH",
+      "title": "Premium Morning Snorkel Sail with Champagne Brunch",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A morning snorkel sail centers on adult snorkeling and boating for 4 hours (with alcohol served) and is not safe or engaging for a 1–3-year-old who cannot snorkel and would not meaningfully enjoy the activity."
+    },
+    {
+      "id": "39473P2",
+      "title": "Aruba Countryside Tour",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "The tour allows infants (0–3) and offers infant seats and frequent stops so a 1–3 year old can be safely seated, get out to explore, and tolerate a ~4‑hour excursion, but operator claims are uncertain about terrain/noise so suitability isn’t certain."
+    },
+    {
+      "id": "47607P4",
+      "title": "Aruba Happy Hour Sunset Sail with Savory Bites and Cocktails",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Calm, short shuttle to a roomy catamaran with child-friendly boarding and allowed infants makes a 2‑hour sunset sail safe and generally enjoyable for a 1–3 year‑old, though parents should plan for snacks and breaks."
+    },
+    {
+      "id": "106422P3",
+      "title": "Aruba 2-Tank Guided Dive for Certified Divers / rental equipment",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Scuba diving is for certified participants (min age 10), is unsafe and impractical for a toddler and offers nothing suitable for their engagement."
+    },
+    {
+      "id": "476164P2",
+      "title": "E-Scooter Rental Aruba – 4 Hours Self-Guided (1 or 2-seater)",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "E-scooters are unsafe and impractical for a 1–3 year old (no proper child seating or restraints, balance and speed risks, and long self-guided duration)."
+    },
+    {
+      "id": "47774P1",
+      "title": "Colorful Beach Bus Sightseeing Tour of Aruba",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "A beach sightseeing bus is safe and practical for a 1–3-year-old (lap or stroller seating, short stops and easy boarding) and offers visual stimulation and beach stops a toddler can enjoy."
+    },
+    {
+      "id": "15815P2",
+      "title": "Aruba 2-Tank Dive Excursion for Certified Divers",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Minimum age 10 and activity is scuba diving for certified adults so it is neither safe nor appropriate or enjoyable for a toddler."
+    },
+    {
+      "id": "7389P1",
+      "title": "Aruba Island Sightseeing Tour",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "A 3.5‑hour guided island sightseeing tour with stroller/pram allowance, lap or specialist seats, and short stops is safe, practical and offers enough visual variety to engage a 1–3 year‑old."
+    },
+    {
+      "id": "39473P4",
+      "title": "Aruba Jeep Tour: Natural Pool, Caves and Baby Beach Adventure",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator forbids under-5s and the tour involves rough bumpy off-road travel, extended duration, and activities (caves, natural pools) unsuitable and impractical for a 1–3-year-old."
+    },
+    {
+      "id": "13835P15",
+      "title": "Sunset Horseback Ride in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Although the operator allows children under 5 to ride with a parent, a 90‑minute sunset horseback ride is impractical and unsafe for a 1–3‑year‑old (balance, restraint, long duration, and fall risk) and unlikely to be enjoyable for a toddler."
+    },
+    {
+      "id": "292552P5",
+      "title": "Aruba Private Full Island Tour",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "A private 4‑hour island sightseeing tour with vehicle transport, stroller/infant‑seat options, and flexible stops is safe, practical and offers varied sights (beaches, animals, easy walks) that a 1–3 year‑old can enjoy."
+    },
+    {
+      "id": "13526P10",
+      "title": "Half Day UTV Rentals",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator minimum/recommendation is 4+, UTVs are noisy, bumpy, require proper restraints and are impractical and unsafe for toddlers (1–3 yrs)."
+    },
+    {
+      "id": "12431P9",
+      "title": "Aruba Baby Beach Express Tour",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Baby Beach is shallow, calm and family-friendly and the tour allows strollers and infant seating, making it safe and enjoyable for a 1–3‑year‑old despite the multi-hour duration."
+    },
+    {
+      "id": "186518P3",
+      "title": "Aruba Snorkeling Tour: Mangel Halto and Baby Beach",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is a snorkeling-focused 4-hour tour with water, limited seating/shade and activities aimed at adults—toddlers can't snorkel and the logistics/duration make it impractical and unsafe as a primary toddler activity."
+    },
+    {
+      "id": "186518P13",
+      "title": "Baby Beach Scuba Diving for Non Certified, Beginner Diver",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Scuba diving is an adult-focused activity with water depth, duration, and safety requirements that make it impractical and not meaningful for a 1–3-year-old toddler."
+    },
+    {
+      "id": "2785AFTSNORKEL",
+      "title": "Antilla Shipwreck and Catalina Bay Snorkel Sail",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Three-hour snorkel-focused boat trip involves water exposure, long duration and activity unsuitable for a 1–3‑year‑old who cannot snorkel and would likely be bored or uncomfortable despite being allowed on board."
+    },
+    {
+      "id": "7927P1",
+      "title": "Aruba Ecological & Coastline Horseback Ride with Beach Photo Stop",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator minimum riding age is 5, so a 1–3-year-old cannot participate and the activity is not designed for toddlers to safely or enjoyably join."
+    },
+    {
+      "id": "119085P2",
+      "title": "Aruba Sunset Sail Cruise Aboard The Dolphin Catamaran",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A calm sunset catamaran is generally safe and engaging for a 1–3-year-old (scenic ride, fresh air, short play), but the 2‑hour duration, shuttle-boarding and open-deck supervision needs make success dependent on the child and caregiver readiness."
+    },
+    {
+      "id": "37387P3",
+      "title": "Aruba Jolly Pirate Afternoon Sail with Snorkeling",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Three‑hour pirate sail with open‑water snorkeling is primarily adult‑oriented, involves sustained boat motion, water risk and snorkeling that toddlers can’t join, so it’s not practical or suitably enjoyable for a 1–3‑year‑old."
+    },
+    {
+      "id": "300281P8",
+      "title": "Adventure Kayak & Snorkeling at Reef Island Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Activity involves open-water kayaking and snorkeling that require swimming ability, sustained sitting and safety gear unsuitable for 1–3-year-olds and offers little they would enjoy."
+    },
+    {
+      "id": "2455HAPPY",
+      "title": "Aruba Afternoon Snorkel Sail aboard Palm Pleasure Catamaran",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator minimum age is 3 and the activity involves snorkeling/boat conditions, duration, and water hazards that make it unsafe and impractical for a toddler (1–3 yrs)."
+    },
+    {
+      "id": "137607P23",
+      "title": "Aruba Private Luxury Boat Tours - Sail, Snorkel, Fishing and More",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Most activities (snorkeling, fishing) and boat conditions (sea motion, no dedicated toddler seating or life-jacket/age rules stated) make it unsafe or impractical and offer little engaging value for a 1–3 year old."
+    },
+    {
+      "id": "6593P18",
+      "title": "An Astronomical Moment: Aruba Celestial Sunset Cruise",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 2.5-hour sunset cruise is primarily an adult-oriented activity (timing, length, limited child facilities and safety considerations on open water) so it’s not reliably practical or enjoyable for a 1–3-year-old."
+    },
+    {
+      "id": "37387P2",
+      "title": "Aruba Sunset Jolly Pirate Sail with Open Bar",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is an adult-focused 2‑hour sunset booze cruise with limited child facilities, movement/sea risk, and little toddler‑appropriate activity, so it's not safe/practical or engaging for a 1–3‑year‑old."
+    },
+    {
+      "id": "292552P4",
+      "title": "Private Aruba Beach Hop and Snorkel Experience",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 4‑hour beach hop and snorkel experience is aimed at adults and involves water, snorkeling, and long periods away from shade/structure that a 1–3 year old would not safely or enjoyably tolerate."
+    },
+    {
+      "id": "186518P5",
+      "title": "Small Group Snorkeling at Mangel Halto Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Toddlers (1–3) cannot safely or meaningfully participate in snorkeling—the tour is water-based, lengthy, and aimed at swimmers rather than entertaining or suitable for very young children."
+    },
+    {
+      "id": "2785SUNSET",
+      "title": "Aruba Sunset Catamaran Sail with Appetizers and Open Bar",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Short, family‑friendly daytime catamaran with life jackets available and stroller/pram access makes it safe and reasonably enjoyable for a 1–3 year‑old (though bring shade, snacks and be prepared to leave early if needed)."
+    },
+    {
+      "id": "13835P17",
+      "title": "Aruba Private, 2 Hour Horseback Riding Tour For Advanced Riders",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is an advanced, moderate‑fitness 2‑hour horseback ride with minimum participant age/limits and safety/weight restrictions, so it is neither suitable nor enjoyable for a 1–3-year-old."
+    },
+    {
+      "id": "300281P5",
+      "title": "Private Aruba Kayak & Snorkeling Tour + Transortation",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Kayaking and snorkeling are adult-focused, require sustained water exposure and active participation that toddlers (1–3) cannot safely or enjoyably do."
+    },
+    {
+      "id": "245508",
+      "title": "Aruba Sunset Sail with Open Bar",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Two-hour sunset cruise with open bar is aimed at adults, has water safety/exposure and operator min age/child band starts at 3, so it's not safe or appropriate for a 1–3-year-old to both enjoy and participate."
+    },
+    {
+      "id": "13835P16",
+      "title": "Aruba 2,5 hrs Horseback Riding For Advanced Riders",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Advanced 2.5‑hour horseback ride requires capable adult riders, is unsafe/impractical for a 1–3 year old and not an experience a toddler could meaningfully enjoy."
+    },
+    {
+      "id": "128740P6",
+      "title": "4-Seat UTV Rentals: Your Adventure, Your Way",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "UTV off‑roading is noisy, bumpy, and lacks appropriate child restraints and safety measures for 1–3 year olds, and an 8‑hour rental is impractical for a toddler."
+    },
+    {
+      "id": "300281P7",
+      "title": "Sunset Sea Glass Island Kayak Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Kayaking to islands requires moderate fitness, stable seating and safety standards (operator lists children from 6+), and is not safe or practical for a 1–3‑year‑old nor likely enjoyable for them."
+    },
+    {
+      "id": "128740P14",
+      "title": "Private Jeep Tour: Explore Aruba's National Park Off-Road",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rough off‑road terrain, long 4‑hour duration and potential lack of reliable child restraints make it unsafe/impractical for a 1–3‑year‑old even if they might enjoy short scenic stops."
+    },
+    {
+      "id": "476164P5",
+      "title": "Electric Scooter Rental Aruba – 1 or Multiple Days Rental",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Toddlers cannot safely ride or be securely seated on electric scooters for hours, and the activity is aimed at adult riders rather than being enjoyable or appropriate for 1–3 year olds."
+    },
+    {
+      "id": "214149P3",
+      "title": "Private German Speaking Jeep Tours",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Private jeep tours are likely bumpy, potentially off‑road, and typically lack guaranteed child restraint/age-appropriate seating, making them impractical and possibly unsafe for a 1–3-year-old despite being enjoyable for adults."
+    },
+    {
+      "id": "106422P5",
+      "title": "Aruba 1-Tank guided Dive for certified divers with own equipment",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Toddlers cannot participate (minimum age 10 and certified diver required), and the activity is unsafe and impractical for a 1–3 year-old."
+    },
+    {
+      "id": "7389P8",
+      "title": "Aruba Mangel Halto and Baby Beach Snorkeling Guided Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Minimum age is 9 and the activity involves snorkeling, boats, water and physical demands unsuitable and not enjoyable for a 1–3-year-old."
+    },
+    {
+      "id": "128740P5",
+      "title": "Aruba Jeep Rental Adventure",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Likely long, bumpy off‑road jeep driving without guaranteed child restraints or safe seating and too noisy/lengthy for a toddler to enjoy."
+    },
+    {
+      "id": "13835P1",
+      "title": "Aruba Horseback Riding Tour to Hidden Lagoon",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Minimum age/booking categories and the 60‑minute horseback ride (saddle seating, uneven terrain and lap‑riding only by parental comfort) make it impractical and unsuitable for a toddler."
+    },
+    {
+      "id": "7389P2",
+      "title": "Aruba Island Sightseeing Tour Plus Arashi Beach Visit",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Includes a relatively gentle sightseeing transfer plus a beach stop (shallow sand/shallow water) with stroller/pram and lap-seat options, so it's safe, practical and offers beach play that a toddler will enjoy."
+    },
+    {
+      "id": "137607P22",
+      "title": "Aruba Jet Ski Rental — Exciting Water Adventures Await",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Minimum rider age is 4 and jet skis are unsafe and impractical for toddlers due to speed, exposure, noise, and lack of appropriate restraints."
+    },
+    {
+      "id": "106422P4",
+      "title": "Aruba 1-Tank guided Dive for certified divers with rental equipment",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Minimum age 10 and activity is certified-diver scuba diving with equipment and depth risks, so it's neither safe nor appropriate or enjoyable for a toddler."
+    },
+    {
+      "id": "474314P1",
+      "title": "Aruba‘s #1 Clear Kayak INSTANT DELIVERY@arubaphotoshootexperience",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Ticketing starts at age 7 and operator restrictions plus water safety make it unsuitable for a 1–3‑year‑old."
+    },
+    {
+      "id": "186518P1",
+      "title": "Shore Dive Aruba for Certified Divers",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Shore dives are scuba activities for certified divers (typically older children/adults), involve water, gear, and risks unsuitable and impractical for a 1–3‑year‑old."
+    },
+    {
+      "id": "325347P5",
+      "title": "Private Dive at Shipwreck + Beautiful Reef Spot(Certified divers)",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is a scuba diving activity for certified divers with water depth, safety risks, and no toddler engagement or suitable facilities, so it's neither safe nor appropriate for a 1–3-year-old."
+    },
+    {
+      "id": "300281P12",
+      "title": "Private Sea Glass Island Kayak Morning + Transfer",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Activity likely requires moderate fitness, operator lists children from age 6, and sea kayaking with transfers is not safe or practical for a 1–3-year-old."
+    },
+    {
+      "id": "186518P7",
+      "title": "Boat Dive Shipwreck/ Airplanes/ Reef /2 tanks",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is an adult-focused boat scuba dive trip (two-tank) with open-water safety, duration, and activity unsuitable and impractical for a 1–3-year-old who cannot participate or meaningfully enjoy it."
+    },
+    {
+      "id": "7927P13",
+      "title": "Cruise Shore Excursion Aruba’s Eco and Beach Horseback Riding",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator age bands start at 4 and horseback riding requires independent, safely restrained riders — toddlers (1–3) cannot participate safely or meaningfully."
+    },
+    {
+      "id": "5585429P7",
+      "title": "Snorkeling with sea turtles Beach hopping Private Jeep Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Toddlers cannot safely or meaningfully participate in snorkeling, the 4‑hour beach‑hopping and bumpy jeep transfers make it impractical, and the activity is aimed at older children/adults."
+    },
+    {
+      "id": "89829P36",
+      "title": "Aruba Shore Excursion: The Highlights and Delights Tour",
+      "verdict": false,
+      "confidence": "low",
+      "reason": "A 3.5‑hour shore excursion of highlights likely involves extended walking, heat exposure and adult‑focused stops with limited child facilities, so it’s unlikely to be practical or engaging for a 1–3‑year‑old."
+    },
+    {
+      "id": "45382P418",
+      "title": "Aruba Afternoon Snorkel Sail with Two Stops Lunch and Open Bar",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is primarily an adult-focused snorkeling boat with multi-hour sea time, water activities, and limited toddler-appropriate seating/engagement, so it's not safe and practical for a 1–3-year-old to meaningfully enjoy."
+    },
+    {
+      "id": "45382P429",
+      "title": "Aruba Sunset Catamaran Cruise with Open Bar and Light Bites",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A 2‑hour catamaran is commonly safe and practical for a toddler who can sit on a caregiver’s lap and enjoy the boat ride and views, but the tour appears adult‑focused (open bar, light bites) with no kid‑specific amenities and operator notes suggest laps only, so suitability depends on your child’s tolerance for a two‑hour boat outing."
+    },
+    {
+      "id": "383257P1",
+      "title": "All of Aruba Island & beach Tour",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Typical island-and-beach tours involve seated transport with stroller-friendly stops and beach time that is safe and engaging for a 1–3-year-old."
+    },
+    {
+      "id": "5617356P7",
+      "title": "Safari Jeep Tour Adventure by B&H AM Tour - Caves & Natural Pool",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Four-hour safari with bumpy jeep rides, uneven cave terrain and natural pools presents safety, restraint and practicality issues for a 1–3-year-old and is aimed at older kids/adults."
+    },
+    {
+      "id": "5581415P1",
+      "title": "Private Island Tour in Premium A/C Jeeps",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "Jeep transfers with available child seats and likely beach play on a private island can be safe and enjoyable for a 1–3 year old, but key details (duration, shore facilities, water depth, and confirmed child restraints) are unclear."
+    },
+    {
+      "id": "5665562P4",
+      "title": "Sea Glass Island Kayak Tour Aruba in Morning or Midday",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Requires minimum child age 6, involves prolonged kayaking in open water and moderate physical exertion—unsafe and impractical for a 1–3-year-old."
+    },
+    {
+      "id": "13835P21",
+      "title": "Aruba Customized eco friendly Private Island Tour",
+      "verdict": false,
+      "confidence": "low",
+      "reason": "Likely involves boat transfers, multi-hour outing and adult-focused activities (snorkeling/eco talks) that are impractical for a 1–3 year‑old even if not strictly unsafe."
+    },
+    {
+      "id": "5665562P5",
+      "title": "Kayak and Snorkel Tour at Mangel Halto Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Tour requires active kayaking and snorkeling with minimum participant age ~6, long water exposure and physical demands make it unsafe and unsuitable for a 1–3-year-old."
+    },
+    {
+      "id": "5683525P1",
+      "title": "THE LOCAL WAY : Turtle & reef coral Snorkeling experience",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Minimum child age starts at 4 and activity involves snorkeling in open water, so it's not safe or practical for a 1–3-year-old."
+    },
+    {
+      "id": "5665562P6",
+      "title": "Sunset Kayak and Snorkel Tour at Mangel Halto Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Toddlers (1–3) cannot safely or practically participate in a 2.5‑hour kayak-and-snorkel tour that requires paddling, exposes them to open water and sun, and has a minimum participant age of 6."
+    },
+    {
+      "id": "186518P14",
+      "title": "Mangel Halto Adventure Sea Scooters",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Sea-scooter activities require size, strength, water safety and focus that toddlers lack and are not practical or enjoyable for a 1–3-year-old."
+    },
+    {
+      "id": "45382P428",
+      "title": "Aruba Snorkel Cruise to the Antilla Shipwreck with Brunch",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A snorkeling cruise to a shipwreck involves open-water activity, boat motion and snorkeling that toddlers cannot safely or meaningfully participate in and are likely to find stressful or boring."
+    },
+    {
+      "id": "13835P27",
+      "title": "Aruba Sunrise Horse ride with hotel transfer",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Activity requires minimum child age around 6, involves prolonged horseback riding and physical risk/unsuitable seating for a 1–3 year-old, so it's neither safe nor appropriate for toddlers."
+    },
+    {
+      "id": "115682P14",
+      "title": "Private Jeep Excursion in Aruba",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A private jeep tour can be safe and fun for a 1–3 year old if a proper child seat is provided, frequent stops are allowed, and rough off‑road sections are avoided, but availability of appropriate restraints and bumpy terrain make this uncertain."
+    },
+    {
+      "id": "461868P1",
+      "title": "Private Racket Sport Experience with Elite Athlete in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A two‑hour private racket sport lesson is adult‑focused, active and potentially hazardous (flying balls, fast movement) and unlikely to engage or be practical for a 1–3‑year‑old."
+    },
+    {
+      "id": "320728P2280",
+      "title": "Full Day Private Shore Tour in Oranjestad from Oranjestad Port",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A private shore tour can be tailored with stops, breaks and (claimed) infant seats making it practical and enjoyable for a 1–3 year old, though specifics (actual car-seat availability, heat, and long 7‑hour duration) are uncertain."
+    },
+    {
+      "id": "5526774P7",
+      "title": "Private Island Experience Local Sites Culture and Coastal Beauty",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "Beach/island exploration with stroller access and infant seats can be safe and engaging for a 1–3 year old, but boat transfers, water safety, and the long 4.5‑hour duration make this uncertain without operator specifics."
+    },
+    {
+      "id": "320728P484",
+      "title": "Private Transfer from Oranjestad Cruise Port to Oranjestad city",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Short private transfer with stroller/infant seat options is safe and practical for a toddler and a brief car ride/view is typically enjoyable for that age."
+    },
+    {
+      "id": "429943P2",
+      "title": "Classic Half‑Day Private Adventure:Snorkel & Explore Hidden Spots",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Activity involves boat/water time, moderate physical effort and snorkeling that toddlers cannot participate in and is impractical/unsafe for 1–3 year olds."
+    },
+    {
+      "id": "102406P5",
+      "title": "Aruba Element Private Boat Charter (L-Lounge)",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A private boat cruise can be safe and enjoyable for a 1–3 year old if parents supervise closely, bring sun protection, request child life jackets, and plan to shorten or modify the 3‑hour itinerary, but operator details on kid safety/equipment aren’t provided."
+    },
+    {
+      "id": "419440P2",
+      "title": "Aruba Kayak Fishing Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Open-water kayak fishing involves small unstable craft, fishing gear (hooks), and a 3‑hour outing unsuited to the safety, seating and attention needs of a 1–3 year old."
+    },
+    {
+      "id": "429943P1",
+      "title": "Premium Full‑Day Private Adventure:Snorkel & Explore Hidden Spots",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "An 8‑hour private snorkel/explore trip involves prolonged time on water, deep-water activity and limited safety/seating for toddlers so it’s impractical and not an activity a 1–3 year‑old would meaningfully enjoy."
+    },
+    {
+      "id": "6841P6",
+      "title": "Aruba UTV Off-Road Driving Experience North Coast Stops",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road UTVs, rough terrain, hiking and long duration make it unsafe and impractical for a 1–3 year‑old and they’d get little from it."
+    },
+    {
+      "id": "6841P7",
+      "title": "Aruba UTV Adventure to Natural Pool Jeep Transfer",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rough off‑road UTV/jeep transfer with long duration, likely no child restraints and bumpy/unsafe terrain makes it impractical and unsafe for a 1–3‑year‑old."
+    },
+    {
+      "id": "6841POOL",
+      "title": "Aruba Natural Pool and Indian Cave Rugged Jeep Safari",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rugged off‑road jeep, moderate hikes and a natural pool with possible strong currents plus a long 4.5‑hour schedule make it unsafe/impractical and not engaging for most 1–3 year‑olds."
+    },
+    {
+      "id": "299932P2",
+      "title": "Sunrise Hike & Swim in Natural Pool: Escape the Crowds and Heat",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Early-morning moderate hike with uneven terrain and an unsupervised natural swim makes it unsafe/unpractical for a 1–3-year-old and likely not enjoyable for them."
+    },
+    {
+      "id": "119085P10",
+      "title": "Private Boat Cruise with Snorkeling",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Main focus is snorkeling in open water which toddlers cannot safely participate in and the activity centers on adults rather than providing engaging, toddler-appropriate experiences."
+    },
+    {
+      "id": "102406P4",
+      "title": "Aruba Element Private Boat Charter (After-Lounge)",
+      "verdict": false,
+      "confidence": "low",
+      "reason": "A three-hour private boat charter can be risky and impractical for a 1–3 year old given unknown life‑jacket provision, sea conditions, prolonged exposure, and limited safe toddler seating despite likely entertainment value."
+    },
+    {
+      "id": "245504",
+      "title": "Best of Aruba by Bus",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 7‑hour sightseeing bus tour with long transfers, multiple adult‑oriented stops and heat exposure is impractical for a 1–3‑year‑old and unlikely to be engaging for a toddler."
+    },
+    {
+      "id": "122173P3",
+      "title": "Kayak Tour to Seaglass Island",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Open-water kayaking for 2.5 hours requires stable seating, physical effort, and likely a minimum age/child seating and is unsafe and impractical for a 1–3 year‑old who wouldn’t meaningfully enjoy it."
+    },
+    {
+      "id": "122173P1",
+      "title": "Kayak Tour at Mangel Halto and Spanish Lagoon",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Two-hour sea kayaking involves extended sitting in small boats without guaranteed toddler seating or safeguards and is unlikely to be safe or engaging for a 1–3-year-old."
+    },
+    {
+      "id": "2455SUB",
+      "title": "Aruba Atlantis Submarine Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Minimum age/height restriction excludes children under 4 and the confined, seated submarine environment is not practical or enjoyable for a toddler."
+    },
+    {
+      "id": "70453P2",
+      "title": "Aruba Night Glass Kayak Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Night glass-bottom kayaking is physically demanding, prohibits young children, and is unsafe/impractical for a 1–3-year-old while unlikely to be enjoyable for them."
+    },
+    {
+      "id": "70453P1",
+      "title": "Aruba Glass Bottom Kayak Tour through the Mangrove Forest",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Small glass‑bottom kayaks in mangroves pose tipping and supervision risks, often have minimum age limits and are not practical or engaging for a 1–3-year-old."
+    },
+    {
+      "id": "2455SEMI",
+      "title": "Aruba Semi-Submarine Cruise from Palm Beach",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Enclosed semi-submarine viewing is safe with infants on an adult's lap and offers visual marine life stimulation toddlers enjoy, though the 90‑minute duration may require bringing snacks and breaks."
+    },
+    {
+      "id": "358117P10",
+      "title": "Sea Glass Island Tour By Boat",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A short boat ride plus beach time collecting and playing among smooth sea glass can be safe and entertaining for a supervised toddler though watch for sharp pieces, water safety, and the 2.5‑hour duration."
+    },
+    {
+      "id": "358117P7",
+      "title": "Aruba Private Boat Tour with Snorkeling",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Main focus is snorkeling from a boat where a 1–3 year old cannot reasonably or safely participate and the trip likely involves exposure, limited facilities, and water risks making it impractical and not engaging for a toddler."
+    },
+    {
+      "id": "446074P1",
+      "title": "Private Aruba National Park Hiking & Natural Pool Swimming",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rough terrain, sun exposure and a 4‑hour hike plus swimming in natural rocky pools with waves make it unsafe and impractical for a 1–3‑year‑old who wouldn't meaningfully enjoy it."
+    },
+    {
+      "id": "6593P17",
+      "title": "Open Air Beach Bus Tour of Aruba",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Short rides, beach stops and stroller-friendly access make an open-air beach bus tour practical and enjoyable for a 1–3-year-old, though close supervision and sun protection are needed."
+    },
+    {
+      "id": "342849P3",
+      "title": "Semi - Private Spanish Lagoon Culture Heritage E-Bike Experience",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "E-bike tour requires adult riders, balance and moderate fitness with no child seating and is aimed at adults, so it's neither safe nor engaging for a 1–3-year-old."
+    },
+    {
+      "id": "5629889P1",
+      "title": "Full Day Jeep Tour with Arikok National Park and Caves",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Full-day bumpy jeep rides with uneven cave terrain, no child seats and physical demands make it unsafe/impractical and not suited to a toddler’s needs or enjoyment."
+    },
+    {
+      "id": "6841ISLAND",
+      "title": "Island Jeep Safari with Natural Pool Baby Beach and Lunch",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Long, bumpy jeep tour with rough terrain, an 8‑hour day without guaranteed car seats/child facilities and activity aimed at adults makes it unsafe/impractical and unlikely to engage a 1–3‑year‑old."
+    },
+    {
+      "id": "19808P5",
+      "title": "Half-Day Aruba UTV Adventure Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator age limits (minimum 8 years in rear seats), plus bumpy, noisy, half‑day off‑road conditions make it unsafe and impractical for a 1–3 year old."
+    },
+    {
+      "id": "19808P11",
+      "title": "UTV and Jeep Island Adventure Mix Up",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road UTV/Jeep ride is bumpy, potentially high‑speed/noisy and lacks safe child seating/restraints and is aimed at adults rather than providing toddler‑appropriate engagement."
+    },
+    {
+      "id": "2455NPJEEP",
+      "title": "Aruba Off Road Safari Tour to Natural Pool",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator minimum age is 6 and the tour involves off-road terrain and physical activity unsuitable for toddlers."
+    },
+    {
+      "id": "139296P2",
+      "title": "Sunday Open Bus Tours",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 3-hour open-top bus tour is long, exposed and geared to adults (child fares start at 3), so it’s not practical or engaging for a 1–3-year-old toddler."
+    },
+    {
+      "id": "7470P2",
+      "title": "Aruba UTV Adventure",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "UTV off‑roading is noisy, bumpy, and operator minimum passenger age is 9, so it’s neither safe nor suitable or enjoyable for a 1–3‑year‑old."
+    },
+    {
+      "id": "367744P1",
+      "title": "Half-Day Aruba Sightseeing Tour & Beach in an Air-condition Bus",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Air-conditioned bus, stroller-allowed and child ticketed, and the beach stop gives a toddler active, safe play time making the half-day tour practical and enjoyable with supervision."
+    },
+    {
+      "id": "5505210P3",
+      "title": "Sunrise Hike and Beach Meditation to Rancho Curason",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Operator disallows children under 5 and the activity involves hiking and quiet meditation unsuited to a 1–3-year-old's safety and attention span."
+    },
+    {
+      "id": "283728P3",
+      "title": "Private Mountain Bike Tour in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 2-hour mountain bike tour requires moderate fitness, uneven terrain, and offers no safe seating or engagement for a 1–3-year-old, so it isn’t practical or enjoyable for a toddler."
+    },
+    {
+      "id": "5555310P1",
+      "title": "Hooiberg Hill Hike (Sunrise, Sunset, Night)",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A moderately strenuous 60‑minute hill hike with steep/uneven terrain and fitness requirements is unsafe/unpractical for a 1–3-year-old and not an activity they'd meaningfully enjoy."
+    },
+    {
+      "id": "5590739P2",
+      "title": "Aruba Highlights 7 Days and 6 Nights",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Week-long Aruba highlights package appears aimed at older children/adults (child pricing starts at 3) and likely contains activities not safe/practical or stimulating for a 1–3‑year‑old."
+    },
+    {
+      "id": "139296P3",
+      "title": "Aruba open bus Shore Excursion",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Open-top sightseeing buses typically lack proper child restraints and can expose toddlers to heat/wind/noise for extended periods, making them impractical and potentially unsafe despite being tolerable for adults."
+    },
+    {
+      "id": "342849P9",
+      "title": "Semi-Private Malmok and Lighthouse coastal e-bike ride experience",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Semi-private coastal e-bike rides are aimed at adults (age 16–80), involve active cycling without provision for toddlers, and are unsafe/impractical for a 1–3-year-old who cannot ride or be safely accommodated."
+    },
+    {
+      "id": "5566924P9",
+      "title": "Aruba 6 Hours Private Island Tour",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A private island beach tour can be safe and flexible for a 1–3 year‑old (short boat rides, shade, stroller/infant seats, play in shallow sand/shallow water), but the long 6‑hour duration, possible boat conditions and adult‑focused activities (snorkeling) mean suitability depends on the exact itinerary and facilities."
+    },
+    {
+      "id": "342849P5",
+      "title": "Semi-Private Twilight Glow Electric Bike Tour Downtown Oranjestad",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "E-bike tour involves road cycling, moderate exertion and no child seating/age allowance, making it unsafe and impractical for a 1–3 year old who also wouldn’t meaningfully enjoy it."
+    },
+    {
+      "id": "5566924P1",
+      "title": "Private Tour: Swim with Turtles, Scenic Tour & Floating Breakfast",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "The core activity involves swimming in open water and a boat/float setup that is not practical or safe for a 1–3-year-old and is primarily aimed at adults rather than toddler engagement."
+    },
+    {
+      "id": "5566924P4",
+      "title": "Aruba Private 8 Hour Full Island Customized Adventure Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "An 8‑hour customized island adventure likely includes long periods of travel, varied/rough terrain and potentially adult‑focused stops making it impractical and not reliably enjoyable for a 1–3‑year‑old."
+    },
+    {
+      "id": "5505210P1",
+      "title": "The Essential Island Highlights Tour",
+      "verdict": false,
+      "confidence": "low",
+      "reason": "Insufficient detail—most generic 'island highlights' tours are adult‑focused, possibly long with variable terrain and limited toddler seating/rest options, so suitability is uncertain."
+    },
+    {
+      "id": "350808P2417",
+      "title": "Aruba Private Jeep Tours With Exciting Attractions",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "With specialized infant seats and mostly family-friendly attractions, a toddler can safely enjoy a jeep tour, but the bumpy terrain, heat, noise and long 6‑hour duration make suitability uncertain for all toddlers."
+    },
+    {
+      "id": "118537P3",
+      "title": "Half Day Private Tour in Aruba with Guide",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Private, stroller-friendly beach and sightseeing stops over 3.5 hours are practical and include activities (beach/play stops) a 1–3-year-old can safely enjoy."
+    },
+    {
+      "id": "342849P2",
+      "title": "Private Street Art Murals and Coastal San Nicolas E-Bike Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "An e-bike street-and-coast tour aimed at adults with fitness requirements and no child provisions is unsafe and impractical for a 1–3-year-old and not designed for their enjoyment."
+    },
+    {
+      "id": "222222P227",
+      "title": "Oranjestad, Aruba Historical GPS Self Guided Audio Walking Tour",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Flat, stroller- and wheelchair-accessible self-guided city walk lets you set pace, take breaks, and offers colorful sights a toddler can enjoy, making it safe and practical for a 1–3-year-old."
+    },
+    {
+      "id": "5671292P1",
+      "title": "Philip's Animal Garden: Explore Aruba Wildlife",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A small animal garden with stroller/wheelchair access and close-up animal viewing is likely safe and engaging for a 1–3 year old, though operator details are limited."
+    },
+    {
+      "id": "259665P12",
+      "title": "Scenic Aruba Self-Guided Driving and Walking Audio Tour",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Safe and practical as a self-paced car-and-short-walk tour with flexible stops and breaks where a toddler can sit in a car seat, stretch, and enjoy beaches/short explorations, even if the audio is mainly for adults."
+    },
+    {
+      "id": "350808P2418",
+      "title": "Private Essential Tour of Aruba",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Private sightseeing drives with available infant seats, short stops, and flexible pacing make it safe/practical and offer sights and simple activities a toddler can enjoy."
+    },
+    {
+      "id": "5607727P3",
+      "title": "Aruba Private Cruise Terminal Half Day Island Tour",
+      "verdict": false,
+      "confidence": "low",
+      "reason": "A half-day island cruise/tour is primarily adult-focused and may involve long boat time, uneven terrain and limited toddler-specific activities despite claims of stroller and infant seat availability."
+    },
+    {
+      "id": "350808P2629",
+      "title": "Private Full Island Tour in Aruba",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A private island tour can be safe and practical for a 1–3 year old if a proper car/infant seat is provided and the itinerary includes short, child-friendly stops (beaches/shaded breaks), but operator claims about seats and terrain should be confirmed."
+    },
+    {
+      "id": "5652763P1",
+      "title": "Aruba Discovery Tour Explore Investment Opportunities",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is an adult-focused investment/discovery tour with little to engage a toddler and likely involves presentations or discussions not suitable or entertaining for young children."
+    },
+    {
+      "id": "5566924P8",
+      "title": "Private Aruba Jeep Tour Natural Pool and Beyond",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rugged off‑road access, rocky terrain and natural pool conditions make it unsafe or impractical for active toddler play and the itinerary is mainly adult‑oriented despite child seats being available."
+    },
+    {
+      "id": "5599636P2",
+      "title": "Sip and Paint Aruba Sunset Creative Experience",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Two-hour adult-focused sip-and-paint with minimum child age 8 and stationary, craft-focused format is impractical and not engaging or suitable for a 1–3-year-old."
+    },
+    {
+      "id": "5574243P1",
+      "title": "Clear kayak & Bamboo raft ARUBA! Same Day Delivery! PACKAGE DEAL!",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Short, calm clear-kayak and bamboo-raft rides where a toddler can sit on an adult’s lap, wear a life jacket, and see fish make it safe, practical, and engaging for a 1–3-year-old."
+    },
+    {
+      "id": "5636214P1",
+      "title": "Sense and Paint Intuitive Art Experience in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "90-minute guided intuitive painting is geared to ages 4+ and adults, requires sustained attention and fine motor skills and likely involves materials and seating arrangements unsuitable for a 1–3-year-old."
+    },
+    {
+      "id": "400174P13",
+      "title": "Aruba Bamboo Raft Photo| Videoshoot + Free Cocktails Edits 24Hrs",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A brief adult-focused bamboo raft photoshoot on water with limited seating and exposure to instability/ depth and alcohol makes it unsafe and not age-appropriate enrichment for a 1–3-year-old."
+    },
+    {
+      "id": "6593P15",
+      "title": "Baby Beach & Mangel Halto Off-Road Safari",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Child ticketing starts at 4 and the bumpy off‑road, beach and water elements over 4.5 hours make it unsafe/impractical and not suitable for a 1–3‑year‑old."
+    },
+    {
+      "id": "342849P4",
+      "title": "Oranjestad Culture Heritage and Coastal Electric Bike Experience",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Electric bike tours are aimed at adults (age 16+), involve active cycling on roads/terrain without child seating mentioned, and are neither safe nor engaging for a 1–3-year-old."
+    },
+    {
+      "id": "5562515P2",
+      "title": "Photographer-Capture Memories in Aruba-Candid Photography Session",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "A 60-minute outdoor candid photo session is safe and practical with a toddler (stroller-friendly, flexible pacing) and toddlers typically engage with simple, playful shoots and get enjoyment from attention and movement."
+    },
+    {
+      "id": "5593159P6",
+      "title": "Aruba Professional Photo Shoot Experience W’ FREE Drone Shots",
+      "verdict": false,
+      "confidence": "low",
+      "reason": "A 3‑hour professional/couple-style photoshoot with drone use is adult-focused, involves noise, posing and duration that toddlers may not tolerate or benefit from despite occasional photos."
+    },
+    {
+      "id": "5576013P3",
+      "title": "Aruba Clear Kayak Group Photoshoot Photos Videos in 24H",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A group clear-kayak photoshoot is water-based, adult-focused, lasts 2 hours and would be unsafe/uncomfortable for a 1–3-year-old despite operator claims (lap seating, instability, and limited enjoyment)."
+    },
+    {
+      "id": "296594P4",
+      "title": "Feel Like a Star: Nighttime Paparazzi Flash Photoshoot",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 30‑minute nighttime paparazzi-style photoshoot is aimed at adults, involves bright camera flashes and posed activity likely unpleasant for a 1–3 year old and not something they’ll meaningfully enjoy."
+    },
+    {
+      "id": "5626463P3",
+      "title": "Family Photoshoot Portraits Activity",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "A family photoshoot is low-risk, can be adjusted for short attention spans and breaks, and toddlers typically enjoy interactive, playful portrait sessions."
+    },
+    {
+      "id": "5634943P2",
+      "title": "Custom Tattoo Experience at Uncle Jah in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A tattoo session is adult-focused, involves needles/inks and a 90‑minute seated procedure that’s unsafe and unengaging for a 1–3‑year‑old."
+    },
+    {
+      "id": "5593159P5",
+      "title": "Aruba Private Bali Floating Breakfast Photo Shoot 2-4 Guest",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Private floating breakfast is centered on adult photo poses around open water and food arrangements, posing safety and engagement issues for a 1–3-year-old."
+    },
+    {
+      "id": "5626463P2",
+      "title": "Editorial Couples Session in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 60‑minute editorial couples photoshoot is aimed at adults and unlikely to be engaging or practical for a 1–3 year old even if safe to have them present."
+    },
+    {
+      "id": "172188P109",
+      "title": "Private Vacation Photoshoot with Photographer in Aruba",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "A private 60‑minute photoshoot is safe and can be adjusted for a toddler (stroller/pram workable, service animals allowed, photographer can incorporate play and breaks), producing family-friendly results rather than being adult‑only."
+    },
+    {
+      "id": "472918P1",
+      "title": "Award-Winning Private Turtle Snorkeling Aruba | Video Included",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Minimum child age is 8 and the activity involves open-water snorkeling, which is unsafe and impractical for toddlers and not something they would enjoy."
+    },
+    {
+      "id": "19808P9",
+      "title": "Aruba Signature Jeep Tour: Natural Pool and Baby Beach",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Off‑road jeep rides, bumpy terrain, long 4.5‑hour duration, and likely lack of child restraints (operator youth pricing starts at 8) make it unsafe/impractical and not targeted to toddlers."
+    },
+    {
+      "id": "5563642P1",
+      "title": "Professional Sunset Photoshoot in Aruba",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "A family sunset photoshoot is generally safe and practical for a 1–3-year-old (short beach poses, breaks, and playful shots) and toddlers can enjoy the sensory beach environment and simple interactive moments captured on camera."
+    },
+    {
+      "id": "117113P2",
+      "title": "The Whole Story Tour of San Nicolas in Aruba",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "A 2‑hour, stroller‑friendly walking/sightseeing tour of colorful San Nicolás can be safe and engaging for a 1–3 year‑old if caregivers can push a stroller and break as needed, but specifics (pace, road crossings, shade and seating) are unclear."
+    },
+    {
+      "id": "5628877P6",
+      "title": "Aruba Sunset Photoshoot",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A posed 60‑minute sunset photoshoot is primarily adult-focused, requires sitting/staying still and waiting, and is unlikely to be safe/practical and enjoyable for a 1–3‑year‑old."
+    },
+    {
+      "id": "6593P16",
+      "title": "Aruba Natural Wonders Caves and Natural Pool Jeep Tour",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Rough off‑road jeep rides, uneven cave terrain and a natural pool geared to adults make it unsafe and not age‑appropriate for a 1–3 year old."
+    },
+    {
+      "id": "6593P19",
+      "title": "Full Island Tour Off Road Safari",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "An off-road full-island safari is likely bumpy, potentially long/noisy and physically demanding, making it unsafe/impractical for a 1–3-year-old and not an activity they’d meaningfully enjoy."
+    },
+    {
+      "id": "5576013P1",
+      "title": "Aruba Clear Kayak Photoshoot | Same-Day Photo + Video",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A short clear-kayak photoshoot requires a child to remain seated on an adult in open water with limited restraint and is aimed at adults rather than providing a safe, engaging experience for a 1–3-year-old."
+    },
+    {
+      "id": "2455P17",
+      "title": "Aruba Sightseeing Tour with Transport",
+      "verdict": true,
+      "confidence": "high",
+      "reason": "Short bus/van sightseeing with stroller/lap seating, multiple stops and low physical demands make it safe, practical and generally engaging for a 1–3‑year‑old."
+    },
+    {
+      "id": "400174P2",
+      "title": "#1Clear Kayak Aruba Shoot| FREE Cocktail|Edits 24hr|+Free Coupons",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "Clear kayak photoshoots are water-based, unstable and aimed at adults, making them unsafe or impractical for toddlers and unlikely to be enjoyable for a 1–3 year old."
+    },
+    {
+      "id": "358117P1",
+      "title": "Aruba Unique Clear Kayak Drone Photoshoot with Video",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A short kayak drone photoshoot is aimed at adults, involves sitting on an adult’s lap in an unstable, potentially noisy boat over water without dedicated child seating, so it’s not a safe/practical or engaging experience for a 1–3-year-old."
+    },
+    {
+      "id": "5616292P5",
+      "title": "Family and Couple Engagement Photography in Aruba",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "A 45‑minute engagement photoshoot is primarily adult-focused, the operator’s age bands start at 5, and toddlers (1–3) are unlikely to stay engaged or pose for the full session despite pram/stroller access."
+    },
+    {
+      "id": "5563642P2",
+      "title": "On-Site Photo Studio Experience for Events in Aruba",
+      "verdict": true,
+      "confidence": "low",
+      "reason": "Short, on-site photo sessions are safe and practical with a stroller and laps available, and many toddlers enjoy interactive props and attention during photos, though individual temperament and the 120‑minute booking window may limit suitability."
+    },
+    {
+      "id": "5644576P3",
+      "title": "Aruba Sunset Couples and Proposal Beach Photoshoot",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is an adult-focused couples/proposal photoshoot (45 min) that toddlers are unlikely to enjoy or engage with even if safe to bring along."
+    },
+    {
+      "id": "358117P17",
+      "title": "Aruba Flying Dress Clear Kayak Drone Photoshoot and Video",
+      "verdict": false,
+      "confidence": "high",
+      "reason": "This is primarily an adult-focused photoshoot on a clear kayak with drone filming—water safety, lap-seating and drone noise make it impractical and unlikely to be enjoyable or meaningful for a 1–3 year‑old."
+    }
+  ]
+}

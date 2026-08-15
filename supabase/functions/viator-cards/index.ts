@@ -9,10 +9,12 @@ import { GROUPS, ARUBA_DESTINATION_ID } from './groups.ts';
 import { normalizeProduct } from './normalize.ts';
 import { hasKey, ping, searchProducts, searchProductsPaged, freetextSearch, getProduct, getTags } from './viator.ts';
 import { embedBatch, clusterByEmbedding, activeProvider, MODEL_ID, isSearchableProvider } from './embeddings.ts';
-// suitability.ts / suitabilityData.ts are NOT imported: the corpus they build
-// was deployed, scored 63% on a run that is not trustworthy (see the note in
-// the embedding block below), and reverted pending a clean re-measurement. They
-// stay on disk as measurement infrastructure.
+// suitability.ts / suitabilityData.ts are NOT imported: measured 2026-08-15,
+// the corpus they build changes recall by NOTHING (see the embedding block
+// below). They stay on disk as measurement infrastructure.
+// The 26 editorial picks from src/data/activities.ts, copied in by
+// `npm run build:curated`. Not an experiment — see the block below.
+import { CURATED_SEARCH_ENTRIES } from './curatedData.ts';
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
@@ -249,48 +251,85 @@ serve(async (req) => {
           try {
             const db = supabaseAdmin();
             const runStart = new Date().toISOString();
-            // REVERTED 2026-08-15, on a measurement that is NOT TRUSTWORTHY.
-            // Read this before repeating the experiment.
+            // SETTLED 2026-08-15. Do not re-run this experiment.
             //
-            // The suitability corpus was deployed and scored 63% on
-            // `node tools/run-search-golden.cjs` against a 66% baseline, so it
-            // was rolled back. The measurement is confounded:
+            // The suitability corpus — Viator's own `additionalInfo` lines
+            // glued onto each product before embedding — was deployed on
+            // 2026-08-14, scored 63% against a "66% baseline", and was
+            // reverted. Both halves of that were wrong:
             //
-            // **A FULL CORPUS REWRITE TAKES MINUTES TO SETTLE, AND THE GOLDEN
-            // RUN STARTED SECONDS AFTER ONE.** Demonstrated on the rollback
-            // refresh: the same query against the same corpus returned 7
-            // results one minute after `?op=refresh` and 30 results six minutes
-            // later, with the row count at a healthy 366 the whole time and 0
-            // dead tuples. `search_items` orders through an HNSW index (an
-            // APPROXIMATE index — it trades exactness for speed), and this
-            // ingest upserts all ~366 rows then deletes the previous
-            // generation, so the graph is in flux either side of that window.
-            // A golden run inside it under-reports recall for reasons that have
-            // nothing to do with what was embedded.
+            //   * 63% is what the UNCHANGED arm reads on the first golden run
+            //     of a session. Five runs against the settled live corpus:
+            //     run 1 cold = 63%, runs 2-5 byte-identical at 65%. The revert
+            //     compared a cold arm against a warm baseline.
+            //   * The 66% predated descriptions growing 191 -> 611 chars and
+            //     was never like-for-like.
             //
-            // So the 63% is evidence of nothing yet, and neither is the drop in
-            // distinct clusters observed alongside it. Whoever picks this up:
-            // deploy, refresh, WAIT for a spot query to return a full 30
-            // results, and only then run the golden set — and measure the
-            // rolled-back arm the same way on the same day, because the 66%
-            // baseline predates descriptions growing from 191 to 611 chars and
-            // is not a like-for-like comparison either.
+            // Measured properly by `node tools/run-embed-sweep.cjs` — exact
+            // brute-force cosine over the real corpus, no HNSW, no settling
+            // window, and validated against production (the no-curated control
+            // reproduces the live 65% exactly):
             //
-            // The composer, probe and snapshot are kept as measurement
-            // infrastructure. If the corpus turns out genuinely not to help,
-            // the untried variant is to keep only the DISCRIMINATIVE lines —
-            // stroller (116), infant seats (50), wheelchair (37) — and drop
-            // anything carried by more than ~60% of the catalog, since
-            // "Suitable for all physical fitness levels" alone is on 234 of
-            // 327. See
-            // docs/superpowers/specs/2026-08-14-search-corpus-suitability-design.md.
+            //     arm                                256d   1536d
+            //     A  title + description (this)       78%     75%
+            //     B  + full suitability corpus        78%     78%
+            //     C  + discriminative lines only      80%     79%
+            //
+            // Arm B is NEUTRAL. It is not shipped because a second embedding
+            // pass that buys nothing is cost and surface for nothing.
+            //
+            // Two findings worth keeping. (1) MORE DIMENSIONS DO NOT HELP:
+            // 1536d is worse or equal everywhere, and the score band on
+            // failing queries FALLS and NARROWS when given the room
+            // (0.264-0.342 -> 0.166-0.224). A cramped space would have spread
+            // apart; this is a text problem, not a resolution problem, so do
+            // not migrate the vector(256) column hoping for ranking. (2) Arm C
+            // — keeping only the lines carried by under 40% of the catalog —
+            // is the best of the three at 80%, which contradicts the intuition
+            // that dropping shared boilerplate loses signal. +2 points is
+            // about half a query, so treat it as a candidate, not a result.
+            // The real fix for what none of these arms reach is Layer 1 of
+            // docs/superpowers/specs/2026-08-15-search-architecture-design.md.
             const rows = sorted.map((it, i) => ({
               item_id: String(it.id),
               embedding: JSON.stringify(embeddings[i]),   // pgvector accepts the JSON array form
               model: MODEL_ID[provider],
               updated_at: new Date().toISOString(),
             }));
-            const { error: upErr } = await db.from('item_embeddings').upsert(rows, { onConflict: 'item_id' });
+            // ── The curated locals ─────────────────────────────────────────
+            // The editorial picks in src/data/activities.ts — Zeerovers, Baby
+            // Beach, the Oranjestad walk — reach `item_embeddings` here and
+            // nowhere else. Until 2026-08-15 they were never embedded at all,
+            // so `search_items` could not return them however the query was
+            // phrased: seven of the golden set's 56 expected fragments name
+            // one (zeerover twice, flamingo, museum, aloe, savaneta, kite),
+            // capping achievable recall at 85% with two queries scoring a
+            // guaranteed zero. The golden runner's note blaming "Zeerover" on
+            // weak proper-noun handling was a misdiagnosis — the restaurant
+            // was not in the index.
+            //
+            // A SEPARATE embedBatch, deliberately. These must NOT join the
+            // clustering input above: `clusterByEmbedding` writes an
+            // `experience_cluster_id` back onto the payload items, and the
+            // 0.82 threshold behind it is measured and load-bearing for plan
+            // variety. Feeding 26 editorial texts into that union-find would
+            // move cluster assignments for real products — a generator change
+            // wearing a search change's clothes.
+            //
+            // They must also be written in THIS run rather than out of band:
+            // the delete sweep below removes anything with updated_at <
+            // runStart, so a side-channel insert would survive exactly until
+            // the next refresh.
+            const curatedVectors = await embedBatch(CURATED_SEARCH_ENTRIES.map((c) => c.text));
+            const curatedRows = CURATED_SEARCH_ENTRIES.map((c, i) => ({
+              item_id: c.id,
+              embedding: JSON.stringify(curatedVectors[i]),
+              model: MODEL_ID[provider],
+              updated_at: new Date().toISOString(),
+            }));
+
+            const { error: upErr } = await db.from('item_embeddings')
+              .upsert([...rows, ...curatedRows], { onConflict: 'item_id' });
             if (upErr) throw upErr;
 
             // Drop rows for products that have left the catalog, so the table
@@ -305,7 +344,7 @@ serve(async (req) => {
               .delete().lt('updated_at', runStart);
             if (delErr) throw delErr;
 
-            console.log(`[viator-cards] stored ${rows.length} embeddings (${MODEL_ID[provider]})`);
+            console.log(`[viator-cards] stored ${rows.length + curatedRows.length} embeddings — ${rows.length} Viator + ${curatedRows.length} curated (${MODEL_ID[provider]})`);
           } catch (e) {
             // Non-fatal, exactly as writeCache is: a storage failure must never
             // cost the traveller their catalog.
