@@ -10,9 +10,9 @@ import { normalizeProduct } from './normalize.ts';
 import { hasKey, ping, searchProducts, searchProductsPaged, freetextSearch, getProduct, getTags } from './viator.ts';
 import { embedBatch, clusterByEmbedding, activeProvider, MODEL_ID, isSearchableProvider } from './embeddings.ts';
 // suitability.ts / suitabilityData.ts are NOT imported: the corpus they build
-// was deployed, measured at 63% against a 66% baseline, and reverted. They stay
-// on disk as measurement infrastructure for the next variant — see the note in
-// the embedding block below, and the spec.
+// was deployed, scored 63% on a run that is not trustworthy (see the note in
+// the embedding block below), and reverted pending a clean re-measurement. They
+// stay on disk as measurement infrastructure.
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
@@ -249,27 +249,40 @@ serve(async (req) => {
           try {
             const db = supabaseAdmin();
             const runStart = new Date().toISOString();
-            // REVERTED 2026-08-15 — the suitability corpus was DEPLOYED AND
-            // MEASURED, and it made recall WORSE: 63% against the 66% baseline
-            // (`node tools/run-search-golden.cjs`). Not a deploy accident and
-            // not a composition bug — the text was exactly what the spec
-            // described. The hypothesis was wrong.
+            // REVERTED 2026-08-15, on a measurement that is NOT TRUSTWORTHY.
+            // Read this before repeating the experiment.
             //
-            // What the numbers say went wrong: the added lines are dominated by
-            // boilerplate — "Suitable for all physical fitness levels" is on
-            // 234 of 327 products, the three "Not recommended for…" lines on
-            // 163-180 each — so appending them pulled every vector toward a
-            // common centroid instead of separating them. The signature is in
-            // the result set: "good with toddler" went from 9 distinct
-            // experience clusters in its 30 results to 5, i.e. MORE
-            // near-duplicates, and two name queries that used to work
-            // ("Zeerover", "kitesurfing") dropped to 0/1.
+            // The suitability corpus was deployed and scored 63% on
+            // `node tools/run-search-golden.cjs` against a 66% baseline, so it
+            // was rolled back. The measurement is confounded:
             //
-            // The composer, the probe and the snapshot are kept: they are
-            // measurement infrastructure and the next variant needs them. The
-            // untried variant is to keep only the DISCRIMINATIVE lines — the
-            // stroller (116), infant-seat (50) and wheelchair (37) strings —
-            // and drop anything carried by more than ~60% of the catalog. See
+            // **A FULL CORPUS REWRITE TAKES MINUTES TO SETTLE, AND THE GOLDEN
+            // RUN STARTED SECONDS AFTER ONE.** Demonstrated on the rollback
+            // refresh: the same query against the same corpus returned 7
+            // results one minute after `?op=refresh` and 30 results six minutes
+            // later, with the row count at a healthy 366 the whole time and 0
+            // dead tuples. `search_items` orders through an HNSW index (an
+            // APPROXIMATE index — it trades exactness for speed), and this
+            // ingest upserts all ~366 rows then deletes the previous
+            // generation, so the graph is in flux either side of that window.
+            // A golden run inside it under-reports recall for reasons that have
+            // nothing to do with what was embedded.
+            //
+            // So the 63% is evidence of nothing yet, and neither is the drop in
+            // distinct clusters observed alongside it. Whoever picks this up:
+            // deploy, refresh, WAIT for a spot query to return a full 30
+            // results, and only then run the golden set — and measure the
+            // rolled-back arm the same way on the same day, because the 66%
+            // baseline predates descriptions growing from 191 to 611 chars and
+            // is not a like-for-like comparison either.
+            //
+            // The composer, probe and snapshot are kept as measurement
+            // infrastructure. If the corpus turns out genuinely not to help,
+            // the untried variant is to keep only the DISCRIMINATIVE lines —
+            // stroller (116), infant seats (50), wheelchair (37) — and drop
+            // anything carried by more than ~60% of the catalog, since
+            // "Suitable for all physical fitness levels" alone is on 234 of
+            // 327. See
             // docs/superpowers/specs/2026-08-14-search-corpus-suitability-design.md.
             const rows = sorted.map((it, i) => ({
               item_id: String(it.id),
