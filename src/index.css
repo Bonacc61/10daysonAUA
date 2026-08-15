@@ -630,6 +630,15 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   inset: 0;
   transform: rotateY(180deg);
 }
+/* backface-visibility hides the back face, but an invisible layer is still a
+   layer: `inset: 0` stretches it over the WHOLE front, the open "Other
+   suggestions" shelf included. Chromium hands a touch swipe to that covering
+   layer instead of to the scroller underneath, which is why the shelf could not
+   be swiped on a phone even though a mouse wheel scrolled it fine on a desktop
+   (the wheel handler in OtherSuggestionsList sets scrollLeft directly, so it
+   never asked the browser to pick a scroll target). Only the face you can
+   actually see takes input. */
+.flip-card:not(.flipped) .flip-back { pointer-events: none; }
 
 /* Top↕bottom swap flip — single smooth arc rather than a zig-zag keyframe
    chain (the latter reads as robotic). The browser interpolates the
