@@ -31,6 +31,12 @@ const SUITABILITY = [
   /not recommended for|not suitable for|motion sickness|maximum weight/i,
 ];
 
+// A DRINKING age is not a participation age. "Minimum age to consume alcoholic
+// drinks is 18 years old" would otherwise put an 18+ floor into the corpus of a
+// family boat trip that merely serves rum. tools/probe-suitability.ts guards
+// the same sentence for the same reason; the two must agree.
+const NOT_SUITABILITY = /alcohol|\bdrink\b|\bdrinks\b/i;
+
 /** Keep the `additionalInfo` lines that say who a product suits, in order, without duplicates. */
 export function suitabilityLines(info: string[]): string[] {
   const seen = new Set<string>();
@@ -38,6 +44,7 @@ export function suitabilityLines(info: string[]): string[] {
   for (const raw of info) {
     const line = raw.trim();
     if (!line || seen.has(line)) continue;
+    if (NOT_SUITABILITY.test(line)) continue;
     if (!SUITABILITY.some((re) => re.test(line))) continue;
     seen.add(line);
     out.push(line);
@@ -48,11 +55,21 @@ export function suitabilityLines(info: string[]): string[] {
 /**
  * An age floor, stated only when the bands actually carry one.
  *
- * The trap this guards is the catalog's most expensive false friend: 67 of 328
- * products price with a single `ADULT 0-99` band, reporting a minimum age of 0
- * while being adults-only in practice. Four of the five UTV rentals at the top
- * of the failing query do exactly that. A floor of 0 is a billing artifact, not
- * a welcome, so it is reported as nothing at all.
+ * A FLOOR OF 0 IS A BILLING ARTIFACT, NOT A WELCOME — from either direction,
+ * and the guard is deliberately applied to both branches:
+ *
+ *  - 67 of 328 products price with a single `ADULT 0-99` band, reporting a
+ *    minimum age of 0 while being adults-only in practice. Four of the five UTV
+ *    rentals at the top of the failing query do exactly that.
+ *  - Viator's default template is `CHILD 0-17 / ADULT 18+`, so a CHILD band
+ *    starting at 0 is equally uninformative. Emitting the strongest toddler
+ *    phrase in the vocabulary from that template put "Children welcome from
+ *    age 0" on 58 of 327 profiles, including a sip-and-paint evening with no
+ *    other child signal at all.
+ *
+ * Where a product genuinely suits small children, `additionalInfo` says so in
+ * words ("can ride in a pram or stroller"), and those lines are kept. That is
+ * the signal measured to discriminate; the bands are not.
  */
 export function ageSentence(bands: AgeBand[]): string {
   const age = (b: AgeBand) => (typeof b.startAge === 'number' ? b.startAge : null);
@@ -61,7 +78,10 @@ export function ageSentence(bands: AgeBand[]): string {
     .filter((b) => b.ageBand === 'CHILD' || b.ageBand === 'INFANT')
     .map(age)
     .filter((n): n is number => n !== null);
-  if (child.length) return `Children welcome from age ${Math.min(...child)}.`;
+  if (child.length) {
+    const floor = Math.min(...child);
+    return floor > 0 ? `Children welcome from age ${floor}.` : '';
+  }
 
   const rest = bands.map(age).filter((n): n is number => n !== null);
   if (!rest.length) return '';

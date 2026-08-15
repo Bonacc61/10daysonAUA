@@ -7,9 +7,10 @@ on push to `main`, so this is inert until `viator-cards` is deployed and the cat
 refreshes. Cluster collapse (the last section) was explicitly deferred by the owner.
 **Scope:** Change **what gets embedded** at ingest so the corpus can represent *who a
 product suits*, not only what it is. Adds a committed suitability snapshot derived from
-`/products/{code}`, a composition change in `supabase/functions/viator-cards/index.ts`, and
-a cluster-collapse pass in `blendSearchResults`. **No change to the ranker, no new
-sub-processor, no LLM.**
+`/products/{code}` and a composition change in `supabase/functions/viator-cards/index.ts`.
+**No change to the ranker, no new sub-processor, no LLM.** A cluster-collapse pass in
+`blendSearchResults` is described in the last section and was **deferred by the owner** — it
+is not part of this delivery.
 **Evidence:** `docs/map/viator-suitability.json` — `npm run probe:suitability`.
 
 ## Problem
@@ -100,7 +101,6 @@ alone:
 <title>. <full description>
 Infants and small children can ride in a pram or stroller. Suitable for all
 physical fitness levels. Service animals allowed. Children welcome from age 3.
-2 hours 30 minutes.
 ```
 
 Three properties make this cheap and safe:
@@ -129,7 +129,7 @@ built from the rich text. Two embeddings per item, one threshold left undisturbe
 
 ### The 500-char cap is already a live bug
 
-`viator-cards/index.ts:204` slices the embedded text at 500 chars. That was inert while
+`viator-cards/index.ts:210` slices the embedded text at 500 chars. That was inert while
 descriptions were 191 chars. Since they grew to 611 it truncates **228 of 328** products
 (median composed length 667, p90 1027). Whatever else is decided here, that constant needs
 raising or the richer text is discarded before it reaches the model.
@@ -208,11 +208,11 @@ before the query-understanding parser, which needs all three.
 1. `npm run probe:suitability` — **done**. Evidence: `docs/map/viator-suitability.json`.
    328 probed, 327 returned 200.
 2. `npm run build:suitability` — **done**. Derives
-   `supabase/functions/viator-cards/suitabilityData.ts` (327 profiles, median 222 chars).
+   `supabase/functions/viator-cards/suitabilityData.ts` (327 profiles, median 212 chars).
    Unlike `startTimes.json`, which roadmap item 11 notes was derived *by hand*, this
    transform is code: re-run it and the diff is the drift.
 3. Compose and store the search vector — **done**, `supabase/functions/viator-cards/`:
-   `suitability.ts` (pure, 13 tests) and the ingest change in `index.ts`.
+   `suitability.ts` (pure, 16 tests) and the ingest change in `index.ts`.
 4. **Deploy `viator-cards`, force `?op=refresh`, then re-run
    `node tools/run-search-golden.cjs`** against the 66% baseline. *Not done — needs a
    deploy, which is a deliberate decision, not a side effect of a push.*

@@ -26,6 +26,16 @@ describe('suitabilityLines — keeps what says who a product suits', () => {
     ])).toEqual([]);
   });
 
+  it('drops a drinking age, which is not a participation age', () => {
+    // tools/probe-suitability.ts guards this deliberately; the composer must
+    // agree with it, or "18 years old" lands in the corpus of a family boat
+    // trip that merely serves rum.
+    expect(suitabilityLines([
+      'Minimum age to consume alcoholic drinks is 18 years old.',
+      'Age restriction to drink 18+',
+    ])).toEqual([]);
+  });
+
   it('drops duplicates, keeping first appearance', () => {
     expect(suitabilityLines(['Wheelchair accessible', 'Wheelchair accessible']))
       .toEqual(['Wheelchair accessible']);
@@ -55,6 +65,22 @@ describe('ageSentence — only when the age bands actually mean something', () =
 
   it('says nothing when there are no bands at all', () => {
     expect(ageSentence([])).toBe('');
+  });
+
+  it('says nothing for a CHILD or INFANT band that starts at 0', () => {
+    // The same billing artifact from the other side. Viator's default pricing
+    // template is CHILD 0-17 / ADULT 18+, so a floor of 0 here is a pricing
+    // default rather than a statement about toddlers — and "Children welcome
+    // from age 0" is the strongest toddler phrase in the whole vocabulary.
+    // Emitting it from a template put it on 58 of 327 profiles, including a
+    // sip-and-paint evening with no other child signal at all.
+    expect(ageSentence([{ ageBand: 'INFANT', startAge: 0 }, { ageBand: 'ADULT', startAge: 12 }])).toBe('');
+    expect(ageSentence([{ ageBand: 'CHILD', startAge: 0 }, { ageBand: 'ADULT', startAge: 18 }])).toBe('');
+  });
+
+  it('still reports a child floor the operator actually chose', () => {
+    expect(ageSentence([{ ageBand: 'CHILD', startAge: 3 }, { ageBand: 'ADULT', startAge: 12 }]))
+      .toBe('Children welcome from age 3.');
   });
 });
 
