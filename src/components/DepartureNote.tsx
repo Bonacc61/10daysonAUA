@@ -1,5 +1,5 @@
 import { MapPin } from './Icons';
-import { departurePointFor } from '../data/itemFit';
+import { departurePointFor, isWaterBased } from '../data/itemFit';
 import { startTimeLabel } from '../data/startTimes';
 import type { ViatorItem } from '../types';
 
@@ -24,9 +24,10 @@ import type { ViatorItem } from '../types';
  *  - Multiple departures are never collapsed to one. Picking a single time out
  *    of a set would invent a fact the schedule does not support.
  *
- * Callers that need the DATA rather than the markup — ItineraryCard, sizing a
- * fixed-height flip card — import the underlying functions directly and must
- * mirror this component's render condition exactly, or the card clips.
+ * This is the ONLY renderer of that data — verified 2026-08-15. It used to say
+ * ItineraryCard imported the underlying functions to size a fixed-height flip
+ * card; that stopped being true when card height became CSS's job (see
+ * `.flip-card`), and the note outlived the coupling it described.
  */
 /**
  * The one-line summary, composed from whichever halves exist. Exported as a pure
@@ -36,8 +37,12 @@ import type { ViatorItem } from '../types';
  * "Departs 9:00am from Pelican Pier" reads as one fact, which is how a traveller
  * holds it. Either half stands alone when the other is missing.
  */
-export function departureHeadline(time: string | null, place: string): string {
-  return [time ?? 'Departs', place].filter(Boolean).join(' ');
+export function departureHeadline(
+  time: string | null,
+  place: string,
+  verb: 'Departs' | 'Starts',
+): string {
+  return [time ?? verb, place].filter(Boolean).join(' ');
 }
 
 /**
@@ -57,12 +62,18 @@ export function departureHedge(hasTime: boolean, hasPlace: boolean): string {
 }
 
 export default function DepartureNote({ item }: { item: ViatorItem }) {
+  // A boat leaves without you; a cooking class waits at an address. That is the
+  // whole difference, and it decides both the verb and the preposition.
+  const departs = isWaterBased(item);
   const departure = departurePointFor(item);
-  const time = startTimeLabel(item.id);
+  const time = startTimeLabel(item.id, departs ? 'departs' : 'starts');
   if (!departure && !time) return null;
 
-  const place = departure ? `${departure.approx ? 'near' : 'from'} ${departure.place}` : '';
-  const headline = departureHeadline(time, place);
+  // "near" outranks both: an approximate pin is the right hotel and the wrong
+  // doorway, and neither "from" nor "at" may state it as the doorway.
+  const preposition = departure?.approx ? 'near' : departs ? 'from' : 'at';
+  const place = departure ? `${preposition} ${departure.place}` : '';
+  const headline = departureHeadline(time, place, departs ? 'Departs' : 'Starts');
   const hedge = departureHedge(Boolean(time), Boolean(departure));
 
   return (

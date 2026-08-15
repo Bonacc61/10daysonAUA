@@ -72,14 +72,30 @@ export function scheduleTimeOfDay(id: string): 'morning' | 'afternoon' | undefin
 }
 
 /**
+ * Which voice a product's schedule is spoken in.
+ *
+ * A catamaran DEPARTS — you board it and it leaves without you if you are late.
+ * A distillery tasting, a cooking class, a sip-and-paint STARTS — you turn up.
+ * Measured on the live catalog 2026-08-15: 161 of the 281 timed products are
+ * not water-based, and every one of them was reading "Departs 3:30pm".
+ *
+ * The schedule itself is the same fact in both cases, which is why this is a
+ * parameter and not a second snapshot. It is REQUIRED rather than defaulted:
+ * "departs" is the wrong answer for the majority of the catalog, so a caller
+ * that forgets should not silently get it.
+ */
+export type ScheduleVoice = 'departs' | 'starts';
+
+/**
  * The line a card shows, or null when nothing is on record.
  *
  * Never names one time out of a set — that would invent a fact the schedule
- * does not support. Three shapes, by how many departures there are:
+ * does not support. Three shapes, by how many times there are:
  *
- *   1        "Departs 9:00am"
- *   2-3      "Departures 3:30pm, 5:00pm"
+ *   1        "Departs 9:00am"        / "Starts 9:00am"
+ *   2-3      "Departures 3:30pm, 5:00pm" / "Start times 3:30pm, 5:00pm"
  *   4+       "4 departures between 6:30am and 3:45pm"
+ *                                   / "4 start times between 6:30am and 3:45pm"
  *
  * The COUNT is what makes the fourth case honest, and it took two tries to get
  * there. Listing the earliest three made an all-day product read as a morning
@@ -93,15 +109,18 @@ export function scheduleTimeOfDay(id: string): 'morning' | 'afternoon' | undefin
  * claiming anything about what lies between them. The card links to the booking
  * page for the exact list.
  */
-export function startTimeLabel(id: string): string | null {
+export function startTimeLabel(id: string, voice: ScheduleVoice): string | null {
   const times = startTimesFor(id);
   if (times.length === 0) return null;
-  if (times.length === 1) return `Departs ${formatStartTime(times[0])}`;
+  const departs = voice === 'departs';
+  if (times.length === 1) {
+    return `${departs ? 'Departs' : 'Starts'} ${formatStartTime(times[0])}`;
+  }
   if (times.length <= MAX_LISTED) {
-    return `Departures ${times.map(formatStartTime).join(', ')}`;
+    return `${departs ? 'Departures' : 'Start times'} ${times.map(formatStartTime).join(', ')}`;
   }
   // Sorted ascending — guarded by a test on the snapshot — so ends are the window.
   const first = formatStartTime(times[0]);
   const last = formatStartTime(times[times.length - 1]);
-  return `${times.length} departures between ${first} and ${last}`;
+  return `${times.length} ${departs ? 'departures' : 'start times'} between ${first} and ${last}`;
 }

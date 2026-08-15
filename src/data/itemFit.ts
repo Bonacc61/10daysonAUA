@@ -336,10 +336,9 @@ export function isWaterBased(item: ViatorItem): boolean {
  * you miss the boat. Returns null unless a HUMAN-VERIFIED collection point is
  * on record.
  *
- * Scoped by `isWaterBased`, which is deliberately broad (it also backs the
- * "we get seasick" exclusion), so a couple of shore-launched off-road tours
- * qualify too. That is fine — they have a real departure point and the line
- * reads correctly for them.
+ * Not scoped to water since 2026-08-15 — see the comment on the source check
+ * below. `DepartureNote` says "from" for a boat and "at" for anything else, so
+ * a ranch or a restaurant reads correctly as a meeting point rather than a pier.
  *
  * There is no automatic source for this. Measured 2026-08-12 across the live
  * catalog: of 135 water-based items, exactly ONE description mentions a clock
@@ -361,7 +360,12 @@ export function isWaterBased(item: ViatorItem): boolean {
 export function departurePointFor(
   item: ViatorItem,
 ): { place: string; checkin?: string; approx: boolean } | null {
-  if (!isWaterBased(item)) return null;
+  // NOT gated on `isWaterBased` since 2026-08-15. It used to be, on the reading
+  // that only a boat has a collection point — but a walking food tour meets at a
+  // named restaurant and a horseback ride at a named ranch, and 17 live products
+  // had a human-verified meeting point that the card threw away. What makes a
+  // place safe to print is the pin's SOURCE, checked below; the terrain never
+  // was the safeguard.
   const pin = ITEM_PINS[item.id];
   // ONLY a 'departure' pin means "this is the collection point". A
   // 'known-place' pin is the DESTINATION — rendering "departs from SS Antilla

@@ -26,20 +26,39 @@ describe('formatStartTime', () => {
 describe('startTimeLabel', () => {
   it('names the single time when there is only one', () => {
     // 62666P1 — the 09:00 walking tour the engine was placing in afternoons.
-    expect(startTimeLabel('62666P1')).toBe('Departs 9:00am');
+    expect(startTimeLabel('62666P1', 'departs')).toBe('Departs 9:00am');
   });
 
   it('never collapses a set of departures to one time', () => {
     // Picking one of these would invent a fact the schedule does not support.
-    expect(startTimeLabel('5595462P1')).toBe('Departures 3:30pm, 5:00pm');
+    expect(startTimeLabel('5595462P1', 'departs')).toBe('Departures 3:30pm, 5:00pm');
+  });
+
+  // A distillery tasting does not depart. 161 of the 281 timed products are not
+  // water-based, and every one of them read "Departs 3:30pm" — boat language
+  // applied to a sip-and-paint. The schedule is the same fact either way; only
+  // the verb changes, so the verb is the caller's to choose.
+  it('says "Starts" for something you turn up to rather than board', () => {
+    expect(startTimeLabel('62666P1', 'starts')).toBe('Starts 9:00am');
+    expect(startTimeLabel('5595462P1', 'starts')).toBe('Start times 3:30pm, 5:00pm');
+    expect(startTimeLabel('137607P22', 'starts'))
+      .toBe('14 start times between 10:00am and 4:30pm');
+  });
+
+  it('never says "departure" in the starts voice, at any set size', () => {
+    // The plural and counted forms are where the boat language hid: fixing only
+    // the singular would leave "14 departures between ..." on a bus tour.
+    for (const id of ['62666P1', '5595462P1', '137607P22', '137607P23']) {
+      expect(startTimeLabel(id, 'starts')).not.toMatch(/[Dd]epart/);
+    }
   });
 
   it('shows the span, not the first three, once a set gets large', () => {
     // 137607P22 runs 14 times between 10:00 and 16:30. Listing the earliest
     // three named nothing after lunch; a bare span claimed a continuum. The
     // count states discreteness and the window without inventing either.
-    expect(startTimeLabel('137607P22')).toBe('14 departures between 10:00am and 4:30pm');
-    expect(startTimeLabel('137607P23')).toBe('19 departures between 7:00am and 4:00pm');
+    expect(startTimeLabel('137607P22', 'departs')).toBe('14 departures between 10:00am and 4:30pm');
+    expect(startTimeLabel('137607P23', 'departs')).toBe('19 departures between 7:00am and 4:00pm');
   });
 
   it('still lists in full at the boundary', () => {
@@ -51,14 +70,15 @@ describe('startTimeLabel', () => {
       .find(([, t]) => t.length === 4);
     expect(three, 'snapshot has no 3-time product to test with').toBeTruthy();
     expect(four, 'snapshot has no 4-time product to test with').toBeTruthy();
-    expect(startTimeLabel(three![0])).toMatch(/, /);
-    expect(startTimeLabel(three![0])).not.toMatch(/-/);
-    expect(startTimeLabel(four![0])).toMatch(/^4 departures between /);
-    expect(startTimeLabel(four![0])).not.toMatch(/, /);
+    expect(startTimeLabel(three![0], 'departs')).toMatch(/, /);
+    expect(startTimeLabel(three![0], 'departs')).not.toMatch(/-/);
+    expect(startTimeLabel(four![0], 'departs')).toMatch(/^4 departures between /);
+    expect(startTimeLabel(four![0], 'departs')).not.toMatch(/, /);
   });
 
   it('is silent for a product with nothing on record', () => {
-    expect(startTimeLabel('no-such-product')).toBeNull();
+    expect(startTimeLabel('no-such-product', 'departs')).toBeNull();
+    expect(startTimeLabel('no-such-product', 'starts')).toBeNull();
     expect(startTimesFor('no-such-product')).toEqual([]);
   });
 });
@@ -101,16 +121,28 @@ describe('the committed snapshot', () => {
 
 describe('the line a traveller actually reads', () => {
   it('joins a time and a place into one sentence', () => {
-    expect(departureHeadline('Departs 9:00am', 'from Pelican Pier'))
+    expect(departureHeadline('Departs 9:00am', 'from Pelican Pier', 'Departs'))
       .toBe('Departs 9:00am from Pelican Pier');
-    expect(departureHeadline('Departures 3:30pm, 5:00pm', 'near Holiday Inn Resort'))
+    expect(departureHeadline('Departures 3:30pm, 5:00pm', 'near Holiday Inn Resort', 'Departs'))
       .toBe('Departures 3:30pm, 5:00pm near Holiday Inn Resort');
   });
 
   it('stands alone when only one half is on record', () => {
-    // The word "Departs" has to come from somewhere when there is no time.
-    expect(departureHeadline(null, 'from Pelican Pier')).toBe('Departs from Pelican Pier');
-    expect(departureHeadline('Departs 9:00am', '')).toBe('Departs 9:00am');
+    // The verb has to come from somewhere when there is no time, and which one
+    // it is depends on the activity — so the caller states it rather than the
+    // function assuming a boat.
+    expect(departureHeadline(null, 'from Pelican Pier', 'Departs')).toBe('Departs from Pelican Pier');
+    expect(departureHeadline('Departs 9:00am', '', 'Departs')).toBe('Departs 9:00am');
+    expect(departureHeadline(null, 'at Eagle Beach', 'Starts')).toBe('Starts at Eagle Beach');
+  });
+
+  it('meets you AT a land meeting point rather than departing FROM it', () => {
+    // "Departs 5:45pm from Yemanja Woodfired Grill" describes a restaurant as a
+    // pier. The place is real and worth showing; only the preposition was wrong.
+    expect(departureHeadline('Starts 5:45pm', 'at Yemanja Woodfired Grill, Oranjestad', 'Starts'))
+      .toBe('Starts 5:45pm at Yemanja Woodfired Grill, Oranjestad');
+    expect(departureHeadline('Start times 10:00am, 2:00pm', 'at Palm Beach hotel strip', 'Starts'))
+      .toBe('Start times 10:00am, 2:00pm at Palm Beach hotel strip');
   });
 
   it('hedges exactly what is on screen and nothing else', () => {

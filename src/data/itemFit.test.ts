@@ -465,9 +465,34 @@ describe('departurePointFor', () => {
     expect(departurePointFor(item({ id: 'no-such-product' }))).toBeNull();
   });
 
-  it('does not label a land activity with a departure point', () => {
+  it('gives a LAND activity its meeting point when one is on record', () => {
+    // Until 2026-08-15 this returned null for anything not water-based, so the
+    // 17 land products with a human-verified meeting point showed a bare time.
+    // What makes a place safe to print is the pin's SOURCE, not the terrain:
+    // 62666P3 is a walking food tour that collects you at a named restaurant.
+    const out = departurePointFor(item({
+      id: '62666P3', title: 'Aruba Food Fusion Tour', sections: ['food-drink'],
+    }));
+    expect(out?.place).toBe('Yemanja Woodfired Grill, Oranjestad');
+    // This one is pinned APPROX — the meeting text names a street address the
+    // pin does not cover — so the card must say "near", not "at". Widening the
+    // terrain gate does not widen the confidence the pin registry states.
+    expect(out?.approx).toBe(true);
+    // 392509P1 is pinned on the park, but the operator meets 400 m up the road —
+    // so it is approx too, and the card says "near". Flagged 2026-08-15: until
+    // this diff no land pin reached a card, so `approx` had only ever been
+    // curated against the water ones.
     expect(departurePointFor(item({
-      id: '6593P7', title: 'Jeep Safari', sections: ['adventures-outdoor'],
+      id: '392509P1', title: 'Off-Road Surron Bike Tour', sections: ['adventures-outdoor'],
+    }))).toEqual({ place: 'Ayo Rock Formation', checkin: undefined, approx: true });
+  });
+
+  it('still refuses a DESTINATION pin on a land activity', () => {
+    // The widening above must not reach the 44 jeep and hiking products pinned
+    // on where they TAKE you. '445910P2' is pinned on the SS Antilla wreck; the
+    // same trap on land is Conchi, a 4x4 track from the nearest road.
+    expect(departurePointFor(item({
+      id: '445910P2', title: 'Jeep Safari', sections: ['adventures-outdoor'],
     }))).toBeNull();
   });
 
