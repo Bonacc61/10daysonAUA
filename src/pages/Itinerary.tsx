@@ -11,7 +11,7 @@ import { Bookmark, Calendar, Chev, Share, X } from '../components/Icons';
 import { buildIcs, downloadIcs } from '../lib/icsExport';
 import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
-import CollapsedDaySummary, { type CollapsedVariant } from '../components/CollapsedDaySummary';
+import CollapsedDaySummary from '../components/CollapsedDaySummary';
 import { resolveSlotEntry } from '../data/activitySource';
 import { claimedRouteFamilies, withoutClaimedFamilies, tripRouteFamily } from '../data/itineraryGenerator';
 import { useCatalog } from '../data/useCatalog';
@@ -43,18 +43,6 @@ import type { CardEntry, SlotEntry, Slot, SwapReason, ViatorItem, Section } from
 import type { PageId, Answers } from '../App';
 
 type Props = { setPage: (p: PageId) => void; answers: Answers; setAnswers: (a: Answers) => void; onLogin: () => void; shareId: string | null; onNavigateToExplore?: (section: Section) => void };
-
-// TEMPORARY — remove once the collapsed-day layout is chosen (2026-08-14).
-// `?collapse=list` switches a folded day from a row of circles to one activity
-// per line with its title. Exists only so the two can be compared side by side
-// on a preview build; the shipped default is `row`.
-// A function, not a module-level const: this file is imported transitively by
-// ~13 node-environment test files, where `window` does not exist, and reading it
-// at module scope threw before a single test ran.
-function collapseVariant(): CollapsedVariant {
-  if (typeof window === 'undefined') return 'row';
-  return new URLSearchParams(window.location.search).get('collapse') === 'list' ? 'list' : 'row';
-}
 
 const SECTION_META: { id: Slot; label: string }[] = [
   { id: 'morning',   label: 'Morning' },
@@ -1095,7 +1083,7 @@ function ItineraryDay({
         </button>
       </div>
       {collapsed ? (
-        <CollapsedDaySummary activities={collapsedActivities} dayNum={d.day} onExpand={() => setCollapsed(false)} variant={collapseVariant()} />
+        <CollapsedDaySummary activities={collapsedActivities} dayNum={d.day} onExpand={() => setCollapsed(false)} />
       ) : (
         SECTION_META.map(({ id, label }) => (
           <Section

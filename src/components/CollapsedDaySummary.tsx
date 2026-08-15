@@ -6,9 +6,10 @@
  * about WHAT. With every day folded — the state you want when you are checking
  * the shape of a fortnight — the plan became a list of numbers.
  *
- * So the day keeps its title (the sticky head is untouched) and gains a row of
- * cropped circular thumbnails, one per planned activity, in day order. Enough to
- * recognise the catamaran and the beach without unfolding anything.
+ * So the day keeps its title (the sticky head is untouched) and gains one line
+ * per planned activity, in day order: a cropped circular thumbnail with the
+ * activity's title beside it. A folded fortnight then reads as what is actually
+ * planned, not as a column of pictures to be recognised.
  *
  * Presentational on purpose: the caller resolves each slot entry to a face,
  * because that resolution needs the catalog and the swap memory the page holds.
@@ -22,10 +23,14 @@ export type CollapsedActivity = {
 };
 
 /**
- * `row` — circles side by side, one line, no titles. Cheapest in height, which
- *   is what collapsing is for: a folded fortnight stays scannable in one screen.
- * `list` — a circle per line with its title beside it. Says exactly what is
- *   planned, at roughly three times the height, so a folded day saves much less.
+ * `list` — a circle per line with its title beside it. THE SHIPPED LAYOUT: a
+ *   folded day should say what is planned, and a title does that where a
+ *   thumbnail only hints at it. Costs roughly three times the height of `row`,
+ *   which is the trade that was accepted.
+ * `row` — circles side by side, one line, no titles. Cheapest in height. Kept
+ *   because the two layouts are tested against each other: both render the same
+ *   titles into the DOM and `row` hides them in CSS, so a variant that showed a
+ *   DIFFERENT set of activities would be caught.
  */
 export type CollapsedVariant = 'row' | 'list';
 
@@ -33,7 +38,7 @@ export type CollapsedVariant = 'row' | 'list';
 const MAX_THUMBS = 6;
 
 export default function CollapsedDaySummary({
-  activities, dayNum, onExpand, variant = 'row',
+  activities, dayNum, onExpand, variant = 'list',
 }: {
   activities: CollapsedActivity[];
   dayNum: number;

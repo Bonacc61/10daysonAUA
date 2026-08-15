@@ -75,6 +75,16 @@ describe('CollapsedDaySummary', () => {
 });
 
 describe('CollapsedDaySummary — the list variant', () => {
+  it('is what a collapsed day gets by default', () => {
+    // The layout was chosen on 2026-08-14: a folded day says WHAT is planned,
+    // not just how many pictures. Pinned here because the default is the whole
+    // decision — the row variant still exists for the comparison test below,
+    // and nothing else would notice it coming back.
+    const { container } = render(<CollapsedDaySummary activities={ACTIVITIES} dayNum={3} onExpand={() => {}} />);
+    expect(container.querySelector('.itin-day-collapsed')).toHaveClass('list');
+    expect(screen.getByText('Catamaran Sunset Sail')).toBeInTheDocument();
+  });
+
   it('draws the titles beside the circles', () => {
     render(<CollapsedDaySummary activities={ACTIVITIES} dayNum={3} onExpand={() => {}} variant="list" />);
     expect(screen.getByText('Catamaran Sunset Sail')).toBeInTheDocument();
