@@ -41,6 +41,18 @@ export type EnrichmentRecord = {
    * split, which fall back to the record confidence.
    */
   toddler_ok_confidence?: 'high' | 'medium' | 'low';
+  /** Must the traveller get INTO the water? A snorkel trip yes, a glass-bottom boat no. */
+  swim_required?: boolean;
+  /** What is over the traveller's head — a different question from `setting`. */
+  indoor?: 'indoor' | 'outdoor' | 'mixed';
+  /**
+   * Confidence for `physical`, `kids`, `swim_required` and `indoor` — the four
+   * fields the additive `--facets` pass writes. Separate from the record-level
+   * `confidence` for the same reason `toddler_ok_confidence` is: the two passes
+   * ask different questions, and a `medium` from the extraction pass says
+   * nothing about a filter judgement made later.
+   */
+  facet_confidence?: 'high' | 'medium' | 'low';
 };
 
 export type EnrichmentSnapshot = Record<string, EnrichmentRecord>;
@@ -106,6 +118,28 @@ export function mergeEnrichment(items: ViatorItem[], snapshot: EnrichmentSnapsho
       if (rec.physical) add.physical = rec.physical;
       if (rec.kids) add.kids = rec.kids;
       if (add.physical || add.kids) add.evidence = rec.evidence;
+    }
+
+    // The additive --facets pass, on its OWN confidence and with no evidence
+    // requirement. These four are filter-only — nothing renders them, and
+    // `types.ts` describing a UI that quotes `evidence` describes an intention
+    // rather than a screen that exists.
+    //
+    // The quote rule cost real coverage rather than buying safety: it blocked
+    // exactly 0 records at this gate, while causing the extraction pass to OMIT
+    // `physical` for 184 of 328 products upstream. Measured 2026-08-16, that
+    // left "wheelchair accessible things to do" judgeable on 15 of 30 results.
+    // Same reasoning `toddler_ok` already carries, applied to the fields the
+    // conformance harness showed were least judgeable and most needed.
+    //
+    // Deliberately does NOT overwrite a tier-2 physical/kids that came with a
+    // verbatim quote: an evidenced judgement is the better one, so this only
+    // fills gaps.
+    if (rec.facet_confidence === 'high') {
+      if (rec.physical && !add.physical) add.physical = rec.physical;
+      if (rec.kids && !add.kids) add.kids = rec.kids;
+      if (typeof rec.swim_required === 'boolean') add.swim_required = rec.swim_required;
+      if (rec.indoor) add.indoor = rec.indoor;
     }
 
     return Object.keys(add).length ? { ...item, ...add } : item;

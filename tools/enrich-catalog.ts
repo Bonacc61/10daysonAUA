@@ -110,16 +110,99 @@ setting and vessel describe WHAT THE ACTIVITY PHYSICALLY INVOLVES, and they are 
 
 vessel "none" is a real answer and must be given whenever the traveller is not aboard anything. Omitting the field is not the same as "none": omitted means you could not tell.`;
 
+// --- The additive facets pass (--facets) ------------------------------------
+//
+// A SECOND pass that only ever ADDS. It asks four questions the extraction pass
+// either never asked or answered for less than half the catalog, and it writes
+// nothing else: `kind`, `adventure`, `setting` and `vessel` are carried forward
+// untouched.
+//
+// Additive rather than `--force` for a measured reason. Those four fields are
+// the ONLY enrichment the app acts on today — `itemAdventure` (itemFit.ts:99)
+// prefers a real `adventure` over its keyword guess, and that number drives both
+// the Explore vibe slider and the generator. Re-judging them would move a result
+// that has already been measured through tools/run-plan-diff.cjs and settled.
+// The four fields here have no consumer in src/ at all, so this pass cannot
+// change an itinerary or a slider — a claim run-plan-diff.cjs is used to prove
+// rather than assert.
+//
+// WHY physical/kids ARE ASKED AGAIN. The extraction pass produced them for only
+// 144 of 328 products, and the cause is not the merge gate — exactly 0 records
+// are blocked there for want of a quote. It is that both the prompt AND
+// evidenceIsVerbatim drop the fields when no verbatim span backs them. That rule
+// is right for anything QUOTED to a traveller and wrong for a filter: it is the
+// same lesson `toddler_ok` already carries in enrichment.ts, where an
+// exclusionary judgement deliberately has no evidence requirement because
+// nothing renders it. So these carry their own confidence and no quote.
+const FACET_RECORD_SCHEMA = {
+  type: 'object',
+  properties: {
+    id:       { type: 'string', description: 'The product code you were given. Copy it exactly.' },
+    physical: {
+      type: 'object',
+      properties: {
+        demand:      { type: 'string', enum: ['low', 'moderate', 'high'], description: 'How much walking, climbing, heat and stamina the activity actually asks for.' },
+        mobility_ok: { type: 'boolean', description: 'Could someone who walks slowly, uses a stick, or uses a wheelchair do this? Boarding a boat by ladder, walking over rocks, or a 4x4 over dunes are all false.' },
+      },
+      required: ['demand', 'mobility_ok'],
+      additionalProperties: false,
+    },
+    kids: {
+      type: 'object',
+      properties: {
+        min_age: { type: 'integer', description: 'Youngest age this sensibly suits. 0 if genuinely any age.' },
+        baby_ok: { type: 'boolean' },
+      },
+      required: ['min_age', 'baby_ok'],
+      additionalProperties: false,
+    },
+    swim_required: { type: 'boolean', description: 'Must the traveller get INTO the water for the main part of this? A snorkel trip is true. A glass-bottom boat is false. A beach day pass is false — you may swim, you need not.' },
+    indoor:        { type: 'string', enum: ['indoor', 'outdoor', 'mixed'], description: 'Is the traveller under a roof for the main part? A cooking class or a museum is indoor. A walking tour of the same town is outdoor. A bus tour with stops is mixed.' },
+    facet_confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Your confidence in THESE four fields specifically.' },
+  },
+  required: ['id', 'facet_confidence'],
+  additionalProperties: false,
+} as const;
+
+const FACETS_SCHEMA = {
+  type: 'object',
+  properties: { records: { type: 'array', items: FACET_RECORD_SCHEMA } },
+  required: ['records'],
+  additionalProperties: false,
+} as const;
+
+const FACETS_SYSTEM = `You are reading Aruba tour listings and judging four practical attributes for a trip planner's SEARCH FILTER.
+
+None of these four is ever shown to a traveller. They are used to EXCLUDE activities that contradict what someone asked for — "wheelchair accessible", "no walking, we are tired", "we want to see fish but not swim", "something indoors for a rainy afternoon". So unlike the fields you may have seen elsewhere in this project, you do NOT need to find a quote to support them, and you must NOT omit a field merely because the listing does not spell it out.
+
+ANSWER EVERY FIELD FOR EVERY PRODUCT. Use facet_confidence to say how sure you are:
+- high   — the listing states or unmistakably entails it (a snorkel tour requires swimming; a submarine does not).
+- medium — the activity type makes it clear even though the listing does not say.
+- low    — you are guessing from the title alone.
+
+Judge the ACTIVITY, not the marketing. "Fun for all ages", "suitable for everyone" and "no experience necessary" are sales copy and tell you nothing about stamina, mobility or water. Operators routinely tick a child-friendly box on a ride with a minimum age of 8.
+
+mobility_ok is the field with the highest cost when it is wrong, because someone will rely on it. Ask a concrete question: could a person who uses a wheelchair, or who walks slowly and cannot manage steps, actually do this? Climbing a ladder onto a catamaran, walking over rock to a cove, a 4x4 across dunes, a hike, a horseback ride, kayaking, snorkelling from a boat — all false. A bus tour, a sunset cruise boarded from a dock, a cooking class, a museum — likely true. When it is genuinely unclear, answer false and mark the confidence: a false negative costs someone a suggestion, a false positive costs them a wasted trip.
+
+swim_required means the water is not optional. Snorkelling, diving and swim-with-turtles are true. A catamaran cruise, a glass-bottom boat, a beach day pass and a kayak tour are false — you are on or beside the water, not in it.
+
+indoor asks what is over the traveller's head for the main part of the activity, which is a different question from where it happens. A walking tour of a town is outdoor. A rum tasting in that same town is indoor.`;
+
 type Product = { id: string; title: string; description: string; tags: number[] };
 
-async function callClaude(batch: Product[], key: string): Promise<EnrichmentRecord[]> {
+async function callClaude(
+  batch: Product[],
+  key: string,
+  system: string = SYSTEM,
+  schema: object = SCHEMA,
+): Promise<EnrichmentRecord[]> {
   const body = {
     model: MODEL,
     max_tokens: 8000,
-    system: SYSTEM,
+    system,
     output_config: {
       ...(SUPPORTS_EFFORT ? { effort: 'medium' } : {}),
-      format: { type: 'json_schema', schema: SCHEMA },
+      format: { type: 'json_schema', schema },
     },
     messages: [{
       role: 'user',
@@ -202,6 +285,79 @@ function evidenceIsVerbatim(rec: EnrichmentRecord, description: string): boolean
 
   let existing: EnrichmentSnapshot = {};
   try { existing = JSON.parse(readFileSync(SNAPSHOT, 'utf8')); } catch { /* first run */ }
+
+  // --- --facets: the additive pass ------------------------------------------
+  if (has('facets')) {
+    const done = (id: string) => existing[id]?.facet_confidence !== undefined;
+    const todo = catalog.items.filter((i) => has('force') || !done(i.id));
+    const lim = arg('limit') ? parseInt(arg('limit')!, 10) : todo.length;
+    const work = todo.slice(0, lim);
+
+    console.log(`catalog: ${catalog.items.length} items`);
+    console.log(`already carrying the new facets: ${catalog.items.filter((i) => done(i.id)).length}`);
+    console.log(`to do this run: ${work.length}${lim < todo.length ? ` (of ${todo.length}, --limit)` : ''}\n`);
+
+    if (dryRun) {
+      const p = work[0];
+      console.log('--dry-run: first product as it would be sent\n');
+      if (p) console.log(`id: ${p.id}\ntitle: ${p.title}\ndescription: ${(p.description ?? '').slice(0, 300)}`);
+      console.log(`\nbatches: ${Math.ceil(work.length / BATCH)} × ${BATCH}`);
+      return;
+    }
+    if (!work.length) { console.log('nothing to do.'); return; }
+
+    const next: EnrichmentSnapshot = { ...existing };
+    const byId = new Map<string, ViatorItem>(catalog.items.map((i) => [i.id, i]));
+    let written = 0;
+
+    for (let i = 0; i < work.length; i += BATCH) {
+      const slice = work.slice(i, i + BATCH);
+      process.stdout.write(`batch ${Math.floor(i / BATCH) + 1}/${Math.ceil(work.length / BATCH)} … `);
+      let records: EnrichmentRecord[];
+      try {
+        records = await callClaude(
+          slice.map((it) => ({ id: it.id, title: it.title, description: it.description ?? '', tags: it.tags ?? [] })),
+          key!, FACETS_SYSTEM, FACETS_SCHEMA,
+        );
+      } catch (e) {
+        console.log(`FAILED — skipping this batch\n  ${String(e).slice(0, 400)}`);
+        continue;
+      }
+
+      for (const rec of records) {
+        const item = byId.get((rec as EnrichmentRecord & { id: string }).id);
+        if (!item) continue;
+        // SPREAD THE EXISTING RECORD FIRST. The extraction pass writes `clean`
+        // wholesale and had to hand-carry `toddler_ok` to avoid deleting it;
+        // this pass cannot make that mistake, because everything it does not
+        // touch is copied by construction.
+        const add: EnrichmentRecord = { ...(next[item.id] ?? { confidence: 'low' }) };
+        add.facet_confidence = rec.facet_confidence;
+        if (rec.physical) add.physical = rec.physical;
+        if (rec.kids) add.kids = rec.kids;
+        if (typeof rec.swim_required === 'boolean') add.swim_required = rec.swim_required;
+        if (rec.indoor) add.indoor = rec.indoor;
+        next[item.id] = add;
+        written++;
+      }
+      console.log(`${records.length} records`);
+    }
+
+    const sortedF: EnrichmentSnapshot = {};
+    for (const k of Object.keys(next).sort()) sortedF[k] = next[k];
+    writeFileSync(SNAPSHOT, JSON.stringify(sortedF, null, 2) + '\n');
+
+    const count = (pred: (r: EnrichmentRecord) => boolean) =>
+      catalog.items.filter((i) => sortedF[i.id] && pred(sortedF[i.id]!)).length;
+    const hiFacet = (r: EnrichmentRecord) => (r.facet_confidence ?? r.confidence) === 'high';
+    console.log(`\nwrote ${written} records to ${SNAPSHOT}`);
+    console.log('coverage across the live catalog, at high facet confidence:');
+    console.log(`  physical      ${count((r) => hiFacet(r) && !!r.physical)}`);
+    console.log(`  kids          ${count((r) => hiFacet(r) && !!r.kids)}`);
+    console.log(`  swim_required ${count((r) => hiFacet(r) && r.swim_required !== undefined)}`);
+    console.log(`  indoor        ${count((r) => hiFacet(r) && !!r.indoor)}`);
+    return;
+  }
 
   // loadCatalog has already applied isExcludedFromCatalog, so anything here can
   // reach a surface and is worth paying for.

@@ -116,6 +116,18 @@ export type ViatorItem = {
   setting?: 'beach' | 'ocean' | 'land' | 'town' | 'mixed';
   vessel?: 'boat' | 'catamaran' | 'submarine' | 'jetski' | null;
   /**
+   * Must the traveller get INTO the water, and is there a roof over the main
+   * part of it. Filter-only like `setting`/`vessel`, and written by a separate
+   * additive pass on its own confidence.
+   *
+   * `indoor` is a FIELD RATHER THAN A SIXTH `setting` VALUE on purpose: the two
+   * ask different questions and a sixth value would collide with `town`, whose
+   * own definition already says "streets, buildings, indoors". A walking tour
+   * and a rum tasting are both `town`; only one of them is dry when it rains.
+   */
+  swim_required?: boolean;
+  indoor?: 'indoor' | 'outdoor' | 'mixed';
+  /**
    * Viator's own merchandising flags, verbatim: LIKELY_TO_SELL_OUT,
    * FREE_CANCELLATION, PRIVATE_TOUR, NEW_ON_VIATOR, SPECIAL_OFFER.
    *
