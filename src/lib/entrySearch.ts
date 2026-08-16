@@ -106,9 +106,22 @@ export function searchEntries(
       seen.add(id);
       ranked.push(hit.entry);
     }
+    // ONLY WHAT THE DATA AFFIRMATIVELY CLEARED. `unknowns === 0` means every
+    // concept in the constraint was actually decided for this entry.
+    //
+    // The distinction the first version missed: `unknown` is kept in the POOL so
+    // that a ranked result is never dropped on a guess — that is a protection
+    // against false exclusion. It is not a licence to promote every unjudged
+    // catalog entry into the results. Measured 2026-08-16, conflating the two
+    // returned 280 entries for "half day trip that isn't a boat" and 276 for
+    // "we want to see fish but not swim" out of a 328-item catalog: nothing
+    // contradicted the query, and nothing was an answer to it either.
+    //
+    // A ranked id that is merely unknown still survives above, because the
+    // embedding put it there on its own evidence. This tail has no such
+    // evidence, so it needs the data's.
     const rest = eligible
-      .filter((p) => !seen.has(entryId(p.entry)))
-      .sort((a, b) => a.unknowns - b.unknowns)
+      .filter((p) => !seen.has(entryId(p.entry)) && p.unknowns === 0)
       .map((p) => p.entry);
     extras = [...ranked, ...rest];
   } else if (blendable) {

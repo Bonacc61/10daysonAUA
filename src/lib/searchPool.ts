@@ -165,6 +165,13 @@ const PREDICATES: Record<Concept, (f: Facets) => Verdict> = {
   // `unknown` — and an unknown must never be excluded by a mustNot, or "see
   // fish but not swim" would drop everything nobody has assessed.
   swim: (f) => (f.swimRequired === undefined ? 'unknown' : f.swimRequired ? 'pass' : 'fail'),
+  // EFFORT, not vibe. Deliberately a separate concept from `easy`, which reads
+  // the adventure axis — the two agree often enough to look redundant and come
+  // apart exactly where it matters: a horseback ride is gentle to look at and
+  // hard to do. `moderate` PASSES, matching the conformance rule character for
+  // character, because the check and the filter must agree on what the word
+  // means or the harness grades a filter it disagrees with.
+  low_effort: (f) => (f.physical ? (f.physical.demand === 'high' ? 'fail' : 'pass') : 'unknown'),
   // `mixed` PASSES: part of it is under a roof, which is what someone sheltering
   // from rain is asking for. The conformance rule is written the same way, and
   // deliberately — the check and the filter must agree on what the word means.
@@ -234,7 +241,16 @@ export function buildPool(
     for (const concept of intent.mustNot) {
       // Only a confident `pass` excludes. `unknown` AND `rescued` both keep the
       // entry — excluding on a guess is the failure this module keeps relearning.
-      if (verdictFor(concept, facets) === 'pass') { dropped = true; break; }
+      const v = verdictFor(concept, facets);
+      if (v === 'pass') { dropped = true; break; }
+      // ...but keeping is not the same as ANSWERING, and conflating the two is
+      // how "half day trip that isn't a boat" came back with 280 entries: a
+      // mustNot counted no unknowns at all, so the 113 products nobody has
+      // judged for `vessel` read as confidently clear. Counting them here keeps
+      // them in the pool (nothing is excluded on a guess) while letting the
+      // caller tell "the data says this is not a boat" apart from "nobody
+      // looked".
+      if (v !== 'fail') unknowns++;
     }
     if (dropped) continue;
 

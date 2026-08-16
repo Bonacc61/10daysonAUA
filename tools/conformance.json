@@ -67,7 +67,7 @@
     },
     {
       "q": "somewhere to take my parents who walk slowly",
-      "why": "Measured 2026-08-16: #2 was a Private Off-Road Adventure (physical.demand high, mobility_ok false at high confidence) and #5 a hike.",
+      "why": "Measured 2026-08-16: #2 was a Private Off-Road Adventure (physical.demand high, mobility_ok false at high confidence) and #5 a hike. Re-measured 2026-08-16 with the parse live: compiled to must=[easy], which reads the ADVENTURE axis, so the Hooiberg Hill hike and two horseback rides survived. `low_effort` was added to reach `physical.demand` instead.",
       "rules": [
         {
           "facet": "physical.demand",
@@ -86,7 +86,7 @@
     },
     {
       "q": "no walking, we are tired",
-      "why": "Scores 1/3 on the golden set. Fully reachable — the failure is negation, not coverage.",
+      "why": "Scores 1/3 on the golden set. Fully reachable — the failure is negation, not coverage. Re-measured 2026-08-16 with the parse live: compiled to must=[easy], which reads the ADVENTURE axis, so the Hooiberg Hill hike and two horseback rides survived. `low_effort` was added to reach `physical.demand` instead.",
       "rules": [
         {
           "facet": "physical.demand",

@@ -26,7 +26,7 @@
  *  reachability guard in searchPool.test.ts. */
 export const EMITTABLE = [
   'toddler', 'kids', 'accessible', 'easy', 'adventure', 'beach', 'boat', 'cheap',
-  'swim', 'indoor',
+  'swim', 'indoor', 'low_effort',
 ] as const;
 
 /**
@@ -34,7 +34,18 @@ export const EMITTABLE = [
  * else. Deliberately a separate type from ParsedConstraint so that storing the
  * traveller's words takes a deliberate act rather than an absent-minded spread.
  */
-export type StoredConstraint = { must: string[]; mustNot: string[] };
+export type StoredConstraint = { must: string[]; mustNot: string[]; v?: number };
+
+/**
+ * Bump whenever the VOCABULARY or the prompt changes meaning.
+ *
+ * Not decoration. `low_effort` was added on 2026-08-16 and the conformance run
+ * still showed the old parse for "parents who walk slowly", because the query
+ * hash had not changed and a cached constraint is a cache HIT — a 30-day one.
+ * A prompt is code; a cache of its output needs a version the way any other
+ * derived artifact does. A stored row whose `v` differs is treated as a miss.
+ */
+export const PARSE_VERSION = 3;
 
 export type ParsedConstraint = StoredConstraint & {
   /**
@@ -57,7 +68,7 @@ export type ParsedConstraint = StoredConstraint & {
  * "the text is never written". A test asserts this drops the residual.
  */
 export const forStorage = (c: ParsedConstraint): StoredConstraint =>
-  ({ must: c.must, mustNot: c.mustNot });
+  ({ must: c.must, mustNot: c.mustNot, v: PARSE_VERSION });
 
 const MODEL = 'gpt-5-mini';
 // MEASURED, not guessed. The first value here was 2500 and it was a guess, which
@@ -91,11 +102,12 @@ You may only use these concepts, and nothing else:
   cheap       inexpensive
   swim        the traveller must get INTO the water
   indoor      there is a roof over the main part of it
+  low_effort  physically undemanding — little walking, little stamina, no climbing
 
 must    = concepts the results MUST have.
 mustNot = concepts the results must NOT have.
 
-Negation is expressed by putting a concept in mustNot, never by inventing an opposite. "We get seasick" is mustNot: ["boat"]. "No walking, we are tired" is must: ["easy"]. "See fish but not swim" is mustNot: ["swim"]. "Something indoors for a rainy afternoon" is must: ["indoor"].
+Negation is expressed by putting a concept in mustNot, never by inventing an opposite. "We get seasick" is mustNot: ["boat"]. "No walking, we are tired" is must: ["low_effort"], NOT "easy". The concept "easy" is about how calm or thrilling something FEELS; "low_effort" is about what the body has to DO. A gentle sunrise horseback ride is easy and is not low_effort. When someone describes a BODY — tired, walks slowly, bad knees, elderly parents — they mean low_effort. And when the description is about MOBILITY rather than stamina — walks slowly, uses a stick, bad knees, a wheelchair, elderly parents — emit BOTH low_effort AND accessible. Those are different facts about an activity: a short boat trip can be low_effort and still require climbing a ladder to board. Someone who told you how their parents walk needs both to be true. "See fish but not swim" is mustNot: ["swim"]. "Something indoors for a rainy afternoon" is must: ["indoor"].
 
 residual is the part of the query NOT captured by the concepts, which will be matched by meaning against the catalog. Strip the words the concepts already cover, and strip filler. "Cheap dinner with live music" leaves residual "dinner live music" with must: ["cheap"]. If the concepts capture the whole query, residual is an empty string.
 

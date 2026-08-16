@@ -24,7 +24,14 @@ export type Concept =
   // "see fish but not swim" is mustNot: ['swim'], not must: ['no_swim'].
   // Negation lives in the constraint's shape, so every concept stays a plain
   // property of an activity and each has exactly one predicate.
-  | 'swim' | 'indoor';
+  | 'swim' | 'indoor'
+  // Added 2026-08-16. `easy` is the VIBE axis (adventure <= 35) and says nothing
+  // about effort: a sunrise horseback ride and the Hooiberg Hill hike are both
+  // low-adventure and physically demanding, and both survived "no walking, we
+  // are tired" — 32 of the 32 remaining conformance violations, in two queries,
+  // one cause. `physical.demand` was in the data the whole time and no concept
+  // reached it.
+  | 'low_effort';
 
 /**
  * What a query means, in the closed vocabulary.
@@ -53,7 +60,7 @@ export type ConceptMatch = { concept: Concept; phrase: string; negated: boolean 
  */
 export const EMITTABLE_CONCEPTS: Concept[] = [
   'toddler', 'kids', 'accessible', 'easy', 'adventure', 'beach', 'boat', 'cheap',
-  'swim', 'indoor',
+  'swim', 'indoor', 'low_effort',
 ];
 
 /** The no-op every failure path returns: today's behaviour, exactly. */

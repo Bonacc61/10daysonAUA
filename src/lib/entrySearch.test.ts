@@ -148,15 +148,31 @@ describe('a parsed constraint filters the pool the ranker draws from', () => {
     expect(ids(out)).toContain('shore');
   });
 
-  it('KEEPS an entry the data has not judged', () => {
-    // An unknown is never excluded by a mustNot. A false exclusion is invisible
-    // — nobody sees what they were not shown — and 114 of 328 products carry no
-    // vessel judgement at all.
+  it('KEEPS a RANKED entry the data has not judged — never a false exclusion', () => {
+    // The protection that matters: the embedding put this id forward on its own
+    // evidence, and an unknown facet must not take it away. A false exclusion is
+    // invisible, because nobody sees what they were not shown. 113 of 328
+    // products carry no vessel judgement at all.
+    const out = entriesOf('not a boat', [], pool, {
+      ids: ['unjudged'], answers: 'not a boat',
+      constraint: { must: [], mustNot: ['boat'], residual: '' },
+    });
+    expect(ids(out)).toContain('unjudged');
+  });
+
+  it('does NOT promote an unjudged entry into the tail on its own', () => {
+    // The other half of the same distinction, and the half that was missing.
+    // Keeping an unknown in the POOL stops a wrong exclusion; it is not a
+    // licence to answer with the catalog. Measured 2026-08-16: conflating the
+    // two returned 280 entries for "half day trip that isn't a boat" out of a
+    // 328-item catalog — nothing contradicted the query, and nothing answered it.
     const out = entriesOf('not a boat', [], pool, {
       ids: [], answers: 'not a boat',
       constraint: { must: [], mustNot: ['boat'], residual: '' },
     });
-    expect(ids(out)).toContain('unjudged');
+    expect(ids(out)).toEqual(['shore']);          // vessel: null — the data SAYS not a boat
+    expect(ids(out)).not.toContain('unjudged');   // nobody looked
+    expect(ids(out)).not.toContain('cat');        // and the catamaran is still gone
   });
 
   it('returns everything that conforms, not only what the ranker ordered', () => {
@@ -166,7 +182,7 @@ describe('a parsed constraint filters the pool the ranker draws from', () => {
       ids: ['shore'], answers: 'not a boat',
       constraint: { must: [], mustNot: ['boat'], residual: '' },
     });
-    expect(ids(out)).toEqual(['shore', 'unjudged']);
+    expect(ids(out)).toEqual(['shore']);
   });
 
   it('answers a fully compiled query with no ranked ids at all', () => {
@@ -176,7 +192,7 @@ describe('a parsed constraint filters the pool the ranker draws from', () => {
       ids: [], answers: 'not a boat',
       constraint: { must: [], mustNot: ['boat'], residual: '' },
     });
-    expect(ids(out).sort()).toEqual(['shore', 'unjudged']);
+    expect(ids(out).sort()).toEqual(['shore']);
   });
 
   it('changes nothing when the parse did not happen', () => {

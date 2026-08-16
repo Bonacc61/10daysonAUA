@@ -21,7 +21,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { embedBatch, activeProvider, MODEL_ID, isSearchableProvider } from '../viator-cards/embeddings.ts';
-import { parseConstraint, forStorage, type ParsedConstraint, type StoredConstraint } from './parse.ts';
+import { parseConstraint, forStorage, PARSE_VERSION, type ParsedConstraint, type StoredConstraint } from './parse.ts';
 
 // Layer 2 is OFF unless a secret says otherwise, so deploying this function is
 // inert. Enabling it costs a model call per NEW phrasing and changes what
@@ -206,7 +206,11 @@ Deno.serve(async (req) => {
       // The stored shape has NO residual — see the upsert below. `residual` is
       // only ever needed to decide what to embed, and on a cache hit that is
       // already decided, so '' here is not a loss.
-      const stored = parseOn ? (cached.parsed_constraint as StoredConstraint | null) ?? null : null;
+      const storedRaw = parseOn ? (cached.parsed_constraint as StoredConstraint | null) ?? null : null;
+      // A constraint parsed under an older vocabulary is not a cache hit, it is
+      // a stale answer with a 30-day life. Dropping it here re-parses and
+      // re-embeds together, which is the same rule the two cache modes follow.
+      const stored = storedRaw && storedRaw.v === PARSE_VERSION ? storedRaw : null;
       constraint = stored ? { ...stored, residual: '' } : null;
     }
     // THE CACHE HOLDS ONE OF TWO INCOMPATIBLE THINGS, and a row is only usable
