@@ -2,6 +2,7 @@ import type { Activity } from './activities';
 import type { ViatorGroup, ViatorItem, MatchTag, Section } from '../types';
 import type { Catalog } from './activitySource';
 import { parseActivityCost } from './matcher';
+import { durationMinutes } from './itineraryGenerator';
 import { isWaterBased, adventureCapForFlags } from './itemFit';
 
 // Content bucket for a tile — CATEGORIES without the 'All' filter sentinel.
@@ -81,7 +82,38 @@ export type ExploreEntry =
   | { kind: 'item'; item: ViatorItem; category: Category; adventure: number; sections: Section[] }
   | { kind: 'activity'; activity: Activity; category: Category; adventure: number; sections: Section[] };
 
-export type ExploreFilters = { section: string; search: string; vibe: number; price: number };
+// Every count in this section was measured on 2026-08-16 against the catalog
+// EXPLORE ACTUALLY RENDERS — the 328 products left after `isExcludedFromCatalog`
+// drops transfers, party buses and retail errands, plus the 26 local picks. Not
+// the 366-product raw viator-cards payload, which contains classes of product
+// (private airport transfers above all) that no traveller ever sees here and
+// which would flatter some of these shares. Each number is the reason a control
+// exists, or the reason one doesn't.
+
+// How long an activity runs, in bands a traveller plans a day around.
+export type DurationBand = 'any' | 'short' | 'half' | 'long' | 'full';
+
+// Who wrote the tile: everything, our own hand-written picks, or Viator's
+// bookable products. 26 local picks sit under 328 products, so without this
+// there is no way to browse the free beaches and viewpoints at all.
+export type Provenance = 'all' | 'local' | 'bookable';
+
+export type SortKey = 'recommended' | 'price-asc' | 'price-desc' | 'rating' | 'reviews';
+
+// The extra filters are all OPTIONAL, and omitting them all reproduces the
+// pre-filter behaviour exactly — which is what lets the My Aruba dashboard keep
+// calling this with the four original fields and get the list it always got.
+export type ExploreFilters = {
+  section: string;
+  search: string;
+  vibe: number;
+  price: number;
+  minStars?: number;        // 0 = any
+  minReviews?: number;      // 0 = any
+  duration?: DurationBand;
+  privateOnly?: boolean;
+  provenance?: Provenance;
+};
 
 // Map a Viator group id → existing UI category bucket. New groups: 1 line each.
 const GROUP_TAXONOMY_TO_CATEGORY: Record<string, Category> = {
@@ -190,6 +222,164 @@ export function priceOf(entry: ExploreEntry): number {
   return entry.kind === 'item' ? entry.item.price_usd : parseActivityCost(entry.activity.cost);
 }
 
+// === Rating, and the two filters that read it ==============================
+
+/**
+ * What rating an entry has, and whether a real crowd supplied it.
+ *
+ * One accessor because the stars filter, the review filter and two sort orders
+ * all need the same answer, and the interesting case is the one where they
+ * could disagree: `Activity.rating` is an EDITORIAL ranking weight that no
+ * platform ever published (see the comment on the field), so a local pick is
+ * `real: false` unless `loadCatalog` matched it to a Viator product. The same
+ * two conditions `RatingChip.hasRealRating` uses to decide whether to draw a
+ * star at all — the filter must not admit something the card refuses to label.
+ */
+export type EntryRating = { stars: number; reviews: number; real: boolean };
+
+export function ratingOf(entry: ExploreEntry): EntryRating {
+  if (entry.kind === 'item') {
+    const stars = entry.item.rating ?? 0;
+    const reviews = entry.item.review_count ?? 0;
+    return { stars, reviews, real: stars > 0 && reviews > 0 };
+  }
+  const { rating, reviewCount, ratingSource } = entry.activity;
+  return {
+    stars: rating ?? 0,
+    reviews: reviewCount ?? 0,
+    real: ratingSource === 'viator' && rating > 0 && reviewCount > 0,
+  };
+}
+
+/**
+ * The rating an entry is ORDERED by, which is not always the rating it has.
+ *
+ * A local pick carries no platform rating and never will. What it does carry is
+ * the founders' word, and the ranking treats that word as worth five stars off
+ * two reviews — enough to sit among the best of the catalog, not enough to beat
+ * a product ninety-four other people also rated five. On the live catalog that
+ * places a beach below the 94 products at 5.0 with two or more reviews and
+ * above the 17 holding 5.0 on a single review.
+ *
+ * This is a RANKING rule and nothing else. `ratingOf` stays the truth: it is
+ * what the filters read, what `RatingChip` reads, and the reason no invented
+ * review count ever reaches a card. Writing 5.0/2 into `Activity` instead would
+ * render "★ 5 (2)" on Eagle Beach — a platform-shaped claim that two people
+ * reviewed a public beach, which is both what `ratingSource` exists to prevent
+ * and what the EU Unfair Commercial Practices Directive (Annex I 23b-23c, as
+ * amended by the Omnibus Directive) blacklists outright.
+ */
+const VOUCHED: EntryRating = { stars: 5, reviews: 2, real: true };
+
+export function rankingRatingOf(entry: ExploreEntry): EntryRating {
+  const r = ratingOf(entry);
+  if (r.real) return r;
+  return entry.kind === 'activity' ? VOUCHED : r;
+}
+
+/**
+ * Minimum stars.
+ *
+ * A local pick clears every bar. Its star is the founders vouching for a beach,
+ * not a number a crowd produced, and hiding Eagle Beach the moment a traveller
+ * asks for quality would be the filter lying about what it removed. (The four
+ * picks `loadCatalog` matched to a real Viator product are the exception: they
+ * have a genuine rating, so they are judged on it like any other product.)
+ *
+ * An unrated Viator PRODUCT is the opposite case and does drop: 34 of the 328
+ * carry no rating at all, and nobody has vouched for those either way.
+ */
+export function starsPass(entry: ExploreEntry, minStars?: number): boolean {
+  if (!minStars) return true;
+  const r = ratingOf(entry);
+  if (!r.real) return entry.kind === 'activity';
+  return r.stars >= minStars;
+}
+
+/**
+ * Minimum number of reviews — the filter that actually discriminates.
+ *
+ * Stars barely do: 203 of the 294 rated products score 4.8+, and 111 sit at
+ * exactly 5.0. Review counts run 8 / 44 / 233 across the quartiles, so this is
+ * the control that separates a proven boat trip from one nine people have
+ * been on.
+ *
+ * Unlike the stars bar, a local pick DOES drop here, and correctly: asking for
+ * "50+ reviews" is asking about a crowd, and a hand-written pick has none.
+ */
+export function reviewsPass(entry: ExploreEntry, minReviews?: number): boolean {
+  if (!minReviews) return true;
+  const r = ratingOf(entry);
+  return r.real && r.reviews >= minReviews;
+}
+
+// === Duration ==============================================================
+
+/**
+ * Which band a duration falls in. A total function over the minutes, so every
+ * duration lands in exactly one band by construction — there is no arithmetic
+ * here that could leave a value in none, which a table of ranges could.
+ *
+ * Where the cuts fall is load-bearing, not a detail. Boundaries sit exactly on
+ * round numbers a great many products advertise: 67 of the 328 run "4 hrs" —
+ * the single largest bucket in the catalog — and another cluster runs "6 hrs".
+ * Each band therefore holds the durations its LABEL names: a 2-hour tour is
+ * "2-4h" rather than "under 2h", a 4-hour tour is "2-4h" rather than "4-6h",
+ * and a 6-hour tour is "4-6h" rather than "Full day". Read the boundaries the
+ * other way and a traveller who picks "2-4h" silently loses all 67 four-hour
+ * tours, which is a fifth of everything Explore has.
+ *
+ * Resulting spread: 56 / 194 / 48 / 30. Lopsided toward the half-day band on
+ * purpose — that is what Aruba sells, and a filter's job is to reflect the
+ * catalog rather than to quarter it.
+ */
+function bandFor(mins: number): Exclude<DurationBand, 'any'> {
+  if (mins < 120) return 'short';   // under 2h
+  if (mins <= 240) return 'half';   // 2-4h, inclusive of both ends
+  if (mins <= 360) return 'long';   // 4-6h, inclusive of 6 hrs
+  return 'full';                    // full day
+}
+
+function durationOf(entry: ExploreEntry): string {
+  return entry.kind === 'item' ? entry.item.duration : entry.activity.duration;
+}
+
+// `durationMinutes` answers 180 for anything it cannot read — a sensible default
+// for the generator's time maths, and a trap for a filter: 180 sits inside the
+// 2-4h band, so an unreadable duration would be silently filed under one band
+// and hidden from every other. Known-ness is therefore checked separately, and
+// an unknown passes every band. Same rule the rest of the site follows — no
+// tile is ever removed on the strength of data we do not have.
+function durationKnown(raw?: string): boolean {
+  return !!raw && (/\d/.test(raw) || /full[\s-]?day/i.test(raw));
+}
+
+export function durationPass(entry: ExploreEntry, band?: DurationBand): boolean {
+  if (!band || band === 'any') return true;
+  const raw = durationOf(entry);
+  if (!durationKnown(raw)) return true;
+  return bandFor(durationMinutes(raw)) === band;
+}
+
+// === Private tours + provenance ============================================
+
+// Viator's own PRIVATE_TOUR flag, reported not computed — it is on 134 of the
+// 328 products Explore renders, so it takes the catalog down by well over half.
+// (Measured post-exclusion on purpose: the raw feed reads 164 of 366, but a good
+// share of that gap is private AIRPORT TRANSFERS, exactly what isTransportOnly
+// strips, so the feed figure would flatter the filter. Their FREE_CANCELLATION
+// flag is on 313 of 328 and would filter nothing, which is why it isn't
+// offered.) A local pick is not a tour anyone sells privately, so it drops here.
+export function privatePass(entry: ExploreEntry, privateOnly?: boolean): boolean {
+  if (!privateOnly) return true;
+  return entry.kind === 'item' && (entry.item.flags ?? []).includes('PRIVATE_TOUR');
+}
+
+export function provenancePass(entry: ExploreEntry, provenance?: Provenance): boolean {
+  if (!provenance || provenance === 'all') return true;
+  return provenance === 'local' ? entry.kind === 'activity' : entry.kind === 'item';
+}
+
 // Ensure medium=link is present on a Viator product URL. The edge function
 // already sets it, so this is a no-op for live data and a safety net for any
 // URL that arrives without it (stub or manually set).
@@ -229,6 +419,56 @@ function sortScore(entry: ExploreEntry): number {
   return entry.activity.rating;
 }
 
+/**
+ * Reorder a finished result list.
+ *
+ * Deliberately NOT part of `filterExploreEntries`. Explore blends
+ * search-by-meaning hits onto the end of the filtered list AFTER filtering, so a
+ * sort applied inside the filter would leave the semantic tail in its own
+ * separate order below everything else. Running here, on the list the page is
+ * about to render, is the only place a sort can order the whole page.
+ *
+ * 'recommended' returns the array it was given, untouched and unclone: it is
+ * the house order the page has always had (best-sellers first, then rating),
+ * and search relevance ordering on top of it. Every other key sorts a copy.
+ */
+export function sortEntries(entries: ExploreEntry[], sort: SortKey): ExploreEntry[] {
+  if (sort === 'recommended') return entries;
+  const out = [...entries];
+  switch (sort) {
+    case 'price-asc':
+      return out.sort((a, b) => priceOf(a) - priceOf(b));
+    case 'price-desc':
+      return out.sort((a, b) => priceOf(b) - priceOf(a));
+    case 'rating':
+      // Rated first, then stars, then the crowd size behind those stars. That
+      // last term is the whole reason this isn't a one-line sort on `rating`:
+      // 111 products score exactly 5.0, many off single-digit review counts, so
+      // stars alone put the least-known product on top of the page. Both
+      // branches read `rankingRatingOf`, so a local pick sorts on the founders'
+      // 5.0/2 vouch; only genuinely unrated PRODUCTS fall to the bottom block,
+      // where they keep house order.
+      return out.sort((a, b) => {
+        const ra = rankingRatingOf(a), rb = rankingRatingOf(b);
+        if (ra.real !== rb.real) return ra.real ? -1 : 1;
+        if (!ra.real) return sortScore(b) - sortScore(a);
+        if (rb.stars !== ra.stars) return rb.stars - ra.stars;
+        return rb.reviews - ra.reviews;
+      });
+    case 'reviews':
+      // Same two-block shape as 'rating' above, and the same house-order
+      // fallback inside the unrated block — without it those entries all compare
+      // equal and settle in whatever order reached the sort, which after a
+      // semantic blend is search relevance rather than anything about reviews.
+      return out.sort((a, b) => {
+        const ra = rankingRatingOf(a), rb = rankingRatingOf(b);
+        if (ra.real !== rb.real) return ra.real ? -1 : 1;
+        if (!ra.real) return sortScore(b) - sortScore(a);
+        return rb.reviews - ra.reviews;
+      });
+  }
+}
+
 // Build every tile from the catalog, apply category/search + the vibe/price
 // graded filters, and sort. Every item/activity is a candidate — only an
 // explicit filter removes one.
@@ -265,6 +505,11 @@ export function filterExploreEntries(catalog: Catalog, opts: ExploreFilters): Ex
       (opts.section === 'All' || e.sections.includes(opts.section as Section)) &&
       pricePass(priceValue(priceOf(e)), opts.price) &&
       vibePass(e.adventure, opts.vibe) &&
+      starsPass(e, opts.minStars) &&
+      reviewsPass(e, opts.minReviews) &&
+      durationPass(e, opts.duration) &&
+      privatePass(e, opts.privateOnly) &&
+      provenancePass(e, opts.provenance) &&
       matchSearch(e),
     )
     .sort((a, b) => sortScore(b) - sortScore(a));
@@ -316,6 +561,19 @@ export function priceHint(p: number): string {
   if (Math.abs(t) < 0.06) return 'Any price — slide for free-only or splurge-only.';
   if (t > 0) return p >= 94 ? 'Splurge only — the priciest experiences.' : 'Leaning splurge — filtering out cheaper picks.';
   return p <= 6 ? 'Free only — no-cost activities.' : 'Leaning cheap — filtering out pricier picks.';
+}
+
+// The stars and reviews bars each remove a whole class of tile, and which class
+// is not guessable from the control. A traveller who sets 4.8★+ and never sees
+// the 43 unrated products has no way to know they existed; one who sets "50+
+// reviews" and loses every beach would read it as a bug. So each says so.
+export function starsHint(minStars: number): string {
+  if (!minStars) return 'Any rating — local picks and unrated tours included.';
+  return `${minStars}★ and up — unrated tours are hidden. Local picks stay, unless Viator rates them too.`;
+}
+export function reviewsHint(minReviews: number): string {
+  if (!minReviews) return 'Any number of reviews, including none.';
+  return `${minReviews}+ reviews — hides local picks, which have no crowd behind them.`;
 }
 
 /** The catalog id behind an entry, whichever shape it is. */

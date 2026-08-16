@@ -8,7 +8,8 @@ import Footer from '../components/Footer';
 import { useShortlist } from '../lib/shortlist';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
-import { filterExploreEntries, bookingUrl, viatorLink, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint } from '../data/exploreItems';
+import { filterExploreEntries, sortEntries, bookingUrl, viatorLink, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, starsHint, reviewsHint } from '../data/exploreItems';
+import type { DurationBand, Provenance, SortKey } from '../data/exploreItems';
 import { searchEntries } from '../lib/entrySearch';
 import { useSearchBox } from '../lib/useSearchBox';
 import { parseActivityCost } from '../data/matcher';
@@ -66,6 +67,46 @@ function Slider({ label, value, onChange, lo, hi, hint }: {
   );
 }
 
+// A row of mutually exclusive filter pills. One selected value, always — every
+// row carries its own "Any", so there is no state in which a row filters
+// nothing yet looks unset.
+function PillRow<T extends string | number>({ label, value, options, onChange }: {
+  label: string; value: T; options: { v: T; label: string }[]; onChange: (v: T) => void;
+}) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <h4 style={{ fontWeight: 700, fontSize: 11, margin: '0 0 7px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-700)' }}>{label}</h4>
+      <div role="group" aria-label={label} style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+        {options.map((o) => (
+          <button key={String(o.v)} type="button" aria-pressed={o.v === value}
+            className={`filter-pill${o.v === value ? ' active' : ''}`}
+            onClick={() => onChange(o.v)}>{o.label}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const STARS_OPTIONS = [
+  { v: 0, label: 'Any' }, { v: 4.0, label: '4.0★+' }, { v: 4.5, label: '4.5★+' }, { v: 4.8, label: '4.8★+' },
+];
+const REVIEWS_OPTIONS = [
+  { v: 0, label: 'Any' }, { v: 10, label: '10+' }, { v: 50, label: '50+' }, { v: 100, label: '100+' }, { v: 500, label: '500+' },
+];
+const DURATION_OPTIONS: { v: DurationBand; label: string }[] = [
+  { v: 'any', label: 'Any' }, { v: 'short', label: 'Under 2h' }, { v: 'half', label: '2–4h' }, { v: 'long', label: '4–6h' }, { v: 'full', label: 'Full day' },
+];
+const PROVENANCE_OPTIONS: { v: Provenance; label: string }[] = [
+  { v: 'all', label: 'All' }, { v: 'local', label: 'Local picks' }, { v: 'bookable', label: 'Bookable' },
+];
+const SORT_OPTIONS: { v: SortKey; label: string }[] = [
+  { v: 'recommended', label: 'Recommended' },
+  { v: 'price-asc', label: 'Price: low to high' },
+  { v: 'price-desc', label: 'Price: high to low' },
+  { v: 'rating', label: 'Highest rated' },
+  { v: 'reviews', label: 'Most reviewed' },
+];
+
 function SkeletonCard() {
   return (
     <div className="a-card" style={{ overflow: 'hidden' }}>
@@ -98,6 +139,25 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   // everything surface, and the plan is where answers are meant to bite.
   const [vibe, setVibe] = useState<number>(50);
   const [price, setPrice] = useState<number>(50);
+  // Sort and the four extra filters. Every default is the neutral value, so a
+  // traveller who touches none of them sees exactly the page that existed
+  // before these controls did — including the search-relevance ordering, which
+  // 'recommended' leaves alone.
+  const [sort, setSort] = useState<SortKey>('recommended');
+  const [minStars, setMinStars] = useState<number>(0);
+  const [minReviews, setMinReviews] = useState<number>(0);
+  const [duration, setDuration] = useState<DurationBand>('any');
+  const [privateOnly, setPrivateOnly] = useState(false);
+  const [provenance, setProvenance] = useState<Provenance>('all');
+  const [moreOpen, setMoreOpen] = useState(false);
+  // Only the filters hidden behind "More filters" are counted — the badge exists
+  // to say what is narrowing the page out of sight, and stars is in plain view.
+  const hiddenActive = [minReviews > 0, duration !== 'any', privateOnly, provenance !== 'all'].filter(Boolean).length;
+  const anyActive = hiddenActive > 0 || minStars > 0 || sort !== 'recommended' || vibe !== 50 || price !== 50;
+  const clearAll = () => {
+    setVibe(50); setPrice(50); setSort('recommended'); setMinStars(0);
+    setMinReviews(0); setDuration('any'); setPrivateOnly(false); setProvenance('all');
+  };
   // No ♥ on Explore's cards since 2026-08-05 — "+ Add" is the one way to keep an
   // activity here, so a card offers one action instead of two that read alike.
   // Since the same date it writes the single shortlist store (localStorage,
@@ -111,18 +171,25 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
     return slug ? REGION_LABEL[slug] ?? slug : '';
   };
   // Every individual Viator item URL + local pick, as its own filterable tile.
-  const substringHits = filterExploreEntries(catalog, { section, search, vibe, price });
+  const extra = { minStars, minReviews, duration, privateOnly, provenance };
+  const substringHits = filterExploreEntries(catalog, { section, search, vibe, price, ...extra });
 
   // Semantic blending + typed contraindications, shared with the Personalized
   // panel. The unsearched pool is a thunk so it is built ONLY when there is
   // something to blend into it — eagerly it allocated ~328 entries and
   // re-derived every section on every keystroke.
-  const { entries, addedByMeaning } = searchEntries(
+  const { entries: found, addedByMeaning } = searchEntries(
     search,
     substringHits,
-    () => filterExploreEntries(catalog, { section, search: '', vibe, price }),
+    () => filterExploreEntries(catalog, { section, search: '', vibe, price, ...extra }),
     box.semantic,
   );
+
+  // Sorting happens HERE, not inside filterExploreEntries, because semantic hits
+  // are appended to the filtered list above — sorting earlier would leave that
+  // tail in its own order beneath everything else. 'recommended' is a no-op, so
+  // the keyword-then-meaning ordering search depends on survives untouched.
+  const entries = sortEntries(found, sort);
 
   const totalCount = entries.length;
 
@@ -132,7 +199,7 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
         <div className="container-1280 explore-head" style={{ padding: '36px 36px 24px' }}>
           <h1 className="font-display" style={{ fontSize: 44, margin: '0 0 6px', color: 'var(--ink)', lineHeight: 1 }}>Explore Aruba.</h1>
           <p style={{ fontStyle: 'italic', fontSize: 15, color: 'rgba(0,0,0,0.75)', margin: 0 }}>
-            {catalog.items.length} activities + {catalog.activities.length} local picks — filter by vibe, price, and category.
+            {catalog.items.length} activities + {catalog.activities.length} local picks — filter by vibe, price, rating, reviews, and duration.
           </p>
 
           <SearchBar box={box} addedByMeaning={addedByMeaning} placeholder="Search beaches, activities, food…" style={{ marginTop: 22 }} />
@@ -153,6 +220,48 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
             <aside className="explore-sidebar" style={{ flex: '0 0 240px' }}>
               <Slider label="Vibe" value={vibe} onChange={setVibe} lo="🌴 Chill" hi="Adrenaline 🪂" hint={vibeHint(vibe)} />
               <Slider label="Price" value={price} onChange={setPrice} lo="✨ Free" hi="Splurge 💸" hint={priceHint(price)} />
+
+              <div className="chunky" style={{ padding: 18, marginBottom: 16 }}>
+                <h3 style={{ fontWeight: 700, fontSize: 13, margin: '0 0 8px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Sort</h3>
+                <select className="filter-select" aria-label="Sort results" value={sort}
+                  onChange={(e) => setSort(e.target.value as SortKey)} style={{ marginBottom: 16 }}>
+                  {SORT_OPTIONS.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
+                </select>
+
+                <PillRow label="Rating" value={minStars} options={STARS_OPTIONS} onChange={setMinStars} />
+                <div style={{ fontSize: 12, color: 'var(--sand-700)', marginTop: -6, marginBottom: 14, fontStyle: 'italic' }}>{starsHint(minStars)}</div>
+
+                {/* The button comes BEFORE what it reveals. Put it after and
+                    opening the panel inserts four control groups above the
+                    focused element, so tabbing onward walks straight past
+                    everything the traveller just asked to see. */}
+                <button type="button" className="filter-more" aria-expanded={moreOpen}
+                  aria-controls="explore-more-filters" onClick={() => setMoreOpen((v) => !v)}>
+                  <span>{moreOpen ? 'Fewer filters' : 'More filters'}</span>
+                  <span>{hiddenActive > 0 ? `${hiddenActive} on` : moreOpen ? '−' : '+'}</span>
+                </button>
+
+                {moreOpen && (
+                  <div id="explore-more-filters" style={{ marginTop: 16 }}>
+                    <PillRow label="Reviews" value={minReviews} options={REVIEWS_OPTIONS} onChange={setMinReviews} />
+                    <div style={{ fontSize: 12, color: 'var(--sand-700)', marginTop: -6, marginBottom: 14, fontStyle: 'italic' }}>{reviewsHint(minReviews)}</div>
+                    <PillRow label="Duration" value={duration} options={DURATION_OPTIONS} onChange={setDuration} />
+                    <PillRow label="Show" value={provenance} options={PROVENANCE_OPTIONS} onChange={setProvenance} />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={privateOnly} onChange={(e) => setPrivateOnly(e.target.checked)} />
+                      Private tours only
+                    </label>
+                  </div>
+                )}
+
+                {anyActive && (
+                  <button type="button" onClick={clearAll}
+                    style={{ marginTop: 10, background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--red)', textDecoration: 'underline', cursor: 'pointer' }}>
+                    Clear all filters
+                  </button>
+                )}
+              </div>
+
               {shortlist.size > 0 && (
                 <div className="chunky" style={{ padding: 18, background: 'var(--green)', color: 'var(--cream)' }}>
                   <div className="font-display" style={{ fontSize: 18, marginBottom: 6 }}>{shortlist.size} added</div>
@@ -188,6 +297,15 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
                       ? 'We looked for what you meant as well as what you typed, and still found nothing here. Try recentering the Vibe / Price sliders.'
                       : 'Recenter the Vibe / Price sliders or clear search.'}
                   </p>
+                  {/* A filter behind a COLLAPSED panel is the one that can empty
+                      the page with nothing on screen to explain why. Once the
+                      panel is open the controls speak for themselves, and saying
+                      "hidden" about something visible is just wrong. */}
+                  {!moreOpen && hiddenActive > 0 && (
+                    <p style={{ fontSize: 14, marginTop: 6 }}>
+                      {hiddenActive === 1 ? '1 filter is' : `${hiddenActive} filters are`} hidden under “More filters”.
+                    </p>
+                  )}
                 </div>
               )}
             </div>

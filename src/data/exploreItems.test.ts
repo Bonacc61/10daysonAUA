@@ -14,9 +14,17 @@ import {
   groupPasses,
   blendSearchResults,
   entryId,
+  ratingOf,
+  starsPass,
+  reviewsPass,
+  durationPass,
+  privatePass,
+  provenancePass,
+  sortEntries,
   type ExploreEntry,
 } from './exploreItems';
 import { getCatalog, type Catalog } from './activitySource';
+import type { Activity } from './activities';
 import type { ViatorGroup, ViatorItem } from '../types';
 
 // --- itemCategory ----------------------------------------------------------
@@ -363,5 +371,301 @@ describe('blendSearchResults', () => {
   test('a semantic id with no matching entry is skipped rather than throwing', () => {
     const all = [item('a')];
     expect(ids(blendSearchResults([], ['ghost', 'a'], all))).toEqual(['a']);
+  });
+});
+
+// --- ratingOf --------------------------------------------------------------
+// The one place that answers "what rating does this entry have, and did a real
+// crowd supply it". Both the stars filter and the rating sort read it, so they
+// cannot disagree about what counts as rated.
+describe('ratingOf', () => {
+  const item = (rating: number, review_count: number): ExploreEntry =>
+    ({ kind: 'item', item: { rating, review_count } as ViatorItem, category: 'Tours', adventure: 50, sections: [] });
+  const act = (over: Partial<Activity>): ExploreEntry =>
+    ({ kind: 'activity', activity: { rating: 4.7, reviewCount: 982, ...over } as Activity, category: 'Beaches', adventure: 8, sections: [] });
+
+  test('a Viator product with stars and reviews is really rated', () => {
+    expect(ratingOf(item(4.8, 1247))).toEqual({ stars: 4.8, reviews: 1247, real: true });
+  });
+
+  test('a product nobody reviewed is unrated, not rated zero', () => {
+    expect(ratingOf(item(0, 0)).real).toBe(false);
+  });
+
+  test("a local pick's editorial numbers never count as a real rating", () => {
+    expect(ratingOf(act({})).real).toBe(false);
+  });
+
+  test('a local pick matched to a Viator product carries that product rating', () => {
+    expect(ratingOf(act({ ratingSource: 'viator' })).real).toBe(true);
+  });
+});
+
+// --- the four extra filters ------------------------------------------------
+describe('starsPass', () => {
+  const rated = (rating: number): ExploreEntry =>
+    ({ kind: 'item', item: { rating, review_count: 200 } as ViatorItem, category: 'Tours', adventure: 50, sections: [] });
+  const unrated: ExploreEntry =
+    { kind: 'item', item: { rating: 0, review_count: 0 } as ViatorItem, category: 'Tours', adventure: 50, sections: [] };
+  const local: ExploreEntry =
+    { kind: 'activity', activity: { rating: 4.2, reviewCount: 30 } as Activity, category: 'Beaches', adventure: 8, sections: [] };
+
+  test('no threshold admits everything', () => {
+    expect([rated(3.1), unrated, local].every((e) => starsPass(e, 0))).toBe(true);
+    expect([rated(3.1), unrated, local].every((e) => starsPass(e, undefined))).toBe(true);
+  });
+
+  test('a rated product has to clear the bar', () => {
+    expect(starsPass(rated(4.6), 4.5)).toBe(true);
+    expect(starsPass(rated(4.4), 4.5)).toBe(false);
+  });
+
+  test('an unrated product drops the moment a bar is set', () => {
+    expect(starsPass(unrated, 4.0)).toBe(false);
+  });
+
+  test('a local pick clears every bar — the founders vouch for it, not a crowd', () => {
+    expect(starsPass(local, 4.8)).toBe(true);
+  });
+});
+
+describe('reviewsPass', () => {
+  const item = (review_count: number): ExploreEntry =>
+    ({ kind: 'item', item: { rating: 4.8, review_count } as ViatorItem, category: 'Tours', adventure: 50, sections: [] });
+  const local: ExploreEntry =
+    { kind: 'activity', activity: { rating: 4.9, reviewCount: 2847 } as Activity, category: 'Beaches', adventure: 8, sections: [] };
+
+  test('no threshold admits everything', () => {
+    expect(reviewsPass(item(1), 0)).toBe(true);
+    expect(reviewsPass(local, 0)).toBe(true);
+  });
+
+  test('a product needs that many real reviews', () => {
+    expect(reviewsPass(item(50), 50)).toBe(true);
+    expect(reviewsPass(item(49), 50)).toBe(false);
+  });
+
+  test('a local pick drops at any threshold — its review count is editorial', () => {
+    expect(reviewsPass(local, 10)).toBe(false);
+  });
+});
+
+describe('durationPass', () => {
+  const item = (duration: string): ExploreEntry =>
+    ({ kind: 'item', item: { duration } as ViatorItem, category: 'Tours', adventure: 50, sections: [] });
+
+  test('"any" admits everything', () => {
+    expect(durationPass(item('8 hrs'), 'any')).toBe(true);
+    expect(durationPass(item('8 hrs'), undefined)).toBe(true);
+  });
+
+  test('each band holds the durations it names', () => {
+    expect(durationPass(item('90 min'), 'short')).toBe(true);
+    expect(durationPass(item('3 hrs'), 'short')).toBe(false);
+    expect(durationPass(item('3 hrs'), 'half')).toBe(true);
+    expect(durationPass(item('5 hrs'), 'long')).toBe(true);
+    expect(durationPass(item('5 hrs'), 'half')).toBe(false);
+    expect(durationPass(item('8 hrs'), 'long')).toBe(false);
+    expect(durationPass(item('8 hrs'), 'full')).toBe(true);
+    expect(durationPass(item('Full day'), 'full')).toBe(true);
+  });
+
+  // The three boundaries land exactly on durations the catalog advertises in
+  // bulk — 67 of the 328 products run "4 hrs". Each must sit in the band whose
+  // LABEL claims it, or a traveller loses a fifth of Explore to a button that
+  // said it would keep them.
+  test('a boundary duration lands in the band its label names', () => {
+    expect(durationPass(item('2 hrs'), 'short')).toBe(false); // not "under 2h"
+    expect(durationPass(item('2 hrs'), 'half')).toBe(true);   // "2–4h"
+    expect(durationPass(item('4 hrs'), 'half')).toBe(true);   // "2–4h", not "4–6h"
+    expect(durationPass(item('4 hrs'), 'long')).toBe(false);
+    expect(durationPass(item('6 hrs'), 'long')).toBe(true);   // "4–6h", not "Full day"
+    expect(durationPass(item('6 hrs'), 'full')).toBe(false);
+  });
+
+  test('every duration lands in exactly one band, so none can be lost', () => {
+    const bands = ['short', 'half', 'long', 'full'] as const;
+    for (const d of ['30 min', '1 hr', '2 hrs', '2.5 hrs', '3 hrs', '4 hrs', '4.5 hrs', '6 hrs', '8 hrs', 'Full day', '2–3 hrs']) {
+      expect(bands.filter((b) => durationPass(item(d), b))).toHaveLength(1);
+    }
+  });
+
+  test('a range lands on its midpoint, as the generator reads it', () => {
+    expect(durationPass(item('2–3 hrs'), 'half')).toBe(true);
+  });
+
+  // durationMinutes() answers 180 for anything it cannot read, which sits inside
+  // the 2-4h band — so without a known-ness check an unreadable duration would be
+  // silently sorted into one band and hidden from every other.
+  test('an unreadable duration is kept by every band rather than filed under one', () => {
+    for (const band of ['short', 'half', 'long', 'full'] as const) {
+      expect(durationPass(item('varies'), band)).toBe(true);
+      expect(durationPass(item(''), band)).toBe(true);
+    }
+  });
+});
+
+describe('privatePass', () => {
+  const item = (flags?: string[]): ExploreEntry =>
+    ({ kind: 'item', item: { flags } as ViatorItem, category: 'Tours', adventure: 50, sections: [] });
+  const local: ExploreEntry =
+    { kind: 'activity', activity: {} as Activity, category: 'Beaches', adventure: 8, sections: [] };
+
+  test('off, it admits everything', () => {
+    expect(privatePass(item(undefined), false)).toBe(true);
+    expect(privatePass(local, undefined)).toBe(true);
+  });
+
+  test('on, it keeps only products Viator itself flags as private', () => {
+    expect(privatePass(item(['PRIVATE_TOUR', 'FREE_CANCELLATION']), true)).toBe(true);
+    expect(privatePass(item(['FREE_CANCELLATION']), true)).toBe(false);
+    expect(privatePass(item(undefined), true)).toBe(false);
+    expect(privatePass(local, true)).toBe(false);
+  });
+});
+
+describe('provenancePass', () => {
+  const item: ExploreEntry = { kind: 'item', item: {} as ViatorItem, category: 'Tours', adventure: 50, sections: [] };
+  const local: ExploreEntry = { kind: 'activity', activity: {} as Activity, category: 'Beaches', adventure: 8, sections: [] };
+
+  test('"all" admits both kinds', () => {
+    expect(provenancePass(item, 'all')).toBe(true);
+    expect(provenancePass(local, undefined)).toBe(true);
+  });
+
+  test('"local" keeps only hand-written picks, "bookable" only Viator products', () => {
+    expect(provenancePass(local, 'local')).toBe(true);
+    expect(provenancePass(item, 'local')).toBe(false);
+    expect(provenancePass(item, 'bookable')).toBe(true);
+    expect(provenancePass(local, 'bookable')).toBe(false);
+  });
+});
+
+// --- sortEntries -----------------------------------------------------------
+describe('sortEntries', () => {
+  const item = (id: string, over: Partial<ViatorItem>): ExploreEntry =>
+    ({ kind: 'item', item: { id, rating: 4.8, review_count: 100, price_usd: 100, is_best_seller: false, ...over } as ViatorItem, category: 'Tours', adventure: 50, sections: [] });
+  const local = (id: string, over: Partial<Activity> = {}): ExploreEntry =>
+    ({ kind: 'activity', activity: { id, cost: 'Free', rating: 4.7, reviewCount: 900, ...over } as Activity, category: 'Beaches', adventure: 8, sections: [] });
+  const ids = (out: ExploreEntry[]) => out.map(entryId);
+
+  test('"recommended" leaves the house order exactly as it found it', () => {
+    const list = [item('b', { price_usd: 300 }), item('a', { price_usd: 10 })];
+    expect(sortEntries(list, 'recommended')).toBe(list);
+  });
+
+  test('price sorts run both ways, with free picks at the cheap end', () => {
+    const list = [item('mid', { price_usd: 120 }), local('free'), item('top', { price_usd: 3656 })];
+    expect(ids(sortEntries(list, 'price-asc'))).toEqual(['free', 'mid', 'top']);
+    expect(ids(sortEntries(list, 'price-desc'))).toEqual(['top', 'mid', 'free']);
+  });
+
+  // The whole point of the rating sort: 124 products in the live catalog score
+  // exactly 5.0, many off single-digit review counts. Stars alone would put the
+  // least-known product on top of the page.
+  test('among equal stars, the product a real crowd rated comes first', () => {
+    const list = [item('thin', { rating: 5, review_count: 3 }), item('proven', { rating: 5, review_count: 9985 })];
+    expect(ids(sortEntries(list, 'rating'))).toEqual(['proven', 'thin']);
+  });
+
+  // The founders' vouch is worth 5.0 off two reviews — enough to sit among the
+  // best of the catalog, not enough to beat a product 94 other people also rated
+  // five. This is the ordering rule; `ratingOf` still reports the pick as
+  // unrated, so no number reaches the card.
+  test('a vouched local pick sorts below a well-reviewed 5.0 and above a thin one', () => {
+    const list = [
+      item('thin', { rating: 5, review_count: 1 }),
+      local('eagle-beach'),
+      item('proven', { rating: 5, review_count: 9985 }),
+    ];
+    expect(ids(sortEntries(list, 'rating'))).toEqual(['proven', 'eagle-beach', 'thin']);
+  });
+
+  test('a vouched local pick outranks a lower-starred product however many reviews it has', () => {
+    const list = [item('utv', { rating: 4.9, review_count: 8803 }), local('eagle-beach')];
+    expect(ids(sortEntries(list, 'rating'))).toEqual(['eagle-beach', 'utv']);
+  });
+
+  test('the vouch is worth two reviews and no more when sorting by review count', () => {
+    const list = [local('eagle-beach'), item('busy', { review_count: 8803 }), item('lone', { review_count: 1 })];
+    expect(ids(sortEntries(list, 'reviews'))).toEqual(['busy', 'eagle-beach', 'lone']);
+  });
+
+  test('the vouch changes ranking only — the pick is still reported unrated', () => {
+    expect(ratingOf(local('eagle-beach')).real).toBe(false);
+    expect(reviewsPass(local('eagle-beach'), 2)).toBe(false);
+  });
+
+  test('an unrated PRODUCT still sinks below everything, vouched picks included', () => {
+    const list = [item('new', { rating: 0, review_count: 0 }), item('rated', { rating: 4.0, review_count: 5 }), local('beach')];
+    expect(ids(sortEntries(list, 'rating'))).toEqual(['beach', 'rated', 'new']);
+    expect(ids(sortEntries(list, 'reviews'))).toEqual(['rated', 'beach', 'new']);
+  });
+
+  // A product with a review count but no rating is not rated — `ratingOf` says
+  // so — and must not be ranked as though those reviews said something. Without
+  // the two-block split, "most reviewed" would hand it the top of the page on
+  // the strength of a score nobody gave it.
+  test('"reviews" will not rank an unrated product on a bare count', () => {
+    const list = [item('countOnly', { rating: 0, review_count: 5000 }), item('rated', { rating: 4.4, review_count: 30 })];
+    expect(ids(sortEntries(list, 'reviews'))).toEqual(['rated', 'countOnly']);
+  });
+
+  test('"reviews" falls back to house order inside the unrated block', () => {
+    const list = [
+      item('quiet', { rating: 0, review_count: 0 }),
+      item('featured', { rating: 0, review_count: 0, is_best_seller: true }),
+    ];
+    expect(ids(sortEntries(list, 'reviews'))).toEqual(['featured', 'quiet']);
+  });
+
+  test('"reviews" orders by how many people actually turned up', () => {
+    const list = [item('few', { review_count: 8 }), item('many', { review_count: 731 }), item('some', { review_count: 40 })];
+    expect(ids(sortEntries(list, 'reviews'))).toEqual(['many', 'some', 'few']);
+  });
+
+  test('sorting does not mutate the list it was given', () => {
+    const list = [item('b', { price_usd: 300 }), item('a', { price_usd: 10 })];
+    sortEntries(list, 'price-asc');
+    expect(ids(list)).toEqual(['b', 'a']);
+  });
+});
+
+// --- the extra filters through filterExploreEntries ------------------------
+describe('filterExploreEntries — stars, reviews, duration, provenance', () => {
+  const catalog: Catalog = getCatalog();
+  const ALL = { section: 'All', search: '', vibe: 50, price: 50 };
+
+  test('omitting every extra filter changes nothing', () => {
+    expect(filterExploreEntries(catalog, ALL).length)
+      .toBe(filterExploreEntries(catalog, { ...ALL, minStars: 0, minReviews: 0, duration: 'any', privateOnly: false, provenance: 'all' }).length);
+  });
+
+  test('a stars bar keeps every local pick and drops the products under it', () => {
+    const out = filterExploreEntries(catalog, { ...ALL, minStars: 4.7 });
+    expect(out.filter((e) => e.kind === 'activity').length).toBe(catalog.activities.length);
+    for (const e of out) if (e.kind === 'item') expect(e.item.rating).toBeGreaterThanOrEqual(4.7);
+    expect(out.filter((e) => e.kind === 'item').length).toBeLessThan(catalog.items.length);
+  });
+
+  test('a review bar drops the local picks, which have no crowd behind them', () => {
+    const out = filterExploreEntries(catalog, { ...ALL, minReviews: 500 });
+    expect(out.every((e) => e.kind === 'item')).toBe(true);
+    expect(out.length).toBeGreaterThan(0);
+    for (const e of out) if (e.kind === 'item') expect(e.item.review_count).toBeGreaterThanOrEqual(500);
+  });
+
+  test('a duration band narrows to that band', () => {
+    const out = filterExploreEntries(catalog, { ...ALL, duration: 'short' });
+    expect(out.length).toBeGreaterThan(0);
+    expect(out.length).toBeLessThan(catalog.items.length + catalog.activities.length);
+  });
+
+  test('provenance splits the catalog in two and loses nothing', () => {
+    const local = filterExploreEntries(catalog, { ...ALL, provenance: 'local' });
+    const bookable = filterExploreEntries(catalog, { ...ALL, provenance: 'bookable' });
+    expect(local.every((e) => e.kind === 'activity')).toBe(true);
+    expect(bookable.every((e) => e.kind === 'item')).toBe(true);
+    expect(local.length + bookable.length).toBe(filterExploreEntries(catalog, ALL).length);
   });
 });

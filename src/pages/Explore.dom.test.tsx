@@ -39,7 +39,10 @@ const CATALOG: Catalog = {
     // below cannot fail: "we get seasick" matches no fixture, so the boat
     // vanishes whether or not anything honours the flag.
     item('boat', 'Catamaran Sunset Sail', { description: 'Open water — bring a remedy if you get seasick.' }),
-    item('sub', 'Submarine Dive'),
+    // Deliberately unlike the catamaran on every axis the new sidebar filters
+    // read — price, duration, and Viator's private flag — so each of those
+    // controls has something to separate.
+    item('sub', 'Submarine Dive', { price_usd: 250, duration: '8 hrs', flags: ['PRIVATE_TOUR'] }),
   ],
   activities: [activity('eagle', 'Eagle Beach Morning Session')],
 };
@@ -92,5 +95,112 @@ describe('Explore — search after the shared-component refactor', () => {
     const counts = [...document.querySelectorAll('.a-rating')].map(n => n.textContent);
     expect(counts).toHaveLength(2);
     expect(counts.every(t => t?.includes('(100)'))).toBe(true);
+  });
+});
+
+/**
+ * The sidebar filters, exercised through the rendered page rather than through
+ * `filterExploreEntries` — the predicates have their own unit tests, and what
+ * these add is that the controls are wired to them at all.
+ *
+ * The fixture is three tiles: two Viator products (4.7★, 100 reviews) and one
+ * hand-written local pick with an editorial 4.9 and no `ratingSource`. That
+ * shape is the point — it is what makes "the rating bar keeps local picks but
+ * the review bar drops them" a test that can fail.
+ */
+describe('Explore — the sidebar filters', () => {
+  const pill = (name: string) => screen.getByRole('button', { name });
+  const openMore = () => fireEvent.click(screen.getByRole('button', { name: /More filters/ }));
+  const titles = () => [...document.querySelectorAll('.a-card h3')].map((n) => n.textContent);
+
+  it('the extra filters stay behind "More filters" until it is opened', () => {
+    expect(screen.queryByLabelText('Duration')).not.toBeInTheDocument();
+    openMore();
+    expect(screen.getByLabelText('Duration')).toBeInTheDocument();
+  });
+
+  it('a rating bar drops the products under it and keeps the local pick', () => {
+    fireEvent.click(pill('4.8★+'));
+    expect(screen.queryByText('Catamaran Sunset Sail')).not.toBeInTheDocument();
+    expect(screen.queryByText('Submarine Dive')).not.toBeInTheDocument();
+    expect(screen.getByText('Eagle Beach Morning Session')).toBeInTheDocument();
+  });
+
+  it('a review bar drops the local pick, which has no crowd behind it', () => {
+    openMore();
+    fireEvent.click(pill('10+'));
+    expect(screen.queryByText('Eagle Beach Morning Session')).not.toBeInTheDocument();
+    expect(screen.getByText('Catamaran Sunset Sail')).toBeInTheDocument();
+  });
+
+  it('a duration band narrows to what runs that long', () => {
+    openMore();
+    fireEvent.click(pill('Full day'));
+    expect(screen.getByText('Submarine Dive')).toBeInTheDocument();
+    expect(screen.queryByText('Catamaran Sunset Sail')).not.toBeInTheDocument();
+  });
+
+  it('"Private tours only" keeps just what Viator itself flags as private', () => {
+    openMore();
+    fireEvent.click(screen.getByLabelText('Private tours only'));
+    expect(titles()).toEqual(['Submarine Dive']);
+  });
+
+  it('"Local picks" shows the hand-written ones and nothing else', () => {
+    openMore();
+    fireEvent.click(pill('Local picks'));
+    expect(titles()).toEqual(['Eagle Beach Morning Session']);
+  });
+
+  it('sorting by price reorders the grid, both ways', () => {
+    const select = screen.getByLabelText('Sort results');
+    fireEvent.change(select, { target: { value: 'price-asc' } });
+    expect(titles()).toEqual(['Eagle Beach Morning Session', 'Catamaran Sunset Sail', 'Submarine Dive']);
+    fireEvent.change(select, { target: { value: 'price-desc' } });
+    expect(titles()).toEqual(['Submarine Dive', 'Catamaran Sunset Sail', 'Eagle Beach Morning Session']);
+  });
+
+  // The local pick has no `ratingSource`, so `ratingOf` reports it unrated and no
+  // star chip is drawn for it — but the founders' vouch ranks it as 5.0/2, which
+  // beats both 4.7 products. Front of the grid, still starless.
+  it('sorting by rating puts the vouched local pick above lower-starred products', () => {
+    fireEvent.change(screen.getByLabelText('Sort results'), { target: { value: 'rating' } });
+    expect(titles()[0]).toBe('Eagle Beach Morning Session');
+    expect(document.querySelectorAll('.a-rating')).toHaveLength(2); // no chip on the pick
+  });
+
+  it('sorting by reviews drops the vouched pick below both 100-review products', () => {
+    fireEvent.change(screen.getByLabelText('Sort results'), { target: { value: 'reviews' } });
+    expect(titles()[2]).toBe('Eagle Beach Morning Session');
+  });
+
+  it('a collapsed filter that empties the page says where it is hiding', () => {
+    openMore();
+    fireEvent.click(pill('500+'));
+    expect(screen.getByText('No results found')).toBeInTheDocument();
+    // Panel still open — the control is on screen, so claiming it is "hidden"
+    // would be false. Only once it is collapsed does the note earn its place.
+    expect(screen.queryByText(/hidden under/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Fewer filters/ }));
+    expect(screen.getByText(/hidden under/)).toBeInTheDocument();
+  });
+
+  // The disclosure must precede what it reveals, or opening it inserts four
+  // control groups above the focused button and tabbing onward skips them all.
+  it('the More filters button sits before the controls it reveals', () => {
+    const button = screen.getByRole('button', { name: /More filters/ });
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    openMore();
+    const panel = document.getElementById('explore-more-filters');
+    expect(button).toHaveAttribute('aria-controls', 'explore-more-filters');
+    expect(panel).toBeTruthy();
+    expect(button.compareDocumentPosition(panel!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('"Clear all filters" puts the whole catalog back', () => {
+    fireEvent.click(pill('4.8★+'));
+    expect(titles()).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
+    expect(titles()).toHaveLength(3);
   });
 });
