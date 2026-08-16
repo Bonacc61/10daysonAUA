@@ -21,6 +21,13 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { embedBatch, activeProvider, MODEL_ID, isSearchableProvider } from '../viator-cards/embeddings.ts';
+import { parseConstraint, type ParsedConstraint } from './parse.ts';
+
+// Layer 2 is OFF unless a secret says otherwise, so deploying this function is
+// inert. Enabling it costs a model call per NEW phrasing and changes what
+// results a traveller sees, which makes it a decision rather than a deploy —
+// the same footing as the VITE_ flags, one layer down. Rollback is unsetting it.
+const PARSE_ENABLED = Deno.env.get('SEARCH_PARSE') === 'on';
 
 const MAX_QUERY = 200;
 const MATCH_COUNT = 30;
@@ -165,26 +172,54 @@ Deno.serve(async (req) => {
   const hash = await sha256(`q:${normalised}:${Deno.env.get('RATE_LIMIT_SALT')}`);
 
   let vector: number[] | null = null;
+  let constraint: ParsedConstraint | null = null;
   try {
     const { data: cached } = await db.from('query_embeddings')
-      .select('embedding, model').eq('query_hash', hash).maybeSingle();
+      .select('embedding, model, parsed_constraint').eq('query_hash', hash).maybeSingle();
     // A cached vector from a different model is ignored, never reused.
     if (cached?.model === model && cached.embedding) {
       vector = typeof cached.embedding === 'string' ? JSON.parse(cached.embedding) : cached.embedding;
+      constraint = (cached.parsed_constraint as ParsedConstraint | null) ?? null;
     }
+    // A row written before the parse existed holds a vector of the WHOLE query,
+    // while a parsed search embeds only the residual. Reusing it would pair the
+    // wrong vector with the right constraint, so it counts as a miss and both
+    // are recomputed together.
+    if (PARSE_ENABLED && vector && !constraint) vector = null;
   } catch { /* a cache miss and a cache failure are the same thing here */ }
+
+  // Parse BEFORE embedding, because what gets embedded depends on the answer:
+  // a query the constraints fully describe has nothing left to rank by, and
+  // asks the provider nothing at all.
+  if (PARSE_ENABLED && !vector) {
+    constraint = await parseConstraint(normalised);
+  }
+  const toEmbed = constraint ? constraint.residual.trim() : normalised;
+
+  // A FULLY COMPILED QUERY ASKS NOTHING. Every word was a concept, so the
+  // constraints already say what it meant: no provider call, no rate-limit cost,
+  // no cache row, and the traveller's text never leaves this function. The
+  // client filters its own catalog by the constraint and has nothing to rank.
+  if (constraint && !toEmbed) {
+    console.log(`[search] compiled whole: must=${constraint.must} mustNot=${constraint.mustNot}`);
+    return json({ results: [], constraint });
+  }
 
   if (!vector) {
     try {
       // The NORMALISED string, so the cache key and the stored vector describe
       // the same input — otherwise whichever casing arrived first would decide
-      // the vector every later variant gets.
-      const [v] = await embedBatch([normalised]);
+      // the vector every later variant gets. When a constraint was parsed this
+      // is its residual, which is a SUBSET of those same words, never more.
+      const [v] = await embedBatch([toEmbed]);
       if (!v) throw new Error('empty embedding');
       vector = v;
       // Store the vector against the hash. The text is never written.
       await db.from('query_embeddings')
-        .upsert({ query_hash: hash, embedding: JSON.stringify(v), model }, { onConflict: 'query_hash' });
+        .upsert({
+          query_hash: hash, embedding: JSON.stringify(v), model,
+          ...(constraint ? { parsed_constraint: constraint } : {}),
+        }, { onConflict: 'query_hash' });
     } catch (e) {
       // Name only — an embedding provider's error body can quote the input back.
       console.warn(`[search] embed failed: ${e instanceof Error ? e.name : 'error'}`);
@@ -206,7 +241,9 @@ Deno.serve(async (req) => {
   const results = (data ?? []).map((r: { item_id: string; similarity: number }) => ({
     id: r.item_id, score: r.similarity,
   }));
-  // Count only. Never the words.
-  console.log(`[search] ${results.length} results`);
-  return json({ results });
+  // Count and the PARSED CONSTRAINT — never the words. A constraint is a derived
+  // result over a closed vocabulary, which is the same line itinerary-edit
+  // draws: it logs the parse, not the sentence.
+  console.log(`[search] ${results.length} results${constraint ? ` must=${constraint.must} mustNot=${constraint.mustNot}` : ''}`);
+  return json(constraint ? { results, constraint } : { results });
 });
