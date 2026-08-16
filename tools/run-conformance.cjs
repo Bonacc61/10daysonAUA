@@ -59,6 +59,13 @@ execFileSync('node_modules/.bin/esbuild', [
     for (const i of c.items) map[i.id] = {
       title: i.title, price_usd: i.price_usd, vessel: i.vessel, setting: i.setting,
       physical: i.physical, kids: i.kids, adventure: i.adventure,
+      // Every facet a rule can name must be listed here. A field omitted from
+      // this projection reads as undefined - i.e. UNKNOWN - for every item,
+      // which silently turns its rule into a vacuous zero rather than an error.
+      // Not hypothetical: adding indoor and swim_required to conformance.json
+      // before listing them here made the rule unsatisfiable, and only
+      // --selftest's satisfiable-AND-violable check caught it.
+      swim_required: i.swim_required, indoor: i.indoor,
     };
     // Curated locals carry no enrichment at all, so every facet is undefined and
     // they count as UNKNOWN rather than as passes. That is the honest reading:

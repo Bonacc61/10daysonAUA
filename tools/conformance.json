@@ -31,78 +31,136 @@
     "Ops: isNull (explicitly not a vessel), notNull, eq, neq, notIn, lte, gte,",
     "isTrue, isFalse. Facet paths are dotted: physical.demand, kids.min_age."
   ],
-
   "decidable": [
     {
       "q": "half day trip that isn't a boat",
       "why": "Measured 2026-08-16: three of the top five were boats. Saying 'boat' embeds next to boats, and cosine has no NOT.",
       "rules": [
-        { "facet": "vessel", "op": "isNull", "why": "aboard a vessel directly contradicts 'isn't a boat'" }
+        {
+          "facet": "vessel",
+          "op": "isNull",
+          "why": "aboard a vessel directly contradicts 'isn't a boat'"
+        }
       ]
     },
     {
       "q": "we get seasick",
       "why": "Scores 0/3 on the golden set. The sentence embeds next to the very thing it rules out.",
       "rules": [
-        { "facet": "vessel", "op": "isNull", "why": "a boat is precisely what seasickness rules out" }
+        {
+          "facet": "vessel",
+          "op": "isNull",
+          "why": "a boat is precisely what seasickness rules out"
+        }
       ]
     },
     {
       "q": "somewhere to take my parents who walk slowly",
       "why": "Measured 2026-08-16: #2 was a Private Off-Road Adventure (physical.demand high, mobility_ok false at high confidence) and #5 a hike.",
       "rules": [
-        { "facet": "physical.demand", "op": "notIn", "value": ["high"], "why": "a high-demand outing is not for someone who walks slowly" },
-        { "facet": "physical.mobility_ok", "op": "isTrue", "why": "explicitly not mobility-friendly contradicts the query" }
+        {
+          "facet": "physical.demand",
+          "op": "notIn",
+          "value": [
+            "high"
+          ],
+          "why": "a high-demand outing is not for someone who walks slowly"
+        },
+        {
+          "facet": "physical.mobility_ok",
+          "op": "isTrue",
+          "why": "explicitly not mobility-friendly contradicts the query"
+        }
       ]
     },
     {
       "q": "no walking, we are tired",
       "why": "Scores 1/3 on the golden set. Fully reachable — the failure is negation, not coverage.",
       "rules": [
-        { "facet": "physical.demand", "op": "notIn", "value": ["high"], "why": "'no walking' cannot be satisfied by a high-demand activity" }
+        {
+          "facet": "physical.demand",
+          "op": "notIn",
+          "value": [
+            "high"
+          ],
+          "why": "'no walking' cannot be satisfied by a high-demand activity"
+        }
       ]
     },
     {
       "q": "wheelchair accessible things to do",
       "why": "The clearest possible constraint, and the one with the highest cost when it is wrong.",
       "rules": [
-        { "facet": "physical.mobility_ok", "op": "isTrue", "why": "the query IS the facet" }
+        {
+          "facet": "physical.mobility_ok",
+          "op": "isTrue",
+          "why": "the query IS the facet"
+        }
       ]
     },
     {
       "q": "cheap dinner with live music",
       "why": "Measured 2026-08-16: the topic was matched well and 'cheap' was dropped entirely — a $172 Luxury Four-Course Cruise came back fourth.",
       "rules": [
-        { "facet": "price_usd", "op": "lte", "value": 120, "why": "'cheap' cannot mean $172 when the catalog median is far below it" }
+        {
+          "facet": "price_usd",
+          "op": "lte",
+          "value": 120,
+          "why": "'cheap' cannot mean $172 when the catalog median is far below it"
+        }
       ]
     },
     {
       "q": "something gentle, nothing adrenaline",
       "why": "The vibe axis is the one facet present on nearly the whole catalog, so this is the highest-coverage constraint available.",
       "rules": [
-        { "facet": "adventure", "op": "lte", "value": 45, "why": "'nothing adrenaline' rules out the top of the vibe axis" }
+        {
+          "facet": "adventure",
+          "op": "lte",
+          "value": 45,
+          "why": "'nothing adrenaline' rules out the top of the vibe axis"
+        }
+      ]
+    },
+    {
+      "q": "something indoors for a rainy afternoon",
+      "why": "Promoted from `deferred` 2026-08-16 when `indoor` landed. Was called a SUCCESS by eye on 2026-08-16 because three Sip-and-Paint classes came back — and the listings say 'in the cool shade of swaying trees', 'Beachside', 'at sunset ... candlelight'. Every one is outdoors. A human reading titles scored this query as working; the facet is what caught it.",
+      "rules": [
+        {
+          "facet": "indoor",
+          "op": "notIn",
+          "value": [
+            "outdoor"
+          ],
+          "why": "an outdoor activity does not answer 'indoors for a rainy afternoon'. `mixed` passes: part of it is under a roof."
+        }
+      ]
+    },
+    {
+      "q": "we want to see fish but not swim",
+      "why": "Promoted from `deferred` 2026-08-16 when `swim_required` landed. Measured before it existed: snorkel trips and a fish restaurant.",
+      "rules": [
+        {
+          "facet": "swim_required",
+          "op": "isFalse",
+          "why": "'not swim' is the constraint; a glass-bottom boat satisfies it and a snorkel tour does not"
+        }
       ]
     },
     {
       "q": "adrenaline, nothing gentle",
       "why": "The mirror of the query above. A filter that only ever excludes in one direction is the beach bug, and it is caught by running both.",
       "rules": [
-        { "facet": "adventure", "op": "gte", "value": 55, "why": "'nothing gentle' rules out the bottom of the vibe axis" }
+        {
+          "facet": "adventure",
+          "op": "gte",
+          "value": 55,
+          "why": "'nothing gentle' rules out the bottom of the vibe axis"
+        }
       ]
     }
   ],
-
   "deferred": [
-    {
-      "q": "something indoors for a rainy afternoon",
-      "needs": "setting: an indoor value. Its five values are beach/ocean/land/town/mixed and none of them means indoors.",
-      "note": "Currently one of the better results by accident — the embedder found Sip-and-Paint classes unaided. Worth re-checking after the facet exists that it did not get WORSE."
-    },
-    {
-      "q": "we want to see fish but not swim",
-      "needs": "swim_required. Today a snorkel lagoon and a fish restaurant both come back.",
-      "note": "The restaurant is a genuine ambiguity in the query, not only a ranking failure."
-    },
     {
       "q": "activity for teenagers who get bored easily",
       "needs": "an appeal facet distinct from a safety one. Measured 2026-08-16: #2 was Beach Meditation.",
