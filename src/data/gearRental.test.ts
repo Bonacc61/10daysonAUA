@@ -1,0 +1,74 @@
+import { describe, it, expect } from 'vitest';
+import { SNORKEL_GEAR, gearRentalFor, GEAR_RENTAL_IDS } from './gearRental';
+import { ACTIVITIES } from './activities';
+
+describe('the gear-rental record is about a real shop', () => {
+  it('carries a source and the date it was read', () => {
+    // Prices on someone else's website rot. A figure with no source and no date
+    // is a number this site is asserting on its own authority, which is exactly
+    // what the enrichment rules forbid for a claim about the real world.
+    expect(SNORKEL_GEAR.source).toMatch(/^https:\/\/www\.aquawindies\.com\//);
+    expect(SNORKEL_GEAR.checkedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('quotes the full-set prices the shop publishes', () => {
+    expect(SNORKEL_GEAR.fullSetHalfDayUsd).toBe(16);
+    expect(SNORKEL_GEAR.fullSetDayUsd).toBe(24);
+  });
+
+  it('says it is rental only, because no purchase is advertised', () => {
+    expect(SNORKEL_GEAR.sells).toBe(false);
+  });
+
+  it('records that the shop is shut on Sundays', () => {
+    // A trip-planning fact, not trivia: a Sunday snorkel needs gear collected
+    // on Saturday.
+    expect(SNORKEL_GEAR.closed).toBe('Sunday');
+  });
+});
+
+describe('which activities offer it', () => {
+  it('names only activities that exist', () => {
+    const ids = new Set(ACTIVITIES.map((a) => a.id));
+    expect([...GEAR_RENTAL_IDS].filter((id) => !ids.has(id))).toEqual([]);
+  });
+
+  it('covers every free shore-snorkel pick', () => {
+    expect([...GEAR_RENTAL_IDS].sort()).toEqual([
+      'arashi-beach', 'baby-beach-snorkel', 'boca-catalina-shore',
+      'malmok-beach', 'mangel-halto', 'tres-trapi',
+    ]);
+  });
+
+  it('offers nothing for a guided trip that supplies its own gear', () => {
+    // The catamaran and the jeep tour both carry the snorkel tag but include
+    // equipment in the fare — telling that traveller to go and rent a mask is
+    // worse than saying nothing.
+    expect(gearRentalFor('boca-catalina-snorkel')).toBeNull();
+    expect(gearRentalFor('natural-pool-jeep')).toBeNull();
+  });
+
+  it('offers it for a free shore snorkel', () => {
+    expect(gearRentalFor('tres-trapi')).toBe(SNORKEL_GEAR);
+  });
+});
+
+describe('the front of the card no longer quotes a price nobody publishes', () => {
+  it('has no activity still claiming a $10 rental', () => {
+    // $10 appeared on five picks and on neither of the shop's own pages.
+    expect(ACTIVITIES.filter((a) => /\$10 rental/.test(a.cost)).map((a) => a.id)).toEqual([]);
+  });
+
+  it('quotes the half-day set price on every pick that mentions gear', () => {
+    const withGear = ACTIVITIES.filter((a) => /gear/i.test(a.cost));
+    expect(withGear.map((a) => a.id).sort()).toEqual([
+      'baby-beach-snorkel', 'boca-catalina-shore', 'malmok-beach',
+      'mangel-halto', 'tres-trapi',
+    ]);
+    for (const a of withGear) {
+      // Half-day, because a morning at a beach returned the same day is what
+      // these picks actually are — the 24-hour rate is $24.
+      expect(a.cost).toBe(`Free + $${SNORKEL_GEAR.fullSetHalfDayUsd} gear`);
+    }
+  });
+});

@@ -655,7 +655,7 @@ export const MAX_PAID_OUTINGS_PER_DAY = 1;
 // There is NO beach clause, and that is deliberate rather than an omission. An
 // `isRevisitableBeach` test here would be strictly dead: it requires cost 0, and
 // the price test below already rejects anything free. Every curated beach is
-// free today (13 of 13 — the "Free + $10 rental" ones parse to 0), and no Viator
+// free today (13 of 13 — the "Free + $16 gear" ones parse to 0), and no Viator
 // product carries the `beaches` section at all (0 of 328, measured), so "beaches
 // don't count" holds by construction. The one case that would separate them is a
 // PAID beach, which does not exist in either catalog; if one is ever added it

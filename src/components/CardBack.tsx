@@ -4,6 +4,7 @@ import { whatToExpectFor } from '../data/whatToExpect';
 import RatingBreakdown from './RatingBreakdown';
 import { hasBreakdown } from '../data/reviewBreakdown';
 import type { Activity } from '../data/activities';
+import { gearRentalFor } from '../data/gearRental';
 import type { ViatorItem } from '../types';
 import { Star } from './Icons';
 
@@ -77,6 +78,10 @@ function trimToSentence(text: string, maxChars: number): string {
 
 export default function CardBack(props: Props) {
   const isActivity = props.kind === 'activity';
+  // Only the free shore-snorkel picks. A guided trip includes equipment in the
+  // fare, and telling that traveller to go and rent a mask is worse than saying
+  // nothing — see GEAR_RENTAL_IDS.
+  const gear = isActivity ? gearRentalFor(props.activity.id) : null;
   const title = isActivity ? props.activity.title : props.bestSeller.title;
 
   // A curated pick that mergeLocalMatches paired with a real product adopts that
@@ -299,6 +304,30 @@ export default function CardBack(props: Props) {
           </p>
         </div>
       ) : null}
+      {gear && (
+        /* A STRIP, not a block in the grid above. That grid renders
+           `blocks.length > 0 ? grid : tip`, so pushing a third thing into it
+           would have silently replaced "What locals say" — the most valuable
+           line on a local pick's card — and its own comment already says three
+           columns are unreadably narrow. This sits underneath both. */
+        <div style={{ marginTop: 10, flex: '0 0 auto',
+                      background: 'var(--sand-100)', border: '2px solid var(--ink)',
+                      borderRadius: 10, padding: '8px 10px' }}>
+          <div style={{ fontWeight: 700, fontSize: 11, color: 'var(--ink)' }}>
+            Bring your own, or rent from {gear.shop}
+          </div>
+          <div style={{ fontSize: 10.5, lineHeight: 1.45, color: 'var(--sand-700)', marginTop: 3 }}>
+            Mask, snorkel and fins ${gear.fullSetHalfDayUsd} for a half day
+            (same-day return) or ${gear.fullSetDayUsd} for 24 hours; float vest
+            ${gear.vestUsd}. {gear.address} — {gear.hours}, closed {gear.closed}.
+            They ask for a {gear.deposit}. Rental only, no sales.{' '}
+            <a href={gear.source} target="_blank" rel="noopener noreferrer"
+               style={{ color: 'var(--ink)', textDecoration: 'underline' }}>
+              Their rates
+            </a>, as read on {gear.checkedOn}.
+          </div>
+        </div>
+      )}
     </div>
   );
 }

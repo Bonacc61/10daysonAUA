@@ -72,7 +72,9 @@ export function blendPools(
 // code. These two readers stay because half the app prices a card with them.
 
 // Parse a "from" price out of a local activity cost string.
-// "Free" / "Free + $10 rental" → 0; "$65 guided" → 65; "$8–15 pp" → 8.
+// "Free" / "Free + $16 gear" → 0; "$65 guided" → 65; "$8–15 pp" → 8.
+// Anything matching /free/i is 0 whatever follows it, so the gear figure on the
+// shore-snorkel picks is display text and never reaches a price filter.
 export function parseActivityCost(cost: string): number {
   if (/free/i.test(cost)) return 0;
   const m = cost.match(/\d+/);

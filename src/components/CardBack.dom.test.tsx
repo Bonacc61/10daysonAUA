@@ -114,3 +114,45 @@ describe('CardBack — a local pick that borrowed a product identity', () => {
     expect(screen.getByText(/r\/Aruba/i)).toBeInTheDocument();
   });
 });
+
+describe('CardBack — where to get gear for a free snorkel', () => {
+  const shore = (over: Partial<Activity> = {}): Activity => ({
+    id: 'tres-trapi', title: 'Tres Trapi Turtle Cove', category: 'Beaches',
+    image: '/x.jpg',
+    description: '"Three steps" — concrete stairs drop you into a sheltered cove.',
+    localsSay: '"Walk down the steps slowly, float, and wait." — Glennis',
+    cost: 'Free + $16 gear', duration: '2–3 hrs', timeOfDay: 'Morning',
+    fitReason: 'Free turtle snorkelling', location: 'Tres Trapi, Noord',
+    rating: 4.8, reviewCount: 1452, matched_by: [], ...over,
+  });
+
+  it('names the shop and quotes its half-day set price', () => {
+    render(<CardBack kind="activity" activity={shore()} onFlip={noop} />);
+    expect(screen.getByText(/Aqua Windie's/)).toBeInTheDocument();
+    expect(screen.getByText(/\$16/)).toBeInTheDocument();
+  });
+
+  it('says it is shut on Sunday', () => {
+    // The planning fact: a Sunday snorkel needs gear picked up on Saturday.
+    render(<CardBack kind="activity" activity={shore()} onFlip={noop} />);
+    expect(screen.getByText(/closed Sunday/i)).toBeInTheDocument();
+  });
+
+  it('does NOT displace what locals say', () => {
+    // The card back renders `blocks.length > 0 ? grid : tip`, so adding a block
+    // to the grid would have silently replaced the local's quote — the single
+    // most valuable thing on a local pick's card.
+    render(<CardBack kind="activity" activity={shore()} onFlip={noop} />);
+    expect(screen.getByText(/Walk down the steps slowly/)).toBeInTheDocument();
+  });
+
+  it('shows nothing for a guided trip that includes gear', () => {
+    render(<CardBack kind="activity" activity={shore({ id: 'boca-catalina-snorkel' })} onFlip={noop} />);
+    expect(screen.queryByText(/Aqua Windie's/)).not.toBeInTheDocument();
+  });
+
+  it('shows nothing on a Viator product card', () => {
+    render(<CardBack kind="group" bestSeller={viator()} onFlip={noop} />);
+    expect(screen.queryByText(/Aqua Windie's/)).not.toBeInTheDocument();
+  });
+});
