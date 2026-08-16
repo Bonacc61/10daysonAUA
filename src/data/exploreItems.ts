@@ -721,15 +721,12 @@ export function filterExploreEntries(catalog: Catalog, opts: ExploreFilters): Ex
    * four duplicated, two of them high on the page once Recommended started
    * ranking on reviews.
    *
-   * The PRODUCT wins, and not merely because it is canonical. What the pick
-   * still owns is its hand-written `cost`, and that string has drifted from the
-   * live price on three of the four: it advertises "$75 pp" for a tour Viator
-   * now sells at $99, "$60 pp" against $79, "$25 guided" against $39 — beside a
-   * Book now button that charges the real amount. The pick cannot be repaired
-   * here: viator-cards does send `price_usd` and `duration` for a match, but the
-   * per-product call fills them with 0 and "", and `LocalMatch` does not even
-   * declare the fields. Until that is fixed the pick is the tile carrying a
-   * wrong price, so it is the tile that goes.
+   * The PRODUCT wins because it is the canonical listing: same experience, same
+   * booking, and one tile is the point. (The pick's stale `cost` used to be the
+   * deciding argument — it advertised "$75 pp" for a tour selling at $99 — but
+   * `mergeLocalMatches` now adopts the matched product's live price, so a pick
+   * that DOES keep its tile, because its product is not in the catalog, is no
+   * longer quoting a number that has drifted.)
    *
    * Deliberately BEFORE the filters and against the whole catalog: deduping
    * against the filtered list would bring the pick back whenever a filter

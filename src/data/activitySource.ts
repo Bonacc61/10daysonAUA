@@ -2,6 +2,7 @@ import { ACTIVITIES, type Activity } from './activities';
 import { VIATOR_GROUPS, VIATOR_ITEMS } from './viator-stub';
 import { LUNCHSPOTS } from './lunchspots';
 import { fitItem, bestItemForAnswers, itemSlotOk, matchingSection, isRetailProduct } from './itemFit';
+import { viatorProductCode } from './exploreItems';
 import { budgetTag } from './classify';
 import type { ViatorGroup, ViatorItem, SlotEntry, CardEntry, MatchTag, Slot, Section } from '../types';
 import { mergeEnrichment, type EnrichmentSnapshot } from './enrichment';
@@ -195,10 +196,28 @@ export type LocalMatch = {
 export function mergeLocalMatches(
   activities: readonly Activity[],
   matches: Record<string, LocalMatch>,
+  items: readonly ViatorItem[] = [],
 ): Activity[] {
+  const byCode = new Map(items.map((i) => [i.id, i]));
   return activities.map((a) => {
     const m = matches[a.id];
     if (!m) return a;
+    // The matched product, looked up in the catalog we already fetched.
+    //
+    // This exists because a matched pick kept its hand-written `cost`, and those
+    // strings had drifted: "$75 pp" against a tour Viator now sells at $99,
+    // "$60 pp" against $79, "$25 guided" against $39 — printed next to a Book
+    // now button that charges the real amount.
+    //
+    // The price cannot come from the call that builds the match. /products/{code}
+    // returns `pricingInfo`, which describes the pricing MODEL (PER_PERSON, age
+    // bands) and carries no amount at all — verified against the live API, which
+    // is why viator-cards' `price_usd: n.price_usd` has always sent 0 here. The
+    // amount lives in /products/search, and that is exactly what built
+    // `catalog.items`, so it is read back off the product rather than fetched.
+    // Duration is available from either (`itinerary.duration` on the detail
+    // call), but is taken from the same place so the two always agree.
+    const product = byCode.get(viatorProductCode(m.viator_item_url));
     // Both numbers must be real, because the card prints them together. Keying
     // the flag on `rating` alone while `review_count` fell back independently
     // could pair a genuine 4.3 with the editorial count — "4.3 from 2,847
@@ -218,6 +237,10 @@ export function mergeLocalMatches(
       // words; swapping in the operator's copy under a half-matched card would
       // be the same misattribution from the other direction.
       ...(real && m.description ? { description: m.description } : {}),
+      // Only when the product actually carries them. A missing price must leave
+      // the editorial string alone rather than render "$0 pp".
+      ...(product && product.price_usd > 0 ? { cost: `$${product.price_usd} pp` } : {}),
+      ...(product?.duration ? { duration: product.duration } : {}),
       viator_item_url: m.viator_item_url,
     };
   });
@@ -245,16 +268,23 @@ export function loadCatalog(): Promise<Catalog> {
       if (data?.error || !Array.isArray(groups) || !Array.isArray(items) || items.length === 0) {
         throw new Error('viator-cards: empty/invalid payload');
       }
-      const activities = mergeLocalMatches(ACTIVITIES, data?.localMatches ?? {});
+      // Items are assembled FIRST so the local-pick merge can read a matched
+      // product's live price back off them — see mergeLocalMatches. Enrichment
+      // last: it only ever ADDS optional fields, so it must see the final item
+      // list, and nothing downstream of it can be affected by an item it has no
+      // record for.
+      const mergedItems = mergeEnrichment(
+        normalizePopularity(regroupItems(groups, items.filter((i) => !isExcludedFromCatalog(i)))),
+        ENRICHMENT as EnrichmentSnapshot,
+      );
       liveCatalog = {
-        activities, groups,
-        // Enrichment last: it only ever ADDS optional fields, so it must see the
-        // final item list, and nothing downstream of it can be affected by an
-        // item it has no record for.
-        items: mergeEnrichment(
-          normalizePopularity(regroupItems(groups, items.filter((i) => !isExcludedFromCatalog(i)))),
-          ENRICHMENT as EnrichmentSnapshot,
-        ),
+        groups,
+        items: mergedItems,
+        // Passed the POST-exclusion list on purpose: if a matched product was
+        // dropped from the catalog, the pick has no live price to adopt and
+        // keeps both its editorial cost and (per filterExploreEntries) its own
+        // Explore tile, because nothing else on the page represents it.
+        activities: mergeLocalMatches(ACTIVITIES, data?.localMatches ?? {}, mergedItems),
       };
       return liveCatalog;
     } catch {

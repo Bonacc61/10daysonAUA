@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { resolveSlotEntry, isTransportOnly, isPartyBus, isExcludedFromCatalog, regroupItems, type Catalog } from './activitySource';
+import { resolveSlotEntry, isTransportOnly, isPartyBus, isExcludedFromCatalog, regroupItems, mergeLocalMatches, type Catalog } from './activitySource';
+import { parseActivityCost } from './matcher';
 import { isRetailProduct } from './itemFit';
 import type { ViatorGroup, ViatorItem } from '../types';
 import type { Activity } from './activities';
@@ -304,5 +305,67 @@ describe('resolveSlotEntry — a regrouped item does not re-face a stored plan',
     const stored = { kind: 'group' as const, groupId: 'sailing-cruises', bestSellerId: 'vanished' };
     const r = resolveSlotEntry(stored, catalog);
     expect(r?.kind === 'group' ? r.bestSeller.id : null).toBe('sail');
+  });
+});
+
+// --- mergeLocalMatches: a matched pick must not quote a stale price ---------
+/**
+ * A matched local pick keeps its hand-written `cost` string, and those strings
+ * had drifted from the live Viator price on three of the four live matches —
+ * "$75 pp" against a tour selling at $99, "$60 pp" against $79, "$25 guided"
+ * against $39 — printed beside a Book now button that charges the real amount.
+ *
+ * The price is NOT available from the endpoint that builds a match:
+ * /products/{code} carries `pricingInfo`, which describes only the pricing MODEL
+ * (PER_PERSON, age bands) and holds no amount at all. It is available from
+ * /products/search, which is what already built `catalog.items` — so the fix is
+ * to read it back off the matched product rather than to fetch anything.
+ */
+describe('mergeLocalMatches — price and duration come from the matched product', () => {
+  const pick = (over: Partial<Activity> = {}): Activity => ({
+    id: 'natural-pool-jeep', title: 'Natural Pool 4x4 & Snorkel Tour', category: 'Activities',
+    image: '', description: '', localsSay: '', cost: '$75 pp', duration: '3–5 hrs',
+    timeOfDay: 'Morning', fitReason: '', location: 'Arikok', rating: 4.8, reviewCount: 120,
+    matched_by: [], ...over,
+  });
+  const product = (over: Partial<ViatorItem> = {}): ViatorItem => ({
+    id: '6841POOL', group_id: 'adventure-tours', title: 'Aruba Natural Pool Jeep Safari',
+    image_url: '', price_usd: 99, duration: '4.5 hrs', rating: 5, review_count: 9319,
+    viator_item_url: '', is_best_seller: false, display_order: 0, ...over,
+  });
+  const match = {
+    title: 'Aruba Natural Pool Jeep Safari', rating: 5, review_count: 9319,
+    viator_item_url: 'https://www.viator.com/tours/Aruba/x/d28-6841POOL?pid=P00302487',
+  };
+
+  it('adopts the live price and duration instead of the stale editorial ones', () => {
+    const [out] = mergeLocalMatches([pick()], { 'natural-pool-jeep': match }, [product()]);
+    expect(out.cost).toBe('$99 pp');
+    expect(out.duration).toBe('4.5 hrs');
+  });
+
+  it('keeps the editorial cost when the matched product is not in the catalog', () => {
+    const [out] = mergeLocalMatches([pick()], { 'natural-pool-jeep': match }, []);
+    expect(out.cost).toBe('$75 pp');
+    expect(out.duration).toBe('3–5 hrs');
+  });
+
+  // A free local pick that happens to carry a link must never sprout a price.
+  it('leaves an unmatched pick completely alone', () => {
+    const free = pick({ id: 'eagle-beach', cost: 'Free', duration: '2 hrs' });
+    const [out] = mergeLocalMatches([free], {}, [product()]);
+    expect(out.cost).toBe('Free');
+    expect(out.duration).toBe('2 hrs');
+  });
+
+  it('ignores a product carrying no usable price rather than printing "$0 pp"', () => {
+    const [out] = mergeLocalMatches([pick()], { 'natural-pool-jeep': match }, [product({ price_usd: 0, duration: '' })]);
+    expect(out.cost).toBe('$75 pp');
+    expect(out.duration).toBe('3–5 hrs');
+  });
+
+  it('the adopted cost still parses back to the same number', () => {
+    const [out] = mergeLocalMatches([pick()], { 'natural-pool-jeep': match }, [product()]);
+    expect(parseActivityCost(out.cost)).toBe(99);
   });
 });
