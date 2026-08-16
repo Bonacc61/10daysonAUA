@@ -38,11 +38,11 @@ const CATALOG: Catalog = {
     // below is a substring HIT on it. Without that the contraindication test
     // below cannot fail: "we get seasick" matches no fixture, so the boat
     // vanishes whether or not anything honours the flag.
-    item('boat', 'Catamaran Sunset Sail', { description: 'Open water — bring a remedy if you get seasick.' }),
+    item('boat', 'Catamaran Sunset Sail', { description: 'Open water — bring a remedy if you get seasick.', kids: { min_age: 4, baby_ok: true } }),
     // Deliberately unlike the catamaran on every axis the sidebar filters read
     // (price, duration, Viator's private flag) AND on the two "Recommended"
     // reads (adventure, sections), so every control has something to separate.
-    item('sub', 'Submarine Dive', { price_usd: 250, duration: '8 hrs', flags: ['PRIVATE_TOUR'], adventure: 90, sections: ['adventures-outdoor'] }),
+    item('sub', 'Submarine Dive', { price_usd: 250, duration: '8 hrs', flags: ['PRIVATE_TOUR'], adventure: 90, sections: ['adventures-outdoor'], kids: { min_age: 16, baby_ok: false } }),
   ],
   activities: [activity('eagle', 'Eagle Beach Morning Session')],
 };
@@ -245,5 +245,56 @@ describe('Explore — Recommended reads the questionnaire', () => {
     document.body.innerHTML = '';
     render(<Explore setPage={() => {}} canSeeItinerary={false} answers={DEFAULT_ANSWERS} />);
     expect(titles()).toEqual(withSliderOnly);
+  });
+});
+
+/**
+ * "Good for kids" runs on searchPool's `kids` verdict, the same one the search
+ * box uses. The fixture is deliberately one of each state the filter can meet:
+ * the catamaran suits a 4-year-old (pass), the submarine is 16+ (fail), and the
+ * local pick carries no kids judgement at all (unjudged) — which is the case
+ * 128 of the 350 live entries are in.
+ */
+describe('Explore — the Good for kids filter', () => {
+  const titles = () => [...document.querySelectorAll('.a-card h3')].map((n) => n.textContent);
+  const openMore = () => fireEvent.click(screen.getByRole('button', { name: /More filters/ }));
+
+  it('keeps what suits a child and drops what does not', () => {
+    openMore();
+    fireEvent.click(screen.getByLabelText('Good for kids'));
+    expect(titles()).toEqual(['Catamaran Sunset Sail']);
+  });
+
+  it('says how many were hidden for lack of a judgement, not for failing one', () => {
+    openMore();
+    fireEvent.click(screen.getByLabelText('Good for kids'));
+    // One unjudged entry (the local pick), and it must read as ONE. The 16+
+    // submarine FAILED and is not counted — conflating the two would overstate
+    // how little we know about the catalog.
+    expect(screen.getByText(/1 activity we haven’t checked is hidden/)).toBeInTheDocument();
+    expect(screen.queryByText(/1 activities/)).not.toBeInTheDocument();
+  });
+
+  // The predicate is `min_age <= 8` — the youngest age the activity TAKES, not a
+  // promise that any child of 8 will be fine. The copy must not invert that.
+  it('states the minimum age rather than promising the activity suits a child', () => {
+    openMore();
+    fireEvent.click(screen.getByLabelText('Good for kids'));
+    expect(screen.getByText(/Minimum age 8 or under/)).toBeInTheDocument();
+    expect(screen.queryByText(/Suits a child of 8 or under/)).not.toBeInTheDocument();
+  });
+
+  it('counts toward the More filters badge and clears with the rest', () => {
+    openMore();
+    fireEvent.click(screen.getByLabelText('Good for kids'));
+    expect(screen.getByRole('button', { name: /Fewer filters/ })).toHaveTextContent('1 on');
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
+    expect(titles()).toHaveLength(3);
+  });
+
+  it('is off by default, so the page is unchanged until it is ticked', () => {
+    openMore();
+    expect(screen.getByLabelText('Good for kids')).not.toBeChecked();
+    expect(titles()).toHaveLength(3);
   });
 });

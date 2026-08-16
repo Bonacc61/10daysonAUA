@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildPool, facetsOf, verdictFor } from './searchPool';
+import { buildPool, facetsOf, verdictFor, splitByFacet } from './searchPool';
 import { EMITTABLE_CONCEPTS, NO_INTENT, type Concept, type Intent } from './searchConstraint';
 
 // Intents are stated LITERALLY rather than parsed. This file tests the filter,
@@ -440,5 +440,53 @@ describe('setting and vessel answer what category could not', () => {
     const cat = item({ id: 'cat', vessel: 'catamaran', setting: 'ocean' });
     const pool = buildPool([shore, cat], intentOf(['beach'], ['boat']));
     expect(pool.map((p) => p.entry.kind === 'item' && p.entry.item.id)).toEqual(['shore']);
+  });
+});
+
+// --- splitByFacet -----------------------------------------------------------
+/**
+ * Explore's "Good for kids" checkbox runs on this rather than on a predicate of
+ * its own, so the pill and the search box cannot come to mean different things
+ * by the same word.
+ *
+ * It reports `unjudged` separately from what it removed. 128 of the 350 Explore
+ * entries carry no kids judgement at all, and a filter that quietly deleted a
+ * third of the page would look like the catalog is smaller than it is — the
+ * caption says how many were dropped for want of an answer rather than for
+ * failing one.
+ */
+describe('splitByFacet', () => {
+  const withKids = (id: string, kids?: { min_age: number; baby_ok: boolean }): ExploreEntry => ({
+    kind: 'item',
+    item: { id, title: id, kids, price_usd: 50 } as ViatorItem,
+    category: 'Tours', adventure: 30, sections: [],
+  });
+
+  it('keeps only a confident pass', () => {
+    const { kept } = splitByFacet([
+      withKids('suits-a-child', { min_age: 5, baby_ok: true }),
+      withKids('adults-only', { min_age: 18, baby_ok: false }),
+    ], 'kids');
+    expect(kept.map((e) => (e as { item: ViatorItem }).item.id)).toEqual(['suits-a-child']);
+  });
+
+  it('counts what nobody judged apart from what failed', () => {
+    const { kept, unjudged } = splitByFacet([
+      withKids('yes', { min_age: 2, baby_ok: true }),
+      withKids('no', { min_age: 16, baby_ok: false }),
+      withKids('unchecked', undefined),
+      withKids('also-unchecked', undefined),
+    ], 'kids');
+    expect(kept).toHaveLength(1);
+    expect(unjudged).toBe(2);
+  });
+
+  it('reports nothing unjudged when every entry carries an answer', () => {
+    const { unjudged } = splitByFacet([withKids('a', { min_age: 4, baby_ok: true })], 'kids');
+    expect(unjudged).toBe(0);
+  });
+
+  it('is a no-op shape on an empty list', () => {
+    expect(splitByFacet([], 'kids')).toEqual({ kept: [], unjudged: 0 });
   });
 });

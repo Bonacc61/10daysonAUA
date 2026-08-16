@@ -324,3 +324,38 @@ export function buildPool(
   }
   return out;
 }
+
+/**
+ * Split a list by one facet: what the data confidently says yes to, and how much
+ * of it nobody has judged.
+ *
+ * Explore's facet checkboxes run on this, so a pill labelled "Good for kids"
+ * and the query "good for kids" cannot come to mean different things — the
+ * whole reason `verdictFor` exists in one place.
+ *
+ * `unjudged` is returned rather than folded into the removals because the two
+ * are different facts about the catalog and only one of them is about the
+ * activity. 137 of Explore's 350 entries carry no kids judgement at all, so a
+ * filter that silently dropped them would read as "the island has less for
+ * families than it does" instead of "we have not checked these yet". The caller
+ * shows the number.
+ *
+ * Note the policy difference from `buildPool`, which defaults to `demote` and
+ * KEEPS unknowns. That is right for a typed query, where a false exclusion is
+ * invisible and the ranker can sort proven above unproven. A checkbox is a
+ * narrower promise: it names a claim, and an entry nobody has checked cannot
+ * back it. So here an unknown is removed — and counted, so it is never silent.
+ */
+export function splitByFacet(
+  entries: ExploreEntry[],
+  concept: Concept,
+): { kept: ExploreEntry[]; unjudged: number } {
+  const kept: ExploreEntry[] = [];
+  let unjudged = 0;
+  for (const entry of entries) {
+    const v = verdictFor(concept, facetsOf(entry));
+    if (v === 'pass') kept.push(entry);
+    else if (v !== 'fail') unjudged++;   // 'unknown' and 'rescued'
+  }
+  return { kept, unjudged };
+}

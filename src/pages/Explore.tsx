@@ -10,8 +10,9 @@ import { useShortlist } from '../lib/shortlist';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
 import { filterExploreEntries, sortEntries, bookingUrl, viatorLink, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, starsHint, reviewsHint } from '../data/exploreItems';
-import type { DurationBand, Provenance, SortKey } from '../data/exploreItems';
+import type { DurationBand, ExploreEntry, Provenance, SortKey } from '../data/exploreItems';
 import { searchEntries } from '../lib/entrySearch';
+import { splitByFacet } from '../lib/searchPool';
 import { answersToTags } from '../data/answerTags';
 import { useSearchBox } from '../lib/useSearchBox';
 import { parseActivityCost } from '../data/matcher';
@@ -168,15 +169,21 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   const [minReviews, setMinReviews] = useState<number>(0);
   const [duration, setDuration] = useState<DurationBand>('any');
   const [privateOnly, setPrivateOnly] = useState(false);
+  // Runs on the same `verdictFor` the search box uses, so the two cannot come to
+  // disagree about what "good for kids" MEANS. They still return different sets:
+  // buildPool keeps unknowns and demotes them, this removes them — see the note
+  // on splitByFacet for why a checkbox is the narrower promise.
+  const [kidsOnly, setKidsOnly] = useState(false);
   const [provenance, setProvenance] = useState<Provenance>('all');
   const [moreOpen, setMoreOpen] = useState(false);
   // Only the filters hidden behind "More filters" are counted — the badge exists
   // to say what is narrowing the page out of sight, and stars is in plain view.
-  const hiddenActive = [minReviews > 0, duration !== 'any', privateOnly, provenance !== 'all'].filter(Boolean).length;
+  const hiddenActive = [minReviews > 0, duration !== 'any', privateOnly, provenance !== 'all', kidsOnly].filter(Boolean).length;
   const anyActive = hiddenActive > 0 || minStars > 0 || sort !== 'recommended' || vibe !== 50 || price !== 50;
   const clearAll = () => {
     setVibe(50); setPrice(50); setSort('recommended'); setMinStars(0);
     setMinReviews(0); setDuration('any'); setPrivateOnly(false); setProvenance('all');
+    setKidsOnly(false);
   };
   // No ♥ on Explore's cards since 2026-08-05 — "+ Add" is the one way to keep an
   // activity here, so a card offers one action instead of two that read alike.
@@ -192,7 +199,18 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   };
   // Every individual Viator item URL + local pick, as its own filterable tile.
   const extra = { minStars, minReviews, duration, privateOnly, provenance };
-  const substringHits = filterExploreEntries(catalog, { section, search, vibe, price, ...extra });
+  // The facet filter sits OUTSIDE filterExploreEntries rather than inside it with
+  // the others: searchPool imports values from exploreItems, so calling back the
+  // other way would close a real import cycle. It wraps instead.
+  //
+  // `unjudged` is carried out so the sidebar can say how many activities were
+  // removed for want of a judgement rather than for failing one — 128 of the 350
+  // entries carry no kids verdict, and dropping a third of the page in silence
+  // would read as the island having less for families than it does.
+  const byKids = (list: ExploreEntry[]) => (kidsOnly ? splitByFacet(list, 'kids') : { kept: list, unjudged: 0 });
+  const filtered = byKids(filterExploreEntries(catalog, { section, search, vibe, price, ...extra }));
+  const substringHits = filtered.kept;
+  const kidsUnjudged = filtered.unjudged;
 
   // Semantic blending + typed contraindications, shared with the Personalized
   // panel. The unsearched pool is a thunk so it is built ONLY when there is
@@ -201,7 +219,7 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   const { entries: found, addedByMeaning } = searchEntries(
     search,
     substringHits,
-    () => filterExploreEntries(catalog, { section, search: '', vibe, price, ...extra }),
+    () => byKids(filterExploreEntries(catalog, { section, search: '', vibe, price, ...extra })).kept,
     box.semantic,
   );
 
@@ -285,6 +303,24 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
                       <input type="checkbox" checked={privateOnly} onChange={(e) => setPrivateOnly(e.target.checked)} />
                       Private tours only
                     </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, marginTop: 10, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={kidsOnly} aria-describedby={kidsOnly ? 'explore-kids-hint' : undefined}
+                        onChange={(e) => setKidsOnly(e.target.checked)} />
+                      Good for kids
+                    </label>
+                    {kidsOnly && (
+                      // The copy states the MINIMUM AGE, not a promise about any
+                      // child. `min_age` is the youngest age an activity sensibly
+                      // takes, and 88 of the 141 that pass sit above 0 — 45 of
+                      // them at 6 or 8. "Suits a child of 8 or under" would tell
+                      // a parent of a 3-year-old the opposite of what the data
+                      // says. A wrong filter is invisible; a wrong promise
+                      // strands someone at a jetty.
+                      <div id="explore-kids-hint" style={{ fontSize: 12, color: 'var(--sand-700)', marginTop: 6, fontStyle: 'italic' }}>
+                        Minimum age 8 or under — check each listing for the youngest age it takes.
+                        {kidsUnjudged > 0 && ` ${kidsUnjudged === 1 ? '1 activity we have' : `${kidsUnjudged} activities we have`}n’t checked ${kidsUnjudged === 1 ? 'is' : 'are'} hidden from these results.`}
+                      </div>
+                    )}
                   </div>
                 )}
 
