@@ -58,7 +58,14 @@ User → React app (localStorage) → Supabase (trips, feedback_events, shared_i
 AI features (each gated by a flag — see "Three switches" above;
 `.env.production` says which are on):
   itinerary-edit → Anthropic (US)   free text → an EditConstraint. Nothing stored.
-  search         → OpenAI (US)      query → a vector. Hash + vector cached 30 days.
+  search         → OpenAI (US)      query → a vector AND a constraint over a closed
+                                    vocabulary of twelve concepts (SEARCH_PARSE=on since
+                                    2026-08-16). Hash + vector + {must,mustNot} cached 30
+                                    days. The parse's `residual` is a subset of the
+                                    traveller's own words and is IN-MEMORY ONLY — never
+                                    stored, never returned, never logged. Bump
+                                    PARSE_VERSION when the vocabulary changes, or cached
+                                    parses stay stale for 30 days.
   viator-cards   → OpenAI (US)      product text → vectors, at ingest. Always on.
 ```
 
