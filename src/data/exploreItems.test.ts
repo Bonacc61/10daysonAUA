@@ -21,11 +21,17 @@ import {
   privatePass,
   provenancePass,
   sortEntries,
+  rankRecommended,
+  shrunkRating,
+  templateFit,
+  templateTarget,
+  personaScore,
   type ExploreEntry,
 } from './exploreItems';
 import { getCatalog, type Catalog } from './activitySource';
 import type { Activity } from './activities';
-import type { ViatorGroup, ViatorItem } from '../types';
+import type { MatchTag, ViatorGroup, ViatorItem } from '../types';
+import { fitItem } from './itemFit';
 
 // --- itemCategory ----------------------------------------------------------
 describe('itemCategory', () => {
@@ -667,5 +673,246 @@ describe('filterExploreEntries — stars, reviews, duration, provenance', () => 
     expect(local.every((e) => e.kind === 'activity')).toBe(true);
     expect(bookable.every((e) => e.kind === 'item')).toBe(true);
     expect(local.length + bookable.length).toBe(filterExploreEntries(catalog, ALL).length);
+  });
+});
+
+// --- "Recommended" ----------------------------------------------------------
+describe('shrunkRating', () => {
+  const r = (stars: number, reviews: number) => ({ stars, reviews, real: true });
+
+  test('a rating nobody has tested is pulled most of the way to the catalog mean', () => {
+    // 9 reviews against a prior of 50 keeps ~15% of the product's own score.
+    expect(shrunkRating(r(5, 9), 4.8)).toBeCloseTo(4.83, 2);
+  });
+
+  test('a rating thousands have tested keeps almost all of its own score', () => {
+    expect(shrunkRating(r(5, 9985), 4.8)).toBeCloseTo(5.0, 2);
+  });
+
+  // The defect this whole term exists to fix.
+  test('a well-tested 4.9 beats a barely-tested 5.0', () => {
+    expect(shrunkRating(r(4.9, 8803), 4.8)).toBeGreaterThan(shrunkRating(r(5, 9), 4.8));
+  });
+
+  test('no reviews at all lands exactly on the catalog mean', () => {
+    expect(shrunkRating(r(0, 0), 4.8)).toBeCloseTo(4.8, 5);
+  });
+});
+
+describe('templateFit', () => {
+  test('peaks at the template’s own average intensity', () => {
+    expect(templateFit(22.5)).toBe(1);
+  });
+
+  test('a calm snorkel scores far above an off-road tour', () => {
+    expect(templateFit(18)).toBeGreaterThan(0.9);
+    expect(templateFit(85)).toBe(0);
+  });
+
+  test('never goes negative, however extreme the entry', () => {
+    expect(templateFit(100)).toBe(0);
+    expect(templateFit(0)).toBeGreaterThanOrEqual(0);
+  });
+
+  test('follows the target it is given', () => {
+    expect(templateFit(85, 85)).toBe(1);
+    expect(templateFit(22.5, 85)).toBe(0);
+  });
+});
+
+// The template sets the default character; the traveller moves it. Without this,
+// a 30%-weighted pull toward calm cancelled the persona term and an adrenaline
+// answer produced a CALMER page (mean intensity 24) than a beach-chill one (27).
+describe('templateTarget', () => {
+  test('with no answers it is the template’s own character', () => {
+    expect(templateTarget(false, 90)).toBe(22.5);
+    expect(templateTarget(false, 50)).toBe(22.5);
+  });
+
+  test('once answered it meets the traveller halfway', () => {
+    expect(templateTarget(true, 90)).toBe(56.25);
+    expect(templateTarget(true, 0)).toBe(11.25);
+  });
+
+  test('the house taste always moderates — the target never reaches the extreme', () => {
+    expect(templateTarget(true, 100)).toBeLessThan(100);
+    expect(templateTarget(true, 100)).toBeGreaterThan(50);
+  });
+});
+
+describe('personaScore', () => {
+  // fitItem rejects anything over the budget tier's cap. On a plan that is
+  // right; on a browse page it would hide a third of the catalog from a
+  // budget traveller, so rankRecommended reads the score and drops the verdict.
+  test('an over-budget product still scores rather than vanishing', () => {
+    const tags = new Set<MatchTag>(['budget']);
+    const raw = { price_usd: 3656, popularity_score: 0 } as ViatorItem;
+    const lavish: ExploreEntry = { kind: 'item', item: raw, category: 'Tours', adventure: 50, sections: [] };
+    expect(fitItem(raw, tags).rejected).toBe(true);
+    expect(fitItem(raw, tags).score).toBe(-Infinity);
+    // Finite, and at the floor rather than at negative infinity — the item ranks
+    // last on fit but quality and the template can still carry it up the page.
+    expect(personaScore(lavish, tags)).toBe(0);
+  });
+
+  test('a local pick scores on its own tags, three points per overlap', () => {
+    const beach: ExploreEntry = {
+      kind: 'activity',
+      activity: { sections: ['beaches'], adventure: 8 } as Activity,
+      category: 'Beaches', adventure: 8, sections: ['beaches'],
+    };
+    expect(personaScore(beach, new Set<MatchTag>(['low-adventure']))).toBeGreaterThan(0);
+    expect(personaScore(beach, new Set<MatchTag>(['nightlife']))).toBe(0);
+  });
+});
+
+describe('rankRecommended', () => {
+  const NO_TAGS = { tags: new Set<MatchTag>(), hasPersona: false };
+  const item = (id: string, over: Partial<ViatorItem>, adventure = 22): ExploreEntry =>
+    ({ kind: 'item', item: { id, rating: 4.8, review_count: 100, price_usd: 100, popularity_score: 0, ...over } as ViatorItem, category: 'Tours', adventure, sections: [] });
+  const ids = (out: ExploreEntry[]) => out.map(entryId);
+
+  // The whole reason the old default was replaced.
+  test('the is_best_seller pin no longer lifts anything', () => {
+    const list = [
+      item('pinned', { is_best_seller: true, rating: 5, review_count: 9 }),
+      item('proven', { rating: 5, review_count: 9985 }),
+    ];
+    expect(ids(rankRecommended(list, NO_TAGS))).toEqual(['proven', 'pinned']);
+  });
+
+  // Ranked on quality alone the live top 8 came back as six off-road tours, all
+  // sitting at adventure 85. Quality is a PERCENTILE, so this needs a realistic
+  // spread to mean anything: with only two entries the percentiles collapse to
+  // 0 and 1 and quality's 0.55 simply outweighs the template's 0.45, which is
+  // arithmetic rather than behaviour.
+  test('the best-reviewed off-road tour does not lead a page of calm alternatives', () => {
+    const list = [
+      item('utv', { rating: 5, review_count: 9985 }, 85),
+      ...Array.from({ length: 8 }, (_, i) =>
+        item(`calm${i}`, { rating: 4.9, review_count: 900 - i * 100 }, 20 + i)),
+    ];
+    const out = ids(rankRecommended(list, NO_TAGS));
+    expect(out[0]).not.toBe('utv');
+    expect(out.indexOf('utv')).toBeGreaterThan(4);
+  });
+
+  // Shrinkage is measured AGAINST the catalog mean, so the fixture has to look
+  // like a catalog: three near-perfect entries average 4.9, and a 5.0 shrunk
+  // toward 4.9 is still above a 4.9, so the thin one would win and the test
+  // would be describing its own fixture rather than the behaviour. The fillers
+  // pull the mean to ~4.67, which is where the live catalog sits (4.79).
+  test('among equally calm entries, the better-reviewed one wins', () => {
+    const list = [
+      item('thin', { rating: 5, review_count: 4 }, 22),
+      item('proven', { rating: 4.9, review_count: 5000 }, 22),
+      ...Array.from({ length: 8 }, (_, i) => item(`filler${i}`, { rating: 4.6, review_count: 200 }, 22)),
+    ];
+    expect(ids(rankRecommended(list, NO_TAGS))[0]).toBe('proven');
+  });
+
+  // The fixture has to be one the persona term WOULD reorder, or the test passes
+  // whether or not `hasPersona` is honoured. These two local picks are identical
+  // except for their section, and 'watersports' matches exactly one of them.
+  const pick = (id: string, section: 'beaches' | 'cruises-water'): ExploreEntry => ({
+    kind: 'activity',
+    activity: { id, sections: [section], adventure: 22, cost: 'Free' } as Activity,
+    category: 'Beaches', adventure: 22, sections: [section],
+  });
+
+  test('with no answers the persona term cannot move anything', () => {
+    const list = [pick('beach', 'beaches'), pick('boat', 'cruises-water')];
+    const tags = new Set<MatchTag>(['watersports']);
+    // Proof the fixture is sensitive: with the persona term ON, the tag reorders it.
+    expect(ids(rankRecommended(list, { tags, hasPersona: true }))).toEqual(['boat', 'beach']);
+    // ...and with it OFF, the same tags change nothing.
+    expect(ids(rankRecommended(list, { tags, hasPersona: false }))).toEqual(ids(rankRecommended(list, NO_TAGS)));
+  });
+
+  test('answers reorder the page', () => {
+    const watery: ExploreEntry = {
+      kind: 'activity',
+      activity: { id: 'snorkel-cove', sections: ['cruises-water'], adventure: 22 } as Activity,
+      category: 'Watersports', adventure: 22, sections: ['cruises-water'],
+    };
+    const list = [item('generic', { rating: 5, review_count: 4000 }), watery];
+    const before = ids(rankRecommended(list, NO_TAGS));
+    const after = ids(rankRecommended(list, { tags: new Set<MatchTag>(['watersports']), hasPersona: true }));
+    expect(before).toEqual(['generic', 'snorkel-cove']);
+    expect(after).toEqual(['snorkel-cove', 'generic']);
+  });
+
+  // The bug the before/after print caught: an adrenaline answer used to return a
+  // calmer page than a beach-chill one, because the template pulled everything
+  // toward 22.5 whatever the traveller said.
+  test('an adrenaline answer surfaces the intense entries, not the calm ones', () => {
+    const list = [
+      item('calm', { rating: 4.9, review_count: 900 }, 18),
+      item('wild', { rating: 4.9, review_count: 900 }, 85),
+    ];
+    const chill = { tags: new Set<MatchTag>(), hasPersona: true, adventureLevel: 5 };
+    const wild = { tags: new Set<MatchTag>(), hasPersona: true, adventureLevel: 95 };
+    expect(ids(rankRecommended(list, chill))[0]).toBe('calm');
+    expect(ids(rankRecommended(list, wild))[0]).toBe('wild');
+  });
+
+  // The regression the ship gate caught: ranking the BLENDED search list promoted
+  // semantic-only matches above keyword ones, voiding the premise on which
+  // VITE_SEMANTIC_SEARCH shipped at 65% recall.
+  test('search-by-meaning results stay below the keyword hits', () => {
+    const keyword = [
+      item('kw-weak', { rating: 4.2, review_count: 30 }, 22),
+      item('kw-strong', { rating: 5, review_count: 9000 }, 22),
+    ];
+    const tail = [item('semantic', { rating: 5, review_count: 9999 }, 22)];
+    const out = ids(rankRecommended([...keyword, ...tail], { ...NO_TAGS, semanticTail: 1 }));
+    // The tail entry outscores both keyword hits on every term and still sits last.
+    expect(out).toEqual(['kw-strong', 'kw-weak', 'semantic']);
+  });
+
+  test('the keyword block is still ranked, the tail merely untouched', () => {
+    const list = [
+      item('weak', { rating: 4.2, review_count: 30 }, 22),
+      item('strong', { rating: 5, review_count: 9000 }, 22),
+      item('tailA', { rating: 5, review_count: 1 }, 22),
+      item('tailB', { rating: 5, review_count: 9999 }, 22),
+    ];
+    const out = ids(rankRecommended(list, { ...NO_TAGS, semanticTail: 2 }));
+    expect(out.slice(0, 2)).toEqual(['strong', 'weak']);   // reordered
+    expect(out.slice(2)).toEqual(['tailA', 'tailB']);      // arrival order kept
+  });
+
+  test('a tail longer than the list does not throw or duplicate', () => {
+    const list = [item('a', {}), item('b', {})];
+    expect(ids(rankRecommended(list, { ...NO_TAGS, semanticTail: 9 }))).toEqual(['a', 'b']);
+  });
+
+  // shrunkRating with zero reviews returns exactly the catalog mean, which would
+  // park the 34 unrated products at the 50th percentile — mid-page, above 150+
+  // products a crowd actually rated.
+  test('an unrated product is floored, not parked at the catalog average', () => {
+    const list = [
+      item('unrated', { rating: 0, review_count: 0 }, 22),
+      item('mediocre', { rating: 4.3, review_count: 40 }, 22),
+      item('good', { rating: 4.9, review_count: 900 }, 22),
+    ];
+    expect(ids(rankRecommended(list, NO_TAGS))).toEqual(['good', 'mediocre', 'unrated']);
+  });
+
+  test('a single entry, or none, comes back untouched', () => {
+    const one = [item('only', {})];
+    expect(rankRecommended(one, NO_TAGS)).toBe(one);
+    expect(rankRecommended([], NO_TAGS)).toEqual([]);
+  });
+
+  test('entries that score identically keep the order they arrived in', () => {
+    const list = [item('first', {}), item('second', {}), item('third', {})];
+    expect(ids(rankRecommended(list, NO_TAGS))).toEqual(['first', 'second', 'third']);
+  });
+
+  test('sortEntries only ranks when it is given a traveller', () => {
+    const list = [item('pinned', { is_best_seller: true, rating: 5, review_count: 9 }), item('proven', { rating: 5, review_count: 9985 })];
+    expect(sortEntries(list, 'recommended')).toBe(list);                 // no ctx — untouched
+    expect(ids(sortEntries(list, 'recommended', NO_TAGS))).toEqual(['proven', 'pinned']);
   });
 });

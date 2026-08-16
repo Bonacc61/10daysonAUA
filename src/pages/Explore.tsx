@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type MouseEvent } from 'react';
+import { useMemo, useState, type CSSProperties, type MouseEvent } from 'react';
 import { Star, MapPin, Clock, Dollar } from '../components/Icons';
 import AddButton from '../components/AddButton';
 import SearchBar from '../components/SearchBar';
@@ -11,6 +11,7 @@ import { useCatalog } from '../data/useCatalog';
 import { filterExploreEntries, sortEntries, bookingUrl, viatorLink, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, starsHint, reviewsHint } from '../data/exploreItems';
 import type { DurationBand, Provenance, SortKey } from '../data/exploreItems';
 import { searchEntries } from '../lib/entrySearch';
+import { answersToTags } from '../data/answerTags';
 import { useSearchBox } from '../lib/useSearchBox';
 import { parseActivityCost } from '../data/matcher';
 import type { Section } from '../types';
@@ -139,10 +140,28 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   // everything surface, and the plan is where answers are meant to bite.
   const [vibe, setVibe] = useState<number>(50);
   const [price, setPrice] = useState<number>(50);
+  // The questionnaire reaches Explore for RANKING only — never for filtering.
+  // That is the line the comment above draws: seeding the sliders from answers
+  // HID activities and left no sign that anything had gone, which is wrong on a
+  // browse-everything surface. Reordering hides nothing, so "Recommended" is
+  // free to put the things you asked for first.
+  //
+  // `hasPersona` asks whether the traveller actually told us something, rather
+  // than inspecting the derived tags: an untouched questionnaire still yields
+  // `med-adventure` (the adventure slider's midpoint is 50), and ranking on a
+  // default nobody chose is not personalisation.
+  const tags = useMemo(() => answersToTags(answers), [answers]);
+  const hasPersona = answers.interests.length > 0 || !!answers.budget
+    || !!answers.groupType || !!answers.lodging || answers.flags.length > 0
+    // specialNotes counts too: `effectiveFlags` turns "I get seasick" into
+    // mobility/low-adventure tags, and without this those tags were derived and
+    // then thrown away because the traveller had ticked nothing.
+    || !!answers.specialNotes.trim();
   // Sort and the four extra filters. Every default is the neutral value, so a
-  // traveller who touches none of them sees exactly the page that existed
-  // before these controls did — including the search-relevance ordering, which
-  // 'recommended' leaves alone.
+  // traveller who touches none of them sees the same SET of activities the page
+  // showed before these controls existed. The default ORDER is different —
+  // 'recommended' is now a ranking rather than a passthrough (see rankRecommended)
+  // — but the keyword-then-meaning boundary search relies on is preserved below.
   const [sort, setSort] = useState<SortKey>('recommended');
   const [minStars, setMinStars] = useState<number>(0);
   const [minReviews, setMinReviews] = useState<number>(0);
@@ -187,9 +206,23 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
 
   // Sorting happens HERE, not inside filterExploreEntries, because semantic hits
   // are appended to the filtered list above — sorting earlier would leave that
-  // tail in its own order beneath everything else. 'recommended' is a no-op, so
-  // the keyword-then-meaning ordering search depends on survives untouched.
-  const entries = sortEntries(found, sort);
+  // tail in its own order beneath everything else.
+  //
+  // 'recommended' ranks the KEYWORD BLOCK ONLY and leaves the semantic tail
+  // appended beneath it. That boundary is load-bearing, not tidiness: entrySearch
+  // promises substring hits "stay first, always" because cosine similarity blurs
+  // exactly the proper nouns a name search depends on, and `.env.production`
+  // gives that ordering as the reason VITE_SEMANTIC_SEARCH was allowed to ship at
+  // 65% recall — "a bad match costs a mediocre extra suggestion, not a wrong
+  // plan". Ranking the blended list broke that premise: measured on a "snorkel"
+  // query, a semantic-only entry reached position 3 above 86 keyword matches.
+  //
+  // `addedByMeaning` IS the tail length (entrySearch appends and counts exactly
+  // what it appended), and it is 0 whenever the box is empty — so with no query
+  // this ranks the whole page, which is the common case.
+  const entries = sortEntries(found, sort, {
+    tags, hasPersona, adventureLevel: answers.adventureLevel, semanticTail: addedByMeaning,
+  });
 
   const totalCount = entries.length;
 

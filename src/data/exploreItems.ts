@@ -3,7 +3,8 @@ import type { ViatorGroup, ViatorItem, MatchTag, Section } from '../types';
 import type { Catalog } from './activitySource';
 import { parseActivityCost } from './matcher';
 import { durationMinutes } from './itineraryGenerator';
-import { isWaterBased, adventureCapForFlags } from './itemFit';
+import { isWaterBased, adventureCapForFlags, fitItem } from './itemFit';
+import { activityTags } from './answerTags';
 
 // Content bucket for a tile — CATEGORIES without the 'All' filter sentinel.
 // Retained only as the last-resort input to the adventure (vibe) proxy.
@@ -299,8 +300,8 @@ export function starsPass(entry: ExploreEntry, minStars?: number): boolean {
 /**
  * Minimum number of reviews — the filter that actually discriminates.
  *
- * Stars barely do: 203 of the 294 rated products score 4.8+, and 111 sit at
- * exactly 5.0. Review counts run 8 / 44 / 233 across the quartiles, so this is
+ * Stars barely do: 203 of the 294 rated products score 4.8+, 111 sit at exactly
+ * 5.0, and 63 of those 111 hold it on fewer than ten reviews. Review counts run 8 / 44 / 233 across the quartiles, so this is
  * the control that separates a proven boat trip from one nine people have
  * been on.
  *
@@ -419,6 +420,237 @@ function sortScore(entry: ExploreEntry): number {
   return entry.activity.rating;
 }
 
+// === "Recommended" — the default order ====================================
+//
+// WHAT REPLACED WHAT, AND WHY
+// The old default was `sortScore`: `(is_best_seller ? 2 : 0) + rating`. Both
+// terms turned out to claim something untrue.
+//
+// The bonus was not a tiebreak. Ratings here span roughly 4.0-5.0, so a 2-point
+// bonus is wider than the whole rating scale and no unflagged product could ever
+// outrank a flagged one — it pinned six items to the top of the busiest page on
+// the site. And `is_best_seller` does not mean best seller: viator-cards sets it
+// as `order === 0`, the first product Viator's search happened to return for
+// each of the six group anchors. Two of the six pinned products had 9 and 17
+// reviews. Unpinned they scatter to positions 73, 8, 98, 12, 59 and 39.
+//
+// Raw `rating` was the second untruth: 111 products score exactly 5.0, 62 of
+// them off fewer than ten reviews, so the default page rewarded being too
+// little-known to have been rated down yet.
+//
+// Three terms replace them, each a claim we can defend:
+//   QUALITY  — rating, weighted by how many people actually gave it
+//   TEMPLATE — how close this sits to the character of the curated 10 days
+//   PERSONA  — what the traveller told the questionnaire (zero if they haven't)
+//
+// A note on what is NOT here. The template's SECTION mix (9 of its 14 entries
+// are beaches) was measured and rejected as a term: `beaches` holds 14 Explore
+// tiles and `culture-history` 3, all of them local picks and not one Viator
+// product, so weighting by section share would have concentrated most of the
+// template's weight on 14 local picks and put the beaches back on top of the
+// page — the exact outcome the vouch rule above exists to avoid.
+
+/** Mean adventure of BALANCED_TEMPLATE's 14 activities, measured 2026-08-16. */
+const TEMPLATE_ADVENTURE = 22.5;
+/** Distance in adventure points at which template fit reaches zero. */
+const TEMPLATE_SPREAD = 60;
+/**
+ * Reviews' worth of catalog average mixed into every rating. At 50, a product
+ * with 9 reviews keeps ~15% of its own score and a 9,985-review product keeps
+ * ~99.5% — which is the whole point: a 5.0 nobody has tested is pulled toward
+ * the middle, a 4.9 thousands have tested is not.
+ */
+const REVIEW_PRIOR = 50;
+
+/**
+ * How much each term is worth. Starting values, not measured optima — they were
+ * chosen against a printed before/after of the top 20 and are the first thing to
+ * turn if the page reads wrong.
+ *
+ * With no questionnaire answers the persona term is not merely small, it is
+ * ZERO. That matters: fitItem's crowd-pleaser and popularity terms fire whether
+ * or not a traveller has answered anything, so leaving persona switched on for a
+ * default profile would rank by popularity while calling it personalisation.
+ *
+ * There is deliberately no second weight set for that case. Once persona
+ * contributes nothing, the order depends only on the RATIO of the other two, so
+ * redistributing its 0.30 across them proportionally is arithmetically a no-op —
+ * a knob that reads as if it does something and does not. Measured: a separate
+ * {0.55, 0.45} set changes the ratio from 1.33 to 1.22 and reorders nothing in
+ * the live catalog.
+ */
+const RANK_WEIGHTS = { quality: 0.40, template: 0.30, persona: 0.30 } as const;
+
+/** Rating pulled toward the catalog mean in proportion to how few reviews back it. */
+export function shrunkRating(r: EntryRating, catalogMean: number): number {
+  const v = Math.max(0, r.reviews);
+  return (v / (v + REVIEW_PRIOR)) * r.stars + (REVIEW_PRIOR / (v + REVIEW_PRIOR)) * catalogMean;
+}
+
+/**
+ * What intensity the template term aims at.
+ *
+ * The template alone would aim at 22.5 for everybody, and measuring that showed
+ * why it cannot: with a fixed target, a traveller who answered "adventure &
+ * adrenaline, treat yourself" got a CALMER top 20 (mean intensity 24) than one
+ * who answered "beach & chill, budget" (27). A 30%-weighted term pulling toward
+ * calm was cancelling the persona term pulling toward wild — the page was
+ * arguing with the questionnaire.
+ *
+ * So the template sets the default character and the traveller moves it: with
+ * no answers the target is the template's own 22.5, and once someone has
+ * answered it is the midpoint between that and their adventure slider. Someone
+ * at 90 gets a target of 56 — still moderated toward the house taste, no longer
+ * contradicted by it.
+ */
+export function templateTarget(hasPersona: boolean, adventureLevel: number): number {
+  return hasPersona ? (TEMPLATE_ADVENTURE + adventureLevel) / 2 : TEMPLATE_ADVENTURE;
+}
+
+/**
+ * How close an entry sits to the target intensity: 1 at the target, falling to
+ * 0 sixty points away.
+ *
+ * This is the term that carries the template where its section mix could not —
+ * though coarsely, and the comment should say so: `ExploreEntry.adventure` takes
+ * only 18 distinct values and 325 of the 354 sit on three of them (18 → 202
+ * entries, 50 → 76, 85 → 47), because every Viator item falls through advValue's
+ * proxies and quantises. In practice this is a three-bucket preference, and
+ * inside the 202-entry adv-18 block it is a constant that decides nothing. It is also what keeps the page varied now the pin is
+ * gone: ranked on quality alone the top eight came back as six off-road tours,
+ * all sitting at adventure 85, and an un-answered page scores every one of
+ * them at 0.
+ */
+export function templateFit(adventure: number, target: number = TEMPLATE_ADVENTURE): number {
+  return Math.max(0, 1 - Math.abs(adventure - target) / TEMPLATE_SPREAD);
+}
+
+/**
+ * How well an entry matches the questionnaire.
+ *
+ * Products reuse `fitItem`, the generator's own scorer, so a traveller sees the
+ * same judgement on both surfaces — with one deliberate difference. fitItem
+ * hard-rejects anything over the budget tier's cap, which is right for a plan
+ * and wrong for a browse page: a budget traveller must still be able to SEE the
+ * $2,300 charter. Ranking may reorder; Explore never hides.
+ *
+ * Reading `rejected` and carrying on is NOT enough, and that is worth spelling
+ * out because the first version of this did exactly that and was wrong: a
+ * rejected item's `score` is -Infinity, which sinks it to the bottom of the
+ * ranking just as surely as removing it would, and poisons any arithmetic it
+ * touches. A rejection is therefore mapped to 0 — the floor of fitItem's normal
+ * range — so it ties with legitimately zero-fit items rather than ranking below
+ * them, and quality and the template still carry it up the page on their merits.
+ */
+export function personaScore(entry: ExploreEntry, tags: Set<MatchTag>): number {
+  if (entry.kind === 'item') {
+    const f = fitItem(entry.item, tags);
+    return f.rejected ? 0 : f.score;
+  }
+  // Local picks have no fitItem equivalent. activityTags derives comparable tags
+  // from a pick's sections and adventure band, and +3 per overlap is the same
+  // weight fitItem gives an interest hit, so the two sides stay on one scale.
+  return activityTags(entry.activity).filter((t) => tags.has(t)).length * 3;
+}
+
+/** Rank positions 0..1 (worst..best). Ties share the lower rank. */
+function percentiles(values: number[]): number[] {
+  const order = values.map((v, i) => [v, i] as const).sort((a, b) => a[0] - b[0]);
+  const out = new Array<number>(values.length).fill(0);
+  const last = Math.max(1, values.length - 1);
+  for (let rank = 0; rank < order.length; rank++) {
+    const [v, i] = order[rank];
+    // Tied values must not be separated by an arbitrary index, or two identical
+    // products would be ordered by catalog position wearing a score.
+    const firstOfTie = order.findIndex(([w]) => w === v);
+    out[i] = firstOfTie / last;
+  }
+  return out;
+}
+
+/**
+ * The default Explore order.
+ *
+ * Quality and persona are converted to rank positions rather than used raw,
+ * because both cluster hard — 203 of 294 rated products sit at 4.8 or above, so
+ * the raw spread would be swamped by any other term. (Shrunk values run 4.27 to
+ * 4.999: the catalog's rating floor is 2.3, not the ~4.8 the clustering suggests.)
+ * Percentile is the same normalisation `normalizePopularity` already applies to
+ * review counts at catalog load.
+ *
+ * Normalising across the entries PASSED IN (not the whole catalog) is
+ * deliberate: within a filtered section the question is which of these is best,
+ * not how they compare to a catalog the traveller has filtered away.
+ */
+export type RankContext = {
+  tags: Set<MatchTag>;
+  /** Did the traveller actually answer anything? See Explore.tsx for the test. */
+  hasPersona: boolean;
+  /** The questionnaire's adventure slider, 0-100. Ignored unless hasPersona. */
+  adventureLevel?: number;
+  /**
+   * How many entries at the END of the list were added by search-by-meaning
+   * rather than matched by keyword. Those are left exactly where they are.
+   *
+   * This is a hard boundary, not a preference. `entrySearch` promises substring
+   * hits "stay first, always" — cosine similarity blurs precisely the proper
+   * nouns a name search depends on — and `.env.production` cites that ordering
+   * as the reason VITE_SEMANTIC_SEARCH could ship at 65% recall: a bad match
+   * costs a mediocre extra suggestion, not a wrong plan. Ranking the blended
+   * list quietly voided that: measured on a "snorkel" query, a semantic-only
+   * entry reached position 3 above 86 keyword matches. 0 (the default) means
+   * there is no tail, which is every case where the search box is empty.
+   */
+  semanticTail?: number;
+};
+
+export function rankRecommended(
+  entries: ExploreEntry[],
+  { tags, hasPersona, adventureLevel = 50, semanticTail = 0 }: RankContext,
+): ExploreEntry[] {
+  if (semanticTail > 0) {
+    const cut = Math.max(0, entries.length - semanticTail);
+    return [
+      ...rankRecommended(entries.slice(0, cut), { tags, hasPersona, adventureLevel }),
+      ...entries.slice(cut),
+    ];
+  }
+  if (entries.length < 2) return entries;
+
+  const rated = entries.map(ratingOf).filter((r) => r.real);
+  const catalogMean = rated.length
+    ? rated.reduce((s, r) => s + r.stars, 0) / rated.length
+    : 0;
+
+  const w = RANK_WEIGHTS;
+  const target = templateTarget(hasPersona, adventureLevel);
+  // An unrated PRODUCT is floored rather than shrunk. shrunkRating with zero
+  // reviews returns exactly the catalog mean, which would drop the 34 unrated
+  // products into the 50th percentile — measured, from positions 321-354 to a
+  // median of 197, mid-page and above 150+ genuinely rated products. That
+  // contradicts both the policy stated on `starsPass` above and the explicit
+  // bottom block in the 'rating' and 'reviews' sorts. Vouched local picks are
+  // unaffected: `rankingRatingOf` reports them real at 5.0/2.
+  const quality = percentiles(entries.map((e) => {
+    const r = rankingRatingOf(e);
+    return r.real ? shrunkRating(r, catalogMean) : -Infinity;
+  }));
+  const persona = hasPersona ? percentiles(entries.map((e) => personaScore(e, tags))) : null;
+
+  const scored = entries.map((e, i) => ({
+    e,
+    score: w.quality * quality[i]
+      + w.template * templateFit(e.adventure, target)
+      + w.persona * (persona ? persona[i] : 0),
+  }));
+  // Ties keep the order they arrived in — house order, or search relevance when
+  // a query is open. That falls out of Array.prototype.sort being stable (ES2019
+  // onward), so an explicit index tiebreak here would be redundant: removing one
+  // changed no test and no live ordering.
+  scored.sort((a, b) => b.score - a.score);
+  return scored.map((s) => s.e);
+}
+
 /**
  * Reorder a finished result list.
  *
@@ -428,12 +660,17 @@ function sortScore(entry: ExploreEntry): number {
  * separate order below everything else. Running here, on the list the page is
  * about to render, is the only place a sort can order the whole page.
  *
- * 'recommended' returns the array it was given, untouched and unclone: it is
- * the house order the page has always had (best-sellers first, then rating),
- * and search relevance ordering on top of it. Every other key sorts a copy.
+ * 'recommended' runs `rankRecommended` when it is given a traveller's tags, and
+ * otherwise returns the array untouched. The no-context path is what the
+ * Dashboard and the tests rely on, and it keeps this function callable without
+ * dragging the questionnaire into every caller. Every other key sorts a copy.
  */
-export function sortEntries(entries: ExploreEntry[], sort: SortKey): ExploreEntry[] {
-  if (sort === 'recommended') return entries;
+export function sortEntries(
+  entries: ExploreEntry[],
+  sort: SortKey,
+  ctx?: RankContext,
+): ExploreEntry[] {
+  if (sort === 'recommended') return ctx ? rankRecommended(entries, ctx) : entries;
   const out = [...entries];
   switch (sort) {
     case 'price-asc':

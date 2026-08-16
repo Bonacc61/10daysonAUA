@@ -39,10 +39,10 @@ const CATALOG: Catalog = {
     // below cannot fail: "we get seasick" matches no fixture, so the boat
     // vanishes whether or not anything honours the flag.
     item('boat', 'Catamaran Sunset Sail', { description: 'Open water — bring a remedy if you get seasick.' }),
-    // Deliberately unlike the catamaran on every axis the new sidebar filters
-    // read — price, duration, and Viator's private flag — so each of those
-    // controls has something to separate.
-    item('sub', 'Submarine Dive', { price_usd: 250, duration: '8 hrs', flags: ['PRIVATE_TOUR'] }),
+    // Deliberately unlike the catamaran on every axis the sidebar filters read
+    // (price, duration, Viator's private flag) AND on the two "Recommended"
+    // reads (adventure, sections), so every control has something to separate.
+    item('sub', 'Submarine Dive', { price_usd: 250, duration: '8 hrs', flags: ['PRIVATE_TOUR'], adventure: 90, sections: ['adventures-outdoor'] }),
   ],
   activities: [activity('eagle', 'Eagle Beach Morning Session')],
 };
@@ -202,5 +202,48 @@ describe('Explore — the sidebar filters', () => {
     expect(titles()).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
     expect(titles()).toHaveLength(3);
+  });
+});
+
+/**
+ * "Recommended" is no longer a no-op — it blends review-weighted quality, the
+ * curated template's character, and the questionnaire. These check the wiring:
+ * that answers reach the ranking at all, and that an un-answered questionnaire
+ * contributes nothing rather than ranking on a default nobody chose.
+ */
+describe('Explore — Recommended reads the questionnaire', () => {
+  const titles = () => [...document.querySelectorAll('.a-card h3')].map((n) => n.textContent);
+
+  // Compared against each OTHER rather than against position 0: the two products
+  // are identically rated, so in a three-tile fixture the vouched local pick
+  // takes the top slot on quality whatever the answers say. Their relative order
+  // is what the questionnaire actually decides here.
+  const order = (answers: object) => {
+    document.body.innerHTML = '';
+    render(<Explore setPage={() => {}} canSeeItinerary={false} answers={{ ...DEFAULT_ANSWERS, ...answers } as never} />);
+    const t = titles();
+    return { sub: t.indexOf('Submarine Dive'), boat: t.indexOf('Catamaran Sunset Sail') };
+  };
+
+  it('an adrenaline answer ranks the intense product above the calm one', () => {
+    const { sub, boat } = order({ interests: ['Adventure & adrenaline'], adventureLevel: 95 });
+    expect(sub).toBeLessThan(boat);
+  });
+
+  it('a chill answer reverses that order', () => {
+    const { sub, boat } = order({ interests: ['Beach & chill'], adventureLevel: 5 });
+    expect(boat).toBeLessThan(sub);
+  });
+
+  // An untouched questionnaire still yields `med-adventure`, because the slider's
+  // midpoint is 50. Ranking on that would be a preference nobody expressed.
+  it('an untouched questionnaire does not steer the page', () => {
+    document.body.innerHTML = '';
+    render(<Explore setPage={() => {}} canSeeItinerary={false}
+      answers={{ ...DEFAULT_ANSWERS, adventureLevel: 95 }} />);
+    const withSliderOnly = titles();
+    document.body.innerHTML = '';
+    render(<Explore setPage={() => {}} canSeeItinerary={false} answers={DEFAULT_ANSWERS} />);
+    expect(titles()).toEqual(withSliderOnly);
   });
 });
