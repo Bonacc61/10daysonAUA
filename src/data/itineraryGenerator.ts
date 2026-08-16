@@ -615,6 +615,57 @@ function isFullDayEntry(e: CardEntry): boolean {
 function isMealEntry(e: CardEntry): boolean {
   return e.kind === 'activity' && e.activity.category === 'Food';
 }
+
+// How many PAID outings a day may carry — the traveller's "one Viator activity
+// a day", asked for on 2026-08-15. Strictly tighter than MAX_ACTIVITIES_PER_DAY,
+// which still governs everything else: a day may still read "jeep safari + a
+// free beach + a sunset", because only the first of those costs money.
+// Exported so `tools/plan-diff.ts` asserts the rule against the SAME number the
+// engine decides with. That file has been burned three times by mirroring a
+// rule and watching the copy go stale.
+export const MAX_PAID_OUTINGS_PER_DAY = 1;
+
+// A card that spends the day's one paid slot: it costs money, and is not a
+// restaurant. Exported for its own unit tests and for `tools/plan-diff.ts`,
+// which imports it alongside `isBoatOuting` and `isSailOuting` rather than
+// keeping a copy that can drift.
+//
+// The test is PRICE, not the affiliate link, and that was a deliberate call.
+// "Has a Book now button" (`viator_item_url` && paid) is what the card renders
+// (ItineraryCard.tsx:47-49) and on the live catalog it agrees with price on all
+// 328 Viator products — measured, zero divergence. The two differ on exactly
+// three curated locals, which the owner ruled IN: the $11 Arikok gate, the $99
+// Flamingo day pass and the $120 kitesurfing lesson are strenuous 2.5-3h
+// outings whoever takes the payment, so a day should carry one of them and
+// nothing else.
+//
+// Price also happens to be the only testable half. Every ViatorItem fixture in
+// the suite — and all 20 items in the offline stub — carries
+// `viator_item_url: ''`, so a link-based rule would be inert under `npm test`
+// and every test written for it would pass against a rule that never fired.
+//
+// Both call sites guard the CANDIDATE only after their own meal and free-beach
+// early-returns, so the meal exemption here
+// is load-bearing on the COUNTING side alone — `today.filter(isPaidOuting)`,
+// where a $35-60 Gasparito dinner already sitting on the day would otherwise
+// spend its outing slot. Instrumented 2026-08-15: no live ordering reaches that
+// today, which is why it is asserted on the predicate directly rather than
+// through a generated plan. It is one staple-ordering change away from mattering.
+//
+// There is NO beach clause, and that is deliberate rather than an omission. An
+// `isRevisitableBeach` test here would be strictly dead: it requires cost 0, and
+// the price test below already rejects anything free. Every curated beach is
+// free today (13 of 13 — the "Free + $10 rental" ones parse to 0), and no Viator
+// product carries the `beaches` section at all (0 of 328, measured), so "beaches
+// don't count" holds by construction. The one case that would separate them is a
+// PAID beach, which does not exist in either catalog; if one is ever added it
+// counts as the day's outing, and that is the line to revisit.
+export function isPaidOuting(e: CardEntry): boolean {
+  if (isMealEntry(e)) return false;
+  return e.kind === 'group'
+    ? e.bestSeller.price_usd > 0
+    : parseActivityCost(e.activity.cost) > 0;
+}
 // Same trap the kayak family hit: `activityKind` falls back to the Explore
 // section when the feed gives an item no defining tag, so a dozen real snorkel
 // sails land in the generic 'sec:cruises-water' bucket — including the
@@ -1582,6 +1633,12 @@ export function generatePlan(
     if (claimed.length >= MAX_CARDS_PER_DAY) return false;
     if (isMealEntry(entry)) return claimed.filter(isMealEntry).length < 1;
     if (isRevisitableBeach(entry)) return true;
+    // One paid outing a day. `claimed` reads templateSlots (see claimedOn), so a
+    // template booking OCCUPIES the day's slot here and blocks the staple and
+    // splurge pre-passes — but is never itself blocked, because the template
+    // pre-pass places unconditionally and never reaches this function. That
+    // asymmetry is the "template wins" decision, and it needs no special case.
+    if (isPaidOuting(entry) && claimed.filter(isPaidOuting).length >= MAX_PAID_OUTINGS_PER_DAY) return false;
     const outings = claimed.filter((e) => !isMealEntry(e) && !isRevisitableBeach(e)).length;
     return outings < MAX_ACTIVITIES_PER_DAY;
   };
@@ -1977,6 +2034,11 @@ export function generatePlan(
       if (cardsToday >= MAX_CARDS_PER_DAY) return false;
       if (isMealEntry(e)) return mealsToday < 1;
       if (isRevisitableBeach(e)) return true;
+      // One paid outing a day. `today` is picks + reservedAhead, and both read
+      // templateSlots, so whatever the template put on this day already counts
+      // against the ladder — which is the whole point: the template's booking
+      // wins the slot and the ladder may not add a second.
+      if (isPaidOuting(e) && today.filter(isPaidOuting).length >= MAX_PAID_OUTINGS_PER_DAY) return false;
       return outingsToday < MAX_ACTIVITIES_PER_DAY;
     };
     const feasible = (e: CardEntry) => withinDayShape(e) && (slot === 'evening'

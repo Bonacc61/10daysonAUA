@@ -50,7 +50,13 @@ feeds the engine is in `docs/matching-engine/geography.md`:
   measured 2026-08-05 (301 before these rules; 304 after, and it moved between
   343 and 349 within an hour as the catalog and rules churned, so treat the
   precision as noise and the order of magnitude as the point). Most of those open slots are the CAP, not a shortage: a day that
-  has had its two outings is finished by design. Fill is therefore no longer the
+  has had its two outings is finished by design — and since 2026-08-15 a day
+  that has had its one PAID outing is finished for anything else that costs
+  money. **These 2026-08-05 slot figures predate that cap and have not been
+  re-measured at 14 days;** the direction is known but small — at 10 days across
+  9 personas x 6 seeds the cap moved open slots 336 → 366 of 1,620 while leaving
+  cards placed unchanged at 1,314, because the ladder substitutes a free beach
+  or curated local for the blocked booking. Fill is therefore no longer the
   health metric it was — a plan of highly bookable picks with room to
   personalise beats a full one padded with near-duplicates. Broader Viator taxonomy ingestion is still the fix for
   *distinct-experience* variety; no constant will do it.
@@ -70,13 +76,22 @@ feeds the engine is in `docs/matching-engine/geography.md`:
   catamaran staple (2026-08-05). Reordering these passes changes which products
   reach the itinerary, so treat the sequence as an interface.
 - **Day shape is enforced in four separate places.** Three cards a day (the
-  meal included, since 2026-08-12) + two outings + one meal + a full-day pass
-  alone on its day is applied by the fill ladder (`withinDayShape`) and
-  re-applied by the staple pre-pass, the premium pre-pass (both via
-  `fitsDayShape`); the en-route post-pass enforces the one-meal half and the
-  card ceiling; and the balanced template satisfies the shape by construction
-  EXCEPT for the day-pass rule, which it has had to check explicitly since
-  2026-08-12. None of the three AUTO-PLACEMENT paths goes through the
+  meal included, since 2026-08-12) + two outings + **at most ONE PAID outing**
+  (2026-08-15; free beaches and the curated restaurants are exempt, and a free
+  beach parses to cost 0 so it needs no clause of its own) + one meal + a
+  full-day pass alone on its day is applied by the fill ladder
+  (`withinDayShape`) and re-applied by the staple pre-pass, the premium pre-pass
+  (both via `fitsDayShape`); the en-route post-pass enforces the one-meal half
+  and the card ceiling; and the balanced template satisfies the shape by
+  construction EXCEPT for the day-pass rule, which it has had to check
+  explicitly since 2026-08-12, **and the paid-outing cap, which it deliberately
+  outranks** — the template pre-pass places unconditionally and calls neither
+  predicate, so its own card wins the day's paid slot and blocks everything
+  after it. That exception is not scattered noise: a MID-RANGE FAMILY (mid-range
+  + adventure 34-66 + a family group type) gets two paid cards on template day 2
+  — the $60 Antilla snorkel sail plus the Animal Sanctuary `kids` swap — on
+  every seed of every trip. It is 2.2% of all generated days and 100% of that
+  persona's trips. None of the three AUTO-PLACEMENT paths goes through the
   ladder, so a new one has to opt in by hand or it will silently break the shape
   — that is exactly how a staple was landing a third outing on a template-filled
   day until 2026-08-05.

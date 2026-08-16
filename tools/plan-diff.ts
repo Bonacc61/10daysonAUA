@@ -4,8 +4,9 @@
  * WHY THIS EXISTS
  * The generator's rules were derived painfully, one production report at a time:
  * one kayak per trip, one sail (daytime and evening alike), two outings and one
- * meal per day, nothing repeated except a revisitable beach. Those rules are
- * guarded by tests — but the tests run against the OFFLINE STUB catalog
+ * meal per day, ONE PAID outing per day (2026-08-15), nothing repeated except a
+ * revisitable beach. Those rules are guarded by tests — but the tests run
+ * against the OFFLINE STUB catalog
  * (`getCatalog()`), and enrichment is merged only in the live path
  * (`loadCatalog()`). So `npm test` is structurally incapable of telling you
  * whether enrichment broke anything on real data. It will stay green either way.
@@ -19,7 +20,7 @@
  *
  * Exit 1 if enrichment introduces a violation that was not already there.
  */
-import { generatePlan, isBoatOuting, isSailOuting, SECOND_SAIL_MIN_DAYS } from '../src/data/itineraryGenerator';
+import { generatePlan, isBoatOuting, isSailOuting, isPaidOuting, MAX_PAID_OUTINGS_PER_DAY, SECOND_SAIL_MIN_DAYS } from '../src/data/itineraryGenerator';
 import { loadCatalog } from '../src/data/activitySource';
 import { activityKind, isFullDayProduct, isEveningItem } from '../src/data/itemFit';
 
@@ -177,6 +178,35 @@ function checkInvariants(plan: Day[], catalog: Catalog): Violation[] {
     // One boat per day — the engine's own test, not "anything on water".
     const boats = itemsOf(d).filter(isBoatOuting).length;
     if (boats > 1) out.push({ rule: 'one boat per day', detail: `day ${d.day} has ${boats}` });
+
+    // One PAID outing a day (2026-08-15). Counted over every slot entry, not
+    // `itemsOf`: that returns Viator products only, and the rule deliberately
+    // also counts the curated locals that cost money — the $11 Arikok gate, the
+    // $99 Flamingo pass, the $120 kitesurfing lesson. Free beaches and the
+    // curated restaurants are exempt.
+    //
+    // Both the predicate AND the number are IMPORTED, not mirrored, for the
+    // reason this file's header already records about the boat and sail tests:
+    // a hand-copied rule drifted and reported violations that were not
+    // violations. Nothing about this check can go stale independently.
+    //
+    // KNOWN EXCEPTION, and why none of the five personas above can trip it: the
+    // curated template places by construction and outranks the cap, so a
+    // BALANCED traveller who is also a family gets two paid cards on day 2 (the
+    // Antilla snorkel sail plus the Animal Sanctuary `kids` swap). That needs
+    // mid-range AND adventure 34-66 AND a family group type; `family` here sits
+    // at adventure 25, so it never receives the template. Add such a persona and
+    // this will report 1 violation per trip that is BY DESIGN, not a regression.
+    const paid = SLOTS.flatMap((s) => d[s]).filter((e) => {
+      if (e.kind === 'group') {
+        const item = itemById.get(e.bestSellerId);
+        const group = catalog.groups.find((g) => g.id === e.groupId);
+        return !!item && !!group && isPaidOuting({ kind: 'group', group, bestSeller: item, others: [] });
+      }
+      const activity = catalog.activities.find((a) => a.id === e.id);
+      return !!activity && isPaidOuting({ kind: 'activity', activity });
+    }).length;
+    if (paid > MAX_PAID_OUTINGS_PER_DAY) out.push({ rule: 'one paid outing per day', detail: `day ${d.day} has ${paid}` });
   }
   return out;
 }

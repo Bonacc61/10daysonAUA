@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generatePlan, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies } from './itineraryGenerator';
+import { generatePlan, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies, isPaidOuting } from './itineraryGenerator';
 import { getCatalog } from './activitySource';
 import { DEFAULT_ANSWERS } from '../App';
 import type { Answers } from '../App';
@@ -1284,9 +1284,27 @@ describe('generatePlan — a bus tour is not a boat', () => {
     expect(activityKind(items[1])).toBe('sec:cruises-water');
   });
 
-  it('lets a bus tour and a sail share a day', () => {
-    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 1 }, cat, { seed: 1 });
+  // Was 'lets a bus tour and a sail share a day' with days: 1 until 2026-08-15.
+  // The one-paid-outing-a-day cap landed that day and both fixtures are $80
+  // Viator products, so they can no longer share a day for a reason that has
+  // nothing to do with boats — the old assertion became untestable.
+  //
+  // The guard survives intact on the OTHER half of the bug this block documents:
+  // "pushing the next sail two days out via gapFamilyOf". If the bus counted as
+  // a boat the two would share a gap family, and FAMILY_MIN_DAY_GAP = 2 demands
+  // a CLEAR DAY between them. Landing on consecutive days is therefore proof
+  // they are in different families — the same fact the old same-day assertion
+  // established, stated in the one dimension the day cap leaves free.
+  //
+  // Three days, not two: on a two-item catalog the generator leaves day 1 empty
+  // at ANY cap setting (verified against the unmodified generator), so a two-day
+  // trip only ever places one card and could never show this either way.
+  it('does not make a bus tour wait for the sail\'s family gap', () => {
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 3 }, cat, { seed: 1 });
     expect(placed(plan)).toEqual(expect.arrayContaining(['sail', 'bus']));
+    const dayOf = (id: string) => plan.find((d) =>
+      [...d.morning, ...d.afternoon, ...d.evening].some((e) => e.kind === 'group' && e.bestSellerId === id))!.day;
+    expect(Math.abs(dayOf('sail') - dayOf('bus'))).toBeLessThan(2); // < FAMILY_MIN_DAY_GAP
   });
 });
 
@@ -1407,11 +1425,23 @@ describe('generatePlan — day shape: two activities, one meal', () => {
     }
   });
 
-  it('leaves the evening open rather than making a third outing of it', () => {
+  // Was 'leaves the evening open rather than making a third outing of it' until
+  // 2026-08-15: it filtered for days with BOTH a morning and an afternoon, then
+  // asserted an empty evening. Every item in this fixture is a $60 Viator
+  // product, so under the one-paid-outing-a-day cap that filter now matches
+  // nothing and the test failed on its own premise, not on the rule.
+  //
+  // The guard is unchanged in substance — the engine leaves room rather than
+  // filling every slot — and is simply restated at the tighter limit: on an
+  // all-paid catalog, a day that gets its outing gets nothing else.
+  it('leaves the rest of the day open rather than stacking outings onto it', () => {
     const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 7 }, cat);
-    const full = plan.filter((d) => d.morning.length > 0 && d.afternoon.length > 0);
-    expect(full.length).toBeGreaterThan(0);
-    for (const d of full) expect(d.evening).toHaveLength(0);
+    const booked = plan.filter((d) => d.morning.length > 0);
+    expect(booked.length).toBeGreaterThan(0);
+    for (const d of booked) {
+      expect(d.afternoon).toHaveLength(0);
+      expect(d.evening).toHaveLength(0);
+    }
   });
 });
 
@@ -2418,5 +2448,124 @@ describe('generatePlan — template alternatives swap by answer', () => {
     const at = dayIds({ ...BAL, budget: 'Mid-range', groupType: 'Couple', interests: ['Nature & hiking'] });
     expect(at(4)).toContain('bushiribana-loop');
     expect(at(4)).not.toContain('arashi-beach');
+  });
+});
+
+// A day may carry at most ONE paid outing — the traveller's "one Viator
+// activity a day". Free beaches and restaurants are exempt, and the curated
+// template outranks the cap. Requested 2026-08-15; the reasoning for counting
+// the paid CURATED locals (the $11 Arikok gate, the $99 Flamingo pass, the $120
+// kitesurfing lesson) is that they are strenuous 2.5-3h outings whatever the
+// booking channel, so "costs money" is the test, not "has an affiliate link".
+describe('generatePlan — one paid outing a day', () => {
+  const mkGroup = (id: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  const mk = (id: string, title: string, tags: number[], evening = false): ViatorItem => ({
+    id, group_id: `g-${id}`, title: evening ? `${title} at Sunset` : title,
+    image_url: '', price_usd: 60, duration: '2 hrs', rating: 4.6, review_count: 200,
+    viator_item_url: '', is_best_seller: true, display_order: 0, tags, experience_cluster_id: `c-${id}`,
+  });
+  const items: ViatorItem[] = [];
+  for (let n = 0; n < 24; n += 1) items.push(mk(`day-${n}`, `Island Experience ${n}`, [80000 + n]));
+  for (let n = 0; n < 12; n += 1) items.push(mk(`eve-${n}`, `Evening Outing ${n}`, [70000 + n], true));
+  const paidCat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
+
+  // The rule under test, stated over a FINISHED plan rather than over the
+  // engine's internals: a card costs money, and is neither a free beach nor a
+  // restaurant. Deliberately not importing the engine's predicate — a checker
+  // that shares the code it checks cannot catch the code being wrong.
+  const paidOutings = (d: Day, cat: Catalog): SlotEntry[] => {
+    const itemById = new Map(cat.items.map((i) => [i.id, i]));
+    const actById = new Map(cat.activities.map((a) => [a.id, a]));
+    return [...d.morning, ...d.afternoon, ...d.evening].filter((e) => {
+      if (e.kind === 'group') return (itemById.get(e.bestSellerId)?.price_usd ?? 0) > 0;
+      const a = actById.get(e.id);
+      if (!a) return false;                                              // lunchspot
+      if (a.category === 'Food') return false;                           // restaurant
+      if (a.category === 'Beaches' && parseActivityCost(a.cost) === 0) return false; // free beach
+      return parseActivityCost(a.cost) > 0;
+    });
+  };
+
+  // The personas matter, not just the seeds. Instrumented 2026-08-15: the
+  // pre-pass guard (fitsDayShape, where a beach/dinner staple meets a day the
+  // curated template has already booked) fires ONLY for the balanced traveller
+  // — mid-range plus a middle adventure slider, the one persona that gets the
+  // template. Testing DEFAULT_ANSWERS alone left that whole branch uncovered:
+  // deleting the guard kept every test green.
+  const PERSONAS: Array<[string, Partial<Answers>]> = [
+    ['default',    {}],
+    ['balanced',   { budget: 'Mid-range', adventureLevel: 50 }],
+    ['splurge',    { budget: 'Money no object', adventureLevel: 60, interests: ['Watersports'] }],
+    ['family',     { budget: 'Mid-range', adventureLevel: 25, groupType: 'Family with young kids' }],
+    ['adventurer', { budget: 'Mid-range', adventureLevel: 95, interests: ['Adventure & adrenaline'] }],
+  ];
+
+  it('never places two paid outings on one day, on any catalog, persona or trip length', () => {
+    for (const [label, extra] of PERSONAS) {
+      for (const days of [1, 5, 7, 10, 14]) {
+        for (let seed = 0; seed < 4; seed += 1) {
+          for (const cat of [paidCat, getCatalog()]) {
+            const plan = generatePlan({ ...DEFAULT_ANSWERS, days, ...extra }, cat, { seed });
+            for (const d of plan) {
+              const paid = paidOutings(d, cat);
+              expect(
+                paid.length,
+                `${label} day ${d.day} (days=${days} seed=${seed}) carried ${paid.length} paid outings: ${paid.map((e) => (e.kind === 'group' ? e.bestSellerId : e.id)).join(', ')}`,
+              ).toBeLessThanOrEqual(1);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('still fills the day around the one paid outing', () => {
+    // The cap must not empty the plan. Free beaches and free curated locals are
+    // exempt, so a day is still "one outing plus somewhere to be".
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 10, budget: 'Mid-range', adventureLevel: 50 }, getCatalog(), { seed: 1 });
+    const multi = plan.filter((d) => [...d.morning, ...d.afternoon, ...d.evening].length >= 2);
+    expect(multi.length).toBeGreaterThanOrEqual(5);
+  });
+
+  // The exemptions, asserted on the predicate itself. Going through a generated
+  // plan cannot reach them: both call sites return early for a meal and for a
+  // free beach before the paid guard runs, so a plan-level test passes whether
+  // or not the exemptions exist — verified by deleting each and watching the
+  // suite stay green. These fail immediately when either is removed.
+  const asActivity = (a: Partial<Activity>): CardEntry =>
+    ({ kind: 'activity', activity: { id: 'x', title: 'x', category: 'Activities', cost: 'Free', ...a } as Activity });
+
+  it('exempts a free beach and a curated restaurant, and counts everything else paid', () => {
+    // Free beach: exempt. Free-with-rental counts as free — parseActivityCost
+    // reads the leading "Free", which is what makes Tres Trapi a beach and not
+    // a $10 outing.
+    expect(isPaidOuting(asActivity({ category: 'Beaches', cost: 'Free' }))).toBe(false);
+    expect(isPaidOuting(asActivity({ category: 'Beaches', cost: 'Free + $10 rental' }))).toBe(false);
+    // Restaurants: exempt at any price. Gasparito is $35-60, Zeerover $8-15.
+    expect(isPaidOuting(asActivity({ category: 'Food', cost: '$35–60 pp' }))).toBe(false);
+    expect(isPaidOuting(asActivity({ category: 'Food', cost: '$8–15 pp' }))).toBe(false);
+    // The three the owner ruled IN on 2026-08-15: strenuous 2.5-3h outings that
+    // are paid at the gate rather than booked through us.
+    expect(isPaidOuting(asActivity({ category: 'Activities', cost: '$11 entry' }))).toBe(true);      // Arikok
+    expect(isPaidOuting(asActivity({ category: 'Activities', cost: '$99 day pass' }))).toBe(true);   // Flamingo
+    expect(isPaidOuting(asActivity({ category: 'Watersports', cost: '$120 lesson' }))).toBe(true);   // kitesurfing
+    // A free curated local is not an outing you paid for.
+    expect(isPaidOuting(asActivity({ category: 'Activities', cost: 'Free' }))).toBe(false);
+  });
+
+  it('counts a priced Viator product and ignores a free one', () => {
+    const mkEntry = (price: number): CardEntry => {
+      const item: ViatorItem = {
+        id: 'i', group_id: 'g', title: 'Tour', image_url: '', price_usd: price,
+        duration: '2 hrs', rating: 4.5, review_count: 100, viator_item_url: '',
+        is_best_seller: true, display_order: 0,
+      };
+      return { kind: 'group', group: mkGroup('g'), bestSeller: item, others: [] };
+    };
+    expect(isPaidOuting(mkEntry(60))).toBe(true);
+    expect(isPaidOuting(mkEntry(0))).toBe(false);
   });
 });

@@ -1368,6 +1368,93 @@ it will render a slightly different plan.
 
 ---
 
+### 2026-08-15 — One paid outing a day
+
+**Not a bug — a product rule the owner asked for:** a day may suggest at most
+ONE activity that costs money, with beaches and food excluded, and the curated
+balanced template outranks the cap.
+
+**What it is.** `MAX_PAID_OUTINGS_PER_DAY = 1` and `isPaidOuting` in
+`itineraryGenerator.ts`, checked in the two places the day shape is already
+decided — `fitsDayShape` (the premium-splurge and beach-staple pre-passes) and
+`withinDayShape` (the fill ladder). `MAX_ACTIVITIES_PER_DAY = 2` is untouched
+and still governs everything else, so a day can still read "jeep safari + a free
+beach + a sunset": one of those costs money.
+
+**Why the test is PRICE, not the affiliate link.** The obvious reading of "a
+Viator activity" is the card with a Book now button — `viator_item_url` plus a
+price, exactly what `ItineraryCard.tsx:47-49` renders. Two findings moved it:
+
+1. On the live catalog the two agree on all **328** Viator products (measured:
+   zero have a price and no link). They differ only on curated locals, where 4
+   of 9 paid entries carry a matched link. The owner ruled the other three IN —
+   the $11 Arikok gate, the $99 Flamingo day pass, the $120 kitesurfing lesson —
+   on the grounds that they are strenuous 2.5–3h outings whoever takes the
+   payment. That makes the rule "costs money" exactly.
+2. A link-based rule would have been **untestable**. Every `ViatorItem` fixture
+   in the suite, and all 20 items in the offline stub, carry
+   `viator_item_url: ''`, so the cap would have been inert under `npm test` and
+   every test written for it would have passed against a rule that never fired.
+
+**Why there is no beach clause in `isPaidOuting`.** An `isRevisitableBeach` test
+would be strictly dead: it requires cost 0, and the price test already rejects
+anything free. All 13 curated beaches are free (the "Free + $10 rental" ones
+parse to 0) and **0 of 328** Viator products carry the `beaches` section, so
+"beaches don't count" holds by construction. A paid beach — which exists in
+neither catalog — would count, and that is the line to revisit if one is added.
+
+**How "the template wins" falls out for free.** Both predicates count the day
+through `claimedOn` / `reservedAhead`, and both already read `templateSlots`. So
+a template booking OCCUPIES the day's one slot and blocks everything after it,
+but is never itself blocked, because the template pre-pass places
+unconditionally and calls neither predicate. No special case was needed.
+
+**Measured on the live catalog** (9 personas × 6 seeds × 10 days = 540 days):
+
+| | before | after |
+|---|---|---|
+| days with 2+ paid outings | 102 (18.9%) | **12 (2.2%)** |
+| days with exactly 1 | 258 (47.8%) | 384 (71.1%) |
+| days with 0 | 180 (33.3%) | 144 (26.7%) |
+| cards placed | 1314 | **1314** |
+| open slots | 336 (20.7%) | 366 (22.6%) |
+
+Fill did not collapse: the same number of cards is placed, because the ladder
+substitutes a free beach or curated local for the blocked booking. The paid
+outings *spread out* rather than clustering — the win is in the middle row.
+Identical shape at 5, 7 and 14 days.
+
+**The 12 that remain are by design and are the only ones — but read the rate the
+right way round.** 12 of 540 days is 2.2% and looks like noise; it is not. They
+are one day on EVERY trip a mid-range family generates: template day 2 carries
+the $60 Antilla snorkel sail plus the Animal Sanctuary `kids` swap on 6 of 6
+seeds, both placed by the template. So it is 2.2% of all generated days and
+**100% of that persona's trips**, and a family is the traveller most likely to
+notice. Reaching it needs mid-range AND adventure 34–66 AND a family group type.
+`tools/plan-diff.ts` now asserts this rule, and its five personas cannot reach
+that combination (`family` sits at adventure 25, so it never gets the template) —
+add such a persona and it will report one violation per trip that is not a
+regression.
+
+**Two existing tests were rewritten, not deleted.** 'lets a bus tour and a sail
+share a day' asserted same-day placement of two $80 products, which the cap now
+forbids for reasons that have nothing to do with boats; it now proves the same
+fact — that the two are in different gap families — by landing them on
+CONSECUTIVE days, which a shared `FAMILY_MIN_DAY_GAP` of 2 would forbid. (It
+runs at 3 days, not 2: on a two-item catalog the generator leaves day 1 empty at
+any cap setting.) 'leaves the evening open rather than making a third outing of
+it' filtered for days with both a morning and an afternoon, which on an all-paid
+fixture no longer exist; it now states the same guard at the tighter limit.
+
+**Mutation-checked in both directions**, which caught three tests that could not
+fail: the first drafts of the exemption tests passed with the exemptions
+deleted, and the pre-pass guard could be removed with the whole suite green
+because only the BALANCED persona reaches it (instrumented: 42 firings on the
+stub, all balanced). Fixed by exporting `isPaidOuting` for direct unit tests and
+by widening the plan-level test across five personas.
+
+---
+
 ## Current state — embedding clustering
 
 Present-tense. The dated entries above are records of what was built on the day;
