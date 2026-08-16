@@ -129,6 +129,8 @@ export type ViatorItem = {
   indoor?: 'indoor' | 'outdoor' | 'mixed';
   /** 0-3: would a small child ENJOY it. Distinct from toddler_ok, which is safety. */
   kid_appeal?: number;
+  /** 0-3: would a bored teenager enjoy it. Frequently the opposite of kid_appeal. */
+  teen_appeal?: number;
   /**
    * Viator's own merchandising flags, verbatim: LIKELY_TO_SELL_OUT,
    * FREE_CANCELLATION, PRIVATE_TOUR, NEW_ON_VIATOR, SPECIAL_OFFER.

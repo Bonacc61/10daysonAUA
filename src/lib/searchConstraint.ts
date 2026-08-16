@@ -31,7 +31,12 @@ export type Concept =
   // are tired" — 32 of the 32 remaining conformance violations, in two queries,
   // one cause. `physical.demand` was in the data the whole time and no concept
   // reached it.
-  | 'low_effort';
+  | 'low_effort'
+  // Added 2026-08-16 with the facet behind it. NOT derivable from `toddler`:
+  // measured across the catalog, 151 products score well for teenagers and
+  // badly for toddlers. Deriving one age band from another would repeat the
+  // mistake of deriving appeal from safety.
+  | 'teens';
 
 /**
  * What a query means, in the closed vocabulary.
@@ -60,7 +65,7 @@ export type ConceptMatch = { concept: Concept; phrase: string; negated: boolean 
  */
 export const EMITTABLE_CONCEPTS: Concept[] = [
   'toddler', 'kids', 'accessible', 'easy', 'adventure', 'beach', 'boat', 'cheap',
-  'swim', 'indoor', 'low_effort',
+  'swim', 'indoor', 'low_effort', 'teens',
 ];
 
 /** The no-op every failure path returns: today's behaviour, exactly. */

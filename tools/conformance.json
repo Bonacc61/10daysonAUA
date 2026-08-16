@@ -175,13 +175,19 @@
           "why": "'nothing gentle' rules out the bottom of the vibe axis"
         }
       ]
-    }
-  ],
-  "deferred": [
+    },
     {
       "q": "activity for teenagers who get bored easily",
-      "needs": "an appeal facet distinct from a safety one. Measured 2026-08-16: #2 was Beach Meditation.",
-      "note": "This is the 'safe is not the same question as good' lesson from the toddler pilot, in a second age band. kids.min_age cannot express it."
+      "why": "Promoted from `deferred` 2026-08-16, the last one. It sat there through four measurement rounds as the standing proof that the architecture was fine and the DATA was the gap — the toddler pilot's 'safe is not the same question as good' lesson, one age band up. Measured before the facet existed: #2 was Beach Meditation.",
+      "rules": [
+        {
+          "facet": "teen_appeal",
+          "op": "gte",
+          "value": 2,
+          "why": "a teenager is not a small adult and not a big child. A shallow toddler lagoon scores kid_appeal 3 and teen_appeal 0; a UTV through the dunes is the reverse. Deriving one from the other would have been the same mistake as deriving appeal from safety."
+        }
+      ]
     }
-  ]
+  ],
+  "deferred": []
 }

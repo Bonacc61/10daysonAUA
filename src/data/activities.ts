@@ -10,6 +10,7 @@ export type Activity = {
   swim_required?: boolean;
   indoor?: 'indoor' | 'outdoor' | 'mixed';
   kid_appeal?: number;
+  teen_appeal?: number;
 
   id: string;
   title: string;

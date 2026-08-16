@@ -5,20 +5,20 @@
     "adventure": 35,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "in the comfort of an air-conditioned coach",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
       "min_age": 3,
-      "baby_ok": true
+      "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "245508": {
     "confidence": "high",
@@ -27,7 +27,6 @@
     "adventure": 20,
     "setting": "ocean",
     "vessel": "catamaran",
-    "evidence": "sail along Aruba's scenic coastline and enjoy the most spectacular and fun sunset aboard our luxurious catamaran",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
@@ -40,7 +39,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "102406P4": {
     "confidence": "high",
@@ -48,19 +48,19 @@
     "adventure": 50,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "The Bayliner accommodates your group (up to 10 guests) comfortably on the bow, to relax and bask in the sun",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
       "min_age": 3,
-      "baby_ok": true
+      "baby_ok": false
     },
     "facet_confidence": "high",
-    "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 2
+    "swim_required": true,
+    "indoor": "mixed",
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "102406P5": {
     "confidence": "high",
@@ -68,19 +68,19 @@
     "adventure": 50,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "The Bayliner accommodates your group (up to 10 guests) comfortably on the bow, to relax and bask in the sun",
     "physical": {
       "demand": "moderate",
       "mobility_ok": true
     },
     "kids": {
       "min_age": 3,
-      "baby_ok": true
+      "baby_ok": false
     },
     "facet_confidence": "high",
-    "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 2
+    "swim_required": true,
+    "indoor": "mixed",
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "103020P7": {
     "confidence": "high",
@@ -91,15 +91,16 @@
     "facet_confidence": "medium",
     "physical": {
       "demand": "moderate",
-      "mobility_ok": true
+      "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 5,
+      "baby_ok": false
     },
     "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 1
+    "indoor": "mixed",
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "103088P1": {
     "confidence": "high",
@@ -108,7 +109,6 @@
     "adventure": 35,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "Morning Delight Champagne Sailing and Snorkelling Cruise. A very small group of people on board, almost a private tour. Nice and calm waters. Sailing Black Pearl and/or Blue Melody along the beautiful coastline of Aruba, Snorkeling at Aruba's most beautiful tropical lagoon.",
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "physical": {
@@ -116,12 +116,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 8,
+      "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "103088P3": {
     "confidence": "high",
@@ -134,7 +135,7 @@
     "facet_confidence": "high",
     "physical": {
       "demand": "moderate",
-      "mobility_ok": false
+      "mobility_ok": true
     },
     "kids": {
       "min_age": 18,
@@ -142,7 +143,8 @@
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "106422P2": {
     "confidence": "high",
@@ -151,20 +153,20 @@
     "adventure": 60,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "Off the coast where we are - far away from the crowds - there are beautiful and healthy reefs with a lot of varied corals and other marine life. Reefs with names like Sponge, Tire, Anchor, Bali, Barcadera, Harbor, Fingers, Mark, Isla di Oro, Mangel Halto, Hole in the Wall and many others. In addition, the beautiful dive spots such as Jane C wreck and the Airplanes. We are happy to take you for our 2 tank morning trip to guide you to these beautiful dive sites.",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 10,
+      "min_age": 12,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "106422P3": {
     "confidence": "high",
@@ -173,20 +175,20 @@
     "adventure": 65,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "Off the coast where we are - far away from the crowds - there are beautiful and healthy reefs with a lot of varied corals and other marine life. Reefs with names like Sponge, Tire, Anchor, Bali, Barcadera, Harbor, Fingers, Mark, Isla di Oro, Mangel Halto, Hole in the Wall and many others",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 18,
+      "min_age": 16,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "106422P4": {
     "confidence": "high",
@@ -195,9 +197,8 @@
     "adventure": 70,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "Off the coast where we are - far away from the crowds - there are beautiful and healthy reefs",
     "physical": {
-      "demand": "high",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "toddler_ok_confidence": "high",
@@ -208,7 +209,8 @@
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "106422P5": {
     "confidence": "high",
@@ -217,7 +219,6 @@
     "adventure": 70,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "Off the coast where we are - far away from the crowds - there are beautiful and healthy reefs",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
@@ -230,7 +231,8 @@
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "109524P10": {
     "confidence": "high",
@@ -239,20 +241,20 @@
     "adventure": 70,
     "setting": "land",
     "vessel": null,
-    "evidence": "Must be 30 years and up to operate the vehicle",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 16,
-      "baby_ok": false
+      "min_age": 0,
+      "baby_ok": true
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "109524P11": {
     "confidence": "high",
@@ -260,9 +262,8 @@
     "kind": "offroad",
     "adventure": 70,
     "setting": "land",
-    "evidence": "Must be 25 years and up to operate the vehicle and must come with a valid drivers license",
     "physical": {
-      "demand": "moderate",
+      "demand": "high",
       "mobility_ok": false
     },
     "kids": {
@@ -273,7 +274,8 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "109524P13": {
     "confidence": "high",
@@ -282,7 +284,7 @@
     "adventure": 65,
     "setting": "mixed",
     "toddler_ok_confidence": "high",
-    "facet_confidence": "low",
+    "facet_confidence": "medium",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
@@ -293,7 +295,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "109524P2": {
     "confidence": "high",
@@ -302,7 +305,6 @@
     "adventure": 75,
     "setting": "land",
     "vessel": null,
-    "evidence": "Must be 25 years and up to operate the vehicle",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -315,7 +317,8 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "109524P9": {
     "confidence": "high",
@@ -324,20 +327,20 @@
     "adventure": 65,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Must be 25 years and up to operate the vehicle and must come with a valid drivers license",
     "physical": {
-      "demand": "moderate",
+      "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 25,
+      "min_age": 16,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "115682P11": {
     "confidence": "high",
@@ -346,20 +349,20 @@
     "adventure": 65,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Cruise along the roads and coastline of Aruba aboard your own utility terrain vehicle (UTV)",
     "physical": {
-      "demand": "low",
+      "demand": "moderate",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 16,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "115682P12": {
     "confidence": "high",
@@ -367,20 +370,20 @@
     "kind": "offroad",
     "adventure": 60,
     "setting": "mixed",
-    "evidence": "Cruise along the roads and coastline of Aruba aboard your own utility terrain vehicle (UTV)",
     "physical": {
       "demand": "moderate",
-      "mobility_ok": false
+      "mobility_ok": true
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "kids": {
-      "min_age": 0,
+      "min_age": 16,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "115682P14": {
     "confidence": "low",
@@ -391,7 +394,7 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "low",
     "physical": {
-      "demand": "moderate",
+      "demand": "low",
       "mobility_ok": true
     },
     "kids": {
@@ -400,7 +403,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "115682P2": {
     "confidence": "high",
@@ -409,20 +413,20 @@
     "adventure": 50,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Rent a HOND PIONEER 700 HONDA PIONEER (4 passenger) model and explore our beautiful Island at your own leisure. Comfortably cruise along our beautiful coast line taking in the sights.",
     "physical": {
-      "demand": "moderate",
+      "demand": "high",
       "mobility_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "kids": {
-      "min_age": 8,
+      "min_age": 10,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 3
   },
   "115682P8": {
     "confidence": "high",
@@ -431,20 +435,20 @@
     "adventure": 55,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "explore ARUBA, and that's by a Brand New 4x4 6 seater UTV",
     "physical": {
-      "demand": "moderate",
+      "demand": "high",
       "mobility_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "kids": {
       "min_age": 16,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "116935P5": {
     "confidence": "high",
@@ -452,8 +456,7 @@
     "adventure": 25,
     "setting": "ocean",
     "vessel": "catamaran",
-    "evidence": "Experience the magic of an Aruban sunset aboard your own private catamaran",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -464,7 +467,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "116935P6": {
     "confidence": "high",
@@ -474,62 +478,63 @@
     "setting": "ocean",
     "vessel": "boat",
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 2,
+      "min_age": 0,
       "baby_ok": true
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 1
   },
   "117113P1": {
     "confidence": "high",
     "adventure": 30,
     "setting": "town",
     "vessel": null,
-    "evidence": "Wander through vibrant street art and visit two unique art galleries. The expert guides will unfold captivating stories behind each mural",
     "physical": {
-      "demand": "low",
+      "demand": "moderate",
       "mobility_ok": true
     },
     "facet_confidence": "medium",
     "kids": {
-      "min_age": 5,
+      "min_age": 4,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "117113P2": {
     "confidence": "high",
     "adventure": 20,
     "setting": "town",
-    "evidence": "Wander through vibrant street art and visit two unique art galleries",
     "facet_confidence": "medium",
     "physical": {
       "demand": "moderate",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 5,
+      "min_age": 6,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "118537P3": {
     "confidence": "low",
     "toddler_ok": true,
     "adventure": 35,
     "toddler_ok_confidence": "high",
-    "facet_confidence": "low",
+    "facet_confidence": "medium",
     "physical": {
       "demand": "moderate",
       "mobility_ok": true
@@ -540,7 +545,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "119085P1": {
     "confidence": "high",
@@ -549,20 +555,20 @@
     "adventure": 45,
     "setting": "ocean",
     "vessel": "catamaran",
-    "evidence": "Enjoy a delightful 3-hour adventure featuring two captivating snorkeling stops. First, explore the iconic shipwreck \"Antilla\", a fascinating relic resting beneath the azure waters",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 6,
+      "min_age": 5,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
   "119085P10": {
     "confidence": "high",
@@ -571,20 +577,20 @@
     "adventure": 40,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "A private boat ride is the best way to enjoy the clear water and beautiful coastline of Aruba with family and/or friends",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
       "min_age": 2,
-      "baby_ok": true
+      "baby_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
-    "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 1
+    "facet_confidence": "medium",
+    "swim_required": true,
+    "indoor": "mixed",
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "119085P2": {
     "confidence": "high",
@@ -598,12 +604,13 @@
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 2,
+      "baby_ok": false
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "119085P9": {
     "confidence": "high",
@@ -611,19 +618,19 @@
     "adventure": 20,
     "setting": "ocean",
     "vessel": "catamaran",
-    "evidence": "sunset cruise is the perfect combination of a relaxing and exiting experience",
     "facet_confidence": "high",
     "physical": {
       "demand": "low",
-      "mobility_ok": true
+      "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 5,
+      "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "122173P1": {
     "confidence": "high",
@@ -632,20 +639,20 @@
     "adventure": 35,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Kayaking is one of the best ways to experience the Mangel Halto coastline",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 6,
+      "min_age": 8,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "122173P3": {
     "confidence": "high",
@@ -654,20 +661,20 @@
     "adventure": 30,
     "setting": "ocean",
     "vessel": null,
-    "evidence": "This is an eco friendly kayak tour that will take you to the Seaglass Island",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 6,
+      "min_age": 8,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "12431P1": {
     "confidence": "high",
@@ -675,7 +682,6 @@
     "adventure": 15,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "This half-day island tour includes all of Aruba's must see attractions, including the California Lighthouse, Ayo or Casibari rock formations, the Bushiribana gold mill ruins and the Aloë Vera Factory",
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "physical": {
@@ -688,7 +694,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "12431P3": {
     "confidence": "high",
@@ -708,7 +715,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "12431P9": {
     "confidence": "high",
@@ -717,20 +725,20 @@
     "adventure": 25,
     "setting": "beach",
     "vessel": null,
-    "evidence": "fun day swimming and snorkeling in the shallow man-made lagoon at Baby Beach",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 1,
       "baby_ok": true
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 3,
+    "teen_appeal": 1
   },
   "128740P13": {
     "confidence": "high",
@@ -738,92 +746,6 @@
     "kind": "offroad",
     "adventure": 55,
     "setting": "mixed",
-    "vessel": null,
-    "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
-    "physical": {
-      "demand": "moderate",
-      "mobility_ok": false
-    },
-    "kids": {
-      "min_age": 6,
-      "baby_ok": false
-    },
-    "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 1
-  },
-  "128740P14": {
-    "confidence": "high",
-    "toddler_ok": false,
-    "kind": "offroad",
-    "adventure": 60,
-    "setting": "land",
-    "vessel": null,
-    "evidence": "Drivers need to be 25 years and older with a valid driver license",
-    "physical": {
-      "demand": "high",
-      "mobility_ok": false
-    },
-    "kids": {
-      "min_age": 0,
-      "baby_ok": false
-    },
-    "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
-    "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 1
-  },
-  "128740P5": {
-    "confidence": "high",
-    "toddler_ok": false,
-    "kind": "offroad",
-    "adventure": 60,
-    "setting": "land",
-    "vessel": null,
-    "evidence": "access to the Arikok National Park",
-    "physical": {
-      "demand": "high",
-      "mobility_ok": false
-    },
-    "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
-    "kids": {
-      "min_age": 0,
-      "baby_ok": false
-    },
-    "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 1
-  },
-  "128740P6": {
-    "confidence": "high",
-    "toddler_ok": false,
-    "kind": "offroad",
-    "adventure": 65,
-    "setting": "land",
-    "vessel": null,
-    "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
-    "physical": {
-      "demand": "high",
-      "mobility_ok": false
-    },
-    "kids": {
-      "min_age": 0,
-      "baby_ok": false
-    },
-    "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 1
-  },
-  "128740P9": {
-    "confidence": "medium",
-    "toddler_ok": false,
-    "kind": "offroad",
-    "adventure": 75,
-    "setting": "land",
     "vessel": null,
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
@@ -837,7 +759,96 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 3
+  },
+  "128740P14": {
+    "confidence": "high",
+    "toddler_ok": false,
+    "kind": "offroad",
+    "adventure": 60,
+    "setting": "land",
+    "vessel": null,
+    "physical": {
+      "demand": "moderate",
+      "mobility_ok": false
+    },
+    "kids": {
+      "min_age": 0,
+      "baby_ok": false
+    },
+    "toddler_ok_confidence": "high",
+    "facet_confidence": "medium",
+    "swim_required": false,
+    "indoor": "outdoor",
+    "kid_appeal": 1,
+    "teen_appeal": 3
+  },
+  "128740P5": {
+    "confidence": "high",
+    "toddler_ok": false,
+    "kind": "offroad",
+    "adventure": 60,
+    "setting": "land",
+    "vessel": null,
+    "physical": {
+      "demand": "moderate",
+      "mobility_ok": false
+    },
+    "toddler_ok_confidence": "high",
+    "facet_confidence": "medium",
+    "kids": {
+      "min_age": 0,
+      "baby_ok": false
+    },
+    "swim_required": false,
+    "indoor": "outdoor",
+    "kid_appeal": 1,
+    "teen_appeal": 3
+  },
+  "128740P6": {
+    "confidence": "high",
+    "toddler_ok": false,
+    "kind": "offroad",
+    "adventure": 65,
+    "setting": "land",
+    "vessel": null,
+    "toddler_ok_confidence": "high",
+    "facet_confidence": "medium",
+    "physical": {
+      "demand": "moderate",
+      "mobility_ok": false
+    },
+    "kids": {
+      "min_age": 0,
+      "baby_ok": false
+    },
+    "swim_required": false,
+    "indoor": "outdoor",
+    "kid_appeal": 1,
+    "teen_appeal": 3
+  },
+  "128740P9": {
+    "confidence": "medium",
+    "toddler_ok": false,
+    "kind": "offroad",
+    "adventure": 75,
+    "setting": "land",
+    "vessel": null,
+    "toddler_ok_confidence": "high",
+    "facet_confidence": "high",
+    "physical": {
+      "demand": "high",
+      "mobility_ok": false
+    },
+    "kids": {
+      "min_age": 10,
+      "baby_ok": false
+    },
+    "swim_required": false,
+    "indoor": "outdoor",
+    "kid_appeal": 1,
+    "teen_appeal": 3
   },
   "13526P10": {
     "confidence": "high",
@@ -846,7 +857,6 @@
     "adventure": 70,
     "setting": "land",
     "vessel": null,
-    "evidence": "Round trip transportation from your location is included. Each renter is given a full orientation regarding the vehicle",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -854,12 +864,13 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "kids": {
-      "min_age": 16,
+      "min_age": 8,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "13526P12": {
     "confidence": "medium",
@@ -868,20 +879,20 @@
     "adventure": 55,
     "setting": "ocean",
     "vessel": null,
-    "evidence": "Our Mangel Halto Barrier Reef Kayak Tour gives participants a unique opportunity to experience kayaking in the incredibly beautiful Spanish Lagoon plus a guided snorkel experience on the barrier reef at Mangel Halto.",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 8,
+      "min_age": 6,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "13526P13": {
     "confidence": "high",
@@ -894,15 +905,16 @@
     "facet_confidence": "high",
     "physical": {
       "demand": "moderate",
-      "mobility_ok": false
+      "mobility_ok": true
     },
     "kids": {
-      "min_age": 4,
-      "baby_ok": false
+      "min_age": 0,
+      "baby_ok": true
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
   "13526P14": {
     "confidence": "high",
@@ -910,7 +922,6 @@
     "adventure": 25,
     "setting": "ocean",
     "vessel": "catamaran",
-    "evidence": "Experience the magic of an Aruban sunset aboard our luxurious catamaran. Sip on refreshing drinks and savor tasty snacks as you sail along the sparkling waters.",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -922,7 +933,8 @@
     "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "13526P5": {
     "confidence": "high",
@@ -931,20 +943,20 @@
     "adventure": 65,
     "setting": "ocean",
     "vessel": "jetski",
-    "evidence": "The SEABOB F5 S Jet allows you to explore extensive reef areas and the famous \"Antillia\" shipwreck without getting tired, covering far more ground than a routine snorkel trip.",
     "physical": {
-      "demand": "moderate",
-      "mobility_ok": false
+      "demand": "low",
+      "mobility_ok": true
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "kids": {
-      "min_age": 10,
+      "min_age": 8,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
   "13526P6": {
     "confidence": "medium",
@@ -965,7 +977,8 @@
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
   "13526P9": {
     "confidence": "high",
@@ -975,18 +988,19 @@
     "setting": "mixed",
     "vessel": null,
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 8,
+      "min_age": 10,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 3
   },
   "137607P12": {
     "confidence": "high",
@@ -995,7 +1009,6 @@
     "adventure": 80,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Experience the thrill of jumping down the little rock cliffs into the Cave Pool. Don't just imagine off-roading adventures in Aruba, be a part of our unforgettable tour today. Experience the thrill of exploring hidden caves, swimming, and cliff jumping.",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -1003,12 +1016,13 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "kids": {
-      "min_age": 8,
+      "min_age": 10,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 1,
+    "teen_appeal": 3
   },
   "137607P17": {
     "confidence": "medium",
@@ -1024,12 +1038,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 6,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "137607P19": {
     "confidence": "medium",
@@ -1038,20 +1053,20 @@
     "adventure": 50,
     "setting": "land",
     "vessel": null,
-    "evidence": "classic Aruban off-road trip",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
-      "demand": "moderate",
-      "mobility_ok": true
+      "demand": "high",
+      "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 6,
+      "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "137607P20": {
     "confidence": "high",
@@ -1060,7 +1075,6 @@
     "adventure": 70,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "open-air Safari Jeep Tour provided by Around Aruba Tours is the perfect choice. Our tailored island tour is customized to meet your requirements, allowing you to explore hidden gems and enjoy fun-filled adventures in Aruba. With our jeep tours, you can enjoy thrilling natural attractions",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -1068,12 +1082,13 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "kids": {
-      "min_age": 8,
+      "min_age": 6,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "137607P22": {
     "confidence": "high",
@@ -1082,20 +1097,20 @@
     "adventure": 75,
     "setting": "ocean",
     "vessel": "jetski",
-    "evidence": "It is a 30-minute ride on the jet ski. As the wind whips through your hair and the waves crash beneath you, you'll feel more alive than ever before. This thrilling activity is sure to give you an adrenaline rush.",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "kids": {
-      "min_age": 10,
+      "min_age": 12,
       "baby_ok": false
     },
-    "swim_required": false,
+    "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "137607P23": {
     "confidence": "high",
@@ -1104,28 +1119,6 @@
     "adventure": 60,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "Join us for a unique adventure on a private luxury boat in Aruba",
-    "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
-    "physical": {
-      "demand": "moderate",
-      "mobility_ok": false
-    },
-    "kids": {
-      "min_age": 0,
-      "baby_ok": true
-    },
-    "swim_required": false,
-    "indoor": "mixed",
-    "kid_appeal": 1
-  },
-  "13835P1": {
-    "confidence": "high",
-    "toddler_ok": false,
-    "kind": "horseback",
-    "adventure": 40,
-    "setting": "land",
-    "vessel": null,
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "physical": {
@@ -1138,7 +1131,30 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
+  },
+  "13835P1": {
+    "confidence": "high",
+    "toddler_ok": false,
+    "kind": "horseback",
+    "adventure": 40,
+    "setting": "land",
+    "vessel": null,
+    "toddler_ok_confidence": "high",
+    "facet_confidence": "high",
+    "physical": {
+      "demand": "moderate",
+      "mobility_ok": false
+    },
+    "kids": {
+      "min_age": 4,
+      "baby_ok": false
+    },
+    "swim_required": false,
+    "indoor": "outdoor",
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "13835P11": {
     "confidence": "high",
@@ -1147,7 +1163,6 @@
     "adventure": 70,
     "setting": "land",
     "vessel": null,
-    "evidence": "This tour is very nice for the more advanced riders. English and western tack available. Galloping is allowed for the experienced riders",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -1160,7 +1175,8 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "13835P15": {
     "confidence": "high",
@@ -1169,20 +1185,20 @@
     "adventure": 45,
     "setting": "land",
     "vessel": null,
-    "evidence": "all skill levels are welcome!",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 8,
+      "min_age": 6,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "13835P16": {
     "confidence": "high",
@@ -1191,7 +1207,6 @@
     "adventure": 55,
     "setting": "land",
     "vessel": null,
-    "evidence": "2,5 hour guided horseback riding tour through the 'Cunucu' or Aruban countryside",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -1201,10 +1216,11 @@
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "13835P17": {
     "confidence": "high",
@@ -1213,7 +1229,6 @@
     "adventure": 60,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "This tour is very nice for the more advanced riders",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -1223,10 +1238,11 @@
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "13835P19": {
     "confidence": "high",
@@ -1235,7 +1251,6 @@
     "adventure": 60,
     "setting": "land",
     "vessel": null,
-    "evidence": "1.5-hour guided horseback riding tour through the 'Cunucu' or Aruban countryside",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -1248,7 +1263,8 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "13835P2": {
     "confidence": "high",
@@ -1264,12 +1280,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 8,
+      "min_age": 6,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "13835P20": {
     "confidence": "high",
@@ -1278,7 +1295,6 @@
     "adventure": 60,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "all skill levels are welcome! Galloping is not allowed!",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -1288,10 +1304,11 @@
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "13835P21": {
     "confidence": "low",
@@ -1308,8 +1325,9 @@
       "baby_ok": true
     },
     "swim_required": false,
-    "indoor": "mixed",
-    "kid_appeal": 1
+    "indoor": "outdoor",
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "13835P24": {
     "confidence": "medium",
@@ -1327,7 +1345,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "13835P27": {
     "confidence": "medium",
@@ -1337,7 +1356,7 @@
     "setting": "mixed",
     "vessel": null,
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -1348,7 +1367,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "13835P3": {
     "confidence": "high",
@@ -1357,7 +1377,6 @@
     "adventure": 40,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "This tour is perfect for families, beginners, and children - everyone is welcome and no experience is needed! For safety, galloping is not allowed.",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
@@ -1370,7 +1389,8 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 1
   },
   "139296P1": {
     "confidence": "medium",
@@ -1390,7 +1410,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "139296P2": {
     "confidence": "high",
@@ -1405,12 +1426,13 @@
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 4,
       "baby_ok": true
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "139296P3": {
     "confidence": "high",
@@ -1425,12 +1447,13 @@
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 4,
       "baby_ok": true
     },
     "swim_required": false,
-    "indoor": "mixed",
-    "kid_appeal": 1
+    "indoor": "outdoor",
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "14261P1": {
     "confidence": "high",
@@ -1439,20 +1462,20 @@
     "adventure": 65,
     "setting": "land",
     "vessel": null,
-    "evidence": "no experience is needed. Your tour takes you into the Park for a relaxing ride on the Nacho Trail (no vehicle traffic)",
     "physical": {
-      "demand": "moderate",
+      "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 6,
+      "min_age": 8,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "153287P4": {
     "confidence": "high",
@@ -1471,7 +1494,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 3
+    "kid_appeal": 3,
+    "teen_appeal": 1
   },
   "15815P2": {
     "confidence": "high",
@@ -1480,7 +1504,6 @@
     "adventure": 65,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "Experience Aruba's underwater beauty that Aruba has to offer from magnificent reefs to historical wrecks. Our ratio is 8 certified divers per Dive Master",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -1493,7 +1516,8 @@
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "172188P109": {
     "confidence": "high",
@@ -1503,7 +1527,7 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
-      "demand": "moderate",
+      "demand": "low",
       "mobility_ok": true
     },
     "kids": {
@@ -1512,7 +1536,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "178836P1": {
     "confidence": "high",
@@ -1520,9 +1545,8 @@
     "adventure": 50,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "a valid motorcycle license is required",
     "physical": {
-      "demand": "moderate",
+      "demand": "high",
       "mobility_ok": false
     },
     "kids": {
@@ -1530,10 +1554,11 @@
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "178836P2": {
     "confidence": "medium",
@@ -1549,12 +1574,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 16,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "178836P3": {
     "confidence": "low",
@@ -1563,9 +1589,9 @@
     "setting": "mixed",
     "vessel": null,
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "physical": {
-      "demand": "moderate",
+      "demand": "high",
       "mobility_ok": false
     },
     "kids": {
@@ -1574,7 +1600,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "186518P1": {
     "confidence": "high",
@@ -1583,7 +1610,6 @@
     "adventure": 65,
     "setting": "beach",
     "vessel": null,
-    "evidence": "We are the unique PADI Dive Center next to the best shore dive in Aruba. Mangel Halto. Lockers, Restroom and Showers available",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -1596,7 +1622,8 @@
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "186518P13": {
     "confidence": "high",
@@ -1605,7 +1632,6 @@
     "adventure": 35,
     "setting": "beach",
     "vessel": null,
-    "evidence": "perfect for the first diving experience",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
@@ -1634,12 +1660,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 10,
+      "min_age": 12,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "186518P2": {
     "confidence": "high",
@@ -1648,7 +1675,6 @@
     "adventure": 75,
     "setting": "ocean",
     "vessel": null,
-    "evidence": "Night Dive in Mangel Halto Reef and The Hole in the Wall is fantastic. Padi Instructor",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -1661,7 +1687,8 @@
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "186518P3": {
     "confidence": "medium",
@@ -1677,12 +1704,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 6,
+      "min_age": 4,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "186518P4": {
     "confidence": "medium",
@@ -1703,7 +1731,8 @@
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "186518P5": {
     "confidence": "high",
@@ -1712,20 +1741,20 @@
     "adventure": 45,
     "setting": "beach",
     "vessel": null,
-    "evidence": "beginner and advanced snorkelers enjoy this turquoise-blues imbued paradise well known for its crystal, clear, shallow snorkel areas",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 5,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
   "186518P7": {
     "confidence": "high",
@@ -1746,7 +1775,8 @@
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "19808P11": {
     "confidence": "high",
@@ -1755,7 +1785,6 @@
     "adventure": 70,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Driving a UTV and getting in a Jeep will give you the ultimate adventure while you exploring Aruba's amazing outback",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -1763,12 +1792,13 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "kids": {
-      "min_age": 16,
+      "min_age": 12,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "19808P5": {
     "confidence": "high",
@@ -1777,20 +1807,20 @@
     "adventure": 75,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Feel the thrill as you drive through dusty trails, dramatic coastlines, and rocky terrain",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 16,
+      "min_age": 12,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "19808P9": {
     "confidence": "medium",
@@ -1798,20 +1828,20 @@
     "kind": "offroad",
     "adventure": 65,
     "setting": "land",
-    "evidence": "Explore nature at its finest in the Parke National Arikok in our 4x4 Jeep. After that, experience the popular Natural Pool",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 8,
+      "min_age": 6,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
   "200215P1": {
     "confidence": "high",
@@ -1827,12 +1857,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 8,
+      "min_age": 10,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "200215P2": {
     "confidence": "high",
@@ -1841,7 +1872,6 @@
     "adventure": 50,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "The tours are 90 minutes non-stop riding with small breaks at the beaches",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -1854,7 +1884,8 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "200215P3": {
     "confidence": "high",
@@ -1863,26 +1894,26 @@
     "adventure": 60,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "ride through the desert trails to the Wariruri natural bridge on horseback. The views of the coast during the tour are beautiful and best experienced on horseback. After the 90 minute horseback riding excursion, we will continue our adventure in the National Park to the Natural Pool in our private Jeep.",
     "physical": {
-      "demand": "moderate",
+      "demand": "high",
       "mobility_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "kids": {
-      "min_age": 6,
+      "min_age": 8,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "212359P3": {
     "confidence": "medium",
     "adventure": 20,
     "setting": "mixed",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -1893,7 +1924,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "212359P4": {
     "confidence": "low",
@@ -1908,12 +1940,13 @@
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 3,
-      "baby_ok": false
+      "min_age": 0,
+      "baby_ok": true
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "212359P5": {
     "confidence": "low",
@@ -1931,7 +1964,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "214149P3": {
     "confidence": "medium",
@@ -1946,12 +1980,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 5,
+      "min_age": 8,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "222222P227": {
     "confidence": "high",
@@ -1959,20 +1994,20 @@
     "adventure": 25,
     "setting": "town",
     "vessel": null,
-    "evidence": "Go at your own pace, anytime. Great alternative to group tours for independed solo travelers looking to discover at their own pace",
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "physical": {
       "demand": "moderate",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 6,
+      "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "2455HAPPY": {
     "confidence": "high",
@@ -1981,7 +2016,6 @@
     "adventure": 50,
     "setting": "ocean",
     "vessel": "catamaran",
-    "evidence": "set sail aboard a spacious catamaran and snorkel at two spectacular locations",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
@@ -1993,8 +2027,9 @@
       "baby_ok": false
     },
     "swim_required": true,
-    "indoor": "mixed",
-    "kid_appeal": 1
+    "indoor": "outdoor",
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "2455NPJEEP": {
     "confidence": "high",
@@ -2003,7 +2038,6 @@
     "adventure": 65,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Travel across desert landscapes, rocky coastlines, and hidden trails as you make your way to the famous Natural Pool (Conchi), where you'll have the opportunity to swim and snorkel",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -2016,7 +2050,8 @@
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "2455P17": {
     "confidence": "high",
@@ -2035,7 +2070,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "2455P18": {
     "confidence": "high",
@@ -2044,9 +2080,8 @@
     "adventure": 45,
     "setting": "beach",
     "vessel": null,
-    "evidence": "Escape to De Palm Island, Aruba's private coral island, where relaxation and adventure come together in one unforgettable day. Your admission includes unlimited food and beverages, a delicious lunch buffet and grill station, daily snorkeling over the island's vibrant reef, unlimited banana boat rides, thrilling body drop slides, and family fun with a dedicated Kids Water Park and Splash Park.",
     "physical": {
-      "demand": "moderate",
+      "demand": "low",
       "mobility_ok": true
     },
     "kids": {
@@ -2057,7 +2092,8 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 3
+    "kid_appeal": 3,
+    "teen_appeal": 2
   },
   "2455P35": {
     "confidence": "high",
@@ -2065,19 +2101,19 @@
     "adventure": 30,
     "setting": "ocean",
     "vessel": "catamaran",
-    "evidence": "snorkeling at Tres Trapi, Arashi, or Malmok, floating hammocks",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "facet_confidence": "high",
     "kids": {
-      "min_age": 2,
+      "min_age": 5,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "2455SEMI": {
     "confidence": "high",
@@ -2085,7 +2121,6 @@
     "adventure": 20,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "This air-conditioned vessel remains above sea level at all times",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -2098,7 +2133,8 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "indoor",
-    "kid_appeal": 1
+    "kid_appeal": 2,
+    "teen_appeal": 1
   },
   "2455SUB": {
     "confidence": "high",
@@ -2106,7 +2142,6 @@
     "adventure": 25,
     "setting": "ocean",
     "vessel": "submarine",
-    "evidence": "Suitable for ages 4 and up, the submarine is U.S. Coast Guard approved",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -2119,7 +2154,8 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "indoor",
-    "kid_appeal": 2
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "250774P1": {
     "confidence": "high",
@@ -2131,16 +2167,17 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
-      "demand": "high",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 10,
+      "min_age": 8,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "259665P12": {
     "confidence": "high",
@@ -2159,7 +2196,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "2785AFTSNORKEL": {
     "confidence": "high",
@@ -2168,51 +2206,8 @@
     "adventure": 55,
     "setting": "ocean",
     "vessel": "catamaran",
-    "evidence": "cruise the Caribbean waters aboard a catamaran and kick your fins to explore two rich snorkeling sites",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
-    "physical": {
-      "demand": "moderate",
-      "mobility_ok": false
-    },
-    "kids": {
-      "min_age": 6,
-      "baby_ok": false
-    },
-    "swim_required": true,
-    "indoor": "outdoor",
-    "kid_appeal": 1
-  },
-  "2785DINNER": {
-    "confidence": "high",
-    "toddler_ok": false,
-    "kind": "sail",
-    "adventure": 20,
-    "setting": "ocean",
-    "vessel": "catamaran",
-    "evidence": "Included in this three (3) hour sail is a dinner buffet with appetizers, mains and dessert buffet and an open bar",
-    "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
-    "physical": {
-      "demand": "low",
-      "mobility_ok": true
-    },
-    "kids": {
-      "min_age": 0,
-      "baby_ok": true
-    },
-    "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 0
-  },
-  "2785MORSNORKEL": {
-    "confidence": "high",
-    "toddler_ok": false,
-    "kind": "snorkel",
-    "adventure": 40,
-    "setting": "ocean",
-    "vessel": "boat",
-    "evidence": "This 4-hour sail includes snorkel gear and visits to three snorkel spots: The Antilla shipwreck, Catalina Bay, and Malmok Bay.",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
@@ -2221,11 +2216,54 @@
       "min_age": 5,
       "baby_ok": false
     },
+    "swim_required": true,
+    "indoor": "outdoor",
+    "kid_appeal": 1,
+    "teen_appeal": 2
+  },
+  "2785DINNER": {
+    "confidence": "high",
+    "toddler_ok": false,
+    "kind": "sail",
+    "adventure": 20,
+    "setting": "ocean",
+    "vessel": "catamaran",
+    "toddler_ok_confidence": "high",
+    "facet_confidence": "high",
+    "physical": {
+      "demand": "low",
+      "mobility_ok": true
+    },
+    "kids": {
+      "min_age": 0,
+      "baby_ok": true
+    },
+    "swim_required": false,
+    "indoor": "mixed",
+    "kid_appeal": 0,
+    "teen_appeal": 1
+  },
+  "2785MORSNORKEL": {
+    "confidence": "high",
+    "toddler_ok": false,
+    "kind": "snorkel",
+    "adventure": 40,
+    "setting": "ocean",
+    "vessel": "boat",
+    "physical": {
+      "demand": "moderate",
+      "mobility_ok": true
+    },
+    "kids": {
+      "min_age": 0,
+      "baby_ok": true
+    },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
   "2785P10": {
     "confidence": "high",
@@ -2234,7 +2272,6 @@
     "adventure": 20,
     "setting": "ocean",
     "vessel": "catamaran",
-    "evidence": "This 2.5 hour relaxing sail combines a sunset sail with Caribbean casual dinner, open bar and Caribbean tunes",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
@@ -2246,8 +2283,9 @@
       "baby_ok": true
     },
     "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 0
+    "indoor": "mixed",
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "2785SUNSET": {
     "confidence": "high",
@@ -2256,7 +2294,6 @@
     "adventure": 25,
     "setting": "ocean",
     "vessel": "catamaran",
-    "evidence": "Experience Aruba's spectacular sunset aboard a luxury catamaran",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
@@ -2269,7 +2306,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "283728P3": {
     "confidence": "high",
@@ -2278,7 +2316,6 @@
     "adventure": 40,
     "setting": "land",
     "vessel": null,
-    "evidence": "For all ages above 16 years",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -2291,16 +2328,16 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "292552P2": {
     "confidence": "medium",
     "adventure": 30,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "wheelchair-accessible vehicles, open-air buses, and comfortable air-conditioned vans",
     "physical": {
-      "demand": "moderate",
+      "demand": "low",
       "mobility_ok": true
     },
     "facet_confidence": "medium",
@@ -2309,8 +2346,9 @@
       "baby_ok": true
     },
     "swim_required": false,
-    "indoor": "mixed",
-    "kid_appeal": 1
+    "indoor": "outdoor",
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "292552P4": {
     "confidence": "high",
@@ -2319,7 +2357,6 @@
     "adventure": 40,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Its gentle conditions make it ideal for families, while swimmers can wade far into the lagoon and still touch the sandy bottom",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
@@ -2332,7 +2369,8 @@
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
   "292552P5": {
     "confidence": "high",
@@ -2351,14 +2389,14 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "296594P4": {
     "confidence": "high",
     "toddler_ok": false,
     "adventure": 20,
     "setting": "town",
-    "evidence": "glamorous paparazzi photoshoot under the city lights",
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "physical": {
@@ -2366,12 +2404,13 @@
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 8,
+      "min_age": 12,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "299932P2": {
     "confidence": "high",
@@ -2380,20 +2419,20 @@
     "adventure": 65,
     "setting": "land",
     "vessel": null,
-    "evidence": "we will begin our walk with our first view of the spectacular rugged northern coast, we will continue on the isolated path through the countryside",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 6,
+      "min_age": 8,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
-    "swim_required": false,
+    "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "300281P1": {
     "confidence": "high",
@@ -2402,20 +2441,20 @@
     "adventure": 40,
     "setting": "land",
     "vessel": null,
-    "evidence": "Sunrise Nature Hike/walk with Beach Meditation on the Breathtaking North Coast of Aruba",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 6,
+      "min_age": 8,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "300281P10": {
     "confidence": "high",
@@ -2445,9 +2484,8 @@
     "adventure": 50,
     "setting": "ocean",
     "vessel": null,
-    "evidence": "Paddle through the protected Pos Chiquito Bay, explore the Spanish Lagoon, Halto Mangrove, and vibrant coral reefs",
     "physical": {
-      "demand": "high",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "toddler_ok_confidence": "high",
@@ -2458,7 +2496,8 @@
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "300281P12": {
     "confidence": "high",
@@ -2474,12 +2513,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 6,
+      "min_age": 5,
       "baby_ok": false
     },
-    "swim_required": true,
+    "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "300281P2": {
     "confidence": "medium",
@@ -2487,20 +2527,20 @@
     "adventure": 25,
     "setting": "land",
     "vessel": null,
-    "evidence": "This guided tour takes you along a scenic mangrove trail to discover ancient Amerindian shell middens",
     "physical": {
       "demand": "moderate",
-      "mobility_ok": false
+      "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 6,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "300281P4": {
     "confidence": "high",
@@ -2520,8 +2560,9 @@
       "baby_ok": false
     },
     "swim_required": true,
-    "indoor": "outdoor",
-    "kid_appeal": 1
+    "indoor": "mixed",
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "300281P5": {
     "confidence": "high",
@@ -2530,20 +2571,20 @@
     "adventure": 45,
     "setting": "ocean",
     "vessel": null,
-    "evidence": "Kayak Tour",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 5,
+      "min_age": 8,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "300281P7": {
     "confidence": "high",
@@ -2552,7 +2593,6 @@
     "adventure": 50,
     "setting": "ocean",
     "vessel": null,
-    "evidence": "Sea Glass Island is one of those hidden tourist gems that not everyone knows about but is a special place to visit. Only accessible by private boat or kayak",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
@@ -2560,12 +2600,13 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "kids": {
-      "min_age": 5,
+      "min_age": 8,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "300281P8": {
     "confidence": "high",
@@ -2574,20 +2615,20 @@
     "adventure": 50,
     "setting": "ocean",
     "vessel": null,
-    "evidence": "combines it with some relaxing kayaking along the prestigious coastline. Pos Chiquito is a great area for Ocean Kayaking",
     "physical": {
-      "demand": "high",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "kids": {
-      "min_age": 8,
+      "min_age": 6,
       "baby_ok": false
     },
-    "swim_required": true,
+    "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "300281P9": {
     "confidence": "medium",
@@ -2603,12 +2644,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 8,
+      "min_age": 12,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "3046P7": {
     "confidence": "medium",
@@ -2623,12 +2665,13 @@
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 8,
+      "baby_ok": false
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "3046P8": {
     "confidence": "medium",
@@ -2643,12 +2686,13 @@
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 3,
-      "baby_ok": false
+      "min_age": 0,
+      "baby_ok": true
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "317324P1": {
     "confidence": "low",
@@ -2656,25 +2700,6 @@
     "adventure": 25,
     "setting": "mixed",
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
-    "physical": {
-      "demand": "low",
-      "mobility_ok": true
-    },
-    "kids": {
-      "min_age": 0,
-      "baby_ok": true
-    },
-    "swim_required": false,
-    "indoor": "mixed",
-    "kid_appeal": 0
-  },
-  "320728P2280": {
-    "confidence": "high",
-    "adventure": 15,
-    "setting": "town",
-    "vessel": null,
-    "evidence": "Discover the awe-inspiring allure of the National Archaeological Museum Aruba, marvel at the grandeur of Wilhelminastraat Oranjestad, and capture iconic moments at landmarks like the Fort Zoutman Historical Museum, Wilhelmina Park, Aruba Parliament",
     "facet_confidence": "medium",
     "physical": {
       "demand": "low",
@@ -2686,7 +2711,27 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 1,
+    "teen_appeal": 0
+  },
+  "320728P2280": {
+    "confidence": "high",
+    "adventure": 15,
+    "setting": "town",
+    "vessel": null,
+    "facet_confidence": "medium",
+    "physical": {
+      "demand": "moderate",
+      "mobility_ok": true
+    },
+    "kids": {
+      "min_age": 0,
+      "baby_ok": true
+    },
+    "swim_required": false,
+    "indoor": "mixed",
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "320728P484": {
     "confidence": "high",
@@ -2705,8 +2750,9 @@
       "baby_ok": true
     },
     "swim_required": false,
-    "indoor": "mixed",
-    "kid_appeal": 0
+    "indoor": "indoor",
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "324189P1": {
     "confidence": "high",
@@ -2715,9 +2761,8 @@
     "adventure": 55,
     "setting": "land",
     "vessel": null,
-    "evidence": "ride your Electric EZ Raider following your guide to Natural bridge, secluded beaches, Bushiribana Gold Mill Ruins, Rock formations",
     "physical": {
-      "demand": "high",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "toddler_ok_confidence": "high",
@@ -2728,7 +2773,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "324189P2": {
     "confidence": "high",
@@ -2737,20 +2783,20 @@
     "adventure": 70,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "4X4 Open air vehicles inside the National Park",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 8,
+      "min_age": 10,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
-    "swim_required": false,
+    "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 3
   },
   "324189P3": {
     "confidence": "high",
@@ -2759,20 +2805,20 @@
     "adventure": 55,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "This is a East Coast adventure with the exclusive Electric 4-wheeler EZ Raider with beach time at Baby Beach",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 6,
-      "baby_ok": false
+      "min_age": 0,
+      "baby_ok": true
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "324189P4": {
     "confidence": "high",
@@ -2781,20 +2827,20 @@
     "adventure": 75,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Start with a local pastechi, then head deep into Arikok on rugged off-road trails. Visit the Natural Pool (Conchi) for swimming, snorkeling, and cliff jumping (conditions permitting)",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 8,
+      "min_age": 10,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
-    "swim_required": false,
+    "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 3
   },
   "325347P2": {
     "confidence": "high",
@@ -2803,20 +2849,20 @@
     "adventure": 75,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "This fully private experience allows you to dive at your own pace. With our highly trained and certified instructors, we keep the experience personalized",
     "physical": {
-      "demand": "high",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 12,
+      "min_age": 10,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "325347P3": {
     "confidence": "medium",
@@ -2828,16 +2874,17 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
-      "demand": "high",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 10,
+      "min_age": 8,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 3
   },
   "325347P4": {
     "confidence": "high",
@@ -2849,16 +2896,17 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
-      "demand": "high",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 16,
+      "min_age": 10,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "325347P5": {
     "confidence": "high",
@@ -2867,20 +2915,20 @@
     "adventure": 75,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "Every dive is private, so you never feel rushed or crowded by large groups",
     "physical": {
-      "demand": "high",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "kids": {
-      "min_age": 10,
+      "min_age": 12,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "330511P1": {
     "confidence": "medium",
@@ -2889,7 +2937,6 @@
     "adventure": 55,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Horseback Riding experience through the breathtaking scenic North Coast of Aruba",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
@@ -2897,12 +2944,13 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "kids": {
-      "min_age": 6,
+      "min_age": 8,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "33158P1": {
     "confidence": "high",
@@ -2911,7 +2959,6 @@
     "adventure": 65,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Ride along the north coast of Aruba aboard a Polaris 570CC single or double ATV on this 4 hour tour. Enjoy the lovely scenery as your all-terrain vehicle takes you through rugged back roads, desert, and seaside.",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -2919,12 +2966,13 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "kids": {
-      "min_age": 10,
+      "min_age": 12,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "33158P4": {
     "confidence": "high",
@@ -2933,20 +2981,20 @@
     "adventure": 70,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Ride along the north coast of Aruba aboard our Honda Pioneer 1000CC on this 4 hour tour. Enjoy the lovely scenery as your Side by Side (UTV) takes you through rugged back roads, desert, and seaside.",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 12,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "337516P1": {
     "confidence": "medium",
@@ -2962,12 +3010,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 6,
+      "min_age": 8,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "341419P1": {
     "confidence": "high",
@@ -2976,9 +3025,8 @@
     "adventure": 70,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "even the kids as young as 5 years old can join in on",
     "physical": {
-      "demand": "moderate",
+      "demand": "low",
       "mobility_ok": true
     },
     "kids": {
@@ -2989,14 +3037,14 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 3
   },
   "342849P2": {
     "confidence": "high",
     "toddler_ok": false,
     "adventure": 35,
     "setting": "mixed",
-    "evidence": "you will experience San Nicolas differently on an electric bike. We will roam the streets of the Main Streets of San Nicolas",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
@@ -3004,12 +3052,13 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "kids": {
-      "min_age": 12,
+      "min_age": 10,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "342849P3": {
     "confidence": "medium",
@@ -3020,7 +3069,7 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "physical": {
-      "demand": "moderate",
+      "demand": "high",
       "mobility_ok": false
     },
     "kids": {
@@ -3029,7 +3078,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "342849P4": {
     "confidence": "high",
@@ -3043,12 +3093,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 10,
+      "min_age": 8,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "342849P5": {
     "confidence": "high",
@@ -3056,7 +3107,6 @@
     "adventure": 20,
     "setting": "town",
     "vessel": null,
-    "evidence": "Ride from the iconic Red Dutch Windmill along the coastline past Eagle Beach, colorful downtown streets, historic landmarks, charming plazas, and Surfside Beach",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
@@ -3064,12 +3114,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 12,
+      "min_age": 10,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "342849P9": {
     "confidence": "medium",
@@ -3084,19 +3135,19 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 12,
+      "min_age": 10,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "350808P2417": {
     "confidence": "medium",
     "toddler_ok": false,
     "adventure": 50,
     "setting": "mixed",
-    "evidence": "Travel by comfortable Jeep to beautiful beaches, historic buildings, dramatic viewpoints",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
@@ -3104,50 +3155,51 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "kids": {
-      "min_age": 0,
+      "min_age": 5,
       "baby_ok": false
     },
     "swim_required": false,
-    "indoor": "mixed",
-    "kid_appeal": 1
+    "indoor": "outdoor",
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "350808P2418": {
     "confidence": "medium",
     "toddler_ok": true,
     "adventure": 40,
     "setting": "mixed",
-    "evidence": "Get picked up at your hotel or cruise ship, then head out on your half-day tour that includes an aloe vera factory, the unusual Casibari Rock Formation, Natural Bridge Ruins, Arawak Indian Drawings, the Alto Vista Chapel, and California Lighthouse",
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "physical": {
       "demand": "moderate",
-      "mobility_ok": true
+      "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 5,
+      "baby_ok": false
     },
     "swim_required": false,
-    "indoor": "mixed",
-    "kid_appeal": 1
+    "indoor": "outdoor",
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "350808P2629": {
     "confidence": "medium",
     "adventure": 40,
     "setting": "mixed",
-    "evidence": "Travel the whole island, and see the California Lighthouse, the Ayo Rock Formation, and the Casibari Rock Formations",
     "facet_confidence": "medium",
     "physical": {
       "demand": "moderate",
-      "mobility_ok": true
+      "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 5,
+      "baby_ok": false
     },
     "swim_required": false,
-    "indoor": "mixed",
-    "kid_appeal": 1
+    "indoor": "outdoor",
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "358117P1": {
     "confidence": "high",
@@ -3156,9 +3208,8 @@
     "adventure": 40,
     "setting": "ocean",
     "vessel": null,
-    "evidence": "Picture yourself gliding through the pristine waters of Aruba, surrounded by breathtaking scenery, while our professional assistants guide you through captivating poses.",
     "physical": {
-      "demand": "low",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
@@ -3169,7 +3220,8 @@
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "358117P10": {
     "confidence": "high",
@@ -3177,7 +3229,6 @@
     "adventure": 25,
     "setting": "beach",
     "vessel": "boat",
-    "evidence": "Hop on a small boat and cruise to Sea Glass Island",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -3189,7 +3240,8 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 1
   },
   "358117P17": {
     "confidence": "high",
@@ -3198,7 +3250,6 @@
     "adventure": 35,
     "setting": "ocean",
     "vessel": null,
-    "evidence": "You'll be dressed in a stunning, flowing flying dress and placed in a crystal-clear kayak on the turquoise waters",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
@@ -3206,12 +3257,13 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "kids": {
-      "min_age": 14,
+      "min_age": 12,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "358117P7": {
     "confidence": "high",
@@ -3232,7 +3284,8 @@
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "358826P1": {
     "confidence": "high",
@@ -3241,7 +3294,6 @@
     "adventure": 75,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "You'll join our professional guide in our Jeep Safari Tour. Together we will explore the National Park Arikok by taking the off roads",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -3254,7 +3306,8 @@
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "358826P2": {
     "confidence": "high",
@@ -3263,7 +3316,6 @@
     "adventure": 70,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "climb the rock and take panoramic pictures of Aruba. We will continue to the Natural Bridge",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -3273,10 +3325,11 @@
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 3
   },
   "364486P1": {
     "confidence": "high",
@@ -3284,7 +3337,6 @@
     "adventure": 20,
     "setting": "town",
     "vessel": null,
-    "evidence": "This is a cultural exploration into food unlike any other",
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "physical": {
@@ -3292,12 +3344,13 @@
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 12,
+      "baby_ok": false
     },
     "swim_required": false,
     "indoor": "indoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "367744P1": {
     "confidence": "medium",
@@ -3306,20 +3359,20 @@
     "adventure": 25,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Arashi Beach for snorkeling or Eagle Beach for swimming",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 4,
       "baby_ok": true
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "367744P2": {
     "confidence": "low",
@@ -3328,7 +3381,7 @@
     "setting": "mixed",
     "vessel": null,
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "physical": {
       "demand": "moderate",
       "mobility_ok": true
@@ -3339,7 +3392,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "367744P4": {
     "confidence": "medium",
@@ -3357,7 +3411,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "37387P2": {
     "confidence": "high",
@@ -3366,7 +3421,6 @@
     "adventure": 20,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "Relax on the expansive teak decks of the pirate ship",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
@@ -3374,12 +3428,13 @@
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 2,
+      "baby_ok": false
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "37387P3": {
     "confidence": "high",
@@ -3388,7 +3443,6 @@
     "adventure": 60,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "Enjoy an afternoon snorkeling cruise in Aruba aboard this 85-foot teak Schooner",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
@@ -3399,9 +3453,10 @@
       "min_age": 5,
       "baby_ok": false
     },
-    "swim_required": false,
-    "indoor": "mixed",
-    "kid_appeal": 1
+    "swim_required": true,
+    "indoor": "outdoor",
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "377394P1": {
     "confidence": "high",
@@ -3417,12 +3472,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 12,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "377394P7": {
     "confidence": "high",
@@ -3431,20 +3487,20 @@
     "adventure": 70,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Driving a UTV adds an element of excitement and adventure to your exploration. The hands-on experience of driving over varying terrains and through different challenges is truly exhilarating.",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "kids": {
-      "min_age": 0,
+      "min_age": 12,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "377394P8": {
     "confidence": "high",
@@ -3454,18 +3510,19 @@
     "setting": "mixed",
     "vessel": null,
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "physical": {
-      "demand": "moderate",
+      "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 12,
+      "min_age": 14,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "377394P9": {
     "confidence": "high",
@@ -3475,18 +3532,19 @@
     "setting": "mixed",
     "vessel": null,
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "physical": {
-      "demand": "moderate",
+      "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 12,
+      "min_age": 14,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "383257P1": {
     "confidence": "low",
@@ -3494,7 +3552,6 @@
     "adventure": 30,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "This personalized journey along the stunning coastline includes swim stops at pristine beaches and natural wonders",
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "physical": {
@@ -3502,12 +3559,13 @@
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 3,
+      "min_age": 2,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "383257P2": {
     "confidence": "low",
@@ -3527,25 +3585,27 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "383257P5": {
     "confidence": "low",
     "kind": "snorkel",
     "adventure": 45,
     "setting": "ocean",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "physical": {
-      "demand": "high",
-      "mobility_ok": false
+      "demand": "moderate",
+      "mobility_ok": true
     },
     "kids": {
-      "min_age": 5,
+      "min_age": 10,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
   "392509P1": {
     "confidence": "high",
@@ -3554,27 +3614,26 @@
     "adventure": 55,
     "setting": "land",
     "vessel": null,
-    "evidence": "Discover and see the best parts of Aruba's North Coast in just one tour. While also enjoying the thrill of the \"Surron\" e-bikes that will leave you with an electrified feeling. Follow scenic trails to get rewarded with amazing secluded beaches",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 12,
+      "min_age": 16,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "39473P2": {
     "confidence": "high",
     "adventure": 15,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "This air-conditioned bus tour will show you the picturesque and rustic country side of Aruba",
     "facet_confidence": "medium",
     "physical": {
       "demand": "low",
@@ -3586,7 +3645,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "39473P3": {
     "confidence": "low",
@@ -3595,7 +3655,7 @@
     "setting": "mixed",
     "vessel": null,
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "low",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -3606,7 +3666,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "39473P4": {
     "confidence": "high",
@@ -3615,7 +3676,6 @@
     "adventure": 60,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Visit the Arikok National park to see Aruba top highlights such as the Natural Pool (Conchi) where you will be able to snorkel with colorful tropical fishes",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -3625,10 +3685,11 @@
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
-    "swim_required": true,
+    "facet_confidence": "medium",
+    "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "39473P5": {
     "confidence": "high",
@@ -3637,7 +3698,6 @@
     "adventure": 75,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Jump behind the wheel and drive your own 4x4 UTV!!",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -3645,12 +3705,13 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "kids": {
-      "min_age": 0,
+      "min_age": 12,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "39473P6": {
     "confidence": "high",
@@ -3659,20 +3720,20 @@
     "adventure": 70,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Experience Aruba like never before behind the wheel of your own 4x4 UTV! Follow our expert guides on an exciting off-road adventure through rugged trails, scenic coastlines",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 8,
+      "min_age": 10,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "400174P13": {
     "confidence": "medium",
@@ -3680,7 +3741,6 @@
     "adventure": 25,
     "setting": "ocean",
     "vessel": null,
-    "evidence": "You will do a beautiful drone photoshoot on a bamboo raft",
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "physical": {
@@ -3693,7 +3753,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "400174P2": {
     "confidence": "high",
@@ -3705,7 +3766,7 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
-      "demand": "low",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
@@ -3714,7 +3775,8 @@
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "400174P5": {
     "confidence": "high",
@@ -3722,7 +3784,6 @@
     "adventure": 10,
     "setting": "beach",
     "vessel": null,
-    "evidence": "Choose between a tranquil pool or a scenic beach location. The tray features croissants, fresh orange juice, cake, donuts, pancakes, and more.",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -3732,10 +3793,11 @@
       "baby_ok": true
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "419440P1": {
     "confidence": "high",
@@ -3745,18 +3807,19 @@
     "setting": "ocean",
     "vessel": null,
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 6,
+      "min_age": 8,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "419440P2": {
     "confidence": "high",
@@ -3768,7 +3831,7 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
-      "demand": "high",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
@@ -3777,7 +3840,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "429943P1": {
     "confidence": "high",
@@ -3786,20 +3850,20 @@
     "adventure": 50,
     "setting": "mixed",
     "vessel": "boat",
-    "evidence": "snorkeling, paddleboarding, floating between the mangroves, or simply relaxing in the sun",
     "physical": {
-      "demand": "low",
-      "mobility_ok": true
+      "demand": "moderate",
+      "mobility_ok": false
     },
     "kids": {
-      "min_age": 2,
-      "baby_ok": true
+      "min_age": 4,
+      "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
-    "swim_required": false,
+    "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
   "429943P2": {
     "confidence": "high",
@@ -3808,7 +3872,6 @@
     "adventure": 45,
     "setting": "mixed",
     "vessel": "boat",
-    "evidence": "Navigate clear waters with your captain on exhilarating snorkeling and paddle board escapades. Drift through mystic mangroves",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
@@ -3821,7 +3884,8 @@
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "429943P3": {
     "confidence": "high",
@@ -3830,7 +3894,6 @@
     "adventure": 20,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "your private pontoon boat gently cruising across the tranquil waters as the sun dips below the horizon",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -3843,7 +3906,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "429943P4": {
     "confidence": "medium",
@@ -3851,7 +3915,6 @@
     "adventure": 20,
     "setting": "land",
     "vessel": null,
-    "evidence": "The setting is a reef island surrounded by serene mangroves, offering a secluded and immersive atmosphere",
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "physical": {
@@ -3859,12 +3922,13 @@
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 10,
+      "baby_ok": false
     },
     "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 1
+    "indoor": "mixed",
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "434780P1": {
     "confidence": "high",
@@ -3880,12 +3944,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 6,
-      "baby_ok": false
+      "min_age": 0,
+      "baby_ok": true
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "441143P1": {
     "confidence": "high",
@@ -3894,20 +3959,20 @@
     "adventure": 45,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "professional do the driving while you just relax and enjoy this half day sightseeing tour and at the end swimming at Baby Beach",
     "physical": {
       "demand": "moderate",
-      "mobility_ok": false
+      "mobility_ok": true
     },
     "kids": {
-      "min_age": 5,
+      "min_age": 3,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
-    "swim_required": false,
+    "facet_confidence": "high",
+    "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "441143P2": {
     "confidence": "high",
@@ -3916,10 +3981,31 @@
     "adventure": 35,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Get to know the whole Island on this full island tour. Let a professional local guide take you to Aruba's best attractions. Starting at the West side of the Island and ending on the East side. Enjoy breath taking views at the California Lighthouse Goldmill ruins and be amused by natural formations like the Natural Bridge. At the end let us take you to Baby Beach for a refreshing swim.",
     "physical": {
-      "demand": "moderate",
+      "demand": "low",
       "mobility_ok": true
+    },
+    "kids": {
+      "min_age": 0,
+      "baby_ok": true
+    },
+    "toddler_ok_confidence": "high",
+    "facet_confidence": "medium",
+    "swim_required": false,
+    "indoor": "outdoor",
+    "kid_appeal": 1,
+    "teen_appeal": 0
+  },
+  "441143P5": {
+    "confidence": "high",
+    "toddler_ok": false,
+    "kind": "offroad",
+    "adventure": 45,
+    "setting": "land",
+    "vessel": null,
+    "physical": {
+      "demand": "high",
+      "mobility_ok": false
     },
     "kids": {
       "min_age": 0,
@@ -3929,29 +4015,8 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
-  },
-  "441143P5": {
-    "confidence": "high",
-    "toddler_ok": false,
-    "kind": "offroad",
-    "adventure": 45,
-    "setting": "land",
-    "vessel": null,
-    "evidence": "Tour around the island in our very comfortable open air jeep with licensed tour guide driver. See the island of Aruba's landmarks, the north coast and the highest top of the island.",
-    "physical": {
-      "demand": "moderate",
-      "mobility_ok": false
-    },
-    "kids": {
-      "min_age": 5,
-      "baby_ok": false
-    },
-    "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
-    "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "441143P8": {
     "confidence": "high",
@@ -3963,7 +4028,7 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
-      "demand": "moderate",
+      "demand": "high",
       "mobility_ok": false
     },
     "kids": {
@@ -3972,7 +4037,8 @@
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "444239P1": {
     "confidence": "medium",
@@ -3988,12 +4054,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 8,
+      "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "444239P2": {
     "confidence": "medium",
@@ -4009,12 +4076,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 8,
+      "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "444239P7": {
     "confidence": "high",
@@ -4023,20 +4091,20 @@
     "adventure": 25,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "Enjoy a private romantic sunset cruise and 3 course dinner for two or for a for a group of up to 6 friends",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 16,
+      "min_age": 12,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "444239P8": {
     "confidence": "high",
@@ -4044,19 +4112,19 @@
     "adventure": 35,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "Indulge in a delightful lunch or early dinner at Mangel Halto Reef, where thrilling snorkeling awaits",
     "facet_confidence": "medium",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 8,
+      "baby_ok": false
     },
     "swim_required": true,
-    "indoor": "mixed",
-    "kid_appeal": 1
+    "indoor": "outdoor",
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "445910P1": {
     "confidence": "high",
@@ -4068,16 +4136,17 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
-      "demand": "high",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 5,
+      "min_age": 6,
       "baby_ok": false
     },
     "swim_required": true,
-    "indoor": "outdoor",
-    "kid_appeal": 2
+    "indoor": "mixed",
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "445910P16": {
     "confidence": "high",
@@ -4086,7 +4155,6 @@
     "adventure": 40,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "This unforgettable Adults Only Afternoon and Sunset sailing journey takes you snorkeling to the breathtaking waters of Mangel Halto and its private islands.",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
@@ -4096,10 +4164,11 @@
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "445910P2": {
     "confidence": "medium",
@@ -4109,18 +4178,19 @@
     "setting": "ocean",
     "vessel": "catamaran",
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "physical": {
-      "demand": "high",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 5,
+      "min_age": 6,
       "baby_ok": false
     },
     "swim_required": true,
-    "indoor": "outdoor",
-    "kid_appeal": 2
+    "indoor": "mixed",
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "445910P23": {
     "confidence": "high",
@@ -4130,7 +4200,7 @@
     "setting": "ocean",
     "vessel": "boat",
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
@@ -4141,7 +4211,8 @@
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "446074P1": {
     "confidence": "high",
@@ -4157,12 +4228,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 8,
+      "min_age": 10,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "45382P418": {
     "confidence": "high",
@@ -4171,20 +4243,20 @@
     "adventure": 25,
     "setting": "ocean",
     "vessel": "catamaran",
-    "evidence": "Perfect for all skill levels, this small-group experience prioritizes comfort and leisure over a rushed schedule.",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 5,
+      "min_age": 3,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "45382P428": {
     "confidence": "high",
@@ -4193,20 +4265,20 @@
     "adventure": 25,
     "setting": "ocean",
     "vessel": "catamaran",
-    "evidence": "this tour is perfect for both beginners and seasoned snorkelers alike.",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 5,
+      "min_age": 3,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "45382P429": {
     "confidence": "high",
@@ -4221,11 +4293,12 @@
     },
     "kids": {
       "min_age": 0,
-      "baby_ok": true
+      "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "45382P430": {
     "confidence": "high",
@@ -4240,11 +4313,12 @@
     },
     "kids": {
       "min_age": 0,
-      "baby_ok": true
+      "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "459169P1": {
     "confidence": "high",
@@ -4260,12 +4334,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 14,
+      "min_age": 12,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "459169P2": {
     "confidence": "medium",
@@ -4278,15 +4353,16 @@
     "facet_confidence": "medium",
     "physical": {
       "demand": "moderate",
-      "mobility_ok": true
+      "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 8,
+      "baby_ok": false
     },
     "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 1
+    "indoor": "mixed",
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "459169P3": {
     "confidence": "low",
@@ -4302,12 +4378,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 12,
+      "min_age": 16,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "461868P1": {
     "confidence": "high",
@@ -4316,18 +4393,19 @@
     "setting": "mixed",
     "vessel": null,
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "physical": {
       "demand": "high",
-      "mobility_ok": true
+      "mobility_ok": false
     },
     "kids": {
-      "min_age": 7,
+      "min_age": 5,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "472918P1": {
     "confidence": "high",
@@ -4343,12 +4421,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 8,
+      "min_age": 6,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 3
   },
   "474314P1": {
     "confidence": "high",
@@ -4357,27 +4436,26 @@
     "adventure": 25,
     "setting": "ocean",
     "vessel": null,
-    "evidence": "our signature Clear Kayak",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
       "min_age": 0,
-      "baby_ok": true
+      "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "474314P2": {
     "confidence": "medium",
     "toddler_ok": false,
     "adventure": 35,
     "setting": "mixed",
-    "evidence": "choose one or two scenic locations—like the colorful San Nicolas murals, tranquil Mangel Halto, or the dramatic coastline at Baby Beach",
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "physical": {
@@ -4386,11 +4464,12 @@
     },
     "kids": {
       "min_age": 0,
-      "baby_ok": false
+      "baby_ok": true
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "474314P3": {
     "confidence": "medium",
@@ -4407,9 +4486,10 @@
       "min_age": 0,
       "baby_ok": true
     },
-    "swim_required": true,
+    "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "47607P2": {
     "confidence": "high",
@@ -4421,16 +4501,17 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
-      "demand": "high",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 5,
+      "min_age": 6,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "47607P3": {
     "confidence": "high",
@@ -4442,16 +4523,17 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
-      "demand": "high",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 5,
+      "min_age": 6,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "47607P4": {
     "confidence": "high",
@@ -4460,20 +4542,20 @@
     "adventure": 20,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "Relax on our spacious, cushioned lounge seats with uninterrupted sea views every seat offers you comfort and privacy",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 12,
+      "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "476164P1": {
     "confidence": "medium",
@@ -4493,7 +4575,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "476164P10": {
     "confidence": "high",
@@ -4512,7 +4595,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "476164P2": {
     "confidence": "low",
@@ -4520,7 +4604,6 @@
     "adventure": 20,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Discover Aruba's sightseeing places, beaches, bars and restaurants, shops and malls, or whatever you like, with our quality-branded Eurowheelz electric scooters",
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "physical": {
@@ -4528,12 +4611,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 14,
+      "min_age": 0,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 1,
+    "teen_appeal": 3
   },
   "476164P3": {
     "confidence": "medium",
@@ -4553,7 +4637,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "476164P4": {
     "confidence": "medium",
@@ -4573,7 +4658,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "476164P5": {
     "confidence": "high",
@@ -4582,10 +4668,10 @@
     "setting": "mixed",
     "vessel": null,
     "toddler_ok_confidence": "high",
-    "facet_confidence": "low",
+    "facet_confidence": "medium",
     "physical": {
-      "demand": "moderate",
-      "mobility_ok": false
+      "demand": "low",
+      "mobility_ok": true
     },
     "kids": {
       "min_age": 12,
@@ -4593,7 +4679,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "47774P1": {
     "confidence": "high",
@@ -4613,7 +4700,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "47774P3": {
     "confidence": "high",
@@ -4629,12 +4717,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 10,
+      "min_age": 12,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "47774P4": {
     "confidence": "high",
@@ -4650,12 +4739,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 6,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "47774P7": {
     "confidence": "high",
@@ -4665,18 +4755,19 @@
     "setting": "mixed",
     "vessel": null,
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 10,
+      "min_age": 12,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "5493518P1": {
     "confidence": "high",
@@ -4684,7 +4775,6 @@
     "adventure": 10,
     "setting": "beach",
     "vessel": null,
-    "evidence": "You will have a Private & Romantic moment with your loved one, while enjoying the intimacy that can be experienced on our exclusive Eagle Beach location",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
@@ -4697,7 +4787,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "5493518P2": {
     "confidence": "high",
@@ -4705,7 +4796,6 @@
     "adventure": 15,
     "setting": "beach",
     "vessel": null,
-    "evidence": "experience an intimate beach picnic in a luxurious beach cabana",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
@@ -4718,7 +4808,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "5494168P1": {
     "confidence": "medium",
@@ -4736,7 +4827,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "5497600P1": {
     "confidence": "high",
@@ -4744,20 +4836,20 @@
     "adventure": 15,
     "setting": "town",
     "vessel": null,
-    "evidence": "Enjoy a private painting session for two at sunset, complete with a bottle of wine, local snacks, and the soft glow of candlelight",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 18,
+      "min_age": 16,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "5497600P5": {
     "confidence": "medium",
@@ -4765,7 +4857,6 @@
     "adventure": 15,
     "setting": "beach",
     "vessel": null,
-    "evidence": "Most Exclusive Beachside Sip & Paint Experience in Aruba",
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "physical": {
@@ -4773,12 +4864,13 @@
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 16,
+      "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "5505210P1": {
     "confidence": "low",
@@ -4794,7 +4886,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "5505210P3": {
     "confidence": "high",
@@ -4803,26 +4896,26 @@
     "adventure": 30,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Begin with a scenic guided hike, reaching a stunning viewpoint just as dawn casts golden hues over the ocean. Then, descend to a secluded beach for a soothing meditation",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 10,
+      "min_age": 12,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "5526774P1": {
     "confidence": "medium",
     "adventure": 25,
     "setting": "mixed",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -4833,7 +4926,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "5526774P7": {
     "confidence": "low",
@@ -4842,16 +4936,17 @@
     "vessel": null,
     "facet_confidence": "medium",
     "physical": {
-      "demand": "moderate",
+      "demand": "low",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 2,
+      "min_age": 0,
       "baby_ok": true
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "5552066P1": {
     "confidence": "high",
@@ -4859,19 +4954,19 @@
     "adventure": 40,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "We start the tour at the Ritz Carlton beach with a stop at a shipwreck first. After this we take you to snorkel areas only accessible by boat",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 3,
-      "baby_ok": false
+      "min_age": 0,
+      "baby_ok": true
     },
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "5552066P3": {
     "confidence": "high",
@@ -4880,20 +4975,20 @@
     "adventure": 35,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "The 2-hour private Sunset Tour offers a delightful journey along Aruba's stunning North-West coast, perfect for snorkeling enthusiasts and coastline admirers alike. Visit 2–3 snorkeling sites, including a fascinating World War II shipwreck, and swim with graceful green sea turtles",
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 10,
+      "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "5555310P1": {
     "confidence": "high",
@@ -4903,7 +4998,7 @@
     "setting": "land",
     "vessel": null,
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -4914,7 +5009,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "5562515P2": {
     "confidence": "high",
@@ -4933,14 +5029,14 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "5563642P1": {
     "confidence": "high",
     "toddler_ok": true,
     "adventure": 12,
     "setting": "beach",
-    "evidence": "Professional Sunset Photoshoot in Aruba is more than just pictures",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
@@ -4953,12 +5049,13 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "5563642P2": {
     "confidence": "medium",
     "setting": "town",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -4969,7 +5066,8 @@
     },
     "swim_required": false,
     "indoor": "indoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "5566924P1": {
     "confidence": "high",
@@ -4978,9 +5076,8 @@
     "adventure": 65,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "swim with wild sea turtles, cliff jump into the sea at Tres Trapi Beach, and savor a serene floating breakfast in the turquoise sea",
     "physical": {
-      "demand": "high",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
@@ -4991,7 +5088,8 @@
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "5566924P4": {
     "confidence": "medium",
@@ -5001,7 +5099,7 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "physical": {
-      "demand": "moderate",
+      "demand": "low",
       "mobility_ok": true
     },
     "kids": {
@@ -5010,7 +5108,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "5566924P8": {
     "confidence": "high",
@@ -5020,7 +5119,7 @@
     "setting": "land",
     "vessel": null,
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -5031,7 +5130,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "5566924P9": {
     "confidence": "medium",
@@ -5049,7 +5149,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "5568850P1": {
     "confidence": "low",
@@ -5064,8 +5165,9 @@
       "baby_ok": true
     },
     "swim_required": false,
-    "indoor": "mixed",
-    "kid_appeal": 0
+    "indoor": "outdoor",
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "5569033P1": {
     "confidence": "low",
@@ -5075,12 +5177,13 @@
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 18,
-      "baby_ok": false
+      "min_age": 0,
+      "baby_ok": true
     },
     "swim_required": false,
-    "indoor": "mixed",
-    "kid_appeal": 0
+    "indoor": "outdoor",
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "5574243P1": {
     "confidence": "medium",
@@ -5101,7 +5204,8 @@
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "5576013P1": {
     "confidence": "medium",
@@ -5110,29 +5214,6 @@
     "adventure": 35,
     "setting": "ocean",
     "vessel": null,
-    "evidence": "clear kayaks, turquoise water, and cinematic drone angles",
-    "physical": {
-      "demand": "moderate",
-      "mobility_ok": false
-    },
-    "kids": {
-      "min_age": 12,
-      "baby_ok": false
-    },
-    "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
-    "swim_required": true,
-    "indoor": "outdoor",
-    "kid_appeal": 0
-  },
-  "5576013P3": {
-    "confidence": "medium",
-    "toddler_ok": false,
-    "kind": "kayak",
-    "adventure": 35,
-    "setting": "ocean",
-    "vessel": null,
-    "evidence": "clear kayaks, turquoise water",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
@@ -5145,7 +5226,30 @@
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
+  },
+  "5576013P3": {
+    "confidence": "medium",
+    "toddler_ok": false,
+    "kind": "kayak",
+    "adventure": 35,
+    "setting": "ocean",
+    "vessel": null,
+    "physical": {
+      "demand": "moderate",
+      "mobility_ok": false
+    },
+    "kids": {
+      "min_age": 10,
+      "baby_ok": false
+    },
+    "toddler_ok_confidence": "high",
+    "facet_confidence": "high",
+    "swim_required": true,
+    "indoor": "outdoor",
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "5581415P1": {
     "confidence": "high",
@@ -5153,19 +5257,19 @@
     "adventure": 60,
     "setting": "land",
     "vessel": null,
-    "evidence": "private off-road adventure in one of our luxury 4x4 vehicles – including Ford Broncos, Jeep Gladiators",
     "physical": {
-      "demand": "moderate",
+      "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 5,
       "baby_ok": false
     },
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "5585429P1": {
     "confidence": "medium",
@@ -5174,7 +5278,6 @@
     "adventure": 50,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Great for al ages! whether youre a couple, familie, solo traveler or group of friends",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
@@ -5187,7 +5290,8 @@
     "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "5585429P11": {
     "confidence": "medium",
@@ -5196,18 +5300,19 @@
     "setting": "land",
     "vessel": null,
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 5,
-      "baby_ok": false
+      "min_age": 0,
+      "baby_ok": true
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "5585429P13": {
     "confidence": "medium",
@@ -5221,12 +5326,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 8,
+      "min_age": 5,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "5585429P2": {
     "confidence": "high",
@@ -5235,20 +5341,20 @@
     "adventure": 50,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Escape the crowds and explore Aruba your way on this private 4x4 Jeep tour led by a local guide • Visit must-see gems like Downtown Oranjestad , Casibari Rocks & Bushiribana Gold Mine Ruins • Snorkel at the stunning Tres Trapi Beach, famous for crystal-clear waters and vibrant marine life",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 4,
-      "baby_ok": false
+      "min_age": 0,
+      "baby_ok": true
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "5585429P3": {
     "confidence": "high",
@@ -5256,7 +5362,6 @@
     "adventure": 50,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Explore Aruba's Beaches and iconic landmarks on a private half-day Jeep tour in our signature red Wrangler",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -5265,10 +5370,11 @@
       "min_age": 5,
       "baby_ok": false
     },
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "5585429P7": {
     "confidence": "high",
@@ -5289,7 +5395,8 @@
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
   "5586794P1": {
     "confidence": "medium",
@@ -5297,18 +5404,19 @@
     "adventure": 45,
     "setting": "mixed",
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "physical": {
-      "demand": "low",
+      "demand": "moderate",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 16,
+      "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "5590739P2": {
     "confidence": "low",
@@ -5328,7 +5436,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "5593159P4": {
     "confidence": "low",
@@ -5338,7 +5447,7 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "physical": {
-      "demand": "moderate",
+      "demand": "low",
       "mobility_ok": false
     },
     "kids": {
@@ -5347,7 +5456,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "5593159P5": {
     "confidence": "high",
@@ -5355,7 +5465,6 @@
     "adventure": 15,
     "setting": "ocean",
     "vessel": null,
-    "evidence": "luxury floating breakfast and photo session",
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "physical": {
@@ -5363,12 +5472,13 @@
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 3,
+      "min_age": 2,
       "baby_ok": true
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "5593159P6": {
     "confidence": "high",
@@ -5376,46 +5486,6 @@
     "setting": "mixed",
     "facet_confidence": "high",
     "physical": {
-      "demand": "moderate",
-      "mobility_ok": true
-    },
-    "kids": {
-      "min_age": 5,
-      "baby_ok": false
-    },
-    "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 0
-  },
-  "5595462P1": {
-    "confidence": "high",
-    "toddler_ok": false,
-    "adventure": 5,
-    "setting": "town",
-    "evidence": "Discover the rich history of Bodegas Papiamento, founded in a historic building that once was an ice factory",
-    "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
-    "physical": {
-      "demand": "low",
-      "mobility_ok": true
-    },
-    "kids": {
-      "min_age": 18,
-      "baby_ok": false
-    },
-    "swim_required": false,
-    "indoor": "indoor",
-    "kid_appeal": 0
-  },
-  "5595462P2": {
-    "confidence": "high",
-    "toddler_ok": false,
-    "adventure": 10,
-    "setting": "town",
-    "evidence": "Our distillery, Bodegas Papiamento, is committed to sustainability with a farm-to-table concept",
-    "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
-    "physical": {
       "demand": "low",
       "mobility_ok": true
     },
@@ -5424,16 +5494,15 @@
       "baby_ok": true
     },
     "swim_required": false,
-    "indoor": "indoor",
-    "kid_appeal": 1
+    "indoor": "outdoor",
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
-  "5595462P3": {
+  "5595462P1": {
     "confidence": "high",
     "toddler_ok": false,
-    "adventure": 15,
+    "adventure": 5,
     "setting": "town",
-    "vessel": null,
-    "evidence": "Your master rums are in Bodegas Papiamento",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
@@ -5446,7 +5515,49 @@
     },
     "swim_required": false,
     "indoor": "indoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
+  },
+  "5595462P2": {
+    "confidence": "high",
+    "toddler_ok": false,
+    "adventure": 10,
+    "setting": "town",
+    "toddler_ok_confidence": "high",
+    "facet_confidence": "high",
+    "physical": {
+      "demand": "low",
+      "mobility_ok": true
+    },
+    "kids": {
+      "min_age": 18,
+      "baby_ok": false
+    },
+    "swim_required": false,
+    "indoor": "indoor",
+    "kid_appeal": 0,
+    "teen_appeal": 0
+  },
+  "5595462P3": {
+    "confidence": "high",
+    "toddler_ok": false,
+    "adventure": 15,
+    "setting": "town",
+    "vessel": null,
+    "toddler_ok_confidence": "high",
+    "facet_confidence": "high",
+    "physical": {
+      "demand": "low",
+      "mobility_ok": true
+    },
+    "kids": {
+      "min_age": 18,
+      "baby_ok": false
+    },
+    "swim_required": false,
+    "indoor": "indoor",
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "5595462P5": {
     "confidence": "high",
@@ -5454,20 +5565,20 @@
     "adventure": 15,
     "setting": "town",
     "vessel": null,
-    "evidence": "This 60-minute journey begins with an aroma analysis, immersing you in the rich scents of vanilla, orange, and cinnamon. Discover the storied history of Papiamento Rum while tasting three award-winning rums: the cocoa-rich Carnival 8 yrs, the maple-infused Style 15 yrs, and the innovative Aruba Bourbon Style 15 yrs, the first rum crafted with real bourbon. The highlight. Fill your unique 750ml bottle from the barrel, hand-label it",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 16,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "indoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "5595462P6": {
     "confidence": "high",
@@ -5475,20 +5586,20 @@
     "adventure": 15,
     "setting": "town",
     "vessel": null,
-    "evidence": "you'll enjoy two appetizers, a signature main course, and our family's famous Tres Leches dessert, perfectly paired with two handcrafted signature cocktails and a shot of our award-winning Aruba Style Rum",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 16,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "indoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "5595542P1": {
     "confidence": "high",
@@ -5497,40 +5608,40 @@
     "adventure": 50,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "aboard a private speed boat charter",
     "physical": {
-      "demand": "high",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 6,
+      "min_age": 5,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 3
   },
   "5599636P2": {
     "confidence": "high",
     "toddler_ok": false,
     "adventure": 15,
     "setting": "mixed",
-    "evidence": "Family-friendly activity perfect for all ages",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 4,
+      "min_age": 5,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "indoor",
-    "kid_appeal": 2
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "5599636P5": {
     "confidence": "high",
@@ -5545,18 +5656,18 @@
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 12,
+      "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "5607727P3": {
     "confidence": "medium",
     "adventure": 45,
     "setting": "beach",
-    "evidence": "We specialize in taking you to secluded beach spots and hidden coastal gems that larger groups simply cannot reach",
     "facet_confidence": "medium",
     "physical": {
       "demand": "low",
@@ -5567,16 +5678,16 @@
       "baby_ok": true
     },
     "swim_required": false,
-    "indoor": "mixed",
-    "kid_appeal": 1
+    "indoor": "outdoor",
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "5616292P5": {
     "confidence": "medium",
     "toddler_ok": false,
     "setting": "mixed",
-    "evidence": "From golden sunsets to peaceful morning light",
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -5587,44 +5698,46 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "5616292P7": {
     "confidence": "medium",
     "adventure": 25,
     "setting": "mixed",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 3,
+      "min_age": 5,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "5617356P2": {
     "confidence": "high",
     "toddler_ok": false,
     "adventure": 25,
     "setting": "mixed",
-    "evidence": "relaxed sunset bike ride",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "kids": {
-      "min_age": 6,
+      "min_age": 8,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "5617356P3": {
     "confidence": "high",
@@ -5633,7 +5746,6 @@
     "adventure": 60,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "this small-group experience combines cycling, a short coastal hike, local culture, and time to relax at Baby Beach",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -5644,9 +5756,10 @@
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
-    "swim_required": false,
+    "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "5617356P7": {
     "confidence": "high",
@@ -5662,12 +5775,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 5,
+      "min_age": 6,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
   "5617356P8": {
     "confidence": "high",
@@ -5675,27 +5789,26 @@
     "adventure": 50,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Climb the Casibari Rock Formation for breathtaking panoramic views, walk among the Natural Bridge ruins",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 5,
+      "min_age": 6,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "5626463P2": {
     "confidence": "high",
     "toddler_ok": false,
     "adventure": 15,
     "setting": "beach",
-    "evidence": "placing you within the vast, cinematic landscapes of the island's most stunning beaches",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
@@ -5708,34 +5821,34 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "5626463P3": {
     "confidence": "medium",
     "toddler_ok": true,
     "adventure": 15,
     "setting": "beach",
-    "evidence": "we explore a beautiful Aruban beach together. By wandering through the lush, native Sea Grape plants and along the turquoise shoreline",
     "physical": {
-      "demand": "moderate",
+      "demand": "low",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 2,
-      "baby_ok": false
+      "min_age": 1,
+      "baby_ok": true
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 0
   },
   "5628877P6": {
     "confidence": "high",
     "toddler_ok": false,
     "adventure": 12,
     "setting": "beach",
-    "evidence": "private, personalized experience with a professional local photographer who knows the best hidden beach locations",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
@@ -5748,7 +5861,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "5629889P1": {
     "confidence": "medium",
@@ -5764,39 +5878,39 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 10,
+      "min_age": 8,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "5629889P6": {
     "confidence": "medium",
     "toddler_ok": false,
     "adventure": 70,
     "setting": "mixed",
-    "evidence": "Natural Pool (Swimming) - Boca Prins - Fontein cave - Fish Pedicure - Quadirikiri cave - Baby Beach (Swimming)",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "kids": {
-      "min_age": 6,
+      "min_age": 8,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
   "5634943P2": {
     "confidence": "high",
     "toddler_ok": false,
     "adventure": 5,
     "setting": "town",
-    "evidence": "At Uncle Jah Tattoos in Oranjestad, immerse yourself in the artistry of custom tattoos crafted in a safe and professional environment.",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
@@ -5804,19 +5918,19 @@
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 18,
+      "min_age": 16,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "indoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "5636214P1": {
     "confidence": "high",
     "toddler_ok": false,
     "adventure": 20,
     "setting": "mixed",
-    "evidence": "calm, supportive and beautiful seaside setting. The small-group format ensures personal attention and a welcoming atmosphere, making it ideal for solo travelers, couples, wellness seekers, and anyone feeling mentally busy or overwhelmed during their trip. No artistic experience is required, this workshop is designed to be accessible, nourishing, and pressure-free.",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -5829,12 +5943,33 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "5644576P3": {
     "confidence": "medium",
     "toddler_ok": false,
     "setting": "beach",
+    "toddler_ok_confidence": "high",
+    "facet_confidence": "high",
+    "physical": {
+      "demand": "low",
+      "mobility_ok": true
+    },
+    "kids": {
+      "min_age": 18,
+      "baby_ok": false
+    },
+    "swim_required": false,
+    "indoor": "outdoor",
+    "kid_appeal": 0,
+    "teen_appeal": 0
+  },
+  "5652763P1": {
+    "confidence": "low",
+    "toddler_ok": false,
+    "adventure": 25,
+    "setting": "mixed",
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "physical": {
@@ -5846,27 +5981,9 @@
       "baby_ok": false
     },
     "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 0
-  },
-  "5652763P1": {
-    "confidence": "low",
-    "toddler_ok": false,
-    "adventure": 25,
-    "setting": "mixed",
-    "toddler_ok_confidence": "high",
-    "facet_confidence": "low",
-    "physical": {
-      "demand": "low",
-      "mobility_ok": true
-    },
-    "kids": {
-      "min_age": 0,
-      "baby_ok": true
-    },
-    "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "5655605P1": {
     "confidence": "high",
@@ -5875,7 +5992,6 @@
     "adventure": 25,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "Set Cruise on a private yacht during Aruba's enchanting golden hour with the Golden Hour Sunset Cruise. This intimate 2-hour journey is perfect for couples or small groups celebrating special occasions or simply enjoying the stunning surroundings. Indulge revel in breathtaking views as the sun dips below the horizon. The yacht features luxurious amenities and a dedicated crew",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -5888,7 +6004,8 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "5665562P3": {
     "confidence": "high",
@@ -5897,7 +6014,6 @@
     "adventure": 35,
     "setting": "ocean",
     "vessel": null,
-    "evidence": "A gentle paddle brings you to Sea Glass Island",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
@@ -5910,7 +6026,8 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "5665562P4": {
     "confidence": "high",
@@ -5919,20 +6036,20 @@
     "adventure": 35,
     "setting": "ocean",
     "vessel": null,
-    "evidence": "A gentle paddle of 10 to 15 minutes brings you to Sea Glass Island",
     "physical": {
       "demand": "low",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 5,
+      "min_age": 3,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "5665562P5": {
     "confidence": "high",
@@ -5941,20 +6058,20 @@
     "adventure": 35,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "no experience is needed: your guide briefs you on safety and reef friendly snorkeling before you get in the water.",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 5,
+      "min_age": 4,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 2,
+    "teen_appeal": 1
   },
   "5665562P6": {
     "confidence": "high",
@@ -5963,20 +6080,20 @@
     "adventure": 40,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "You snorkel the reef first while the light in the water is still good, then paddle toward Spanish Lagoon's mangroves",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 6,
+      "min_age": 4,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 2,
+    "teen_appeal": 1
   },
   "5671292P1": {
     "confidence": "high",
@@ -5994,7 +6111,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 1
   },
   "5683525P1": {
     "confidence": "high",
@@ -6003,7 +6121,6 @@
     "adventure": 35,
     "setting": "beach",
     "vessel": null,
-    "evidence": "Instead of struggling with deep-water boat drops or heavy waves, you will ease into the calm turquoise water at your own pace from the shore.",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -6016,7 +6133,8 @@
     "facet_confidence": "high",
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 1
   },
   "6180P13": {
     "confidence": "high",
@@ -6024,11 +6142,10 @@
     "adventure": 30,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "The evening begins on a white sand beach with ocean views, where guests enjoy a welcome cocktail, curated bites, + a beautiful Aruba sunset. Travel aboard the Kukoo Kunuku bus to select restaurants",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
-      "demand": "moderate",
+      "demand": "low",
       "mobility_ok": true
     },
     "kids": {
@@ -6037,7 +6154,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "6180P14": {
     "confidence": "high",
@@ -6045,20 +6163,20 @@
     "adventure": 20,
     "setting": "town",
     "vessel": null,
-    "evidence": "Stroll through the island's creative & cultural capital with a local guide, exploring colorful streets, local stories, and authentic island life. Then, the doors of the historic Astoria open exclusively for your Kukoo group. Dine beneath twinkling lights in a beautiful tropical garden, surrounded by history and warm island hospitality, as you enjoy authentic Aruban cuisine",
     "physical": {
       "demand": "moderate",
-      "mobility_ok": true
+      "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 12,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "62666P1": {
     "confidence": "high",
@@ -6066,7 +6184,6 @@
     "adventure": 15,
     "setting": "town",
     "vessel": null,
-    "evidence": "Discover the streets & stories of Oranjestad with you own personal Local Expert Aruba Walking Tours offers the islands' local scoop during a 2.5-hour journey by foot in an interactive and engaging way. This authentic experience takes you to over 30 amazing sites in downtown Oranjestad",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
@@ -6074,12 +6191,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 10,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "62666P2": {
     "confidence": "high",
@@ -6088,20 +6206,20 @@
     "adventure": 40,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "Enjoy a Private Luxury Speed Boat Tour at the best spots around Aruba! Swimming, Snorkeling",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 2,
+      "min_age": 0,
       "baby_ok": true
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 1
   },
   "62666P3": {
     "confidence": "high",
@@ -6113,15 +6231,16 @@
     "facet_confidence": "high",
     "physical": {
       "demand": "moderate",
-      "mobility_ok": true
+      "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 10,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "6593BRUNCH": {
     "confidence": "high",
@@ -6131,18 +6250,19 @@
     "setting": "ocean",
     "vessel": "catamaran",
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "physical": {
       "demand": "moderate",
-      "mobility_ok": false
+      "mobility_ok": true
     },
     "kids": {
-      "min_age": 6,
+      "min_age": 8,
       "baby_ok": false
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "6593DINNER": {
     "confidence": "high",
@@ -6163,7 +6283,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "6593P10": {
     "confidence": "high",
@@ -6172,7 +6293,6 @@
     "adventure": 20,
     "setting": "ocean",
     "vessel": "catamaran",
-    "evidence": "Climb aboard a comfortable open-deck catamaran and set sail to admire Aruba's crystal waters, breathtaking shoreline, and beautiful sunset. Along the way, sip a tropical cocktail from the open bar and nibble on savory snacks.",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -6185,7 +6305,8 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "6593P11": {
     "confidence": "medium",
@@ -6194,7 +6315,6 @@
     "adventure": 20,
     "setting": "ocean",
     "vessel": "boat",
-    "evidence": "Our Luxury Vessel offers an elegant culinary journey through a rustic 4-course dinner while resting on the crystal clear waters of the Caribbean Sea",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
@@ -6207,7 +6327,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "6593P14": {
     "confidence": "high",
@@ -6216,7 +6337,6 @@
     "adventure": 25,
     "setting": "ocean",
     "vessel": "catamaran",
-    "evidence": "sailing on an open-deck catamaran in Aruba. Watch the setting sun and learn how to dance to salsa music as you admire one-of-a-kind scenic views of the white-sand beach",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -6229,7 +6349,8 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "6593P15": {
     "confidence": "high",
@@ -6250,7 +6371,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "6593P16": {
     "confidence": "medium",
@@ -6268,9 +6390,10 @@
       "min_age": 8,
       "baby_ok": false
     },
-    "swim_required": false,
+    "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "6593P17": {
     "confidence": "high",
@@ -6282,15 +6405,16 @@
     "facet_confidence": "medium",
     "physical": {
       "demand": "moderate",
-      "mobility_ok": true
+      "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 5,
+      "baby_ok": false
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "6593P18": {
     "confidence": "high",
@@ -6306,12 +6430,13 @@
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 8,
+      "baby_ok": false
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "6593P19": {
     "confidence": "medium",
@@ -6319,7 +6444,6 @@
     "kind": "offroad",
     "adventure": 75,
     "setting": "mixed",
-    "evidence": "Venture off-road across sun-kissed trails in a guided 4x4 safari",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -6332,7 +6456,8 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "6593P7": {
     "confidence": "high",
@@ -6348,12 +6473,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 8,
+      "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "6593P8": {
     "confidence": "high",
@@ -6366,15 +6492,16 @@
     "facet_confidence": "high",
     "physical": {
       "demand": "moderate",
-      "mobility_ok": false
+      "mobility_ok": true
     },
     "kids": {
-      "min_age": 5,
-      "baby_ok": false
+      "min_age": 0,
+      "baby_ok": true
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
   "6687ATV": {
     "confidence": "high",
@@ -6383,20 +6510,20 @@
     "adventure": 70,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Roar along the north coast of Aruba aboard a single or double ATV on this half-day tour. Kick up dirt as your all-terrain vehicle takes you through rugged back roads, the desert, seaside bluffs and beaches.",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 8,
+      "min_age": 12,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "6687P10": {
     "confidence": "high",
@@ -6405,7 +6532,6 @@
     "adventure": 75,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "thrilling paths waiting to be explored. A UTV Tour on the rugged desert and the coastline",
     "physical": {
       "demand": "high",
       "mobility_ok": false
@@ -6413,12 +6539,13 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "kids": {
-      "min_age": 8,
+      "min_age": 10,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "6687P12": {
     "confidence": "high",
@@ -6427,20 +6554,20 @@
     "adventure": 60,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Feel the wind in your face as you take the wheel of our ATVs (All Terrain Vehicles)",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "kids": {
       "min_age": 12,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "6687P13": {
     "confidence": "medium",
@@ -6460,7 +6587,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "6687P4": {
     "confidence": "high",
@@ -6468,20 +6596,20 @@
     "adventure": 20,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Visit the Ostrich Farm and feed the ostriches. Then head to see Aruba's most historical attractions, including the Alto Vista Chapel, Bushiribana Gold Melting Ruins, Aruba Aloe Factory, California Lighthouse and the Natural Bridge in an air-conditioned bus.",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
       "min_age": 2,
-      "baby_ok": false
+      "baby_ok": true
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 0
   },
   "6841ISLAND": {
     "confidence": "medium",
@@ -6500,9 +6628,10 @@
       "min_age": 8,
       "baby_ok": false
     },
-    "swim_required": false,
+    "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 2
   },
   "6841P12": {
     "confidence": "medium",
@@ -6514,16 +6643,17 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "physical": {
-      "demand": "moderate",
+      "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 6,
+      "min_age": 8,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "6841P6": {
     "confidence": "high",
@@ -6539,12 +6669,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 8,
+      "min_age": 6,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 3
   },
   "6841P7": {
     "confidence": "high",
@@ -6565,7 +6696,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "6841POOL": {
     "confidence": "high",
@@ -6574,20 +6706,20 @@
     "adventure": 70,
     "setting": "land",
     "vessel": null,
-    "evidence": "venture off the beaten path on a thrilling half-day adventure aboard a comfortable Land Cruiser",
     "physical": {
-      "demand": "moderate",
+      "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 5,
+      "min_age": 6,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
-    "swim_required": false,
+    "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "70453P1": {
     "confidence": "high",
@@ -6596,29 +6728,6 @@
     "adventure": 30,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Embark on a serene journey through pristine waters, where you'll glide above lively coral reefs in search of the sea life",
-    "physical": {
-      "demand": "low",
-      "mobility_ok": false
-    },
-    "kids": {
-      "min_age": 5,
-      "baby_ok": false
-    },
-    "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
-    "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 1
-  },
-  "70453P2": {
-    "confidence": "high",
-    "toddler_ok": false,
-    "kind": "kayak",
-    "adventure": 40,
-    "setting": "ocean",
-    "vessel": null,
-    "evidence": "Explore Aruba's underwater world after dark as you head out in glass-bottom kayaks with an experienced guide",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
@@ -6628,17 +6737,39 @@
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 1
+  },
+  "70453P2": {
+    "confidence": "high",
+    "toddler_ok": false,
+    "kind": "kayak",
+    "adventure": 40,
+    "setting": "ocean",
+    "vessel": null,
+    "physical": {
+      "demand": "moderate",
+      "mobility_ok": false
+    },
+    "kids": {
+      "min_age": 8,
+      "baby_ok": false
+    },
+    "toddler_ok_confidence": "high",
+    "facet_confidence": "medium",
+    "swim_required": false,
+    "indoor": "outdoor",
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "7389P1": {
     "confidence": "high",
     "toddler_ok": true,
     "adventure": 15,
     "setting": "mixed",
-    "evidence": "Discover Aruba's most popular attractions from the comfort of an air-conditioned bus",
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "physical": {
@@ -6651,7 +6782,8 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "7389P10": {
     "confidence": "high",
@@ -6659,7 +6791,6 @@
     "adventure": 25,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "Enjoy this guided tour, as well as take the the opportunity to interact and learn about some of the wildlife that can be found in Aruba. First you will visit the Aruba Ostrich Farm.",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -6671,8 +6802,9 @@
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": false,
-    "indoor": "mixed",
-    "kid_appeal": 2
+    "indoor": "outdoor",
+    "kid_appeal": 2,
+    "teen_appeal": 1
   },
   "7389P2": {
     "confidence": "high",
@@ -6680,7 +6812,6 @@
     "adventure": 25,
     "setting": "mixed",
     "vessel": "boat",
-    "evidence": "From the comfort of an air-conditioned bus",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -6693,7 +6824,8 @@
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "7389P8": {
     "confidence": "high",
@@ -6702,20 +6834,20 @@
     "adventure": 30,
     "setting": "beach",
     "vessel": null,
-    "evidence": "Visit both Mangel Halto Beach and Baby Beach and take in the stunning scenery. Go snorkeling or simply sit back, relax",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
-      "min_age": 0,
+      "min_age": 3,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
   "7470P2": {
     "confidence": "high",
@@ -6724,20 +6856,20 @@
     "adventure": 70,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "The Amazing Cave Pool with cliff jumping, Bushiribana Gold Mill Ruins, Baby Natural Bridge, Wariruri Beach, California Lighthouse and Arashi Beach Area",
     "physical": {
       "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 10,
+      "min_age": 12,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
-    "facet_confidence": "medium",
+    "facet_confidence": "high",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "7927P1": {
     "confidence": "high",
@@ -6746,20 +6878,20 @@
     "adventure": 50,
     "setting": "mixed",
     "vessel": null,
-    "evidence": "This experience is suitable for beginners and experienced riders alike. Friendly professional guides match the pace to your comfort level",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 8,
+      "min_age": 7,
       "baby_ok": false
     },
     "toddler_ok_confidence": "high",
     "facet_confidence": "medium",
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "7927P13": {
     "confidence": "high",
@@ -6775,12 +6907,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 5,
+      "min_age": 7,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 1,
+    "teen_appeal": 1
   },
   "8936P1": {
     "confidence": "high",
@@ -6793,15 +6926,16 @@
     "facet_confidence": "high",
     "physical": {
       "demand": "moderate",
-      "mobility_ok": false
+      "mobility_ok": true
     },
     "kids": {
-      "min_age": 5,
-      "baby_ok": false
+      "min_age": 0,
+      "baby_ok": true
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
   "89829P36": {
     "confidence": "low",
@@ -6810,7 +6944,7 @@
     "vessel": null,
     "facet_confidence": "low",
     "physical": {
-      "demand": "moderate",
+      "demand": "low",
       "mobility_ok": true
     },
     "kids": {
@@ -6819,22 +6953,24 @@
     },
     "swim_required": false,
     "indoor": "mixed",
-    "kid_appeal": 1
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "alto-vista-chapel": {
     "confidence": "low",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "physical": {
       "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 4,
+      "min_age": 5,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "antilla-wreck-dive": {
     "confidence": "low",
@@ -6849,7 +6985,8 @@
     },
     "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "arashi-beach": {
     "confidence": "low",
@@ -6864,7 +7001,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 3
+    "kid_appeal": 2,
+    "teen_appeal": 1
   },
   "arikok-hiking": {
     "confidence": "low",
@@ -6874,12 +7012,13 @@
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 6,
+      "min_age": 8,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "baby-beach-snorkel": {
     "confidence": "low",
@@ -6894,69 +7033,10 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 3,
+    "teen_appeal": 1
   },
   "boca-catalina-shore": {
-    "confidence": "low",
-    "facet_confidence": "high",
-    "physical": {
-      "demand": "moderate",
-      "mobility_ok": false
-    },
-    "kids": {
-      "min_age": 3,
-      "baby_ok": false
-    },
-    "swim_required": true,
-    "indoor": "outdoor",
-    "kid_appeal": 2
-  },
-  "boca-catalina-snorkel": {
-    "confidence": "low",
-    "facet_confidence": "high",
-    "physical": {
-      "demand": "moderate",
-      "mobility_ok": false
-    },
-    "kids": {
-      "min_age": 5,
-      "baby_ok": false
-    },
-    "swim_required": true,
-    "indoor": "outdoor",
-    "kid_appeal": 1
-  },
-  "boca-grandi": {
-    "confidence": "low",
-    "facet_confidence": "medium",
-    "physical": {
-      "demand": "moderate",
-      "mobility_ok": true
-    },
-    "kids": {
-      "min_age": 8,
-      "baby_ok": false
-    },
-    "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 0
-  },
-  "bushiribana-loop": {
-    "confidence": "low",
-    "facet_confidence": "high",
-    "physical": {
-      "demand": "high",
-      "mobility_ok": false
-    },
-    "kids": {
-      "min_age": 6,
-      "baby_ok": false
-    },
-    "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 0
-  },
-  "california-dunes-sunset": {
     "confidence": "low",
     "facet_confidence": "high",
     "physical": {
@@ -6967,16 +7047,81 @@
       "min_age": 4,
       "baby_ok": false
     },
-    "swim_required": false,
+    "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
-  "california-lighthouse-sunset": {
+  "boca-catalina-snorkel": {
     "confidence": "low",
     "facet_confidence": "high",
     "physical": {
-      "demand": "low",
-      "mobility_ok": true
+      "demand": "moderate",
+      "mobility_ok": false
+    },
+    "kids": {
+      "min_age": 6,
+      "baby_ok": false
+    },
+    "swim_required": true,
+    "indoor": "outdoor",
+    "kid_appeal": 1,
+    "teen_appeal": 2
+  },
+  "boca-grandi": {
+    "confidence": "low",
+    "facet_confidence": "high",
+    "physical": {
+      "demand": "high",
+      "mobility_ok": false
+    },
+    "kids": {
+      "min_age": 10,
+      "baby_ok": false
+    },
+    "swim_required": false,
+    "indoor": "outdoor",
+    "kid_appeal": 0,
+    "teen_appeal": 3
+  },
+  "bushiribana-loop": {
+    "confidence": "low",
+    "facet_confidence": "medium",
+    "physical": {
+      "demand": "high",
+      "mobility_ok": false
+    },
+    "kids": {
+      "min_age": 8,
+      "baby_ok": false
+    },
+    "swim_required": false,
+    "indoor": "outdoor",
+    "kid_appeal": 0,
+    "teen_appeal": 1
+  },
+  "california-dunes-sunset": {
+    "confidence": "low",
+    "facet_confidence": "medium",
+    "physical": {
+      "demand": "moderate",
+      "mobility_ok": false
+    },
+    "kids": {
+      "min_age": 6,
+      "baby_ok": false
+    },
+    "swim_required": false,
+    "indoor": "outdoor",
+    "kid_appeal": 1,
+    "teen_appeal": 1
+  },
+  "california-lighthouse-sunset": {
+    "confidence": "low",
+    "facet_confidence": "medium",
+    "physical": {
+      "demand": "moderate",
+      "mobility_ok": false
     },
     "kids": {
       "min_age": 3,
@@ -6984,7 +7129,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 1
   },
   "divi-beach": {
     "confidence": "low",
@@ -6999,11 +7145,12 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 1
   },
   "eagle-beach-morning": {
     "confidence": "low",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -7014,7 +7161,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 1
   },
   "flamingo-renaissance": {
     "confidence": "low",
@@ -7029,22 +7177,24 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 3,
+    "teen_appeal": 2
   },
   "gasparito-restaurant": {
     "confidence": "low",
-    "facet_confidence": "high",
+    "facet_confidence": "medium",
     "physical": {
       "demand": "low",
       "mobility_ok": true
     },
     "kids": {
       "min_age": 2,
-      "baby_ok": false
+      "baby_ok": true
     },
     "swim_required": false,
     "indoor": "indoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "kitesurfing-lesson": {
     "confidence": "low",
@@ -7057,24 +7207,26 @@
       "min_age": 12,
       "baby_ok": false
     },
-    "swim_required": false,
+    "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 3
   },
   "malmok-beach": {
     "confidence": "low",
     "facet_confidence": "high",
     "physical": {
-      "demand": "low",
-      "mobility_ok": true
+      "demand": "moderate",
+      "mobility_ok": false
     },
     "kids": {
-      "min_age": 0,
-      "baby_ok": true
+      "min_age": 4,
+      "baby_ok": false
     },
-    "swim_required": false,
+    "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
   "manchebo-beach": {
     "confidence": "low",
@@ -7089,37 +7241,40 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 0
   },
   "mangel-halto": {
     "confidence": "low",
     "facet_confidence": "medium",
     "physical": {
-      "demand": "low",
+      "demand": "moderate",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 3,
+      "min_age": 5,
       "baby_ok": false
     },
-    "swim_required": false,
+    "swim_required": true,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 2,
+    "teen_appeal": 1
   },
   "natural-pool-jeep": {
     "confidence": "low",
     "facet_confidence": "high",
     "physical": {
-      "demand": "moderate",
+      "demand": "high",
       "mobility_ok": false
     },
     "kids": {
-      "min_age": 4,
+      "min_age": 6,
       "baby_ok": false
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 1
+    "kid_appeal": 1,
+    "teen_appeal": 2
   },
   "oranjestad-walking": {
     "confidence": "low",
@@ -7134,7 +7289,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 0
+    "kid_appeal": 0,
+    "teen_appeal": 0
   },
   "palm-beach-strip": {
     "confidence": "low",
@@ -7149,7 +7305,8 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 2
   },
   "rodgers-beach": {
     "confidence": "low",
@@ -7164,41 +7321,12 @@
     },
     "swim_required": false,
     "indoor": "outdoor",
-    "kid_appeal": 2
+    "kid_appeal": 2,
+    "teen_appeal": 1
   },
   "san-nicolas-murals": {
     "confidence": "low",
-    "facet_confidence": "high",
-    "physical": {
-      "demand": "low",
-      "mobility_ok": true
-    },
-    "kids": {
-      "min_age": 2,
-      "baby_ok": false
-    },
-    "swim_required": false,
-    "indoor": "mixed",
-    "kid_appeal": 1
-  },
-  "tres-trapi": {
-    "confidence": "low",
     "facet_confidence": "medium",
-    "physical": {
-      "demand": "low",
-      "mobility_ok": false
-    },
-    "kids": {
-      "min_age": 2,
-      "baby_ok": false
-    },
-    "swim_required": false,
-    "indoor": "outdoor",
-    "kid_appeal": 1
-  },
-  "zeerovers-fresh-catch": {
-    "confidence": "low",
-    "facet_confidence": "high",
     "physical": {
       "demand": "low",
       "mobility_ok": true
@@ -7208,7 +7336,40 @@
       "baby_ok": false
     },
     "swim_required": false,
-    "indoor": "mixed",
-    "kid_appeal": 0
+    "indoor": "outdoor",
+    "kid_appeal": 1,
+    "teen_appeal": 2
+  },
+  "tres-trapi": {
+    "confidence": "low",
+    "facet_confidence": "high",
+    "physical": {
+      "demand": "low",
+      "mobility_ok": false
+    },
+    "kids": {
+      "min_age": 3,
+      "baby_ok": false
+    },
+    "swim_required": true,
+    "indoor": "outdoor",
+    "kid_appeal": 2,
+    "teen_appeal": 1
+  },
+  "zeerovers-fresh-catch": {
+    "confidence": "low",
+    "facet_confidence": "medium",
+    "physical": {
+      "demand": "low",
+      "mobility_ok": true
+    },
+    "kids": {
+      "min_age": 0,
+      "baby_ok": true
+    },
+    "swim_required": false,
+    "indoor": "outdoor",
+    "kid_appeal": 1,
+    "teen_appeal": 0
   }
 }

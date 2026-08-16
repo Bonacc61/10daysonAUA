@@ -48,6 +48,8 @@ export type EnrichmentRecord = {
    * correctly filtered list led by air-conditioned bus tours.
    */
   kid_appeal?: number;
+  /** Would a bored 13-17 year old enjoy it, 0-3. Often the opposite of kid_appeal. */
+  teen_appeal?: number;
   /** Must the traveller get INTO the water? A snorkel trip yes, a glass-bottom boat no. */
   swim_required?: boolean;
   /** What is over the traveller's head — a different question from `setting`. */
@@ -90,6 +92,7 @@ export function mergeActivityEnrichment<T extends { id: string }>(
     if (typeof rec.swim_required === 'boolean') add.swim_required = rec.swim_required;
     if (rec.indoor) add.indoor = rec.indoor;
     if (typeof rec.kid_appeal === 'number') add.kid_appeal = rec.kid_appeal;
+    if (typeof rec.teen_appeal === 'number') add.teen_appeal = rec.teen_appeal;
     return Object.keys(add).length ? { ...a, ...add } : a;
   });
 }
@@ -100,6 +103,7 @@ export type ActivityFacets = {
   swim_required?: boolean;
   indoor?: 'indoor' | 'outdoor' | 'mixed';
   kid_appeal?: number;
+  teen_appeal?: number;
 };
 
 // Tier 1 — kind and adventure — are internal ranking signals. The worst case for
@@ -198,6 +202,7 @@ export function mergeEnrichment(items: ViatorItem[], snapshot: EnrichmentSnapsho
       if (typeof rec.swim_required === 'boolean') add.swim_required = rec.swim_required;
       if (rec.indoor) add.indoor = rec.indoor;
       if (typeof rec.kid_appeal === 'number') add.kid_appeal = rec.kid_appeal;
+      if (typeof rec.teen_appeal === 'number') add.teen_appeal = rec.teen_appeal;
     }
 
     return Object.keys(add).length ? { ...item, ...add } : item;

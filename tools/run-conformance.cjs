@@ -59,11 +59,13 @@ execFileSync('node_modules/.bin/esbuild', [
     const c = await loadCatalog();
     const ALL = { section: 'All', vibe: 50, price: 50 };
     const facetsOfEntry = (e) => e.kind === 'activity'
-      ? { title: e.activity.title, curated: true }
+      ? { title: e.activity.title, curated: true, physical: e.activity.physical, kids: e.activity.kids,
+          swim_required: e.activity.swim_required, indoor: e.activity.indoor,
+          kid_appeal: e.activity.kid_appeal, teen_appeal: e.activity.teen_appeal }
       : { title: e.item.title, price_usd: e.item.price_usd, vessel: e.item.vessel,
           setting: e.item.setting, physical: e.item.physical, kids: e.item.kids,
           adventure: e.item.adventure, swim_required: e.item.swim_required, indoor: e.item.indoor,
-          toddler_ok: e.item.toddler_ok, kid_appeal: e.item.kid_appeal };
+          toddler_ok: e.item.toddler_ok, kid_appeal: e.item.kid_appeal, teen_appeal: e.item.teen_appeal };
     // Read the job from stdin: [{ q, ids, constraint }]
     const jobs = JSON.parse(process.argv[2]);
     const out = {};

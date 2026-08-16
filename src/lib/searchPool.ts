@@ -26,6 +26,8 @@ export type Facets = {
   toddlerOk?: boolean;
   /** 0-3: would a small child ENJOY it. Distinct from toddlerOk, which is safety. */
   kidAppeal?: number;
+  /** 0-3: would a bored teenager enjoy it. Frequently the opposite of kidAppeal. */
+  teenAppeal?: number;
   /** Where the activity physically happens. */
   setting?: 'beach' | 'ocean' | 'land' | 'town' | 'mixed';
   /** What the traveller is aboard. `null` is "explicitly nothing"; absent is "unjudged". */
@@ -53,7 +55,7 @@ export type Facets = {
  */
 export type Verdict = 'pass' | 'fail' | 'unknown' | 'rescued';
 
-export type PoolEntry = { entry: ExploreEntry; unknowns: number };
+export type PoolEntry = { entry: ExploreEntry; unknowns: number; strength: number };
 export type UnknownPolicy = 'demote' | 'exclude';
 
 /**
@@ -89,6 +91,7 @@ export function facetsOf(entry: ExploreEntry): Facets {
       flags: entry.item.flags,
       toddlerOk: entry.item.toddler_ok,
       kidAppeal: entry.item.kid_appeal,
+      teenAppeal: entry.item.teen_appeal,
       setting: entry.item.setting,
       vessel: entry.item.vessel,
       swimRequired: entry.item.swim_required,
@@ -106,6 +109,7 @@ export function facetsOf(entry: ExploreEntry): Facets {
     swimRequired: entry.activity.swim_required,
     indoor: entry.activity.indoor,
     kidAppeal: entry.activity.kid_appeal,
+    teenAppeal: entry.activity.teen_appeal,
     flags: undefined, toddlerOk: undefined, setting: undefined, vessel: undefined,
   };
 }
@@ -192,6 +196,10 @@ const PREDICATES: Record<Concept, (f: Facets) => Verdict> = {
   // character, because the check and the filter must agree on what the word
   // means or the harness grades a filter it disagrees with.
   low_effort: (f) => (f.physical ? (f.physical.demand === 'high' ? 'fail' : 'pass') : 'unknown'),
+  // The last concept, and the one that closes the harness's `deferred` list. A
+  // teenager is not a small adult and not a big child: 151 products score >= 2
+  // here and <= 1 on kidAppeal.
+  teens: (f) => (f.teenAppeal === undefined ? 'unknown' : f.teenAppeal >= 2 ? 'pass' : 'fail'),
   // `mixed` PASSES: part of it is under a roof, which is what someone sheltering
   // from rain is asking for. The conformance rule is written the same way, and
   // deliberately — the check and the filter must agree on what the word means.
@@ -206,6 +214,39 @@ const PREDICATES: Record<Concept, (f: Facets) => Verdict> = {
   // 88 product titles that begin with "Private", before this compiles again.
   private: (f) => (f.flags?.length ? (f.flags.includes('PRIVATE_TOUR') ? 'pass' : 'fail') : 'unknown'),
 };
+
+/**
+ * HOW STRONGLY the data says yes, 0..1, for a concept that already passed.
+ *
+ * A verdict is binary and the ranking that follows it was not: for a query the
+ * constraint consumes whole, cosine is left ordering the survivors by their
+ * marketing copy, and "fun for all ages" is on every island tour in the
+ * catalogue. That is how "good with toddler" put an air-conditioned bus above
+ * Arashi Beach — judged kid_appeal 3, the highest score anywhere.
+ *
+ * Only concepts with a MAGNITUDE can answer this. The rest return 0.5, a
+ * deliberate neutral: on those queries strength is uniform and the embedding
+ * order decides, exactly as before. This changes ranking only where the data has
+ * something to say about degree.
+ */
+export function strengthFor(concept: Concept, facets: Facets): number {
+  switch (concept) {
+    case 'toddler':
+      return facets.kidAppeal === undefined ? 0.5 : Math.min(1, facets.kidAppeal / 3);
+    case 'teens':
+      return facets.teenAppeal === undefined ? 0.5 : Math.min(1, facets.teenAppeal / 3);
+    case 'kids':
+      return facets.kids ? Math.max(0, 1 - facets.kids.min_age / 12) : 0.5;
+    // Both directions of the vibe axis, so neither is ranked by accident.
+    case 'easy':      return facets.adventureGrounded ? 1 - facets.adventure / 100 : 0.5;
+    case 'adventure': return facets.adventureGrounded ? facets.adventure / 100 : 0.5;
+    case 'low_effort':
+      return facets.physical ? (facets.physical.demand === 'low' ? 1 : 0.5) : 0.5;
+    case 'cheap':
+      return facets.price > 0 ? Math.max(0, 1 - facets.price / 120) : 1;
+    default: return 0.5;
+  }
+}
 
 export function verdictFor(concept: Concept, facets: Facets): Verdict {
   const v = PREDICATES[concept](facets);
@@ -236,7 +277,7 @@ export function buildPool(
   policy: UnknownPolicy = 'demote',
 ): PoolEntry[] {
   if (intent.must.length === 0 && intent.mustNot.length === 0) {
-    return entries.map((entry) => ({ entry, unknowns: 0 }));
+    return entries.map((entry) => ({ entry, unknowns: 0, strength: 0.5 }));
   }
 
   const out: PoolEntry[] = [];
@@ -274,7 +315,12 @@ export function buildPool(
     }
     if (dropped) continue;
 
-    out.push({ entry, unknowns });
+    // Mean strength over the `must` concepts. A mustNot contributes nothing:
+    // "not a boat" has no degrees — either the data rules it out or it does not.
+    const strength = intent.must.length
+      ? intent.must.reduce((sum, c) => sum + strengthFor(c, facets), 0) / intent.must.length
+      : 0.5;
+    out.push({ entry, unknowns, strength });
   }
   return out;
 }

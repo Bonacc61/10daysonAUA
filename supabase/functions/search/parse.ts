@@ -26,7 +26,7 @@
  *  reachability guard in searchPool.test.ts. */
 export const EMITTABLE = [
   'toddler', 'kids', 'accessible', 'easy', 'adventure', 'beach', 'boat', 'cheap',
-  'swim', 'indoor', 'low_effort',
+  'swim', 'indoor', 'low_effort', 'teens',
 ] as const;
 
 /**
@@ -45,7 +45,7 @@ export type StoredConstraint = { must: string[]; mustNot: string[]; v?: number }
  * A prompt is code; a cache of its output needs a version the way any other
  * derived artifact does. A stored row whose `v` differs is treated as a miss.
  */
-export const PARSE_VERSION = 3;
+export const PARSE_VERSION = 4;
 
 export type ParsedConstraint = StoredConstraint & {
   /**
@@ -103,6 +103,7 @@ You may only use these concepts, and nothing else:
   swim        the traveller must get INTO the water
   indoor      there is a roof over the main part of it
   low_effort  physically undemanding — little walking, little stamina, no climbing
+  teens       a bored 13-17 year old would actually enjoy it
 
 must    = concepts the results MUST have.
 mustNot = concepts the results must NOT have.

@@ -157,6 +157,7 @@ const FACET_RECORD_SCHEMA = {
       additionalProperties: false,
     },
     kid_appeal: { type: 'integer', description: 'Would a 1-3 year old ENJOY this, 0-3. Judge the CHILD experience, not whether children are permitted.' },
+    teen_appeal: { type: 'integer', description: 'Would a bored 13-17 year old ENJOY this, 0-3. A different question from kid_appeal, often its opposite.' },
     swim_required: { type: 'boolean', description: 'Must the traveller get INTO the water for the main part of this? A snorkel trip is true. A glass-bottom boat is false. A beach day pass is false — you may swim, you need not.' },
     indoor:        { type: 'string', enum: ['indoor', 'outdoor', 'mixed'], description: 'Is the traveller under a roof for the main part? A cooking class or a museum is indoor. A walking tour of the same town is outdoor. A bus tour with stops is mixed.' },
     facet_confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Your confidence in THESE four fields specifically.' },
@@ -196,7 +197,16 @@ kid_appeal is the question everything else about children misses. Not "is this p
 2 = genuinely engaging for a small child — animals, shallow calm water they can stand in, sand, boats with things to look at, short and varied.
 3 = built for small children. Playgrounds, toddler pools, water parks with a shallow area, petting farms, a beach specifically known as safe for babies.
 
-Most of this catalog is 0 or 1 and that is the correct answer. Do not inflate it because the listing says "fun for the whole family" — that phrase is on almost everything and means nothing.`;
+Most of this catalog is 0 or 1 and that is the correct answer. Do not inflate it because the listing says "fun for the whole family" — that phrase is on almost everything and means nothing.
+
+teen_appeal is the same question for a bored 13-17 year old, and it is frequently the OPPOSITE answer. A shallow toddler lagoon is kid_appeal 3 and teen_appeal 0. A UTV through the dunes is kid_appeal 0 and teen_appeal 3. Score what a teenager who did not choose this holiday would actually think:
+
+0 = they will be on their phone. Tastings, historic walks, scenic drives, anything whose interest is conversation.
+1 = tolerable. A beach, a boat with a view.
+2 = genuinely engaging — snorkelling, kayaking, something with a bit of speed or skill to it.
+3 = the thing they will talk about afterwards. Off-road, jet ski, kitesurf, cliff jumping, diving.
+
+A teenager is not a small adult and not a big child. Do not derive this from kid_appeal.`;
 
 type Product = { id: string; title: string; description: string; tags: number[] };
 
@@ -315,7 +325,7 @@ function evidenceIsVerbatim(rec: EnrichmentRecord, description: string): boolean
     // Keyed on kid_appeal, not facet_confidence: the pass has run before and
     // every row already carries the latter, so a fresh facet needs its own
     // completeness check or the run does nothing.
-    const done = (id: string) => existing[id]?.kid_appeal !== undefined;
+    const done = (id: string) => existing[id]?.teen_appeal !== undefined;
     const todo = [
       ...catalog.items.map((i) => ({ id: i.id, title: i.title, description: i.description ?? '', tags: i.tags ?? [] })),
       ...curated,
@@ -362,11 +372,20 @@ function evidenceIsVerbatim(rec: EnrichmentRecord, description: string): boolean
         // touch is copied by construction.
         const add: EnrichmentRecord = { ...(next[id] ?? { confidence: 'low' }) };
         add.facet_confidence = rec.facet_confidence;
+        // AN EVIDENCE QUOTE BACKS A SPECIFIC JUDGEMENT, and this pass writes a
+        // new one into the same field the extraction pass used. Overwriting
+        // without dropping the quote leaves `evidence` attached to a value it
+        // never supported — it happened to 43 `physical` and 73 `kids` records
+        // before this guard existed, and it was invisible because nothing
+        // renders `evidence` yet. It stops being invisible the day something
+        // does. The quote goes with the value it justified.
+        if (rec.physical || rec.kids) delete add.evidence;
         if (rec.physical) add.physical = rec.physical;
         if (rec.kids) add.kids = rec.kids;
         if (typeof rec.swim_required === 'boolean') add.swim_required = rec.swim_required;
         if (rec.indoor) add.indoor = rec.indoor;
         if (typeof rec.kid_appeal === 'number') add.kid_appeal = rec.kid_appeal;
+        if (typeof rec.teen_appeal === 'number') add.teen_appeal = rec.teen_appeal;
         next[id] = add;
         written++;
       }
@@ -387,6 +406,7 @@ function evidenceIsVerbatim(rec: EnrichmentRecord, description: string): boolean
     console.log(`  swim_required ${count((r) => hiFacet(r) && r.swim_required !== undefined)}`);
     console.log(`  indoor        ${count((r) => hiFacet(r) && !!r.indoor)}`);
     console.log(`  kid_appeal    ${count((r) => hiFacet(r) && r.kid_appeal !== undefined)}`);
+    console.log(`  teen_appeal   ${count((r) => hiFacet(r) && r.teen_appeal !== undefined)}`);
     return;
   }
 

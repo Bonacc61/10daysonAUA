@@ -99,13 +99,27 @@ export function searchEntries(
     const eligible = buildPool(unsearchedPool(), { ...intent, boosts: [], matched: [], residual: '' });
     const byId = new Map(eligible.map((p) => [entryId(p.entry), p]));
     const seen = new Set(substringHits.map(entryId));
-    const ranked: ExploreEntry[] = [];
-    for (const id of semantic.ids) {
-      const hit = byId.get(id);
-      if (!hit || seen.has(id)) continue;
-      seen.add(id);
-      ranked.push(hit.entry);
-    }
+    // ONE ordered list, not "ranked things then the rest". The old shape put
+    // every embedding hit above every unranked entry, which is why a bus tour
+    // whose copy says "fun for all ages" outranked the beach the data scored
+    // highest. Order is now: what the data confidently knows, then how strongly
+    // it says yes, then the embedding as the tiebreaker it should always have
+    // been. On queries where no concept has a magnitude, strength is uniform and
+    // this reduces to the embedding order exactly as before.
+    const rank = new Map(semantic.ids.map((id, i) => [id, i]));
+    const ordered = eligible
+      // Two ways to earn a place: the DATA vouches for you (nothing unknown), or
+      // the EMBEDDING did (it ranked you). Keeping only the first would drop a
+      // ranked id the facets happen not to cover — a false exclusion, and those
+      // are invisible because nobody sees what they were not shown. Keeping only
+      // the second is what buried Arashi Beach. Unknown-but-ranked entries sort
+      // below everything confident, via the `unknowns` key below.
+      .filter((p) => !seen.has(entryId(p.entry)) && (p.unknowns === 0 || rank.has(entryId(p.entry))))
+      .sort((a, b) =>
+        a.unknowns - b.unknowns
+        || b.strength - a.strength
+        || (rank.get(entryId(a.entry)) ?? Infinity) - (rank.get(entryId(b.entry)) ?? Infinity))
+      .map((p) => p.entry);
     // ONLY WHAT THE DATA AFFIRMATIVELY CLEARED. `unknowns === 0` means every
     // concept in the constraint was actually decided for this entry.
     //
@@ -120,10 +134,7 @@ export function searchEntries(
     // A ranked id that is merely unknown still survives above, because the
     // embedding put it there on its own evidence. This tail has no such
     // evidence, so it needs the data's.
-    const rest = eligible
-      .filter((p) => !seen.has(entryId(p.entry)) && p.unknowns === 0)
-      .map((p) => p.entry);
-    extras = [...ranked, ...rest];
+    extras = ordered;
   } else if (blendable) {
     extras = blendSearchResults(substringHits, semantic.ids, unsearchedPool()).slice(substringHits.length);
   }
