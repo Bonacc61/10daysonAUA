@@ -4,6 +4,7 @@ import { render, screen } from '@testing-library/react';
 import CardBack from './CardBack';
 import type { ViatorItem } from '../types';
 import type { Activity } from '../data/activities';
+import { SNORKEL_GEAR } from '../data/gearRental';
 
 /**
  * The first tests in this repo that actually RENDER a card.
@@ -144,6 +145,38 @@ describe('CardBack — where to get gear for a free snorkel', () => {
     // most valuable thing on a local pick's card.
     render(<CardBack kind="activity" activity={shore()} onFlip={noop} />);
     expect(screen.getByText(/Walk down the steps slowly/)).toBeInTheDocument();
+  });
+
+  it('renders every field the record carries, so none is dead data', () => {
+    // The predecessor asserted Object.keys against a hardcoded list and never
+    // touched the component, so it passed with four unrendered fields present —
+    // a change-detector wearing the name of a rendering test, which is exactly
+    // the failure it was written to prevent.
+    const { container } = render(<CardBack kind="activity" activity={shore()} onFlip={noop} />);
+    const text = container.textContent ?? '';
+    const hrefs = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href'));
+    for (const [key, value] of Object.entries(SNORKEL_GEAR)) {
+      const shown = Array.isArray(value)
+        ? value.every((v) => text.includes(String(v)))
+        : hrefs.includes(String(value)) || text.includes(String(value));
+      expect(shown, `${key} is in the record but nowhere on the card`).toBe(true);
+    }
+  });
+
+  it('makes no claim about deposits or what happens at the shop', () => {
+    // The deposit sentence came off the SCUBA page while the card linked to the
+    // snorkel one, which names no deposit at all. Silence is the correct
+    // outcome: a traveller who clicks through must find what we told them.
+    const { container } = render(<CardBack kind="activity" activity={shore()} onFlip={noop} />);
+    expect(container.textContent).not.toMatch(/deposit|credit card|\bID\b/i);
+  });
+
+  it('links the sales claim to the page that supports it', () => {
+    // "They sell gear too" is sourced from /assortment, not from the rates page
+    // the rest of the strip cites. Same standard as the deposit fix.
+    const { container } = render(<CardBack kind="activity" activity={shore()} onFlip={noop} />);
+    const hrefs = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href'));
+    expect(hrefs).toContain(SNORKEL_GEAR.assortmentSource);
   });
 
   it('shows nothing for a guided trip that includes gear', () => {

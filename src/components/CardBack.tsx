@@ -319,7 +319,11 @@ export default function CardBack(props: Props) {
           <div style={{ fontSize: 10.5, lineHeight: 1.45, color: 'var(--sand-700)', marginTop: 3 }}>
             Set ${gear.fullSetHalfDayUsd} half-day, ${gear.fullSetDayUsd} for 24h;
             vest ${gear.vestUsd}. {gear.town}, {gear.hours}, closed {gear.closed}.
-            They sell gear too, at prices they don&rsquo;t list.{' '}
+            They{' '}
+            <a href={gear.assortmentSource} target="_blank" rel="noopener noreferrer"
+               style={{ color: 'var(--ink)', textDecoration: 'underline' }}>
+              sell {gear.sellsItems.join(', ')}
+            </a>{' '}too, at prices they don&rsquo;t list.{' '}
             <a href={gear.source} target="_blank" rel="noopener noreferrer"
                style={{ color: 'var(--ink)', textDecoration: 'underline' }}>
               Their rates

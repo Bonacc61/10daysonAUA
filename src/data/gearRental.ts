@@ -28,8 +28,7 @@
 
 export type GearRental = {
   shop: string;
-  address: string;
-  /** Just the town — the strip has no room for a street and the link has one. */
+  /** The strip has no room for a street; the linked page carries one. */
   town: string;
   /** Full set = mask, snorkel and fins. */
   fullSetHalfDayUsd: number;
@@ -38,15 +37,6 @@ export type GearRental = {
   hours: string;
   /** The day it is shut — a planning constraint, not trivia. */
   closed: string;
-  /**
-   * What the SNORKEL page says you do at the shop, in its own terms.
-   *
-   * Not the dive page's "credit card deposit, ID and scuba certification card
-   * (in case of scuba gear)" — that sits inside a scuba paragraph on
-   * /rental-equipment, and the page this card LINKS to names no deposit at all.
-   * A traveller who clicks through to check must find what we told them.
-   */
-  procedure: string;
   /** Gear the shop's own assortment page lists. No prices are published. */
   sellsItems: string[];
   assortmentSource: string;
@@ -56,14 +46,12 @@ export type GearRental = {
 
 export const SNORKEL_GEAR: GearRental = {
   shop: "Aqua Windie's",
-  address: 'Caya Harmonia 4 (Lava Building), Oranjestad',
   town: 'Oranjestad',
   fullSetHalfDayUsd: 16,
   fullSetDayUsd: 24,
   vestUsd: 6,
   hours: 'Mon–Sat 8am–5pm',
   closed: 'Sunday',
-  procedure: 'try the gear on and fill out a form',
   // The SHOP menu has three items: Rent Dive Gear, Rent Snorkel Gear, and
   // Assortment. The third is retail — "At our shop you can find: … Masks,
   // Snorkels, … Snorkel fins" — with no prices anywhere on it. An earlier
