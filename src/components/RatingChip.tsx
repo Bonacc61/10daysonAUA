@@ -20,13 +20,16 @@ import { Star } from './Icons';
  * "unrated" but "rated zero, badly". The worst thing we can say about a product
  * was being said about the ones we simply knew nothing about.
  *
- * So: below `MIN_REVIEWS` the count comes along to qualify the number, at zero
- * reviews nothing renders at all, and CardBack's fuller treatment is left alone
- * — it already got this right and shows the count in full.
+ * So: the count always comes along to qualify the number, at zero reviews
+ * nothing renders at all, and CardBack's fuller treatment is left alone — it
+ * already got this right and shows the count in full.
+ *
+ * The count used to appear only below 30 reviews, on the theory that a
+ * well-reviewed average speaks for itself. Most of the catalog clears 30, so in
+ * practice most cards showed a bare number and a scattered few showed brackets
+ * — which reads as missing data rather than as restraint. It is now on every
+ * chip.
  */
-
-/** Under this many reviews, an average is an anecdote — say how thin it is. */
-const MIN_REVIEWS = 30;
 
 export function hasRealRating(rating?: number, reviewCount?: number): boolean {
   return typeof rating === 'number' && rating > 0
@@ -43,17 +46,12 @@ export default function RatingChip({
   style?: React.CSSProperties;
 }) {
   if (!hasRealRating(rating, reviewCount)) return null;
-  const thin = (reviewCount as number) < MIN_REVIEWS;
   return (
     <span className={className} style={style}>
       <Star size={size} aria-hidden /> {rating}
-      {thin && (
-        // Only on the thin ones. Putting the count on every chip would crowd the
-        // card for no gain — at 2,847 reviews the average speaks for itself.
-        <span style={{ opacity: 0.7, fontWeight: 400, marginLeft: 3 }}>
-          ({reviewCount})
-        </span>
-      )}
+      <span style={{ opacity: 0.7, fontWeight: 400, marginLeft: 3 }}>
+        ({reviewCount})
+      </span>
     </span>
   );
 }
@@ -73,9 +71,7 @@ export function RatingChipInline({
   return (
     <>
       <Star size={size} aria-hidden /> {rating}
-      {(reviewCount as number) < MIN_REVIEWS && (
-        <span style={{ opacity: 0.7, fontWeight: 400, marginLeft: 3 }}>({reviewCount})</span>
-      )}
+      <span style={{ opacity: 0.7, fontWeight: 400, marginLeft: 3 }}>({reviewCount})</span>
     </>
   );
 }

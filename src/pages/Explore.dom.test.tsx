@@ -83,4 +83,14 @@ describe('Explore — search after the shared-component refactor', () => {
     fireEvent.click(screen.getByLabelText('Clear search'));
     expect(screen.getByText('Catamaran Sunset Sail')).toBeInTheDocument();
   });
+
+  // Both Viator fixtures sit at 100 reviews — above the cutoff that used to
+  // suppress the count — so this fails if brackets come back only on the thin
+  // ones. The island activity renders no chip at all here: its rating did not
+  // come from Viator, and `ActivityTile` shows a star only when it did.
+  it('shows the review count on every Viator tile', () => {
+    const counts = [...document.querySelectorAll('.a-rating')].map(n => n.textContent);
+    expect(counts).toHaveLength(2);
+    expect(counts.every(t => t?.includes('(100)'))).toBe(true);
+  });
 });
