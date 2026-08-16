@@ -27,19 +27,21 @@ Live production app. Dutch law (GDPR) applies. Reddit launch imminent.
 - Any new data collection (PostHog events, Supabase inserts, edge function logging) needs a legal basis documented in the Privacy Policy (`src/pages/Privacy.tsx`).
 - **Never log text a traveller typed** — not to console, not into an error body, not into a
   database column. Log the derived result instead. `itinerary-edit` logs the parsed
-  constraint; `search` logs the result count. Neither logs the words.
-- **Three switches gate the AI features:** `VITE_NL_EDIT`, `VITE_SEMANTIC_SEARCH`, and
-  the `SEARCH_PARSE` secret on the `search` function — a Supabase secret rather than a
-  `VITE_` flag, with three states: unset (off for everyone), `probe` (off for ordinary
-  traffic, honoured only for a request that asks, for measurement) and `on`.
-  `.env.production` is the source of truth for the first two, `supabase secrets list`
-  for the third. The two `VITE_` ones:
-  They send a traveller's own words to a US sub-processor, so flipping one is a legal
-  decision, not a technical one — never enable either without working its checklist first
-  (`docs/superpowers/specs/2026-08-11-natural-language-edit-design.md`,
-  `docs/superpowers/specs/2026-08-12-semantic-search-design.md`). Both default off in code;
-  `.env.production` is the source of truth for which are actually on. A flag that is ON
-  carries its rationale and its rollback there; a flag that is off is simply absent.
+  constraint; `search` logs the result count and, when it parsed one, the constraint.
+  Neither logs the words, and neither stores them: what the search cache keeps is a
+  salted hash plus the closed-vocabulary halves, never the parse's residual.
+- **Three switches gate the AI features**, and all three default off. Two are build-time
+  flags — `VITE_NL_EDIT` and `VITE_SEMANTIC_SEARCH` — whose source of truth is
+  `.env.production`: a switch that is ON carries its rationale and its rollback there, and
+  one that is off is simply absent. The third is `SEARCH_PARSE`, a Supabase secret on the
+  `search` function (`supabase secrets list`), with three states: unset (off for everyone),
+  `probe` (off for ordinary traffic, honoured only for a request that asks, so the layer
+  can be measured without being shipped) and `on`.
+  All three send a traveller's own words to a US sub-processor, so turning one on is a
+  legal decision rather than a technical one — never enable one without working its
+  checklist first (`docs/superpowers/specs/2026-08-11-natural-language-edit-design.md`,
+  `docs/superpowers/specs/2026-08-12-semantic-search-design.md`,
+  `docs/superpowers/specs/2026-08-15-search-architecture-design.md`).
 - Contact submissions auto-purge after 12 months (cron job exists). New tables need matching retention.
 
 ## Data flow
@@ -53,7 +55,7 @@ User → React app (localStorage) → Supabase (trips, feedback_events, shared_i
                                 → PostHog (analytics, EU hosted)
                                 → Viator (affiliate clicks, no return signal)
 
-AI features (each gated by a flag — see "Two feature flags" above;
+AI features (each gated by a flag — see "Three switches" above;
 `.env.production` says which are on):
   itinerary-edit → Anthropic (US)   free text → an EditConstraint. Nothing stored.
   search         → OpenAI (US)      query → a vector. Hash + vector cached 30 days.
@@ -87,7 +89,7 @@ Our key is **Basic access**. Verified, not assumed:
 
 ## Tests
 
-- ~865 tests. `npm test` is offline and free; anything needing a network or an
+- ~920 tests. `npm test` is offline and free; anything needing a network or an
   API key is a `tools/` script run by hand, never a vitest file.
 - **Component tests render.** jsdom + testing-library, opted in PER FILE with a
   `// @vitest-environment jsdom` docblock so the pure-logic tests stay in node.

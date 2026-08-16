@@ -19,7 +19,7 @@
     "",
     "DECIDABILITY IS REPORTED, NEVER ASSUMED. A rule can only judge an item whose",
     "facet is actually present. mergeEnrichment gates on confidence, so of 328",
-    "products only 131 carry `physical` and 100 carry `kids`, against 215 for",
+    "products 214 carry `physical` and `kids` after the --facets pass, against 215 for",
     "`vessel` and 239 for `setting`. An item the data cannot judge is counted as",
     "UNKNOWN and never as a pass — a run reporting zero violations at 40%",
     "coverage has not shown that search works.",

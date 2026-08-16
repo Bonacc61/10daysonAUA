@@ -114,7 +114,19 @@ export function mergeEnrichment(items: ViatorItem[], snapshot: EnrichmentSnapsho
       if (rec.vessel !== undefined) add.vessel = rec.vessel;
     }
 
-    if (rec.confidence === 'high' && rec.evidence) {
+    // TWO PASSES SHARE ONE `physical` SLOT, so the confidence that gates it must
+    // be the confidence of whichever pass last wrote it. The extraction pass's
+    // record-level `confidence` says nothing about a judgement the --facets pass
+    // made later and rated itself `medium` on — and 46 records were in exactly
+    // that state, 12 of them asserting `mobility_ok: true`.
+    //
+    // That field is the one with the highest cost when it is wrong: its own
+    // prompt says so, and `accessible` in searchPool.ts is the predicate that
+    // reads it. A false negative costs someone a suggestion; a false positive
+    // sends a wheelchair user to something they cannot do. So when the facets
+    // pass has an opinion about its own reliability, that opinion binds.
+    const facetOk = rec.facet_confidence === undefined || rec.facet_confidence === 'high';
+    if (rec.confidence === 'high' && rec.evidence && facetOk) {
       if (rec.physical) add.physical = rec.physical;
       if (rec.kids) add.kids = rec.kids;
       if (add.physical || add.kids) add.evidence = rec.evidence;

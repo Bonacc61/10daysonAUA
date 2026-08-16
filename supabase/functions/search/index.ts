@@ -132,14 +132,12 @@ Deno.serve(async (req) => {
   const model = MODEL_ID[provider];
 
   let query: string;
-  // Per-request opt-in to the parse, so it can be MEASURED before it is
-  // switched on for everyone. Without it the only way to find out whether the
-  // constraint layer helps would be to enable it globally and then look — i.e.
-  // to ship in order to find out.
-  //
-  // Safe to expose: it buys no capability an attacker does not already have.
-  // The same rate limit applies, the cost profile is the cost of the feature
-  // itself, and it cannot reach anything the query could not already reach.
+  // Per-request opt-in to the parse, so it can be MEASURED before it is switched
+  // on for everyone. Honoured ONLY under SEARCH_PARSE=probe — see the three
+  // states above. An earlier version honoured it unconditionally on the
+  // reasoning that it "buys no capability an attacker does not already have",
+  // which was wrong: it buys no DATA, and that is not the same thing. It reaches
+  // a provider endpoint otherwise never called, and the anon key is public.
   let wantParse = false;
   try {
     const body = await req.json();
