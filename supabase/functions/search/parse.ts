@@ -60,10 +60,23 @@ export const forStorage = (c: ParsedConstraint): StoredConstraint =>
   ({ must: c.must, mustNot: c.mustNot });
 
 const MODEL = 'gpt-5-mini';
-// A parse is on the traveller's critical path. Past this, the search is better
-// served by ranking with no constraint than by waiting — the fallback is not an
-// error state, it is today's behaviour.
-const TIMEOUT_MS = 2500;
+// MEASURED, not guessed. The first value here was 2500 and it was a guess, which
+// showed up as the feature barely working: on 2026-08-16 eight of eleven
+// conformance queries reported "(no parse)" while the same queries parsed fine
+// by hand. Timed against the real endpoint: 4.1s, 5.1s, 8.2s for three ordinary
+// queries. Every one of those was silently falling back to today's behaviour.
+//
+// 9s is chosen to clear that band rather than to feel fast. It is affordable
+// because the parse does NOT block the page: the substring layer renders
+// locally on every keystroke and the semantic tail is appended when it arrives,
+// which is what `pending` in useSearchBox already exists to show. And it is paid
+// per NEW PHRASING, not per search — the constraint caches for 30 days beside
+// the vector, against 31 distinct queries measured lifetime.
+//
+// The fallback remains the point: past this the search is better served by
+// ranking with no constraint than by waiting, and that is today's behaviour
+// rather than an error state.
+const TIMEOUT_MS = 9000;
 
 const SYSTEM = `You turn a traveller's search query for an Aruba trip planner into a structured constraint.
 
