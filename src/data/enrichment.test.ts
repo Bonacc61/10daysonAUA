@@ -187,3 +187,47 @@ describe('confidence belongs to a facet, not to a record', () => {
     expect(mergeEnrichment([item('a1')], snap)[0].setting).toBeUndefined();
   });
 });
+
+describe('mobility_ok cannot outrank the facts beside it', () => {
+  // A REGRESSION TEST for a live defect. 82 records claimed mobility_ok at high
+  // confidence and 35 contradicted themselves — 14 requiring a swim, 21 aboard a
+  // vessel — including an "Antilla Shipwreck Seabob Tour" offered as a
+  // wheelchair-accessible answer. Confidence gates cannot catch it: the record
+  // is confident about both halves.
+  const item = (over: Record<string, unknown>) => ({
+    id: 'x', group_id: 'g', title: 'T', image_url: '', price_usd: 10, duration: '',
+    rating: 4, review_count: 1, viator_item_url: '', is_best_seller: false,
+    display_order: 0, ...over,
+  }) as never;
+
+  it('drops mobility_ok when the same record requires swimming', () => {
+    const out = mergeEnrichment([item({})], {
+      x: { confidence: 'high', facet_confidence: 'high', swim_required: true,
+           physical: { demand: 'low', mobility_ok: true } },
+    } as never);
+    expect(out[0].physical?.mobility_ok).toBe(false);
+  });
+
+  it('drops mobility_ok when the same record names a vessel', () => {
+    const out = mergeEnrichment([item({})], {
+      x: { confidence: 'high', facet_confidence: 'high', vessel: 'catamaran',
+           physical: { demand: 'low', mobility_ok: true } },
+    } as never);
+    expect(out[0].physical?.mobility_ok).toBe(false);
+  });
+
+  it('leaves an uncontradicted claim alone, and never flips false to true', () => {
+    // One-way by design: this can only ever remove an accessibility claim.
+    const ok = mergeEnrichment([item({})], {
+      x: { confidence: 'high', facet_confidence: 'high', vessel: null, swim_required: false,
+           physical: { demand: 'low', mobility_ok: true } },
+    } as never);
+    expect(ok[0].physical?.mobility_ok).toBe(true);
+
+    const no = mergeEnrichment([item({})], {
+      x: { confidence: 'high', facet_confidence: 'high', vessel: null,
+           physical: { demand: 'low', mobility_ok: false } },
+    } as never);
+    expect(no[0].physical?.mobility_ok).toBe(false);
+  });
+});

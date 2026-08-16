@@ -87,7 +87,7 @@ export function mergeActivityEnrichment<T extends { id: string }>(
     const rec = snapshot[a.id];
     if (!rec || rec.facet_confidence !== 'high') return a;
     const add: Partial<ActivityFacets> = {};
-    if (rec.physical) add.physical = rec.physical;
+    if (rec.physical) add.physical = mobilityConsistent(rec);
     if (rec.kids) add.kids = rec.kids;
     if (typeof rec.swim_required === 'boolean') add.swim_required = rec.swim_required;
     if (rec.indoor) add.indoor = rec.indoor;
@@ -129,6 +129,30 @@ const TIER1_OK = new Set(['high', 'medium']);
  *  - **A curated value always wins.** `adventure` set by hand on a local pick is
  *    editorial and outranks anything derived.
  */
+
+/**
+ * A judgement cannot outrank the facts beside it.
+ *
+ * `mobility_ok` is the field with the highest cost when it is wrong — a false
+ * negative costs someone a suggestion, a false positive sends a wheelchair user
+ * somewhere they cannot go — and the extraction prompt says so in as many words:
+ * "Climbing a ladder onto a catamaran, walking over rock to a cove, snorkelling
+ * from a boat — all false."
+ *
+ * The model agreed and then contradicted itself. Measured on the shipped
+ * snapshot: 82 records claim `mobility_ok: true` at HIGH confidence, and 35 of
+ * them also say `swim_required: true` or name a `vessel`. Confidence gates
+ * cannot catch this, because the record is confident about both halves; only a
+ * cross-facet check can. So the surrounding facts win, and the direction is
+ * deliberately one-way — this can only ever turn a `true` into a `false`.
+ */
+function mobilityConsistent(rec: EnrichmentRecord): EnrichmentRecord['physical'] {
+  const p = rec.physical;
+  if (!p || !p.mobility_ok) return p;
+  const contradicted = rec.swim_required === true || (rec.vessel !== undefined && rec.vessel !== null);
+  return contradicted ? { ...p, mobility_ok: false } : p;
+}
+
 export function mergeEnrichment(items: ViatorItem[], snapshot: EnrichmentSnapshot): ViatorItem[] {
   return items.map((item) => {
     const rec = snapshot[item.id];
@@ -176,7 +200,7 @@ export function mergeEnrichment(items: ViatorItem[], snapshot: EnrichmentSnapsho
     // pass has an opinion about its own reliability, that opinion binds.
     const facetOk = rec.facet_confidence === undefined || rec.facet_confidence === 'high';
     if (rec.confidence === 'high' && rec.evidence && facetOk) {
-      if (rec.physical) add.physical = rec.physical;
+      if (rec.physical) add.physical = mobilityConsistent(rec);
       if (rec.kids) add.kids = rec.kids;
       if (add.physical || add.kids) add.evidence = rec.evidence;
     }
@@ -197,7 +221,7 @@ export function mergeEnrichment(items: ViatorItem[], snapshot: EnrichmentSnapsho
     // verbatim quote: an evidenced judgement is the better one, so this only
     // fills gaps.
     if (rec.facet_confidence === 'high') {
-      if (rec.physical && !add.physical) add.physical = rec.physical;
+      if (rec.physical && !add.physical) add.physical = mobilityConsistent(rec);
       if (rec.kids && !add.kids) add.kids = rec.kids;
       if (typeof rec.swim_required === 'boolean') add.swim_required = rec.swim_required;
       if (rec.indoor) add.indoor = rec.indoor;
