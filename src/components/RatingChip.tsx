@@ -50,7 +50,7 @@ export default function RatingChip({
     <span className={className} style={style}>
       <Star size={size} aria-hidden /> {rating}
       <span style={{ opacity: 0.7, fontWeight: 400, marginLeft: 3 }}>
-        ({reviewCount})
+        ({(reviewCount as number).toLocaleString()})
       </span>
     </span>
   );
@@ -71,7 +71,7 @@ export function RatingChipInline({
   return (
     <>
       <Star size={size} aria-hidden /> {rating}
-      <span style={{ opacity: 0.7, fontWeight: 400, marginLeft: 3 }}>({reviewCount})</span>
+      <span style={{ opacity: 0.7, fontWeight: 400, marginLeft: 3 }}>({(reviewCount as number).toLocaleString()})</span>
     </>
   );
 }

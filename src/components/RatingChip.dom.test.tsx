@@ -18,7 +18,9 @@ const text = () => document.body.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 describe('RatingChip', () => {
   it('shows the count on a heavily reviewed product', () => {
     render(<RatingChip rating={4.9} reviewCount={2847} />);
-    expect(text()).toBe('4.9(2847)'); // the gap is CSS margin, not a space
+    // Grouped the same way CardBack writes it, so the two faces of one card
+    // never show the same figure in two formats. The gap is CSS margin.
+    expect(text()).toBe('4.9(2,847)');
   });
 
   it('shows the count on a thinly reviewed product', () => {
