@@ -118,14 +118,26 @@ Deno.serve(async (req) => {
   const model = MODEL_ID[provider];
 
   let query: string;
+  // Per-request opt-in to the parse, so it can be MEASURED before it is
+  // switched on for everyone. Without it the only way to find out whether the
+  // constraint layer helps would be to enable it globally and then look — i.e.
+  // to ship in order to find out.
+  //
+  // Safe to expose: it buys no capability an attacker does not already have.
+  // The same rate limit applies, the cost profile is the cost of the feature
+  // itself, and it cannot reach anything the query could not already reach.
+  let wantParse = false;
   try {
     const body = await req.json();
     query = String(body?.query ?? '').trim();
+    wantParse = body?.parse === true;
   } catch {
     return json({ error: 'bad payload' }, 400);
   }
   if (!query) return json({ error: 'empty' }, 400);
   if (query.length > MAX_QUERY) return json({ error: 'too long' }, 400);
+
+  const parseOn = PARSE_ENABLED || wantParse;
 
   const limited = await checkLimits(await callerHash(req));
   if (limited) return limited;
@@ -179,19 +191,27 @@ Deno.serve(async (req) => {
     // A cached vector from a different model is ignored, never reused.
     if (cached?.model === model && cached.embedding) {
       vector = typeof cached.embedding === 'string' ? JSON.parse(cached.embedding) : cached.embedding;
-      constraint = (cached.parsed_constraint as ParsedConstraint | null) ?? null;
+      constraint = parseOn ? ((cached.parsed_constraint as ParsedConstraint | null) ?? null) : null;
     }
-    // A row written before the parse existed holds a vector of the WHOLE query,
-    // while a parsed search embeds only the residual. Reusing it would pair the
-    // wrong vector with the right constraint, so it counts as a miss and both
-    // are recomputed together.
-    if (PARSE_ENABLED && vector && !constraint) vector = null;
+    // THE CACHE HOLDS ONE OF TWO INCOMPATIBLE THINGS, and a row is only usable
+    // by the mode that wrote it. A parsed search embeds the RESIDUAL; an
+    // unparsed one embeds the WHOLE query. Crossing them is silently wrong in
+    // both directions:
+    //
+    //   parsed request, unparsed row   -> whole-query vector, no constraint
+    //   unparsed request, parsed row   -> residual vector, constraint ignored
+    //
+    // The second matters because `parse: true` is a per-request opt-in used for
+    // measurement: without this, measuring would quietly change what ordinary
+    // traffic gets ranked by. Either mismatch counts as a MISS and is recomputed.
+    if (parseOn && vector && !constraint) vector = null;
+    if (!parseOn && vector && cached?.parsed_constraint) vector = null;
   } catch { /* a cache miss and a cache failure are the same thing here */ }
 
   // Parse BEFORE embedding, because what gets embedded depends on the answer:
   // a query the constraints fully describe has nothing left to rank by, and
   // asks the provider nothing at all.
-  if (PARSE_ENABLED && !vector) {
+  if (parseOn && !vector) {
     constraint = await parseConstraint(normalised);
   }
   const toEmbed = constraint ? constraint.residual.trim() : normalised;

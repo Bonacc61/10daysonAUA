@@ -54,29 +54,46 @@ execFileSync('node_modules/.bin/esbuild', [
 ], {
   input: `
     import { loadCatalog } from '${process.cwd()}/src/data/activitySource';
+    import { filterExploreEntries, entryId } from '${process.cwd()}/src/data/exploreItems';
+    import { searchEntries } from '${process.cwd()}/src/lib/entrySearch';
     const c = await loadCatalog();
-    const map = {};
-    for (const i of c.items) map[i.id] = {
-      title: i.title, price_usd: i.price_usd, vessel: i.vessel, setting: i.setting,
-      physical: i.physical, kids: i.kids, adventure: i.adventure,
-      // Every facet a rule can name must be listed here. A field omitted from
-      // this projection reads as undefined - i.e. UNKNOWN - for every item,
-      // which silently turns its rule into a vacuous zero rather than an error.
-      // Not hypothetical: adding indoor and swim_required to conformance.json
-      // before listing them here made the rule unsatisfiable, and only
-      // --selftest's satisfiable-AND-violable check caught it.
-      swim_required: i.swim_required, indoor: i.indoor,
-    };
-    // Curated locals carry no enrichment at all, so every facet is undefined and
-    // they count as UNKNOWN rather than as passes. That is the honest reading:
-    // nothing has judged them.
-    for (const a of c.activities) map[a.id] = { title: a.title, curated: true };
-    console.log(JSON.stringify(map));
+    const ALL = { section: 'All', vibe: 50, price: 50 };
+    const facetsOfEntry = (e) => e.kind === 'activity'
+      ? { title: e.activity.title, curated: true }
+      : { title: e.item.title, price_usd: e.item.price_usd, vessel: e.item.vessel,
+          setting: e.item.setting, physical: e.item.physical, kids: e.item.kids,
+          adventure: e.item.adventure, swim_required: e.item.swim_required, indoor: e.item.indoor };
+    // Read the job from stdin: [{ q, ids, constraint }]
+    const jobs = JSON.parse(process.argv[2]);
+    const out = {};
+    for (const j of jobs) {
+      const substringHits = filterExploreEntries(c, { ...ALL, search: j.q });
+      const pool = () => filterExploreEntries(c, { ...ALL, search: '' });
+      const { entries } = searchEntries(j.q, substringHits, pool, {
+        ids: j.ids, answers: j.q, constraint: j.constraint,
+      });
+      out[j.q] = entries.map((e) => ({ id: entryId(e), ...facetsOfEntry(e) }));
+    }
+    console.log(JSON.stringify(out));
   `,
   stdio: ['pipe', 'inherit', 'inherit'],
 });
 
-const facets = JSON.parse(execFileSync('node', [out], { encoding: 'utf8' }).trim());
+/**
+ * Run the REAL client path, not a copy of it.
+ *
+ * The harness used to judge the ids the function returned. That was wrong the
+ * moment filtering moved client-side: the constraint is applied by
+ * searchEntries in the browser, so raw server ids are a list no traveller ever
+ * sees. Measuring them would have scored the ranker while claiming to score the
+ * product — and would have shown NO improvement from the parse however well it
+ * worked, because the parse's whole effect lands after this point.
+ */
+function evaluate(jobs) {
+  return JSON.parse(execFileSync('node', [out, JSON.stringify(jobs)], {
+    encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
+  }).trim());
+}
 const spec = JSON.parse(readFileSync(`${process.cwd()}/tools/conformance.json`, 'utf8'));
 
 const valueAt = (obj, path) => path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
@@ -141,7 +158,9 @@ function selftest() {
     fail('a curated local with no facets was judged rather than counted unknown');
   }
 
-  const all = Object.values(facets);
+  // The whole catalog, through the same path everything else uses: an empty
+  // query makes filterExploreEntries return every entry.
+  const all = evaluate([{ q: '', ids: [], constraint: null }])[''];
   for (const entry of spec.decidable) {
     const verdictsFor = (it) => entry.rules.map((r) => judge(r, it));
     const violates = (it) => verdictsFor(it).some((v) => v === 'fail');
@@ -166,32 +185,48 @@ async function search(q) {
   const r = await fetch(FN, {
     method: 'POST',
     headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: q }),
+    // Opt IN to the parse for this request only. The function's SEARCH_PARSE
+    // secret stays unset, so live traffic is untouched while this measures the
+    // real end state — the alternative was enabling it globally first and
+    // measuring afterwards, i.e. shipping in order to find out.
+    body: JSON.stringify({ query: q, parse: true }),
   });
-  if (!r.ok) return { status: r.status, ids: [] };
+  if (!r.ok) return { status: r.status, ids: [], constraint: null };
   const body = await r.json();
-  return { status: 200, ids: (body.results ?? []).map((x) => x.id) };
+  return {
+    status: 200,
+    ids: (body.results ?? []).map((x) => x.id),
+    constraint: body.constraint ?? null,
+  };
 }
 
 (async () => {
   let totalViolations = 0, totalJudged = 0, totalReturned = 0;
   const rows = [];
 
+  // Fetch every query first, then run them ALL through the client path in one
+  // bundle invocation — the bundle boots the live catalog, and paying that once
+  // rather than per query is the difference between seconds and minutes.
+  const jobs = [];
+  const parses = new Map();
   for (const entry of spec.decidable) {
-    const { status, ids } = await search(entry.q);
+    const { status, ids, constraint } = await search(entry.q);
     if (status !== 200) {
-      console.log(`\n"${entry.q}"\n  -> HTTP ${status}; skipped. (429 = rate limit; the golden runner shares the 60/hour budget.)`);
+      console.log(`\n"${entry.q}" -> HTTP ${status}; skipped. (429 = rate limit; the golden runner shares the 60/hour budget.)`);
       continue;
     }
+    parses.set(entry.q, constraint);
+    jobs.push({ q: entry.q, ids, constraint });
+  }
+  const seen = jobs.length ? evaluate(jobs) : {};
+
+  for (const entry of spec.decidable) {
+    const shown = seen[entry.q];
+    if (!shown) continue;
 
     let judged = 0, violations = 0;
     const offenders = [];
-    for (const id of ids) {
-      const item = facets[id];
-      if (!item) continue;                  // ranked an id the catalog no longer has
-      // An item violates the QUERY if it fails ANY of its rules. Rules are AND:
-      // "walks slowly" means low demand AND mobility-friendly, and an item that
-      // fails either is wrong for the person who typed it.
+    for (const item of shown) {
       const verdicts = entry.rules.map((r) => judge(r, item));
       if (verdicts.some((v) => v !== 'unknown')) judged++;
       const broken = entry.rules.filter((r, i) => verdicts[i] === 'fail');
@@ -203,8 +238,11 @@ async function search(q) {
 
     totalViolations += violations;
     totalJudged += judged;
-    totalReturned += ids.length;
-    rows.push({ q: entry.q, returned: ids.length, judged, violations, offenders });
+    totalReturned += shown.length;
+    rows.push({
+      q: entry.q, returned: shown.length, judged, violations, offenders,
+      parse: parses.get(entry.q),
+    });
   }
 
   console.log('\nCONFORMANCE — do the results contradict what was asked?\n');
@@ -213,7 +251,9 @@ async function search(q) {
   for (const r of rows) {
     const cov = r.returned ? Math.round((r.judged / r.returned) * 100) : 0;
     const flag = r.violations ? '!' : ' ';
-    console.log(`${flag} ${String(r.violations).padStart(9)} /${String(r.judged).padStart(7)} /${String(r.returned).padStart(9)}   "${r.q}"  [${cov}% judgeable]`);
+    const p = r.parse && (r.parse.must.length || r.parse.mustNot.length)
+      ? `  -> must=[${r.parse.must}] mustNot=[${r.parse.mustNot}]` : '  -> (no parse)';
+    console.log(`${flag} ${String(r.violations).padStart(9)} /${String(r.judged).padStart(7)} /${String(r.returned).padStart(9)}   "${r.q}"  [${cov}% judgeable]${p}`);
     if (r.violations && (VERBOSE || r.offenders.length <= 3)) {
       for (const o of r.offenders.slice(0, VERBOSE ? 99 : 3)) {
         console.log(`      ${o.title.slice(0, 58)}  (${o.why})`);
