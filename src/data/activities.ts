@@ -1,6 +1,16 @@
 import type { MatchTag, SlotEntry, Section, Region } from '../types';
 
 export type Activity = {
+  // Filter-only facets, merged from the enrichment snapshot at catalog load —
+  // never rendered, never quoted. The island's own picks are judged by the same
+  // pass as the Viator products because they are the best answers to half the
+  // constraint queries and were invisible to the filter without this.
+  physical?: { demand: 'low' | 'moderate' | 'high'; mobility_ok: boolean };
+  kids?: { min_age: number; baby_ok: boolean };
+  swim_required?: boolean;
+  indoor?: 'indoor' | 'outdoor' | 'mixed';
+  kid_appeal?: number;
+
   id: string;
   title: string;
   category: 'Beaches' | 'Activities' | 'Watersports' | 'Food' | 'Tours';

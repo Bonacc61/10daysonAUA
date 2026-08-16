@@ -34,12 +34,18 @@
   "decidable": [
     {
       "q": "good with toddler",
-      "why": "Reported from the live site 2026-08-16: still a wall of UTVs. Verified against the deployed function that day — of the 30 ids it returns, 26 of the 28 that resolve are ruled out by `toddler_ok`, including every UTV and jeep safari. Nothing was regressing; none of the filter was deployed. This query exists so that can never again be a thing someone has to notice by hand.",
+      "why": "Reported from the live site 2026-08-16: still a wall of UTVs. Verified against the deployed function that day — of the 30 ids it returns, 26 of the 28 that resolve are ruled out by `toddler_ok`, including every UTV and jeep safari. Nothing was regressing; none of the filter was deployed. This query exists so that can never again be a thing someone has to notice by hand. Rule tightened 2026-08-16 after the filter shipped and the list came back led by air-conditioned bus tours and photoshoots: correctly filtered, and not an answer.",
       "rules": [
         {
           "facet": "toddler_ok",
           "op": "isTrue",
           "why": "the judgement pass read minimum ages of 3 and 4 that CONTRADICT the operator's own child-friendly checkbox — 15 off-road products advertise 'specialized infant seats are available'. `kids.baby_ok` alone cannot express that, which is why the facet exists."
+        },
+        {
+          "facet": "kid_appeal",
+          "op": "gte",
+          "value": 2,
+          "why": "safe is not the same question as good. 32 of the 39 products that pass toddler_ok score under 2 here — private island tours, a romantic cabana picnic, a historic walking tour. A toddler survives all of them and enjoys none."
         }
       ]
     },

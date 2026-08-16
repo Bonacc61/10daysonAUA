@@ -5,7 +5,7 @@ import { fitItem, bestItemForAnswers, itemSlotOk, matchingSection, isRetailProdu
 import { viatorProductCode } from './exploreItems';
 import { budgetTag } from './classify';
 import type { ViatorGroup, ViatorItem, SlotEntry, CardEntry, MatchTag, Slot, Section } from '../types';
-import { mergeEnrichment, type EnrichmentSnapshot } from './enrichment';
+import { mergeEnrichment, mergeActivityEnrichment, type EnrichmentSnapshot } from './enrichment';
 import ENRICHMENT from './enrichment.json';
 
 export type Catalog = {
@@ -284,7 +284,14 @@ export function loadCatalog(): Promise<Catalog> {
         // dropped from the catalog, the pick has no live price to adopt and
         // keeps both its editorial cost and (per filterExploreEntries) its own
         // Explore tile, because nothing else on the page represents it.
-        activities: mergeLocalMatches(ACTIVITIES, data?.localMatches ?? {}, mergedItems),
+        // Enrichment last, and on the LIVE path only — the offline stub has no
+        // snapshot to merge and its tests assert unenriched shapes. Wrapping
+        // mergeLocalMatches rather than ACTIVITIES so the facets land on the
+        // final list, after a curated pick has adopted its matched product.
+        activities: mergeActivityEnrichment(
+          mergeLocalMatches(ACTIVITIES, data?.localMatches ?? {}, mergedItems),
+          ENRICHMENT as EnrichmentSnapshot,
+        ),
       };
       return liveCatalog;
     } catch {

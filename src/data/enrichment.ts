@@ -41,6 +41,13 @@ export type EnrichmentRecord = {
    * split, which fall back to the record confidence.
    */
   toddler_ok_confidence?: 'high' | 'medium' | 'low';
+  /**
+   * Would a 1-3 year old ENJOY this, 0-3 — as opposed to `toddler_ok`, which
+   * only asks whether they could safely be there. A private island tour is
+   * toddler_ok and kid_appeal 0. That gap is why "good with toddler" returned a
+   * correctly filtered list led by air-conditioned bus tours.
+   */
+  kid_appeal?: number;
   /** Must the traveller get INTO the water? A snorkel trip yes, a glass-bottom boat no. */
   swim_required?: boolean;
   /** What is over the traveller's head — a different question from `setting`. */
@@ -56,6 +63,44 @@ export type EnrichmentRecord = {
 };
 
 export type EnrichmentSnapshot = Record<string, EnrichmentRecord>;
+
+/**
+ * The filter-only facets, for the 26 curated locals.
+ *
+ * A separate function because an Activity is not a ViatorItem: it has no price,
+ * no group, no tags, and none of the tier-2 machinery applies. What it CAN carry
+ * is the four judgements the --facets pass makes, which are the only ones the
+ * search filter reads.
+ *
+ * Without this the records existed and reached nothing: `facetsOf`'s curated arm
+ * hardcoded every facet to undefined, so Arashi Beach — judged kid_appeal 3, the
+ * highest score in the entire catalog — was invisible to "good with toddler"
+ * while eleven private island tours were not.
+ */
+export function mergeActivityEnrichment<T extends { id: string }>(
+  activities: T[],
+  snapshot: EnrichmentSnapshot,
+): T[] {
+  return activities.map((a) => {
+    const rec = snapshot[a.id];
+    if (!rec || rec.facet_confidence !== 'high') return a;
+    const add: Partial<ActivityFacets> = {};
+    if (rec.physical) add.physical = rec.physical;
+    if (rec.kids) add.kids = rec.kids;
+    if (typeof rec.swim_required === 'boolean') add.swim_required = rec.swim_required;
+    if (rec.indoor) add.indoor = rec.indoor;
+    if (typeof rec.kid_appeal === 'number') add.kid_appeal = rec.kid_appeal;
+    return Object.keys(add).length ? { ...a, ...add } : a;
+  });
+}
+
+export type ActivityFacets = {
+  physical?: { demand: 'low' | 'moderate' | 'high'; mobility_ok: boolean };
+  kids?: { min_age: number; baby_ok: boolean };
+  swim_required?: boolean;
+  indoor?: 'indoor' | 'outdoor' | 'mixed';
+  kid_appeal?: number;
+};
 
 // Tier 1 — kind and adventure — are internal ranking signals. The worst case for
 // a bad value is a mediocre pick, which the swap button already handles, so
@@ -152,6 +197,7 @@ export function mergeEnrichment(items: ViatorItem[], snapshot: EnrichmentSnapsho
       if (rec.kids && !add.kids) add.kids = rec.kids;
       if (typeof rec.swim_required === 'boolean') add.swim_required = rec.swim_required;
       if (rec.indoor) add.indoor = rec.indoor;
+      if (typeof rec.kid_appeal === 'number') add.kid_appeal = rec.kid_appeal;
     }
 
     return Object.keys(add).length ? { ...item, ...add } : item;

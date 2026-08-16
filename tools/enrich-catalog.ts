@@ -156,6 +156,7 @@ const FACET_RECORD_SCHEMA = {
       required: ['min_age', 'baby_ok'],
       additionalProperties: false,
     },
+    kid_appeal: { type: 'integer', description: 'Would a 1-3 year old ENJOY this, 0-3. Judge the CHILD experience, not whether children are permitted.' },
     swim_required: { type: 'boolean', description: 'Must the traveller get INTO the water for the main part of this? A snorkel trip is true. A glass-bottom boat is false. A beach day pass is false — you may swim, you need not.' },
     indoor:        { type: 'string', enum: ['indoor', 'outdoor', 'mixed'], description: 'Is the traveller under a roof for the main part? A cooking class or a museum is indoor. A walking tour of the same town is outdoor. A bus tour with stops is mixed.' },
     facet_confidence: { type: 'string', enum: ['high', 'medium', 'low'], description: 'Your confidence in THESE four fields specifically.' },
@@ -186,7 +187,16 @@ mobility_ok is the field with the highest cost when it is wrong, because someone
 
 swim_required means the water is not optional. Snorkelling, diving and swim-with-turtles are true. A catamaran cruise, a glass-bottom boat, a beach day pass and a kayak tour are false — you are on or beside the water, not in it.
 
-indoor asks what is over the traveller's head for the main part of the activity, which is a different question from where it happens. A walking tour of a town is outdoor. A rum tasting in that same town is indoor.`;
+indoor asks what is over the traveller's head for the main part of the activity, which is a different question from where it happens. A walking tour of a town is outdoor. A rum tasting in that same town is indoor.
+
+kid_appeal is the question everything else about children misses. Not "is this permitted", not "is this safe" — WOULD A ONE TO THREE YEAR OLD ENJOY IT. A private air-conditioned island tour is perfectly safe for a toddler and a toddler will hate it. A couples photoshoot is harmless and pointless. Score the child's hour, not the parent's booking:
+
+0 = nothing in it for them. Scenic drives, tastings, adult photoshoots, sunset cruises, historic walking tours, anything whose interest is conversation or a view.
+1 = they can be carried through it without misery, but it is built for the adults.
+2 = genuinely engaging for a small child — animals, shallow calm water they can stand in, sand, boats with things to look at, short and varied.
+3 = built for small children. Playgrounds, toddler pools, water parks with a shallow area, petting farms, a beach specifically known as safe for babies.
+
+Most of this catalog is 0 or 1 and that is the correct answer. Do not inflate it because the listing says "fun for the whole family" — that phrase is on almost everything and means nothing.`;
 
 type Product = { id: string; title: string; description: string; tags: number[] };
 
@@ -288,12 +298,32 @@ function evidenceIsVerbatim(rec: EnrichmentRecord, description: string): boolean
 
   // --- --facets: the additive pass ------------------------------------------
   if (has('facets')) {
-    const done = (id: string) => existing[id]?.facet_confidence !== undefined;
-    const todo = catalog.items.filter((i) => has('force') || !done(i.id));
+    // THE CURATED LOCALS ARE IN THIS PASS TOO, and their absence was the whole
+    // reason "good with toddler" had no good answers. Of 328 Viator products
+    // only 2 score kid_appeal 3 and 41 score 2 — the bookable catalog is
+    // overwhelmingly adult. The best toddler answers on this island are the 26
+    // editorial picks (Baby Beach, "a natural nursery"; Druif, "where locals
+    // bring the kids on a Sunday"), and they carried no facet record at all, so
+    // the filter could not see them. They reached the semantic INDEX on
+    // 2026-08-16 and stopped there.
+    const curated = catalog.activities.map((a) => ({
+      id: a.id,
+      title: a.title,
+      description: [a.description, a.localsSay, a.fitReason].filter(Boolean).join(' '),
+      tags: [] as number[],
+    }));
+    // Keyed on kid_appeal, not facet_confidence: the pass has run before and
+    // every row already carries the latter, so a fresh facet needs its own
+    // completeness check or the run does nothing.
+    const done = (id: string) => existing[id]?.kid_appeal !== undefined;
+    const todo = [
+      ...catalog.items.map((i) => ({ id: i.id, title: i.title, description: i.description ?? '', tags: i.tags ?? [] })),
+      ...curated,
+    ].filter((i) => has('force') || !done(i.id));
     const lim = arg('limit') ? parseInt(arg('limit')!, 10) : todo.length;
     const work = todo.slice(0, lim);
 
-    console.log(`catalog: ${catalog.items.length} items`);
+    console.log(`catalog: ${catalog.items.length} items + ${curated.length} curated locals`);
     console.log(`already carrying the new facets: ${catalog.items.filter((i) => done(i.id)).length}`);
     console.log(`to do this run: ${work.length}${lim < todo.length ? ` (of ${todo.length}, --limit)` : ''}\n`);
 
@@ -315,29 +345,29 @@ function evidenceIsVerbatim(rec: EnrichmentRecord, description: string): boolean
       process.stdout.write(`batch ${Math.floor(i / BATCH) + 1}/${Math.ceil(work.length / BATCH)} … `);
       let records: EnrichmentRecord[];
       try {
-        records = await callClaude(
-          slice.map((it) => ({ id: it.id, title: it.title, description: it.description ?? '', tags: it.tags ?? [] })),
-          key!, FACETS_SYSTEM, FACETS_SCHEMA,
-        );
+        records = await callClaude(slice, key!, FACETS_SYSTEM, FACETS_SCHEMA);
       } catch (e) {
         console.log(`FAILED — skipping this batch\n  ${String(e).slice(0, 400)}`);
         continue;
       }
 
+      const validIds = new Set(work.map((w) => w.id));
       for (const rec of records) {
-        const item = byId.get((rec as EnrichmentRecord & { id: string }).id);
-        if (!item) continue;
+        const id = (rec as EnrichmentRecord & { id: string }).id;
+        if (!validIds.has(id)) continue;
+        const item = { id } as ViatorItem;
         // SPREAD THE EXISTING RECORD FIRST. The extraction pass writes `clean`
         // wholesale and had to hand-carry `toddler_ok` to avoid deleting it;
         // this pass cannot make that mistake, because everything it does not
         // touch is copied by construction.
-        const add: EnrichmentRecord = { ...(next[item.id] ?? { confidence: 'low' }) };
+        const add: EnrichmentRecord = { ...(next[id] ?? { confidence: 'low' }) };
         add.facet_confidence = rec.facet_confidence;
         if (rec.physical) add.physical = rec.physical;
         if (rec.kids) add.kids = rec.kids;
         if (typeof rec.swim_required === 'boolean') add.swim_required = rec.swim_required;
         if (rec.indoor) add.indoor = rec.indoor;
-        next[item.id] = add;
+        if (typeof rec.kid_appeal === 'number') add.kid_appeal = rec.kid_appeal;
+        next[id] = add;
         written++;
       }
       console.log(`${records.length} records`);
@@ -356,6 +386,7 @@ function evidenceIsVerbatim(rec: EnrichmentRecord, description: string): boolean
     console.log(`  kids          ${count((r) => hiFacet(r) && !!r.kids)}`);
     console.log(`  swim_required ${count((r) => hiFacet(r) && r.swim_required !== undefined)}`);
     console.log(`  indoor        ${count((r) => hiFacet(r) && !!r.indoor)}`);
+    console.log(`  kid_appeal    ${count((r) => hiFacet(r) && r.kid_appeal !== undefined)}`);
     return;
   }
 

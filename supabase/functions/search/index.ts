@@ -234,20 +234,29 @@ Deno.serve(async (req) => {
   if (parseOn && !vector) {
     constraint = await parseConstraint(normalised);
   }
-  const toEmbed = constraint ? constraint.residual.trim() : normalised;
+  // FILTERING DECIDES THE SET; SOMETHING STILL HAS TO DECIDE THE ORDER.
+  //
+  // When the constraint consumes the whole query the residual is empty, and an
+  // earlier version treated that as "ask the provider nothing" — elegant, and
+  // wrong. It left the survivors in pool order, so "good with toddler" returned
+  // a correctly filtered 55 led by air-conditioned bus tours and photoshoots,
+  // with Baby Beach at 22 and 26. A right set in an arbitrary order is not a
+  // right answer, and the conformance harness could not see it: it counts
+  // contradictions and is blind to sequence.
+  //
+  // So a fully compiled query falls back to embedding the WHOLE query, purely
+  // to rank what survived. The cost is one embedding call per new phrasing,
+  // cached 30 days beside the constraint. No new exposure: these are the same
+  // words the unparsed path has always sent to the same provider.
+  const toEmbed = constraint ? (constraint.residual.trim() || normalised) : normalised;
 
   // A FULLY COMPILED QUERY ASKS NOTHING. Every word was a concept, so the
   // constraints already say what it meant: no provider call, no rate-limit cost,
   // no cache row, and the traveller's text never leaves this function. The
   // client filters its own catalog by the constraint and has nothing to rank.
-  // `!vector` matters: with a cached vector there IS something to rank, and the
-  // stored constraint carries no residual, so without this guard a cache hit
-  // would return an empty result set for a query that had perfectly good ids.
-  if (constraint && !toEmbed && !vector) {
-    console.log(`[search] compiled whole: must=${constraint.must} mustNot=${constraint.mustNot}`);
-    return json({ results: [], constraint: forStorage(constraint) });
-  }
-
+  // The early return that used to live here — answering a fully compiled query
+  // with `{results: []}` and no ranking — is gone deliberately. See the comment
+  // on `toEmbed` above: it saved a call and cost the ordering.
   if (!vector) {
     try {
       // The NORMALISED string, so the cache key and the stored vector describe

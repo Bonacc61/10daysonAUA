@@ -24,6 +24,8 @@ export type Facets = {
   flags?: string[];
   /** Internal judgement, filter-only — never rendered. See ViatorItem.toddler_ok. */
   toddlerOk?: boolean;
+  /** 0-3: would a small child ENJOY it. Distinct from toddlerOk, which is safety. */
+  kidAppeal?: number;
   /** Where the activity physically happens. */
   setting?: 'beach' | 'ocean' | 'land' | 'town' | 'mixed';
   /** What the traveller is aboard. `null` is "explicitly nothing"; absent is "unjudged". */
@@ -86,18 +88,25 @@ export function facetsOf(entry: ExploreEntry): Facets {
       physical: entry.item.physical,
       flags: entry.item.flags,
       toddlerOk: entry.item.toddler_ok,
+      kidAppeal: entry.item.kid_appeal,
       setting: entry.item.setting,
       vessel: entry.item.vessel,
       swimRequired: entry.item.swim_required,
       indoor: entry.item.indoor,
     };
   }
-  // The 26 curated locals carry no enrichment yet — see the toddler rescue below.
+  // The curated locals ARE judged now, by the same --facets pass as the products
+  // (2026-08-16). `flags`, `toddlerOk`, `setting` and `vessel` stay absent
+  // because no pass writes them for an Activity — absent means unjudged, which
+  // is the truth rather than a default.
   return {
     ...common,
-    kids: undefined, physical: undefined, flags: undefined,
-    toddlerOk: undefined, setting: undefined, vessel: undefined,
-    swimRequired: undefined, indoor: undefined,
+    kids: entry.activity.kids,
+    physical: entry.activity.physical,
+    swimRequired: entry.activity.swim_required,
+    indoor: entry.activity.indoor,
+    kidAppeal: entry.activity.kid_appeal,
+    flags: undefined, toddlerOk: undefined, setting: undefined, vessel: undefined,
   };
 }
 
@@ -122,7 +131,18 @@ const PREDICATES: Record<Concept, (f: Facets) => Verdict> = {
   // A real judgement outranks both the renderable `kids` pair and the rescue
   // heuristic below: the whole reason this facet exists is that the marketing
   // copy says "great for all ages" while the operator's minimum age says 3.
+  // SAFE AND GOOD ARE TWO QUESTIONS, and answering only the first is what made
+  // "good with toddler" return a correctly filtered list led by air-conditioned
+  // bus tours, with photoshoots at 14-16. `toddler_ok` asks whether a 1-3 year
+  // old could be there; `kid_appeal` asks whether they would enjoy it. Measured
+  // 2026-08-16: 32 of the 39 products that pass the first score under 2 on the
+  // second. The design doc predicted this exact failure and said the two must be
+  // separate facets; only one of them had been built.
+  //
+  // Safety still leads: a `false` disqualifies however appealing the listing is.
   toddler: (f) => {
+    if (f.toddlerOk === false) return 'fail';
+    if (f.kidAppeal !== undefined) return f.kidAppeal >= 2 ? 'pass' : 'fail';
     if (typeof f.toddlerOk === 'boolean') return f.toddlerOk ? 'pass' : 'fail';
     return f.kids ? (f.kids.baby_ok ? 'pass' : 'fail') : 'unknown';
   },

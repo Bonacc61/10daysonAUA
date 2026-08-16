@@ -181,7 +181,7 @@ describe('buildPool — no-op invariant', () => {
 describe('acceptance — "good with toddler" against the real snapshot', () => {
   // Offline: enrichment.json is committed, so this needs no network and no key.
   it('excludes every product the pilot judged unsuitable at high confidence', () => {
-    const judged = Object.entries(SNAPSHOT as Record<string, { toddler_ok?: boolean }>)
+    const judged = Object.entries(SNAPSHOT as Record<string, { toddler_ok?: boolean; kid_appeal?: number; facet_confidence?: string }>)
       .filter(([, r]) => typeof r.toddler_ok === 'boolean');
     expect(judged.length).toBeGreaterThan(200);   // 287 at time of writing
 
@@ -201,10 +201,33 @@ describe('acceptance — "good with toddler" against the real snapshot', () => {
     const kept = new Set(pool.map((p) => p.entry.kind === 'item' && p.entry.item.id));
 
     const unsuitable = judged.filter(([, r]) => r.toddler_ok === false).map(([id]) => id);
-    const suitable = judged.filter(([, r]) => r.toddler_ok === true).map(([id]) => id);
 
+    // SAFETY STILL LEADS: a `false` disqualifies however appealing the listing.
     expect(unsuitable.filter((id) => kept.has(id))).toEqual([]);
-    expect(suitable.every((id) => kept.has(id))).toBe(true);
+
+    // But `toddler_ok: true` is no longer sufficient, and asserting that it was
+    // is what this test used to do. Safe and good are two questions: 32 of the
+    // 39 products that pass the safety judgement score under 2 on `kid_appeal` —
+    // private island tours, a romantic cabana picnic, a historic walking tour.
+    // A toddler survives every one of them and enjoys none, which is how "good
+    // with toddler" shipped a correctly filtered list led by bus tours.
+    const appealing = judged
+      .filter(([, r]) => r.toddler_ok === true && r.facet_confidence === 'high'
+        && (r.kid_appeal ?? 0) >= 2)
+      .map(([id]) => id);
+    // Gated on facet_confidence the way mergeEnrichment gates it, because the
+    // pool sees the MERGED item and the snapshot read here is the raw file. 11
+    // products carry a low `kid_appeal` at medium confidence, which the merge
+    // deliberately withholds — so they reach the pool with no appeal judgement
+    // at all and pass on safety alone. Asserting against the raw file instead
+    // would be testing data the code is designed not to act on.
+    const dull = judged
+      .filter(([, r]) => r.toddler_ok === true && r.facet_confidence === 'high'
+        && r.kid_appeal !== undefined && r.kid_appeal < 2)
+      .map(([id]) => id);
+
+    expect(appealing.every((id) => kept.has(id))).toBe(true);
+    expect(dull.filter((id) => kept.has(id))).toEqual([]);
     expect(pool.every((p) => p.unknowns === 0)).toBe(true);
   });
 
