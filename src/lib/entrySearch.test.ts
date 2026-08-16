@@ -142,7 +142,7 @@ describe('a parsed constraint filters the pool the ranker draws from', () => {
     // away, only to lift others past it.
     const out = entriesOf('half day trip that is not a boat', [], pool, {
       ids: ['cat', 'shore'], answers: 'half day trip that is not a boat',
-      constraint: { must: [], mustNot: ['boat'], residual: 'half day trip' },
+      constraint: { must: [], mustNot: ['boat'] },
     });
     expect(ids(out)).not.toContain('cat');
     expect(ids(out)).toContain('shore');
@@ -155,7 +155,7 @@ describe('a parsed constraint filters the pool the ranker draws from', () => {
     // products carry no vessel judgement at all.
     const out = entriesOf('not a boat', [], pool, {
       ids: ['unjudged'], answers: 'not a boat',
-      constraint: { must: [], mustNot: ['boat'], residual: '' },
+      constraint: { must: [], mustNot: ['boat'] },
     });
     expect(ids(out)).toContain('unjudged');
   });
@@ -168,7 +168,7 @@ describe('a parsed constraint filters the pool the ranker draws from', () => {
     // 328-item catalog — nothing contradicted the query, and nothing answered it.
     const out = entriesOf('not a boat', [], pool, {
       ids: [], answers: 'not a boat',
-      constraint: { must: [], mustNot: ['boat'], residual: '' },
+      constraint: { must: [], mustNot: ['boat'] },
     });
     expect(ids(out)).toEqual(['shore']);          // vessel: null — the data SAYS not a boat
     expect(ids(out)).not.toContain('unjudged');   // nobody looked
@@ -180,7 +180,7 @@ describe('a parsed constraint filters the pool the ranker draws from', () => {
     // many qualify. Here the ranker named one id and two entries conform.
     const out = entriesOf('not a boat', [], pool, {
       ids: ['shore'], answers: 'not a boat',
-      constraint: { must: [], mustNot: ['boat'], residual: '' },
+      constraint: { must: [], mustNot: ['boat'] },
     });
     expect(ids(out)).toEqual(['shore']);
   });
@@ -190,7 +190,7 @@ describe('a parsed constraint filters the pool the ranker draws from', () => {
     // and returned nothing to rank. The constraint alone is the answer.
     const out = entriesOf('not a boat', [], pool, {
       ids: [], answers: 'not a boat',
-      constraint: { must: [], mustNot: ['boat'], residual: '' },
+      constraint: { must: [], mustNot: ['boat'] },
     });
     expect(ids(out).sort()).toEqual(['shore']);
   });
@@ -214,7 +214,7 @@ describe('a parsed constraint filters the pool the ranker draws from', () => {
     // the traveller's own literal words already matched.
     const out = entriesOf('catamaran', [catamaran], pool, {
       ids: ['shore'], answers: 'catamaran',
-      constraint: { must: [], mustNot: ['boat'], residual: '' },
+      constraint: { must: [], mustNot: ['boat'] },
     });
     expect(ids(out)[0]).toBe('cat');
   });

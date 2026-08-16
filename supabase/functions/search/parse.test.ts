@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitise, forStorage, EMITTABLE } from './parse';
+import { sanitise, forStorage, PARSE_VERSION, EMITTABLE } from './parse';
 import { EMITTABLE_CONCEPTS } from '../../../src/lib/searchConstraint';
 
 // Only `sanitise` is tested, and deliberately: it is the pure half, and it is
@@ -71,7 +71,11 @@ describe('the residual never leaves this function', () => {
     // "the text is never written".
     const c = { must: ['cheap'], mustNot: ['boat'], residual: 'dinner live music' };
     const out = forStorage(c);
-    expect(out).toEqual({ must: ['cheap'], mustNot: ['boat'] });
+    // The version is stamped here and nowhere else, and it is load-bearing: a
+    // constraint parsed under an older vocabulary is a 30-day stale answer, not
+    // a cache hit. `low_effort` was added and the next run still showed the old
+    // parse, because the query hash had not changed.
+    expect(out).toEqual({ must: ['cheap'], mustNot: ['boat'], v: PARSE_VERSION });
     expect(Object.keys(out)).not.toContain('residual');
   });
 
