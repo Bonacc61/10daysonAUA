@@ -1,5 +1,6 @@
-import { useMemo, useState, type CSSProperties, type MouseEvent } from 'react';
+import { useMemo, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
 import { Star, MapPin, Clock, Dollar } from '../components/Icons';
+import { ChillEnd, AdrenalineEnd, FreeEnd, SplurgeEnd } from '../components/SliderEnds';
 import AddButton from '../components/AddButton';
 import SearchBar from '../components/SearchBar';
 import DepartureNote from '../components/DepartureNote';
@@ -50,7 +51,7 @@ const REGION_LABEL: Record<string, string> = {
 };
 
 function Slider({ label, value, onChange, lo, hi, hint }: {
-  label: string; value: number; onChange: (v: number) => void; lo: string; hi: string; hint: string;
+  label: string; value: number; onChange: (v: number) => void; lo: ReactNode; hi: ReactNode; hint: string;
 }) {
   const sliderStyle = { ['--pct' as string]: value + '%' } as CSSProperties;
   return (
@@ -251,8 +252,8 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
         <div className="container-1280">
           <div className="explore-row" style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }}>
             <aside className="explore-sidebar" style={{ flex: '0 0 240px' }}>
-              <Slider label="Vibe" value={vibe} onChange={setVibe} lo="🌴 Chill" hi="Adrenaline 🪂" hint={vibeHint(vibe)} />
-              <Slider label="Price" value={price} onChange={setPrice} lo="✨ Free" hi="Splurge 💸" hint={priceHint(price)} />
+              <Slider label="Vibe" value={vibe} onChange={setVibe} lo={<ChillEnd />} hi={<AdrenalineEnd />} hint={vibeHint(vibe)} />
+              <Slider label="Price" value={price} onChange={setPrice} lo={<FreeEnd />} hi={<SplurgeEnd />} hint={priceHint(price)} />
 
               <div className="chunky" style={{ padding: 18, marginBottom: 16 }}>
                 <h3 style={{ fontWeight: 700, fontSize: 13, margin: '0 0 8px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Sort</h3>

@@ -54,5 +54,17 @@ export const Drop     = (p: IconProps) => <Icon {...p}><path d="M12 2.69l5.66 5.
 export const Wave     = (p: IconProps) => <Icon {...p}><path d="M2 8c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0"/><path d="M2 15c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0"/></Icon>;
 export const Bag      = (p: IconProps) => <Icon {...p}><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></Icon>;
 
+// The four slider ends. Solid, not outlined: these render at 16px beside a
+// label, and outline versions of the same shapes came out as squiggles at that
+// size. A palm was the obvious "chill" mark and got cut for the same reason —
+// fronds are thin by nature, and the one drawn bold enough to read became a
+// dome that echoed the parachute at the other end of its own slider.
+const solid = { fill: 'currentColor', stroke: 'none' } as const;
+
+export const Shades    = (p: IconProps) => <Icon {...p}><path {...solid} d="M1.5 7.9h21c.6 0 1 .5 1 1.1l-.2 1.3c-.1.6-.6 1-1.2 1h-.4l-.4 2.4a4.3 4.3 0 0 1-8.5-.2l-.2-1.6h-1.2l-.2 1.6a4.3 4.3 0 0 1-8.5.2l-.4-2.4h-.4c-.6 0-1.1-.4-1.2-1L.5 9c-.1-.6.4-1.1 1-1.1z"/></Icon>;
+export const Parachute = (p: IconProps) => <Icon {...p}><path {...solid} d="M2 11.5a10 10 0 0 1 20 0z"/><path d="M6.8 11.5 12 18.6M17.2 11.5 12 18.6"/><path {...solid} d="M12 20.1a1.9 1.9 0 1 0 0 3.8 1.9 1.9 0 0 0 0-3.8z"/></Icon>;
+export const Spark     = (p: IconProps) => <Icon {...p}><path {...solid} d="M12 1.4C12.9 7.9 15.9 10.9 22.4 11.8C15.9 12.7 12.9 15.7 12 22.2C11.1 15.7 8.1 12.7 1.6 11.8C8.1 10.9 11.1 7.9 12 1.4Z"/></Icon>;
+export const MoneyBag  = (p: IconProps) => <Icon {...p}><path {...solid} fillRule="evenodd" d="M9.2 2.2h5.6l-1.9 3.2h-1.8zM12 6.2c4 0 8 5.4 8 9.6 0 3.8-3.6 6-8 6s-8-2.2-8-6c0-4.2 4-9.6 8-9.6zm.9 3.4h-1.7v1a3 3 0 0 0 .3 5.9h1a.9.9 0 0 1 0 1.8H9.1v1.7h2.1v1h1.7v-1a3 3 0 0 0-.4-5.9h-.9a.9.9 0 0 1 0-1.8h3.3V9.9h-2z"/></Icon>;
+
 const ICON_MAP = { wind: Wind, sun: Sun, dollar: Dollar, card: Card, car: Car, shield: Shield, cloud: Cloud, msg: Msg, doc: Doc, drop: Drop, wave: Wave, bag: Bag };
 export const iconFor = (name: keyof typeof ICON_MAP) => ICON_MAP[name];

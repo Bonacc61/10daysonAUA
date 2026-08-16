@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import RatingChip, { RatingChipInline, hasRealRating } from '../components/RatingChip';
 import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
 import { Calendar, Check, Chev, Clock, Dice, Doc, Dollar, Download, Info, IOSShare, Mail, MapPin, Star } from '../components/Icons';
 import GoodToKnowTimeline from '../components/GoodToKnowTimeline';
+import { ChillEnd, AdrenalineEnd, FreeEnd, SplurgeEnd } from '../components/SliderEnds';
 import { useCatalog } from '../data/useCatalog';
 import { filterExploreEntries, bookingUrl, vibeHint, priceHint } from '../data/exploreItems';
 import { INFO_TOPICS } from '../data/activities';
@@ -67,7 +68,7 @@ type Props = {
 
 function Slider({ label, value, onChange, lo, hi, hint }: {
   label: string; value: number; onChange: (v: number) => void;
-  lo: string; hi: string; hint: string;
+  lo: ReactNode; hi: ReactNode; hint: string;
 }) {
   const sliderStyle = { ['--pct' as string]: value + '%' } as CSSProperties;
   return (
@@ -480,8 +481,8 @@ function StarredPanel({ setPage }: { setPage: (p: PageId) => void }) {
     <div>
       <h2 className="font-display" style={{ fontSize: 30, margin: '0 0 20px', color: 'var(--ink)' }}>Shortlisted Activities</h2>
       <div className="dash-filter-row">
-        <Slider label="Vibe" value={vibe} onChange={setVibe} lo="🌴 Chill" hi="Adrenaline 🪂" hint={vibeHint(vibe)} />
-        <Slider label="Price" value={price} onChange={setPrice} lo="✨ Free" hi="Splurge 💸" hint={priceHint(price)} />
+        <Slider label="Vibe" value={vibe} onChange={setVibe} lo={<ChillEnd />} hi={<AdrenalineEnd />} hint={vibeHint(vibe)} />
+        <Slider label="Price" value={price} onChange={setPrice} lo={<FreeEnd />} hi={<SplurgeEnd />} hint={priceHint(price)} />
       </div>
       {loading ? (
         <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading…</p>
@@ -595,8 +596,8 @@ export function PersonalizedPanel({ setPage, trip }: { setPage: (p: PageId) => v
       </p>
       <SearchBar box={box} addedByMeaning={addedByMeaning} placeholder="Search your matches…" style={{ margin: '0 0 18px' }} />
       <div className="dash-filter-row">
-        <Slider label="Vibe"  value={vibe}  onChange={setVibe}  lo="🌴 Chill" hi="Adrenaline 🪂" hint={vibeHint(vibe)} />
-        <Slider label="Price" value={price} onChange={setPrice} lo="✨ Free"   hi="Splurge 💸"    hint={priceHint(price)} />
+        <Slider label="Vibe"  value={vibe}  onChange={setVibe}  lo={<ChillEnd />} hi={<AdrenalineEnd />} hint={vibeHint(vibe)} />
+        <Slider label="Price" value={price} onChange={setPrice} lo={<FreeEnd />}  hi={<SplurgeEnd />}    hint={priceHint(price)} />
       </div>
       {loading ? (
         <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading…</p>
