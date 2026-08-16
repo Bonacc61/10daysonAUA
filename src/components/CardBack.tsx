@@ -317,14 +317,13 @@ export default function CardBack(props: Props) {
             Bring your own, or rent from {gear.shop}
           </div>
           <div style={{ fontSize: 10.5, lineHeight: 1.45, color: 'var(--sand-700)', marginTop: 3 }}>
-            Mask, snorkel and fins ${gear.fullSetHalfDayUsd} for a half day
-            (same-day return) or ${gear.fullSetDayUsd} for 24 hours; float vest
-            ${gear.vestUsd}. {gear.address} — {gear.hours}, closed {gear.closed}.
-            They ask for a {gear.deposit}. Rental only, no sales.{' '}
+            Set ${gear.fullSetHalfDayUsd} half-day, ${gear.fullSetDayUsd} for 24h;
+            vest ${gear.vestUsd}. {gear.town}, {gear.hours}, closed {gear.closed}.
+            They sell gear too, at prices they don&rsquo;t list.{' '}
             <a href={gear.source} target="_blank" rel="noopener noreferrer"
                style={{ color: 'var(--ink)', textDecoration: 'underline' }}>
               Their rates
-            </a>, as read on {gear.checkedOn}.
+            </a>, read {gear.checkedOn}.
           </div>
         </div>
       )}

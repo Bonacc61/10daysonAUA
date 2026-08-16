@@ -156,3 +156,27 @@ describe('CardBack — where to get gear for a free snorkel', () => {
     expect(screen.queryByText(/Aqua Windie's/)).not.toBeInTheDocument();
   });
 });
+
+describe('CardBack — the gear strip on a card that also has a Reddit quote', () => {
+  // baby-beach-snorkel has an ACTIVITY_REDDIT entry, so it takes the GRID path
+  // rather than the tip fallback — the layout where space is actually tight.
+  // The first version of the strip squeezed that grid from the 104px it needs
+  // down to 57px at a 280px card, cutting 47px off the quote. Measured in
+  // headless Chromium against the real stylesheet; after trimming the strip
+  // from 369 characters to 202 the clipping is 0px at 320px and 1px at 280px.
+  const babyBeach = (): Activity => ({
+    id: 'baby-beach-snorkel', title: 'Baby Beach & Snorkel Lagoon',
+    category: 'Beaches', image: '/x.webp',
+    description: "Aruba's best-kept secret on the southern tip.",
+    localsSay: '"Drive past the refinery and keep going." — Miguel',
+    cost: 'Free + $16 gear', duration: '3–4 hrs', timeOfDay: 'Morning',
+    fitReason: 'Calm water', location: 'Seroe Colorado, San Nicolas',
+    rating: 4.8, reviewCount: 1623, matched_by: [],
+  });
+
+  it('shows the Reddit quote AND the gear strip together', () => {
+    render(<CardBack kind="activity" activity={babyBeach()} onFlip={noop} />);
+    expect(screen.getByText(/Hidden gem if you make the drive/)).toBeInTheDocument();
+    expect(screen.getByText(/Aqua Windie's/)).toBeInTheDocument();
+  });
+})

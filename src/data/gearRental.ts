@@ -29,6 +29,8 @@
 export type GearRental = {
   shop: string;
   address: string;
+  /** Just the town — the strip has no room for a street and the link has one. */
+  town: string;
   /** Full set = mask, snorkel and fins. */
   fullSetHalfDayUsd: number;
   fullSetDayUsd: number;
@@ -36,11 +38,18 @@ export type GearRental = {
   hours: string;
   /** The day it is shut — a planning constraint, not trivia. */
   closed: string;
-  /** What the shop asks for before handing gear over. */
-  deposit: string;
-  /** False when no purchase option is advertised anywhere on the site. */
-  sells: boolean;
-  phone: string;
+  /**
+   * What the SNORKEL page says you do at the shop, in its own terms.
+   *
+   * Not the dive page's "credit card deposit, ID and scuba certification card
+   * (in case of scuba gear)" — that sits inside a scuba paragraph on
+   * /rental-equipment, and the page this card LINKS to names no deposit at all.
+   * A traveller who clicks through to check must find what we told them.
+   */
+  procedure: string;
+  /** Gear the shop's own assortment page lists. No prices are published. */
+  sellsItems: string[];
+  assortmentSource: string;
   source: string;
   checkedOn: string;
 };
@@ -48,17 +57,21 @@ export type GearRental = {
 export const SNORKEL_GEAR: GearRental = {
   shop: "Aqua Windie's",
   address: 'Caya Harmonia 4 (Lava Building), Oranjestad',
+  town: 'Oranjestad',
   fullSetHalfDayUsd: 16,
   fullSetDayUsd: 24,
   vestUsd: 6,
   hours: 'Mon–Sat 8am–5pm',
   closed: 'Sunday',
-  deposit: 'credit card + ID',
-  // Their site has a SHOP section, and everything in it is a rental. No retail
-  // or purchase option is advertised anywhere on it, so the card does not offer
-  // one. Absence of a claim is not a claim of absence — it says rental only.
-  sells: false,
-  phone: '+297 583 5669',
+  procedure: 'try the gear on and fill out a form',
+  // The SHOP menu has three items: Rent Dive Gear, Rent Snorkel Gear, and
+  // Assortment. The third is retail — "At our shop you can find: … Masks,
+  // Snorkels, … Snorkel fins" — with no prices anywhere on it. An earlier
+  // version of this file said "rental only, no sales" on the strength of the
+  // homepage alone; two of three pages surveyed is not grounds for a claim
+  // about the third.
+  sellsItems: ['masks', 'snorkels', 'snorkel fins'],
+  assortmentSource: 'https://www.aquawindies.com/assortment',
   source: 'https://www.aquawindies.com/rent-snorkel-gear',
   checkedOn: '2026-08-16',
 };

@@ -16,8 +16,35 @@ describe('the gear-rental record is about a real shop', () => {
     expect(SNORKEL_GEAR.fullSetDayUsd).toBe(24);
   });
 
-  it('says it is rental only, because no purchase is advertised', () => {
-    expect(SNORKEL_GEAR.sells).toBe(false);
+  it('names what the shop sells, because it does sell', () => {
+    // The first version said "Rental only, no sales" on the strength of the
+    // homepage. The SHOP menu has a third item, /assortment, which is a retail
+    // page: "At our shop you can find: … Masks, Snorkels, … Snorkel fins".
+    // Surveying two of three pages and asserting about the third is not
+    // "absence of a claim is not a claim of absence" — it is not having looked.
+    expect(SNORKEL_GEAR.sellsItems).toEqual(['masks', 'snorkels', 'snorkel fins']);
+    expect(SNORKEL_GEAR.assortmentSource).toMatch(/assortment$/);
+  });
+
+  it('quotes the procedure from the page it links to, not the scuba page', () => {
+    // "credit card deposit, ID and scuba certification card (in case of scuba
+    // gear)" is on /rental-equipment, inside a scuba paragraph. The snorkel
+    // page names no deposit at all: "try on the gear, fill out the application
+    // form, and take your rental equipment to the ocean!". A traveller who
+    // clicks the link must find what the card told them.
+    expect(SNORKEL_GEAR.procedure).toMatch(/form/i);
+    expect(SNORKEL_GEAR.procedure).not.toMatch(/credit card|deposit|ID/i);
+  });
+
+  it('carries no field the card does not render', () => {
+    // `sells` and `phone` were asserted by a test and rendered by nothing, so
+    // flipping `sells` would have gone red for a reason unrelated to the card,
+    // which reads as data-driven copy that was never data-driven.
+    expect(Object.keys(SNORKEL_GEAR).sort()).toEqual([
+      'address', 'assortmentSource', 'checkedOn', 'closed', 'fullSetDayUsd',
+      'fullSetHalfDayUsd', 'hours', 'procedure', 'sellsItems', 'shop',
+      'source', 'town', 'vestUsd',
+    ]);
   });
 
   it('records that the shop is shut on Sundays', () => {
