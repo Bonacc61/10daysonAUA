@@ -28,7 +28,12 @@ Live production app. Dutch law (GDPR) applies. Reddit launch imminent.
 - **Never log text a traveller typed** — not to console, not into an error body, not into a
   database column. Log the derived result instead. `itinerary-edit` logs the parsed
   constraint; `search` logs the result count. Neither logs the words.
-- **Two feature flags gate the AI features:** `VITE_NL_EDIT` and `VITE_SEMANTIC_SEARCH`.
+- **Three switches gate the AI features:** `VITE_NL_EDIT`, `VITE_SEMANTIC_SEARCH`, and
+  the `SEARCH_PARSE` secret on the `search` function — a Supabase secret rather than a
+  `VITE_` flag, with three states: unset (off for everyone), `probe` (off for ordinary
+  traffic, honoured only for a request that asks, for measurement) and `on`.
+  `.env.production` is the source of truth for the first two, `supabase secrets list`
+  for the third. The two `VITE_` ones:
   They send a traveller's own words to a US sub-processor, so flipping one is a legal
   decision, not a technical one — never enable either without working its checklist first
   (`docs/superpowers/specs/2026-08-11-natural-language-edit-design.md`,

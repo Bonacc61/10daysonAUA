@@ -96,7 +96,7 @@ export function searchEntries(
 
   let extras: ExploreEntry[] = [];
   if (intent) {
-    const eligible = buildPool(unsearchedPool(), { ...intent, boosts: [], matched: [] });
+    const eligible = buildPool(unsearchedPool(), { ...intent, boosts: [], matched: [], residual: '' });
     const byId = new Map(eligible.map((p) => [entryId(p.entry), p]));
     const seen = new Set(substringHits.map(entryId));
     const ranked: ExploreEntry[] = [];

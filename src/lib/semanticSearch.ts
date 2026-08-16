@@ -57,22 +57,23 @@ export function parseSearchBody(body: unknown): string[] | null {
  * indistinguishable in effect, but saying which happened is what makes a
  * failure debuggable without logging anyone's words.
  */
-export type QueryConstraint = { must: Concept[]; mustNot: Concept[]; residual: string };
+export type QueryConstraint = { must: Concept[]; mustNot: Concept[] };
 
 export function parseConstraintBody(body: unknown): QueryConstraint | null {
   const c = (body as { constraint?: unknown })?.constraint;
   if (!c || typeof c !== 'object') return null;
-  const { must, mustNot, residual } = c as Partial<QueryConstraint>;
+  const { must, mustNot } = c as Partial<QueryConstraint>;
   if (!Array.isArray(must) || !Array.isArray(mustNot)) return null;
   // The server sanitises against the same list; this checks it again rather
   // than trusting the wire, because a value the filter cannot act on would be a
   // silent no-op and a value it CAN act on wrongly is an invisible exclusion.
   const ok = (x: unknown): x is Concept =>
     typeof x === 'string' && (EMITTABLE_CONCEPTS as string[]).includes(x);
-  return {
-    must: must.filter(ok), mustNot: mustNot.filter(ok),
-    residual: typeof residual === 'string' ? residual : '',
-  };
+  // No `residual`, deliberately and permanently. It is a subset of the words the
+  // traveller typed — the whole query when the parse recognised nothing — and it
+  // stays inside the edge function for the lifetime of one request. Nothing here
+  // needs it: the filter acts on concepts, and the ranking already happened.
+  return { must: must.filter(ok), mustNot: mustNot.filter(ok) };
 }
 
 export type SearchOutcome =

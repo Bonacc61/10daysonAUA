@@ -15,9 +15,12 @@
 -- Privacy.tsx names it explicitly instead of leaving it covered by wording
 -- written for the vector alone.
 --
--- The concepts are a CLOSED vocabulary of ten (see supabase/functions/search/
--- parse.ts), none of which is a special category of data, and the phrase that
--- produced them is still never stored.
+-- ONLY the closed-vocabulary halves are stored — {must, mustNot} — and never the
+-- parse's `residual`, which is by construction a subset of the traveller's own
+-- words and is the WHOLE query when the parse recognised nothing. The concepts
+-- are a closed vocabulary of ten (see supabase/functions/search/parse.ts), none
+-- of which is a special category of data, and the phrase that produced them is
+-- still never stored.
 --
 -- `parsed_constraint`, not `constraint` — the latter is reserved in Postgres and
 -- would need quoting at every call site.
@@ -25,7 +28,7 @@ alter table public.query_embeddings
   add column if not exists parsed_constraint jsonb;
 
 comment on column public.query_embeddings.parsed_constraint is
-  'Structured reading of the hashed query: {must:[],mustNot:[],residual:""} over a closed vocabulary. Purged with the row at 30 days. Null on rows written before the parse existed, which the function treats as a cache miss rather than as "no constraint" — reusing one would pair a whole-query vector with a residual-query parse.';
+  'Structured reading of the hashed query: {must:[],mustNot:[]} over a closed vocabulary. Purged with the row at 30 days. Null on rows written before the parse existed, which the function treats as a cache miss rather than as "no constraint" — reusing one would pair a whole-query vector with a residual-query parse.';
 
 -- RLS is unchanged and stays enabled: this table is service-role only, reachable
 -- through the `search` edge function and from nowhere else. Adding a column does

@@ -29,12 +29,35 @@ export const EMITTABLE = [
   'swim', 'indoor',
 ] as const;
 
-export type ParsedConstraint = {
-  must: string[];
-  mustNot: string[];
-  /** What is left for the embedder. Empty means: make no semantic call at all. */
+/**
+ * What may be PERSISTED and what may be SENT: the closed vocabulary, nothing
+ * else. Deliberately a separate type from ParsedConstraint so that storing the
+ * traveller's words takes a deliberate act rather than an absent-minded spread.
+ */
+export type StoredConstraint = { must: string[]; mustNot: string[] };
+
+export type ParsedConstraint = StoredConstraint & {
+  /**
+   * What is left for the embedder. Empty means: make no semantic call at all.
+   *
+   * IN-MEMORY ONLY, FOR THE LIFETIME OF ONE REQUEST. This is a subset of the
+   * traveller's own words — and the whole query verbatim when nothing was
+   * recognised, see sanitise() — so it must never be written to a column,
+   * returned to the client, or logged. Never widen StoredConstraint to include
+   * it.
+   */
   residual: string;
 };
+
+/**
+ * The ONLY way a constraint may leave this function — to the database or to the
+ * browser. One named place, because the alternative is remembering, and
+ * remembering already failed once: the constraint was persisted whole, which put
+ * the traveller's own words in a column for 30 days under a comment that said
+ * "the text is never written". A test asserts this drops the residual.
+ */
+export const forStorage = (c: ParsedConstraint): StoredConstraint =>
+  ({ must: c.must, mustNot: c.mustNot });
 
 const MODEL = 'gpt-5-mini';
 // A parse is on the traveller's critical path. Past this, the search is better

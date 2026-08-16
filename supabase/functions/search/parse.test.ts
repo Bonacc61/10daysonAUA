@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitise, EMITTABLE } from './parse';
+import { sanitise, forStorage, EMITTABLE } from './parse';
 import { EMITTABLE_CONCEPTS } from '../../../src/lib/searchConstraint';
 
 // Only `sanitise` is tested, and deliberately: it is the pure half, and it is
@@ -60,5 +60,27 @@ describe('sanitise', () => {
     // alias table. A parse with an empty `must` is not an empty parse.
     const out = sanitise({ must: [], mustNot: ['boat'], residual: '' }, 'we get seasick');
     expect(out).toEqual({ must: [], mustNot: ['boat'], residual: '' });
+  });
+});
+
+describe('the residual never leaves this function', () => {
+  it('forStorage drops it, and is the only way out', () => {
+    // This is a REGRESSION TEST for a shipped-then-caught mistake, not a
+    // hypothetical. The constraint was persisted whole into
+    // query_embeddings.parsed_constraint for 30 days, under a comment reading
+    // "the text is never written".
+    const c = { must: ['cheap'], mustNot: ['boat'], residual: 'dinner live music' };
+    const out = forStorage(c);
+    expect(out).toEqual({ must: ['cheap'], mustNot: ['boat'] });
+    expect(Object.keys(out)).not.toContain('residual');
+  });
+
+  it('and the case that made it serious: an unrecognised query IS the residual', () => {
+    // sanitise hands the WHOLE query back when it recognises nothing, so the
+    // stored object would have been the traveller's sentence verbatim — and the
+    // prompt deliberately steers proper nouns down exactly this path.
+    const parsed = sanitise({ must: [], mustNot: [], residual: '' }, 'my mother uses a walker');
+    expect(parsed!.residual).toBe('my mother uses a walker');
+    expect(JSON.stringify(forStorage(parsed!))).not.toContain('walker');
   });
 });

@@ -21,13 +21,27 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { embedBatch, activeProvider, MODEL_ID, isSearchableProvider } from '../viator-cards/embeddings.ts';
-import { parseConstraint, type ParsedConstraint } from './parse.ts';
+import { parseConstraint, forStorage, type ParsedConstraint, type StoredConstraint } from './parse.ts';
 
 // Layer 2 is OFF unless a secret says otherwise, so deploying this function is
 // inert. Enabling it costs a model call per NEW phrasing and changes what
 // results a traveller sees, which makes it a decision rather than a deploy —
 // the same footing as the VITE_ flags, one layer down. Rollback is unsetting it.
-const PARSE_ENABLED = Deno.env.get('SEARCH_PARSE') === 'on';
+// THREE STATES, and the body field is not one of them.
+//
+//   unset    the parse cannot run at all, for anyone
+//   'probe'  off for ordinary traffic; honoured ONLY for a request that asks
+//   'on'     on for everyone
+//
+// `{parse: true}` alone used to be enough, which handed a switch the operator
+// had deliberately left dark to any caller — and VITE_SUPABASE_ANON_KEY is
+// intentionally public, so "any caller" means anyone with the bundle. It also
+// made "rollback is unsetting the secret" false. .claude/CLAUDE.md is explicit
+// that turning an AI feature on is a legal decision rather than a technical
+// one; a request body must not be able to take it.
+const PARSE_MODE = Deno.env.get('SEARCH_PARSE') ?? '';
+const PARSE_ENABLED = PARSE_MODE === 'on';
+const PARSE_PROBEABLE = PARSE_MODE === 'probe';
 
 const MAX_QUERY = 200;
 const MATCH_COUNT = 30;
@@ -137,7 +151,7 @@ Deno.serve(async (req) => {
   if (!query) return json({ error: 'empty' }, 400);
   if (query.length > MAX_QUERY) return json({ error: 'too long' }, 400);
 
-  const parseOn = PARSE_ENABLED || wantParse;
+  const parseOn = PARSE_ENABLED || (PARSE_PROBEABLE && wantParse);
 
   const limited = await checkLimits(await callerHash(req));
   if (limited) return limited;
@@ -191,7 +205,11 @@ Deno.serve(async (req) => {
     // A cached vector from a different model is ignored, never reused.
     if (cached?.model === model && cached.embedding) {
       vector = typeof cached.embedding === 'string' ? JSON.parse(cached.embedding) : cached.embedding;
-      constraint = parseOn ? ((cached.parsed_constraint as ParsedConstraint | null) ?? null) : null;
+      // The stored shape has NO residual — see the upsert below. `residual` is
+      // only ever needed to decide what to embed, and on a cache hit that is
+      // already decided, so '' here is not a loss.
+      const stored = parseOn ? (cached.parsed_constraint as StoredConstraint | null) ?? null : null;
+      constraint = stored ? { ...stored, residual: '' } : null;
     }
     // THE CACHE HOLDS ONE OF TWO INCOMPATIBLE THINGS, and a row is only usable
     // by the mode that wrote it. A parsed search embeds the RESIDUAL; an
@@ -220,9 +238,12 @@ Deno.serve(async (req) => {
   // constraints already say what it meant: no provider call, no rate-limit cost,
   // no cache row, and the traveller's text never leaves this function. The
   // client filters its own catalog by the constraint and has nothing to rank.
-  if (constraint && !toEmbed) {
+  // `!vector` matters: with a cached vector there IS something to rank, and the
+  // stored constraint carries no residual, so without this guard a cache hit
+  // would return an empty result set for a query that had perfectly good ids.
+  if (constraint && !toEmbed && !vector) {
     console.log(`[search] compiled whole: must=${constraint.must} mustNot=${constraint.mustNot}`);
-    return json({ results: [], constraint });
+    return json({ results: [], constraint: forStorage(constraint) });
   }
 
   if (!vector) {
@@ -234,11 +255,23 @@ Deno.serve(async (req) => {
       const [v] = await embedBatch([toEmbed]);
       if (!v) throw new Error('empty embedding');
       vector = v;
-      // Store the vector against the hash. The text is never written.
+      // Store the vector against the hash. THE TEXT IS NEVER WRITTEN, and that
+      // required care rather than intent: `residual` is BY CONSTRUCTION a subset
+      // of the words the traveller typed, and when nothing is recognised
+      // `sanitise` hands back the WHOLE query as the residual — so persisting
+      // the constraint whole would have put "my mother uses a walker" in a
+      // database column for 30 days. Only the closed-vocabulary halves are
+      // stored, which is what Privacy.tsx describes and what the invariant in
+      // .claude/CLAUDE.md requires.
+      //
+      // Written UNCONDITIONALLY, null included. PostgREST's merge-duplicates
+      // upsert only touches columns present in the payload, so omitting the key
+      // on the unparsed path left a STALE constraint beside a fresh whole-query
+      // vector — a pairing both miss-checks above would then wave through.
       await db.from('query_embeddings')
         .upsert({
           query_hash: hash, embedding: JSON.stringify(v), model,
-          ...(constraint ? { parsed_constraint: constraint } : {}),
+          parsed_constraint: constraint ? forStorage(constraint) : null,
         }, { onConflict: 'query_hash' });
     } catch (e) {
       // Name only — an embedding provider's error body can quote the input back.
@@ -265,5 +298,5 @@ Deno.serve(async (req) => {
   // result over a closed vocabulary, which is the same line itinerary-edit
   // draws: it logs the parse, not the sentence.
   console.log(`[search] ${results.length} results${constraint ? ` must=${constraint.must} mustNot=${constraint.mustNot}` : ''}`);
-  return json(constraint ? { results, constraint } : { results });
+  return json(constraint ? { results, constraint: forStorage(constraint) } : { results });
 });

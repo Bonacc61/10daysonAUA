@@ -185,10 +185,13 @@ async function search(q) {
   const r = await fetch(FN, {
     method: 'POST',
     headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, 'Content-Type': 'application/json' },
-    // Opt IN to the parse for this request only. The function's SEARCH_PARSE
-    // secret stays unset, so live traffic is untouched while this measures the
-    // real end state — the alternative was enabling it globally first and
-    // measuring afterwards, i.e. shipping in order to find out.
+    // Opt IN to the parse for this request only. Honoured ONLY when the
+    // operator has set SEARCH_PARSE=probe on the function: ordinary traffic
+    // stays unparsed, and the switch remains the operator's rather than any
+    // caller's. With the secret unset this field does nothing and the run
+    // measures today's behaviour, which is a truthful result rather than a
+    // silent one. `=on` would enable it for everyone, which is the decision
+    // this measurement exists to inform.
     body: JSON.stringify({ query: q, parse: true }),
   });
   if (!r.ok) return { status: r.status, ids: [], constraint: null };
