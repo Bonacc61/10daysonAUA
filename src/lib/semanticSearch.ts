@@ -1,5 +1,7 @@
 // Search by meaning — the client half.
 //
+import { EMITTABLE_CONCEPTS, type Concept } from './searchConstraint';
+
 // Gated on VITE_SEMANTIC_SEARCH. With the flag unset nothing here reaches the
 // network, which is how the feature ships merged but dark while the Privacy
 // Policy entry and the sub-processor question are settled. A search box is free
@@ -46,8 +48,35 @@ export function parseSearchBody(body: unknown): string[] | null {
     .filter((id): id is string => typeof id === 'string' && id.length > 0);
 }
 
+/**
+ * The constraint the server parsed, or null when it parsed nothing.
+ *
+ * `null` is not "no constraints" — it is "the parse did not happen", which is
+ * the same distinction `ok: false` draws for the ids. A null constraint must
+ * leave the pool untouched; an empty one would filter with nothing and is
+ * indistinguishable in effect, but saying which happened is what makes a
+ * failure debuggable without logging anyone's words.
+ */
+export type QueryConstraint = { must: Concept[]; mustNot: Concept[]; residual: string };
+
+export function parseConstraintBody(body: unknown): QueryConstraint | null {
+  const c = (body as { constraint?: unknown })?.constraint;
+  if (!c || typeof c !== 'object') return null;
+  const { must, mustNot, residual } = c as Partial<QueryConstraint>;
+  if (!Array.isArray(must) || !Array.isArray(mustNot)) return null;
+  // The server sanitises against the same list; this checks it again rather
+  // than trusting the wire, because a value the filter cannot act on would be a
+  // silent no-op and a value it CAN act on wrongly is an invisible exclusion.
+  const ok = (x: unknown): x is Concept =>
+    typeof x === 'string' && (EMITTABLE_CONCEPTS as string[]).includes(x);
+  return {
+    must: must.filter(ok), mustNot: mustNot.filter(ok),
+    residual: typeof residual === 'string' ? residual : '',
+  };
+}
+
 export type SearchOutcome =
-  | { ok: true; ids: string[] }    // searched; ids may legitimately be empty
+  | { ok: true; ids: string[]; constraint: QueryConstraint | null }
   | { ok: false };                 // did not search — disabled, offline, refused, malformed
 
 export async function searchByMeaning(query: string): Promise<SearchOutcome> {
@@ -66,8 +95,12 @@ export async function searchByMeaning(query: string): Promise<SearchOutcome> {
       body: JSON.stringify({ query: q }),
     });
     if (!r.ok) return { ok: false };
-    const ids = parseSearchBody(await r.json());
-    return ids === null ? { ok: false } : { ok: true, ids };
+    const body = await r.json();
+    const ids = parseSearchBody(body);
+    // A fully compiled query returns `results: []` with a constraint — searched
+    // successfully, nothing to rank. That is an `ok: true` with no ids, not a
+    // failure, and collapsing the two would throw away the whole parse.
+    return ids === null ? { ok: false } : { ok: true, ids, constraint: parseConstraintBody(body) };
   } catch {
     return { ok: false };
   }

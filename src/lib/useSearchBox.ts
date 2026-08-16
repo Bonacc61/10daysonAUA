@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { searchByMeaning, semanticSearchEnabled } from './semanticSearch';
+import { searchByMeaning, semanticSearchEnabled, type QueryConstraint } from './semanticSearch';
 import type { SemanticState } from './entrySearch';
 
 /**
@@ -32,6 +32,7 @@ export type SearchBox = {
 export function useSearchBox(): SearchBox {
   const [query, setQueryRaw] = useState('');
   const [ids, setIds] = useState<string[]>([]);
+  const [constraint, setConstraint] = useState<QueryConstraint | null>(null);
   const [answers, setAnswers] = useState('');   // the query those ids answer
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -54,6 +55,7 @@ export function useSearchBox(): SearchBox {
     setPending(false);
     if (!out.ok) { setFailed(true); return; }
     setIds(out.ids);
+    setConstraint(out.constraint);
     setAnswers(q);
   };
 
@@ -62,7 +64,7 @@ export function useSearchBox(): SearchBox {
   // defeats their memo — measured at 0.25 ms of needless work per render of the
   // Personalized panel on the live catalog. Small, but the memo is a lie without
   // this and the cost grows with the catalog.
-  const semantic = useMemo(() => ({ ids, answers }), [ids, answers]);
+  const semantic = useMemo(() => ({ ids, answers, constraint }), [ids, answers, constraint]);
 
   return {
     query, setQuery, clear: () => setQuery(''),

@@ -1,5 +1,7 @@
-import { blendSearchResults, entryExcludedByFlags, type ExploreEntry } from '../data/exploreItems';
+import { blendSearchResults, entryExcludedByFlags, entryId, type ExploreEntry } from '../data/exploreItems';
 import { flagsFromNotes } from '../data/notesFlags';
+import { buildPool } from './searchPool';
+import type { QueryConstraint } from './semanticSearch';
 
 /**
  * What a search box does to a list of entries, in one place.
@@ -30,6 +32,11 @@ export type SemanticState = {
   ids: string[];
   /** The query those ids answer. Blending is skipped unless it matches. */
   answers: string;
+  /**
+   * What the server understood the query to MEAN, or null when it parsed
+   * nothing. Null leaves the pool untouched — today's behaviour exactly.
+   */
+  constraint?: QueryConstraint | null;
 };
 
 export type SearchResult = {
@@ -54,7 +61,13 @@ export function searchEntries(
   unsearchedPool: () => ExploreEntry[],
   semantic: SemanticState,
 ): SearchResult {
-  const blendable = query.trim() === semantic.answers && semantic.ids.length > 0;
+  // ANSWERED and BLENDABLE are different questions, and they only looked like
+  // one question while ids were the whole of a search result. A query the parse
+  // compiled completely comes back with a constraint and NO ids — searched
+  // successfully, nothing left to rank — so requiring an id here silently threw
+  // the entire parse away. Caught by a test, not by reading.
+  const answered = query.trim() === semantic.answers;
+  const blendable = answered && semantic.ids.length > 0;
   // The pool is a thunk because building it allocates the whole catalog and
   // re-derives every section. Passing it eagerly cost that on every keystroke
   // for a branch that is not taken while the flag is dark.
@@ -62,9 +75,45 @@ export function searchEntries(
   // blendSearchResults appends its extras after the hits it was given, so the
   // tail IS the semantic contribution — which is what makes counting it honest
   // rather than inferred from a length difference.
-  const extras = blendable
-    ? blendSearchResults(substringHits, semantic.ids, unsearchedPool()).slice(substringHits.length)
-    : [];
+  // THE CONSTRAINT FILTERS; THE EMBEDDING ONLY ORDERS WHAT SURVIVES.
+  //
+  // Two things are appended below the substring hits, in this order:
+  //
+  //  1. the ranked ids, kept only where they satisfy the constraint — this is
+  //     what stops "half day trip that isn't a boat" returning boats, and no
+  //     amount of better ranking could have done it;
+  //  2. everything ELSE that satisfies the constraint. If 45 activities conform,
+  //     45 is the right answer, and the ranker's 30 was only ever a bound on how
+  //     many could be ORDERED, never on how many qualify. A query the parse
+  //     compiled whole returns no ids at all, and this is the entire result.
+  //
+  // Unranked entries are ordered by how much the data actually KNOWS about them
+  // (`unknowns` ascending), so an activity a facet cleared outranks one nothing
+  // has judged. It is not a relevance score and does not pretend to be.
+  const intent = answered && semantic.constraint
+    && (semantic.constraint.must.length > 0 || semantic.constraint.mustNot.length > 0)
+    ? semantic.constraint : null;
+
+  let extras: ExploreEntry[] = [];
+  if (intent) {
+    const eligible = buildPool(unsearchedPool(), { ...intent, boosts: [], matched: [] });
+    const byId = new Map(eligible.map((p) => [entryId(p.entry), p]));
+    const seen = new Set(substringHits.map(entryId));
+    const ranked: ExploreEntry[] = [];
+    for (const id of semantic.ids) {
+      const hit = byId.get(id);
+      if (!hit || seen.has(id)) continue;
+      seen.add(id);
+      ranked.push(hit.entry);
+    }
+    const rest = eligible
+      .filter((p) => !seen.has(entryId(p.entry)))
+      .sort((a, b) => a.unknowns - b.unknowns)
+      .map((p) => p.entry);
+    extras = [...ranked, ...rest];
+  } else if (blendable) {
+    extras = blendSearchResults(substringHits, semantic.ids, unsearchedPool()).slice(substringHits.length);
+  }
 
   const flags = new Set(flagsFromNotes(query));
   if (flags.size === 0) {

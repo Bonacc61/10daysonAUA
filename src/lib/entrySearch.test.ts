@@ -125,3 +125,81 @@ describe('searchEntries — what it reports as added by meaning', () => {
     expect(out.addedByMeaning).toBe(0);
   });
 });
+
+describe('a parsed constraint filters the pool the ranker draws from', () => {
+  // Vessel is what the "isn't a boat" family of queries turns on, and it is the
+  // clearest case: a catamaran is aboard something, a shore snorkel explicitly
+  // is not, and an unjudged product is neither.
+  const catamaran = itemEntry('cat', { vessel: 'catamaran', title: 'Catamaran Sail' });
+  const shore = itemEntry('shore', { vessel: null, title: 'Shore Snorkel' });
+  const unjudged = itemEntry('unjudged', { title: 'Island Tour' });
+  const pool = () => [catamaran, shore, unjudged];
+
+  it('drops a ranked result that contradicts the constraint', () => {
+    // The failure this whole layer exists for: measured 2026-08-16, "half day
+    // trip that isn't a boat" returned three boats in its top five. Better
+    // ranking could never have fixed it — cosine has no way to push a match
+    // away, only to lift others past it.
+    const out = entriesOf('half day trip that is not a boat', [], pool, {
+      ids: ['cat', 'shore'], answers: 'half day trip that is not a boat',
+      constraint: { must: [], mustNot: ['boat'], residual: 'half day trip' },
+    });
+    expect(ids(out)).not.toContain('cat');
+    expect(ids(out)).toContain('shore');
+  });
+
+  it('KEEPS an entry the data has not judged', () => {
+    // An unknown is never excluded by a mustNot. A false exclusion is invisible
+    // — nobody sees what they were not shown — and 114 of 328 products carry no
+    // vessel judgement at all.
+    const out = entriesOf('not a boat', [], pool, {
+      ids: [], answers: 'not a boat',
+      constraint: { must: [], mustNot: ['boat'], residual: '' },
+    });
+    expect(ids(out)).toContain('unjudged');
+  });
+
+  it('returns everything that conforms, not only what the ranker ordered', () => {
+    // A cap on ranked ids is a bound on how many can be ORDERED, never on how
+    // many qualify. Here the ranker named one id and two entries conform.
+    const out = entriesOf('not a boat', [], pool, {
+      ids: ['shore'], answers: 'not a boat',
+      constraint: { must: [], mustNot: ['boat'], residual: '' },
+    });
+    expect(ids(out)).toEqual(['shore', 'unjudged']);
+  });
+
+  it('answers a fully compiled query with no ranked ids at all', () => {
+    // The parse consumed the whole query, so the server made no embedding call
+    // and returned nothing to rank. The constraint alone is the answer.
+    const out = entriesOf('not a boat', [], pool, {
+      ids: [], answers: 'not a boat',
+      constraint: { must: [], mustNot: ['boat'], residual: '' },
+    });
+    expect(ids(out).sort()).toEqual(['shore', 'unjudged']);
+  });
+
+  it('changes nothing when the parse did not happen', () => {
+    // The no-op fallthrough, which is the promise that search never gets WORSE
+    // than it is now. A null constraint must behave exactly as before it existed.
+    const withNull = entriesOf('catamaran', [], pool, {
+      ids: ['cat'], answers: 'catamaran', constraint: null,
+    });
+    const withAbsent = entriesOf('catamaran', [], pool, {
+      ids: ['cat'], answers: 'catamaran',
+    });
+    expect(ids(withNull)).toEqual(['cat']);
+    expect(ids(withAbsent)).toEqual(['cat']);
+  });
+
+  it('leaves substring hits first and unfiltered', () => {
+    // The substring layer is permanently load-bearing: it serves proper nouns,
+    // which cosine blurs. A constraint bounds what MEANING may add, never what
+    // the traveller's own literal words already matched.
+    const out = entriesOf('catamaran', [catamaran], pool, {
+      ids: ['shore'], answers: 'catamaran',
+      constraint: { must: [], mustNot: ['boat'], residual: '' },
+    });
+    expect(ids(out)[0]).toBe('cat');
+  });
+});

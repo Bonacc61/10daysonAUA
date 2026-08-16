@@ -39,7 +39,7 @@ export default function Privacy({ setPage }: Props) {
                   ['Shared itinerary snapshot', 'Powers your share link', 'Legitimate interest', 'Until you delete it or your account'],
                   ['Text you type into an AI feature', 'To turn what you asked for into a change to your plan, or into search results', 'Contract', 'Not stored — see “AI features” below'],
                   ['Your IP address, hashed (AI features only)', 'Rate-limiting, so nobody can run up our costs', 'Legitimate interest', '24 hours'],
-                  ['A scrambled fingerprint of a search phrase, and its numeric form (only if you use search-by-meaning)', 'So a repeat search costs nothing and is not sent abroad again', 'Legitimate interest', '30 days'],
+                  ['A scrambled fingerprint of a search phrase, its numeric form, and a short structured reading of it — for example “no boats” (only if you use search-by-meaning)', 'So a repeat search costs nothing and is not sent abroad again, and so we can rule out activities you asked us to rule out', 'Legitimate interest', '30 days'],
                   ['Which activities you swap, add, remove or move, against a random id stored in your browser', 'To learn which suggestions actually work and improve the matching for everyone', 'Consent — only if you accept', '24 months'],
                 ].map(([what, why, basis, kept]) => (
                   <tr key={what} style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
@@ -100,6 +100,14 @@ export default function Privacy({ setPage }: Props) {
               search-by-meaning, we store a scrambled fingerprint of the phrase together with the list of numbers it
               was turned into, for 30 days. That is what lets a repeat search &mdash; and people search for the same
               handful of things &mdash; skip the outside company entirely.
+            </p>
+            <p style={{ fontSize: 14, lineHeight: 1.7, margin: '0 0 12px' }}>
+              Alongside those numbers we now also keep a <strong>short structured reading</strong> of the same phrase,
+              for the same 30 days. If you type &ldquo;somewhere quiet, we get seasick&rdquo;, that reading is roughly
+              &ldquo;calm, no boats&rdquo; &mdash; picked from a fixed list of about ten labels, so it can never contain
+              anything you wrote. We keep it because it is what actually rules boats out of your results, rather than
+              merely ranking them lower. It is worth saying plainly that this is more readable than a list of numbers
+              is: the phrase itself is still only ever stored scrambled, and the reading is deleted with it.
             </p>
             <p style={{ fontSize: 14, lineHeight: 1.7, margin: '0 0 12px' }}>
               The phrase itself is never stored, and the fingerprint is scrambled with a secret only our server knows,
