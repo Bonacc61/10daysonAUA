@@ -62,7 +62,8 @@ execFileSync('node_modules/.bin/esbuild', [
       ? { title: e.activity.title, curated: true }
       : { title: e.item.title, price_usd: e.item.price_usd, vessel: e.item.vessel,
           setting: e.item.setting, physical: e.item.physical, kids: e.item.kids,
-          adventure: e.item.adventure, swim_required: e.item.swim_required, indoor: e.item.indoor };
+          adventure: e.item.adventure, swim_required: e.item.swim_required, indoor: e.item.indoor,
+          toddler_ok: e.item.toddler_ok };
     // Read the job from stdin: [{ q, ids, constraint }]
     const jobs = JSON.parse(process.argv[2]);
     const out = {};

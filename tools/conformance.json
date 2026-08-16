@@ -33,6 +33,17 @@
   ],
   "decidable": [
     {
+      "q": "good with toddler",
+      "why": "Reported from the live site 2026-08-16: still a wall of UTVs. Verified against the deployed function that day — of the 30 ids it returns, 26 of the 28 that resolve are ruled out by `toddler_ok`, including every UTV and jeep safari. Nothing was regressing; none of the filter was deployed. This query exists so that can never again be a thing someone has to notice by hand.",
+      "rules": [
+        {
+          "facet": "toddler_ok",
+          "op": "isTrue",
+          "why": "the judgement pass read minimum ages of 3 and 4 that CONTRADICT the operator's own child-friendly checkbox — 15 off-road products advertise 'specialized infant seats are available'. `kids.baby_ok` alone cannot express that, which is why the facet exists."
+        }
+      ]
+    },
+    {
       "q": "half day trip that isn't a boat",
       "why": "Measured 2026-08-16: three of the top five were boats. Saying 'boat' embeds next to boats, and cosine has no NOT.",
       "rules": [
