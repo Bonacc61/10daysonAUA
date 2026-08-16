@@ -21,8 +21,26 @@ export type EnrichmentRecord = {
   adventure?: number;               // 0 chill … 100 adrenaline
   physical?: { demand: 'low' | 'moderate' | 'high'; mobility_ok: boolean };
   kids?: { min_age: number; baby_ok: boolean };
+  /** Where the activity physically happens. Answers "beach", "indoors when it rains". */
+  setting?: 'beach' | 'ocean' | 'land' | 'town' | 'mixed';
+  /** What you are ON, if anything. `null` means explicitly not a vessel. */
+  vessel?: 'boat' | 'catamaran' | 'submarine' | 'jetski' | null;
   confidence: 'high' | 'medium' | 'low';
   evidence?: string;                // VERBATIM span from the product description
+  // Internal, filter-only. Excludes a product from a toddler pool; never
+  // rendered, never quoted, and deliberately carries NO evidence requirement
+  // because the judgement behind it (docs/map/judged-toddler-ok.json) produced
+  // reasons in the model's own words rather than spans from the listing.
+  toddler_ok?: boolean;
+  /**
+   * `toddler_ok`'s OWN confidence, because a row's facets are written by two
+   * different passes and mean different things. The record-level `confidence`
+   * belongs to the extraction pass (setting, kind, adventure); a `medium` there
+   * says nothing about a judgement pass's verdict, and gating on it disabled 70
+   * of 287 perfectly good toddler verdicts. Absent on rows written before the
+   * split, which fall back to the record confidence.
+   */
+  toddler_ok_confidence?: 'high' | 'medium' | 'low';
 };
 
 export type EnrichmentSnapshot = Record<string, EnrichmentRecord>;
@@ -66,6 +84,22 @@ export function mergeEnrichment(items: ViatorItem[], snapshot: EnrichmentSnapsho
         && item.adventure === undefined) {
         add.adventure = rec.adventure;
       }
+    }
+
+    // Exclusionary, so HIGH confidence only — the design doc's lesson from the
+    // pilot is that the products which leaked through a looser prompt were all
+    // low confidence and all hedged. No evidence needed: nothing renders it.
+    if ((rec.toddler_ok_confidence ?? rec.confidence) === 'high'
+      && typeof rec.toddler_ok === 'boolean') {
+      add.toddler_ok = rec.toddler_ok;
+    }
+
+    // Exclusionary, like toddler_ok, so HIGH confidence only — the pilot's
+    // lesson was that everything which leaked through a looser bar was low
+    // confidence and hedged. No evidence requirement: neither is rendered.
+    if (rec.confidence === 'high') {
+      if (rec.setting) add.setting = rec.setting;
+      if (rec.vessel !== undefined) add.vessel = rec.vessel;
     }
 
     if (rec.confidence === 'high' && rec.evidence) {

@@ -121,3 +121,69 @@ describe('mergeEnrichment — absence', () => {
     expect(original.adventure).toBeUndefined();
   });
 });
+
+describe('mergeEnrichment — toddler_ok is a filter, not a promise', () => {
+  // The 2026-08-15 pilot (docs/map/judged-toddler-ok.json) judged 327 products
+  // with a verdict, a confidence and the model's own prose reason — but NO
+  // verbatim span from the listing. `evidence` is rendered to travellers word
+  // for word, so filling it with model prose would have the site present
+  // generated text as the operator's own. This facet is therefore internal:
+  // buildPool may exclude on it, nothing may quote it.
+  it('attaches toddler_ok at high confidence without needing evidence', () => {
+    const snap: EnrichmentSnapshot = { a1: { toddler_ok: false, confidence: 'high' } };
+    const [out] = mergeEnrichment([item('a1')], snap);
+    expect(out.toddler_ok).toBe(false);
+  });
+
+  it('attaches a positive verdict too', () => {
+    const snap: EnrichmentSnapshot = { a1: { toddler_ok: true, confidence: 'high' } };
+    expect(mergeEnrichment([item('a1')], snap)[0].toddler_ok).toBe(true);
+  });
+
+  it('drops a low-confidence verdict', () => {
+    // The design doc is explicit: low confidence is not eligible for an
+    // exclusionary facet. The four Jeeps that leaked through a looser prompt
+    // were all low confidence and all hedged.
+    const snap: EnrichmentSnapshot = { a1: { toddler_ok: false, confidence: 'low' } };
+    expect(mergeEnrichment([item('a1')], snap)[0].toddler_ok).toBeUndefined();
+  });
+
+  it('never sets evidence from a toddler_ok record', () => {
+    const snap: EnrichmentSnapshot = { a1: { toddler_ok: false, confidence: 'high' } };
+    expect(mergeEnrichment([item('a1')], snap)[0].evidence).toBeUndefined();
+  });
+});
+
+describe('confidence belongs to a facet, not to a record', () => {
+  // The toddler verdicts are written by tools/map-toddler-pilot.cjs from a
+  // judgement pass; `setting`, `kind` and `adventure` are written by
+  // tools/enrich-catalog.ts from a later extraction pass. They share one row,
+  // and they shared one `confidence` field — so when the extraction pass wrote
+  // `medium` about where an activity happens, it silently disabled a high
+  // confidence verdict about whether a toddler belongs there. 70 of 287.
+  it('keeps a high-confidence toddler verdict when the record is medium', () => {
+    const snap: EnrichmentSnapshot = {
+      a1: { toddler_ok: false, toddler_ok_confidence: 'high', confidence: 'medium' },
+    };
+    expect(mergeEnrichment([item('a1')], snap)[0].toddler_ok).toBe(false);
+  });
+
+  it('still drops a low-confidence toddler verdict', () => {
+    const snap: EnrichmentSnapshot = {
+      a1: { toddler_ok: false, toddler_ok_confidence: 'low', confidence: 'high' },
+    };
+    expect(mergeEnrichment([item('a1')], snap)[0].toddler_ok).toBeUndefined();
+  });
+
+  it('falls back to the record confidence for rows written before the split', () => {
+    const snap: EnrichmentSnapshot = { a1: { toddler_ok: true, confidence: 'high' } };
+    expect(mergeEnrichment([item('a1')], snap)[0].toddler_ok).toBe(true);
+  });
+
+  it('does not let a medium record confidence gate setting or vessel', () => {
+    // Those ARE the extraction pass's own facets, so the record confidence is
+    // theirs and still governs them.
+    const snap: EnrichmentSnapshot = { a1: { setting: 'beach', confidence: 'medium' } };
+    expect(mergeEnrichment([item('a1')], snap)[0].setting).toBeUndefined();
+  });
+});

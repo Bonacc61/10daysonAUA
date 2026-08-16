@@ -21,7 +21,16 @@ import type { EnrichmentRecord, EnrichmentSnapshot } from '../src/data/enrichmen
 import type { ViatorItem } from '../src/types';
 
 const SNAPSHOT = 'src/data/enrichment.json';
-const MODEL = 'claude-opus-5';
+// Haiku, deliberately. The account has no Opus-tier quota — an 8-token request
+// 429s on claude-opus-5 and claude-opus-4-8 while this returns 200 on the same
+// key — and this task is extraction, not deep reasoning: the 287 toddler_ok
+// records already in the snapshot came from gpt-5-mini and held up under audit
+// (68/68 off-road rides excluded, each one checked by hand).
+const MODEL = 'claude-haiku-4-5';
+
+// `effort` is rejected outright by Haiku 4.5 — it is an Opus/Sonnet control.
+// Sending it 400s every batch, so it is included only where it is accepted.
+const SUPPORTS_EFFORT = !/haiku/.test(MODEL);
 const BATCH = 20;
 
 const argv = process.argv.slice(2);
@@ -57,6 +66,17 @@ const RECORD_SCHEMA = {
       required: ['min_age', 'baby_ok'],
       additionalProperties: false,
     },
+    setting: {
+      type: 'string', enum: ['beach', 'ocean', 'land', 'town', 'mixed'],
+      description: 'Where the activity PHYSICALLY happens. beach = on or at a beach; ocean = on or in open water away from shore; land = inland/outdoors; town = streets, buildings, indoors; mixed = genuinely both. Judge what a traveller would be standing on or in.',
+    },
+    // A 'none' sentinel rather than a nullable type: structured outputs reject
+    // `type: ['string','null']` with an enum ("Enum value 'boat' does not match
+    // declared type"). Same shape `kind` already uses. Mapped to null on the way in.
+    vessel: {
+      type: 'string', enum: ['boat', 'catamaran', 'submarine', 'jetski', 'none'],
+      description: 'What the traveller is ABOARD for the main part of the activity, or "none" if they are not aboard anything. A shore snorkel is "none". A catamaran snorkel is "catamaran".',
+    },
     confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
     evidence:   { type: 'string', description: 'A VERBATIM span copied from the description that backs physical/kids. Copy it exactly — do not paraphrase, summarise or invent. Omit if the description does not say.' },
   },
@@ -84,7 +104,11 @@ evidence is a VERBATIM span copied from the description, and it is REQUIRED for 
 
 adventure judges the experience, not the copywriting. A "thrilling" sunset catamaran with an open bar is a 20. A UTV through Arikok is an 80.
 
-kind must be one of the listed values or "none". Do not stretch a value to fit: a submarine tour is "none", not "dive".`;
+kind must be one of the listed values or "none". Do not stretch a value to fit: a submarine tour is "none", not "dive".
+
+setting and vessel describe WHAT THE ACTIVITY PHYSICALLY INVOLVES, and they are the two fields most likely to be corrupted by marketing. Ignore claims about who will enjoy it — "fun for all ages", "perfect for the whole family", "an unforgettable experience for everyone" say nothing about where you stand or what you are aboard. Ask only: at the main part of this activity, what is under the traveller's feet, and are they on a vessel? A sunset cruise is setting ocean, vessel catamaran or boat, however family-friendly the copy claims it is. A beach day pass is setting beach, vessel null. A walking tour of Oranjestad is setting town, vessel null.
+
+vessel "none" is a real answer and must be given whenever the traveller is not aboard anything. Omitting the field is not the same as "none": omitted means you could not tell.`;
 
 type Product = { id: string; title: string; description: string; tags: number[] };
 
@@ -93,7 +117,10 @@ async function callClaude(batch: Product[], key: string): Promise<EnrichmentReco
     model: MODEL,
     max_tokens: 8000,
     system: SYSTEM,
-    output_config: { effort: 'medium', format: { type: 'json_schema', schema: SCHEMA } },
+    output_config: {
+      ...(SUPPORTS_EFFORT ? { effort: 'medium' } : {}),
+      format: { type: 'json_schema', schema: SCHEMA },
+    },
     messages: [{
       role: 'user',
       content: batch.map((p) =>
@@ -116,11 +143,31 @@ async function callClaude(batch: Product[], key: string): Promise<EnrichmentReco
   const auth: Record<string, string> = isOAuth
     ? { authorization: `Bearer ${key}`, 'anthropic-beta': 'oauth-2025-04-20' }
     : { 'x-api-key': key };
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { ...auth, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  // RETRY THE RETRYABLE ONES. Without this a single 429 or 529 dropped a whole
+  // batch of 20 products on the floor — the run reported "FAILED — skipping"
+  // and carried on, so a 328-item pass could finish looking complete while
+  // silently missing a third of the catalog. 4xx other than 429 is a request
+  // problem and retrying it just burns quota, so only 429 and 5xx come back.
+  const RETRYABLE = (status: number) => status === 429 || status >= 500;
+  const MAX_ATTEMPTS = 5;
+  let r: Response | undefined;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { ...auth, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (r.ok || !RETRYABLE(r.status) || attempt === MAX_ATTEMPTS) break;
+    // Honour the server's own retry-after when it sends one; otherwise back off
+    // 2, 4, 8, 16 seconds.
+    const stated = Number(r.headers.get('retry-after'));
+    const waitMs = Number.isFinite(stated) && stated > 0
+      ? stated * 1000
+      : 2000 * 2 ** (attempt - 1);
+    process.stdout.write(`${r.status}, retrying in ${Math.round(waitMs / 1000)}s … `);
+    await new Promise((res) => setTimeout(res, waitMs));
+  }
+  if (!r) throw new Error('no response');
   if (!r.ok) throw new Error(`anthropic ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const out = await r.json();
   if (out.stop_reason === 'refusal') throw new Error('refused');
@@ -158,7 +205,15 @@ function evidenceIsVerbatim(rec: EnrichmentRecord, description: string): boolean
 
   // loadCatalog has already applied isExcludedFromCatalog, so anything here can
   // reach a surface and is worth paying for.
-  const todo = catalog.items.filter((i) => has('force') || !existing[i.id]);
+  // "Already enriched" means carrying the facets THIS version produces, not
+  // merely having a row. The 287 records mapped from the toddler pilot hold only
+  // `toddler_ok`, so a bare `!existing[i.id]` would skip 287 of 327 products and
+  // silently enrich the ~40 the pilot never judged.
+  const complete = (id: string) => {
+    const r = existing[id] as (EnrichmentRecord | undefined);
+    return Boolean(r && r.setting !== undefined);
+  };
+  const todo = catalog.items.filter((i) => has('force') || !complete(i.id));
   const limit = arg('limit') ? parseInt(arg('limit')!, 10) : todo.length;
   const batchItems = todo.slice(0, limit);
 
@@ -190,16 +245,34 @@ function evidenceIsVerbatim(rec: EnrichmentRecord, description: string): boolean
         key!,
       );
     } catch (e) {
-      console.log(`FAILED (${String(e).slice(0, 80)}) — skipping this batch`);
+      // 80 chars truncated the API's own message mid-sentence, which is where
+      // the reason lives — a schema rejection reads as a bare 'anthropic 400:'.
+      console.log(`FAILED — skipping this batch\n  ${String(e).slice(0, 400)}`);
       continue;
     }
 
     for (const rec of records) {
       const item = byId.get((rec as EnrichmentRecord & { id: string }).id);
       if (!item) { rejected++; continue; }
+      // Carry forward what THIS tool does not produce. `next[id] = clean`
+      // replaces the record wholesale, and the 287 rows mapped from the toddler
+      // pilot carry `toddler_ok` and nothing else — a run without this would
+      // have silently deleted the only data behind "good with toddler".
       const clean: EnrichmentRecord = { confidence: rec.confidence };
+      const prev = existing[item.id];
+      if (prev?.toddler_ok !== undefined) clean.toddler_ok = prev.toddler_ok;
       if (rec.kind && rec.kind !== 'none' && KIND_VOCABULARY.has(rec.kind)) clean.kind = rec.kind;
       if (typeof rec.adventure === 'number' && rec.adventure >= 0 && rec.adventure <= 100) clean.adventure = rec.adventure;
+      // Filter facets, not rendered copy, so they carry no evidence requirement
+      // — but `vessel: null` is a real answer ("not aboard anything") and must
+      // survive, which an `if (rec.vessel)` would drop.
+      if (rec.setting) clean.setting = rec.setting;
+      // The model answers with the 'none' sentinel; the snapshot stores null,
+      // which is what "explicitly not a vessel" means to every reader of it.
+      const rawVessel = (rec as unknown as { vessel?: string }).vessel;
+      if (rawVessel) clean.vessel = rawVessel === 'none'
+        ? null
+        : (rawVessel as NonNullable<EnrichmentRecord['vessel']>);
       if (evidenceIsVerbatim(rec, item.description ?? '')) {
         clean.evidence = rec.evidence;
         if (rec.physical) clean.physical = rec.physical;

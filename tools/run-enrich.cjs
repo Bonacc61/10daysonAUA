@@ -28,9 +28,26 @@ if (!read('VITE_SUPABASE_ANON_KEY')) {
   console.error('warning: no VITE_SUPABASE_ANON_KEY in ./.env.production — this would enrich the offline stub. Run from the repo root.');
 }
 
+// The API key comes from .env.local (gitignored) and is passed through the
+// child's ENVIRONMENT, never through esbuild --define — a --define would bake it
+// into the bundle on disk. Same handling as run-probe-suitability.cjs and
+// friends; this runner was the one probe in tools/ that did not do it, so the
+// key sat in the file and the tool reported it missing.
+const secrets = (() => {
+  try { return readFileSync(`${process.cwd()}/.env.local`, 'utf8'); }
+  catch { return ''; }
+})();
+const secret = (k) => (secrets.match(new RegExp(`^${k}=(.+)$`, 'm')) || [])[1]?.trim() ?? '';
+
 const out = 'node_modules/.cache/enrich-catalog.mjs';
 execFileSync('node_modules/.bin/esbuild', [
   'tools/enrich-catalog.ts', '--bundle', '--platform=node', '--format=esm',
   `--define:import.meta.env=${env}`, `--outfile=${out}`, '--log-level=warning',
 ], { stdio: 'inherit' });
-execFileSync('node', [out, ...process.argv.slice(2)], { stdio: 'inherit' });
+execFileSync('node', [out, ...process.argv.slice(2)], {
+  stdio: 'inherit',
+  env: {
+    ...process.env,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || secret('ANTHROPIC_API_KEY'),
+  },
+});

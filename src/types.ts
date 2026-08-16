@@ -97,6 +97,25 @@ export type ViatorItem = {
   // as the catalog grows or review counts compound.
   popularity_score?: number;
   /**
+   * Whether this product suits a 1-3 year old. INTERNAL AND FILTER-ONLY — read
+   * by the search pool, never rendered and never quoted, because the judgement
+   * behind it produced the model's own prose rather than a span from the
+   * listing. `kids` is the renderable pair; this is not.
+   *
+   * Absent means unjudged or judged at low confidence, which is not the same as
+   * `false`: an unknown is never excluded by a negative constraint.
+   */
+  toddler_ok?: boolean;
+  /**
+   * Where the activity physically happens, and what the traveller is aboard.
+   * Both derived offline and accepted by a human, like every other enrichment
+   * field. Filter-only: read by the search pool, never rendered, so neither
+   * carries an evidence quote. `vessel: null` means explicitly not a vessel;
+   * absent means unjudged.
+   */
+  setting?: 'beach' | 'ocean' | 'land' | 'town' | 'mixed';
+  vessel?: 'boat' | 'catamaran' | 'submarine' | 'jetski' | null;
+  /**
    * Viator's own merchandising flags, verbatim: LIKELY_TO_SELL_OUT,
    * FREE_CANCELLATION, PRIVATE_TOUR, NEW_ON_VIATOR, SPECIAL_OFFER.
    *
