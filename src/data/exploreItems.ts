@@ -157,16 +157,24 @@ export function itemCategory(item: ViatorItem): Category {
 // vehicles beat everything; specific chill (snorkel/sail) and moderate
 // (jeep/kayak) beat the broad generic-chill catch-all, so a "Jeep Tour" stays
 // balanced while a plain "Island Tour" / "Airport Transfer" lands chill.
-const ADV_KEYWORDS: { value: number; words: string[] }[] = [
+const ADV_KEYWORDS: { value: number; words: string[]; generic?: boolean }[] = [
   { value: 85, words: ['utv', 'atv', 'quad', 'buggy', 'zip', 'kite', 'jet ski', 'jetski', 'jet-ski', 'jet boat', 'off-road', 'off road', 'offroad', 'cliff', 'dune', 'parasail', 'tubing', 'snuba', 'seabob', 'talon', 'raider', 'wakeboard', 'flyboard', 'e-foil', 'efoil', 'rappel', 'abseil', 'bungee', 'skydiv', 'paraglid'] },
   { value: 18, words: ['snorkel', 'sail', 'cruis', 'sunset', 'dinner', 'lunch', 'brunch', 'tasting', 'distiller', 'rum', 'wine', 'cocktail', 'cooking', 'culinary', 'massage', 'wellness', 'beach', 'picnic', 'photoshoot', 'romantic', 'glass bottom', 'glass-bottom', 'catamaran', 'boat', 'yacht', 'relax', 'scenic', 'sightseeing', 'walking', 'food tour', 'mangrove', 'turtle', 'flamingo', 'lounge', 'day pass', 'tapas', 'chocolate'] },
   { value: 50, words: ['hik', 'jeep', 'safari', '4x4', '4×4', '4wd', 'bike', 'biking', 'cycling', 'kayak', 'paddle', 'horseback', 'horse rid', 'cave', 'segway', 'scooter', 'harley', 'scuba', 'dive', 'diving', 'nature', 'eco'] },
   // Generic-chill catch-all (checked last): broad sightseeing / logistics words
   // so an otherwise-unmatched "Island Tour", "Transfer", "Bus" reads as chill.
-  { value: 18, words: ['tour', 'transfer', 'transport', 'pickup', 'pick up', 'pick-up', 'shuttle', 'bus', 'van', 'excursion', 'sightsee', 'highlight', 'landmark', 'daypass', 'day trip', 'submarine', 'sanctuary', 'waterpark', 'water park', 'pub crawl', 'happy hour', 'sip', 'paint', 'breakfast', 'mimosa', 'museum', 'historic', 'cultural', 'culture', 'photo shoot', 'sea glass', 'rental', 'animal', 'all-inclusive', 'all inclusive'] },
+  //
+  // `generic: true` marks this tier as a GUESS rather than a signal. The tiers
+  // above match a word that names what the activity IS ("utv", "snorkel",
+  // "kayak"); this one matches words that say nothing about intensity, so an
+  // "Island Tour" scores 18 for containing "tour". Fine as a slider default,
+  // not fine as grounds for excluding something from a search — see
+  // adventureSource() below.
+  { value: 18, generic: true, words: ['tour', 'transfer', 'transport', 'pickup', 'pick up', 'pick-up', 'shuttle', 'bus', 'van', 'excursion', 'sightsee', 'highlight', 'landmark', 'daypass', 'day trip', 'submarine', 'sanctuary', 'waterpark', 'water park', 'pub crawl', 'happy hour', 'sip', 'paint', 'breakfast', 'mimosa', 'museum', 'historic', 'cultural', 'culture', 'photo shoot', 'sea glass', 'rental', 'animal', 'all-inclusive', 'all inclusive'] },
 ];
 const ADV_KEYWORD_RE = ADV_KEYWORDS.map((k) => ({
   value: k.value,
+  generic: k.generic === true,
   re: new RegExp('\\b(' + k.words.map((w) => w.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|') + ')', 'i'),
 }));
 
@@ -175,6 +183,44 @@ export function keywordAdventure(title: string): number | undefined {
     if (re.test(title)) return value;
   }
   return undefined;
+}
+
+/**
+ * WHERE an adventure value came from — the provenance advValue() discards.
+ *
+ * advValue always returns a number, which is right for a slider: every card
+ * needs a position. It is wrong as grounds for EXCLUSION, because two of its
+ * four tiers are guesses. A search that drops 128 products from "something
+ * relaxing" should be able to say which of them were actually classified.
+ *
+ *   curated  a hand-set or enrichment-derived number      — trust it
+ *   keyword  the title names the activity ("utv", "kayak") — trust it; this is
+ *            the operator's own word, the same text the embedding is built from
+ *   tag      an explicit low/med/high-adventure MatchTag   — trust it
+ *   generic  only the catch-all tier matched ("tour")      — a guess
+ *   proxy    nothing matched; the category filled in       — a guess
+ */
+export type AdventureSource = 'curated' | 'keyword' | 'tag' | 'generic' | 'proxy';
+
+export function adventureSource(
+  entry: { adventure?: number; title?: string; matched_by?: MatchTag[]; category: Category },
+): AdventureSource {
+  if (typeof entry.adventure === 'number') return 'curated';
+  if (entry.title) {
+    for (const { re, generic } of ADV_KEYWORD_RE) {
+      if (re.test(entry.title)) return generic ? 'generic' : 'keyword';
+    }
+  }
+  if ((entry.matched_by ?? []).some((t) => ADV_TAG_VALUE[t] !== undefined)) return 'tag';
+  return 'proxy';
+}
+
+/** True when the adventure value reflects the activity rather than a guess. */
+export function adventureIsGrounded(
+  entry: { adventure?: number; title?: string; matched_by?: MatchTag[]; category: Category },
+): boolean {
+  const src = adventureSource(entry);
+  return src === 'curated' || src === 'keyword' || src === 'tag';
 }
 
 // Resolution order: curated value → title keyword → explicit adventure tags →
