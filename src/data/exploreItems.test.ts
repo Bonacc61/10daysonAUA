@@ -916,3 +916,64 @@ describe('rankRecommended', () => {
     expect(ids(sortEntries(list, 'recommended', NO_TAGS))).toEqual(['proven', 'pinned']);
   });
 });
+
+// --- matched local picks are not shown twice --------------------------------
+/**
+ * `mergeLocalMatches` gives a curated pick its matched product's title, image,
+ * rating and link — so the pick and the product become two tiles for one
+ * bookable thing, differing only in a "Local pick" badge. Four picks are
+ * matched on the live catalog and all four duplicated.
+ *
+ * The PRODUCT is the tile that survives. The pick has already adopted almost
+ * everything editorial about the product, and what it keeps is wrong: its `cost`
+ * is a hand-written string that has drifted from the live price (natural-pool-
+ * jeep reads "$75 pp" against a product that now costs $99), and it renders that
+ * beside a Book now button that charges the real price.
+ */
+describe('filterExploreEntries — a matched local pick and its product are one tile', () => {
+  const catalogWith = (over: Partial<Activity>): Catalog => ({
+    groups: [{ id: 'sailing-cruises', matched_by: [], region: 'palm-beach', allowed_slots: [] } as unknown as ViatorGroup],
+    items: [{
+      id: '6841POOL', group_id: 'sailing-cruises', title: 'Aruba Natural Pool Jeep Safari',
+      price_usd: 99, duration: '4.5 hrs', rating: 5, review_count: 9319,
+      viator_item_url: 'https://www.viator.com/tours/Aruba/x/d28-6841POOL', is_best_seller: false,
+      display_order: 0, sections: ['adventures-outdoor'],
+    } as ViatorItem],
+    activities: [{
+      id: 'natural-pool-jeep', title: 'Aruba Natural Pool Jeep Safari', category: 'Activities',
+      image: '', description: '', localsSay: '', cost: '$75 pp', duration: '3–5 hrs',
+      timeOfDay: 'Morning', fitReason: '', location: 'Arikok', rating: 5, reviewCount: 9319,
+      ratingSource: 'viator', sections: ['adventures-outdoor'], matched_by: [],
+      viator_item_url: 'https://www.viator.com/tours/Aruba/x/d28-6841POOL', ...over,
+    } as Activity],
+  });
+  const ALL = { section: 'All', search: '', vibe: 50, price: 50 };
+
+  test('the pick is dropped and the product kept, so the price on screen is the real one', () => {
+    const out = filterExploreEntries(catalogWith({}), ALL);
+    expect(out).toHaveLength(1);
+    expect(out[0].kind).toBe('item');
+    expect(priceOf(out[0])).toBe(99);
+  });
+
+  test('an UNMATCHED local pick is untouched — this must not eat the other 22', () => {
+    const cat = catalogWith({ viator_item_url: undefined, ratingSource: undefined });
+    expect(filterExploreEntries(cat, ALL)).toHaveLength(2);
+  });
+
+  test('a pick whose product is not in the catalog survives — it is the only tile for it', () => {
+    const cat = catalogWith({});
+    cat.items = [];
+    const out = filterExploreEntries(cat, ALL);
+    expect(out).toHaveLength(1);
+    expect(out[0].kind).toBe('activity');
+  });
+
+  // Dedup runs before the filters, against the whole catalog: deduping against
+  // the FILTERED list would resurrect the pick whenever a filter happened to
+  // remove its product, which is the duplicate coming back under a section tab.
+  test('the pick stays dropped even when a filter removes its product', () => {
+    const out = filterExploreEntries(catalogWith({}), { ...ALL, section: 'beaches' });
+    expect(out).toHaveLength(0);
+  });
+});

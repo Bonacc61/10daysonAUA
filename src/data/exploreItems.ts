@@ -85,7 +85,8 @@ export type ExploreEntry =
 
 // Every count in this section was measured on 2026-08-16 against the catalog
 // EXPLORE ACTUALLY RENDERS — the 328 products left after `isExcludedFromCatalog`
-// drops transfers, party buses and retail errands, plus the 26 local picks. Not
+// drops transfers, party buses and retail errands, plus 22 of the 26 local picks
+// (the other 4 are deduped against the products they were matched to). Not
 // the 366-product raw viator-cards payload, which contains classes of product
 // (private airport transfers above all) that no traveller ever sees here and
 // which would flatter some of these shares. Each number is the reason a control
@@ -95,7 +96,7 @@ export type ExploreEntry =
 export type DurationBand = 'any' | 'short' | 'half' | 'long' | 'full';
 
 // Who wrote the tile: everything, our own hand-written picks, or Viator's
-// bookable products. 26 local picks sit under 328 products, so without this
+// bookable products. 22 local picks sit under 328 products, so without this
 // there is no way to browse the free beaches and viewpoints at all.
 export type Provenance = 'all' | 'local' | 'bookable';
 
@@ -513,8 +514,8 @@ export function templateTarget(hasPersona: boolean, adventureLevel: number): num
  *
  * This is the term that carries the template where its section mix could not —
  * though coarsely, and the comment should say so: `ExploreEntry.adventure` takes
- * only 18 distinct values and 325 of the 354 sit on three of them (18 → 202
- * entries, 50 → 76, 85 → 47), because every Viator item falls through advValue's
+ * only 18 distinct values and the overwhelming majority of the 350 sit on three
+ * of them (18, 50, 85), because every Viator item falls through advValue's
  * proxies and quantises. In practice this is a three-bucket preference, and
  * inside the 202-entry adv-18 block it is a constant that decides nothing. It is also what keeps the page varied now the pin is
  * gone: ranked on quality alone the top eight came back as six off-road tours,
@@ -626,7 +627,7 @@ export function rankRecommended(
   const target = templateTarget(hasPersona, adventureLevel);
   // An unrated PRODUCT is floored rather than shrunk. shrunkRating with zero
   // reviews returns exactly the catalog mean, which would drop the 34 unrated
-  // products into the 50th percentile — measured, from positions 321-354 to a
+  // products into the 50th percentile — measured, from the last rank down to a
   // median of 197, mid-page and above 150+ genuinely rated products. That
   // contradicts both the policy stated on `starsPass` above and the explicit
   // bottom block in the 'rating' and 'reviews' sorts. Vouched local picks are
@@ -710,6 +711,37 @@ export function sortEntries(
 // graded filters, and sort. Every item/activity is a candidate — only an
 // explicit filter removes one.
 export function filterExploreEntries(catalog: Catalog, opts: ExploreFilters): ExploreEntry[] {
+  /**
+   * Is this local pick still worth its own tile?
+   *
+   * `mergeLocalMatches` hands a matched pick its product's title, image, rating
+   * and link, so the pick and the product become two tiles for one bookable
+   * thing — same name, same stars, same Book now target, distinguishable only by
+   * a "Local pick" badge. Four picks are matched on the live catalog and all
+   * four duplicated, two of them high on the page once Recommended started
+   * ranking on reviews.
+   *
+   * The PRODUCT wins, and not merely because it is canonical. What the pick
+   * still owns is its hand-written `cost`, and that string has drifted from the
+   * live price on three of the four: it advertises "$75 pp" for a tour Viator
+   * now sells at $99, "$60 pp" against $79, "$25 guided" against $39 — beside a
+   * Book now button that charges the real amount. The pick cannot be repaired
+   * here: viator-cards does send `price_usd` and `duration` for a match, but the
+   * per-product call fills them with 0 and "", and `LocalMatch` does not even
+   * declare the fields. Until that is fixed the pick is the tile carrying a
+   * wrong price, so it is the tile that goes.
+   *
+   * Deliberately BEFORE the filters and against the whole catalog: deduping
+   * against the filtered list would bring the pick back whenever a filter
+   * happened to remove its product, which is the duplicate returning under a
+   * section tab.
+   */
+  const catalogItemIds = new Set(catalog.items.map((i) => i.id));
+  const keepsOwnTile = (a: Activity): boolean => {
+    const code = viatorProductCode(a.viator_item_url);
+    return !code || !catalogItemIds.has(code);
+  };
+
   const entries: ExploreEntry[] = [
     ...catalog.items.map((item): ExploreEntry => ({
       kind: 'item',
@@ -719,7 +751,7 @@ export function filterExploreEntries(catalog: Catalog, opts: ExploreFilters): Ex
       // Editorial sections (stub) win; live items derive from their Viator tags.
       sections: item.sections ?? sectionsForTags(item.tags),
     })),
-    ...catalog.activities.map((activity): ExploreEntry => ({
+    ...catalog.activities.filter(keepsOwnTile).map((activity): ExploreEntry => ({
       kind: 'activity',
       activity,
       category: activity.category as Category,
