@@ -14,8 +14,10 @@ You are an autonomous coding agent working on a software project.
 8. If checks pass, commit ALL changes with message: `feat: [Story ID] - [Story Title]`
    **Commit only. NEVER run `git push`.** Pushing `main` deploys straight to
    production with no staging step and no manual gate. A human pushes, after
-   reviewing your branch. A `pre-push` hook will refuse `main` anyway — do not
-   try to work around it, and do not use `--no-verify` or `ALLOW_MAIN_PUSH`.
+   reviewing your branch. There is no `pre-push` hook standing behind this any
+   more — it was removed on 2026-08-16 so that an interactive session can push
+   when asked — so this instruction is now the only thing between an autonomous
+   run and a production deploy. Treat it as absolute.
 9. Update the PRD to set `passes: true` for the completed story
 10. Append your progress to `progress.txt`
 
