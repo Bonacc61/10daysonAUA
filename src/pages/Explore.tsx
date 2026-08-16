@@ -248,7 +248,10 @@ function ItemTile({ item, section, sectionUrl: _sectionUrl, region, adventure, b
         {/* Same box the itinerary card shows, and the reason it belongs here too:
             Explore is where a traveller decides, and a boat you cannot reach is
             not a real option. `.a-card` is auto-height, so unlike the flip card
-            this needs no size term — it just makes the tile taller. */}
+            this needs no size term — it just makes the tile taller. Its WIDTH is
+            capped separately: the shared 58% is tuned for the flip card and went
+            nearly square in this narrower tile, so index.css overrides it to
+            100% under `.a-card`. */}
         <DepartureNote item={item} />
         <div style={{ marginTop: 'auto' }}><CardActions bookNow={bookNow} free={item.price_usd === 0} added={added} onAdd={onAdd} /></div>
       </div>

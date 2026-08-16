@@ -146,7 +146,10 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
 .card-departure {
   /* Half width, not full: it is a short factual line, and stretched to the card
      edge it read as a banner rather than a detail. Capped rather than fixed at
-     50% so it does not become a sliver on a narrow card. */
+     50% so it does not become a sliver on a narrow card.
+
+     This cap is tuned for the ITINERARY flip card, which is the wide layout —
+     see the .a-card override below for why Explore needs its own answer. */
   max-width: 58%;
   display: flex; align-items: flex-start; gap: 7px;
   background: var(--sand-50); border: 2px solid var(--ink); border-radius: 10px;
@@ -155,6 +158,26 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
 }
 .card-departure strong { font-weight: 700; }
 .card-departure .checkin-quote { display: block; margin-top: 2px; font-style: italic; }
+
+/* Explore only. A percentage cap does not travel between layouts: the Explore
+   tile is ~296px wide, so 58% of its content box is a 151px column that wraps
+   the hedge onto four lines and boxes it almost square (measured 151x117, ratio
+   1.29; the worst case reached 247px tall). Because `.a-card` is auto-height,
+   every one of those lines pushes the tile down — the tallest tiles were 757px.
+
+   At full width the same text sets in three lines: box 260x73 (ratio 3.81),
+   worst case 135px, average tile 631 -> 581px and the tallest 757 -> 644px.
+   Measured in a browser at 1400px and 900px viewports, 284 boxes each.
+
+   85% and 70% were measured too and rejected: 85% saves nearly as much but
+   leaves a ragged right edge for nothing, and 70% recovers only a third of it.
+
+   Scoped to `.a-card`, which is the Explore tile. It cannot reach the itinerary:
+   DepartureNote renders in exactly two places — Explore.tsx (inside .a-card) and
+   GroupCard's ITINERARY variant (inside .itin-card-body). GroupCard's Explore
+   variant does not render it at all. Dashboard also uses .a-card but never
+   renders a departure box, so this rule is inert there. */
+.a-card .card-departure { max-width: 100%; }
 
 /* What the swap actually applied, shown on the new card. */
 .swap-echo {
