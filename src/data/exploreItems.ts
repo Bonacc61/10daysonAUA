@@ -98,7 +98,15 @@ export type DurationBand = 'any' | 'short' | 'half' | 'long' | 'full';
 // Who wrote the tile: everything, our own hand-written picks, or Viator's
 // bookable products. 22 local picks sit under 328 products, so without this
 // there is no way to browse the free beaches and viewpoints at all.
-export type Provenance = 'all' | 'local' | 'bookable';
+//
+// 'free' is the odd one out and deliberately so — it asks about price, not
+// about who wrote the tile, and it shares this row because the row is the
+// traveller's "show me only…" control rather than a taxonomy. The cost is that
+// it cannot be combined with 'local': choosing one clears the other. Today that
+// costs nothing, since every Viator product has a price and so every free entry
+// is already a local pick — but a $0 product would make the two worth stacking,
+// and that is the day to split this into two independent filters.
+export type Provenance = 'all' | 'local' | 'bookable' | 'free';
 
 export type SortKey = 'recommended' | 'price-asc' | 'price-desc' | 'rating' | 'reviews';
 
@@ -425,6 +433,10 @@ export function privatePass(entry: ExploreEntry, privateOnly?: boolean): boolean
 
 export function provenancePass(entry: ExploreEntry, provenance?: Provenance): boolean {
   if (!provenance || provenance === 'all') return true;
+  // Same priceOf the Price slider reads, so the button and the slider cannot
+  // disagree about what "free" means. That also inherits its one quirk: a cost
+  // of "Free + $16 gear" parses to 0, so Baby Beach lands here.
+  if (provenance === 'free') return priceOf(entry) === 0;
   return provenance === 'local' ? entry.kind === 'activity' : entry.kind === 'item';
 }
 

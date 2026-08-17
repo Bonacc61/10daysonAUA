@@ -545,6 +545,33 @@ describe('provenancePass', () => {
     expect(provenancePass(item, 'bookable')).toBe(true);
     expect(provenancePass(local, 'bookable')).toBe(false);
   });
+
+  // 'free' asks a price question in a row that otherwise asks who wrote the
+  // tile, so these pin the one behaviour the row's shape does not imply.
+  const priced = (cost: string): ExploreEntry =>
+    ({ kind: 'activity', activity: { cost } as Activity, category: 'Beaches', adventure: 8, sections: [] });
+  const product = (price_usd: number): ExploreEntry =>
+    ({ kind: 'item', item: { price_usd } as ViatorItem, category: 'Tours', adventure: 50, sections: [] });
+
+  test('"free" keeps what costs nothing and drops what does not', () => {
+    expect(provenancePass(priced('Free'), 'free')).toBe(true);
+    expect(provenancePass(priced('$11 entry'), 'free')).toBe(false);
+    expect(provenancePass(product(0), 'free')).toBe(true);
+    expect(provenancePass(product(89), 'free')).toBe(false);
+  });
+
+  test('"free" reads price, not provenance — a paid local pick is dropped', () => {
+    // The failure this guards: implementing 'free' as "the local picks", which
+    // passes every other assertion here because all 17 free entries are local.
+    expect(provenancePass(priced('$99 pass'), 'free')).toBe(false);
+    expect(provenancePass(priced('$99 pass'), 'local')).toBe(true);
+  });
+
+  test('"free" inherits parseActivityCost, gear surcharge and all', () => {
+    // Baby Beach is 'Free + $16 gear'. It parses to 0, so it shows under Free —
+    // the same answer the Price slider's left end already gives.
+    expect(provenancePass(priced('Free + $16 gear'), 'free')).toBe(true);
+  });
 });
 
 // --- sortEntries -----------------------------------------------------------

@@ -101,6 +101,7 @@ const DURATION_OPTIONS: { v: DurationBand; label: string }[] = [
 ];
 const PROVENANCE_OPTIONS: { v: Provenance; label: string }[] = [
   { v: 'all', label: 'All' }, { v: 'local', label: 'Local picks' }, { v: 'bookable', label: 'Bookable' },
+  { v: 'free', label: 'Free' },
 ];
 const SORT_OPTIONS: { v: SortKey; label: string }[] = [
   { v: 'recommended', label: 'Recommended' },
