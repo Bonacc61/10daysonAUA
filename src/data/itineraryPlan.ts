@@ -34,6 +34,28 @@ export function seedPlan(days: Day[]): PlannedDay[] {
   }));
 }
 
+/**
+ * The exact inverse of `seedPlan`: drop the per-card `uid` and hand back the
+ * plain `Day[]` the generator emits.
+ *
+ * Needed because a SAVED plan and a GENERATED plan are the same itinerary in two
+ * shapes — `PlannedCard[]` once the editor has given every card a stable uid,
+ * `SlotEntry[]` before it. Any surface that wants to show a saved trip without
+ * editing it (the Map) needs the generator's shape, and inventing fresh uids via
+ * seedPlan to immediately discard them would be the wrong direction.
+ *
+ * `uid` is the only thing lost, and it is meaningless outside the editor — it
+ * keys React and @dnd-kit, not the itinerary.
+ */
+export function unseedPlan(plan: PlannedDay[]): Day[] {
+  return plan.map((d) => ({
+    day: d.day, title: d.title, color: d.color,
+    morning: d.morning.map((c) => c.entry),
+    afternoon: d.afternoon.map((c) => c.entry),
+    evening: d.evening.map((c) => c.entry),
+  }));
+}
+
 export type CardLocation = { dayIdx: number; section: Slot; index: number; card: PlannedCard };
 
 export function findCard(plan: PlannedDay[], uid: string): CardLocation | null {

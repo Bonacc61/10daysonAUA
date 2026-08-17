@@ -14,6 +14,12 @@ import { distanceKm } from '../data/coordValidate';
 import type { SlotEntry, MatchTag, Slot, ViatorItem } from '../types';
 import { resolveSlotEntry, type Catalog } from '../data/activitySource';
 import { answersToTags } from '../data/answerTags';
+import { unseedPlan } from '../data/itineraryPlan';
+import { useAuth } from '../lib/auth';
+import { loadTrip, loadTripById } from '../lib/trips';
+import { readActiveTripId } from '../lib/activeTrip';
+import { sameAnswers } from '../lib/sameAnswers';
+import type { Day } from '../data/activities';
 
 const TOKEN = (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined) ?? '';
 const ARUBA_CENTER = { longitude: -70.0164, latitude: 12.5211, zoom: 11.5 };
@@ -114,11 +120,17 @@ function hideRoadShields(map: StyleMap): void {
 type AnyPopup = { lng: number; lat: number; title: string; sub: string; price?: string | null; duration?: string | null; image?: string | null; url?: string | null; pin?: Pin | null; place?: string };
 // Display labels only — the underlying variant order/indices (activePlanIdx) are
 // unchanged. Three parallel adjectives; "Your trip"/"-leaning" dropped.
+//
+// Slot 0 is the one that can be REAL. When a saved trip is loaded it holds that
+// trip, edits and all, and says so; with nothing saved it holds the generated
+// plan and keeps the old label. Slots 1 and 2 are always generated explorations,
+// so they are never described as something the traveller saved.
 const PLAN_VARIANTS = [
   { label: 'Balanced',   description: 'Your personalised itinerary' },
   { label: 'Adventure',  description: 'Adrenaline-first, beaches second' },
   { label: 'Chill',      description: 'Slow mornings, easy afternoons' },
 ];
+const SAVED_VARIANT = { label: 'Your itinerary', description: 'The plan you saved, including your edits' };
 
 /** Cache key for a tether: the exact Directions request it stands for. */
 const tetherKey = (coords: [number, number][]) =>
@@ -128,6 +140,7 @@ type Props = { answers: Answers; canSeeItinerary: boolean; setPage: (p: PageId) 
 
 export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   const { catalog } = useCatalog();
+  const { user } = useAuth();
   // Same tags the itinerary resolves with, so both surfaces pick the same face
   // for a card whose stored product has left the catalog.
   const tags = useMemo(() => answersToTags(answers), [answers]);
@@ -166,7 +179,47 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
     ];
   }, [answers, catalog]);
 
-  const plan = plans?.[activePlanIdx] ?? null;
+  // The saved trip, so the Map shows what the traveller actually planned.
+  //
+  // Until this existed the Map only ever REGENERATED from `answers`, so every
+  // edit made on the Itinerary page — swaps, adds, removals, reordering, lunch
+  // spots — was invisible here. Because `generatePlan`'s seed defaults to the
+  // same 0 the Map passes, what it drew was the itinerary as first generated,
+  // which is why it read as a stale copy rather than an obviously wrong one.
+  //
+  // Deliberately the SAME load rule as Itinerary.tsx: the id in `10doa:trip-id`
+  // if it still resolves, else the most recently touched trip, and adopted only
+  // when `sameAnswers` holds. That last guard is what keeps the two surfaces
+  // agreeing — after a retaken questionnaire Itinerary starts unattached rather
+  // than overwriting the old trip, and the Map must show the same generated plan
+  // it does, not the trip Itinerary has stopped editing. It also keeps `tags`
+  // honest, since those are derived from `answers` and used to resolve a card's
+  // face on both surfaces.
+  const [savedPlan, setSavedPlan] = useState<Day[] | null>(null);
+  useEffect(() => {
+    if (!user) { setSavedPlan(null); return; }
+    let alive = true;
+    const wanted = readActiveTripId();
+    const fetch = wanted
+      ? loadTripById(user.id, wanted).then((t) => t ?? loadTrip(user.id))
+      : loadTrip(user.id);
+    fetch.then((t) => {
+      if (!alive) return;
+      setSavedPlan(t && sameAnswers(t.answers, answers) ? unseedPlan(t.plan) : null);
+    });
+    return () => { alive = false; };
+  }, [user, answers]);
+
+  // Slot 0 is the saved trip when there is one; the generated plan otherwise.
+  const variants = useMemo(
+    () => (savedPlan ? [savedPlan, plans[1], plans[2]] : plans),
+    [savedPlan, plans],
+  );
+  const variantLabels = savedPlan
+    ? [SAVED_VARIANT, PLAN_VARIANTS[1], PLAN_VARIANTS[2]]
+    : PLAN_VARIANTS;
+
+  const plan = variants?.[activePlanIdx] ?? null;
 
   const switchPlan = (idx: number) => {
     setActivePlanIdx(idx);
@@ -178,6 +231,13 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   const totalDays = plan?.length ?? 0;
   const safeDay = Math.min(Math.max(activeDay, 1), totalDays || 1);
   const planDay = plan?.[safeDay - 1] ?? null;
+
+  // A popup belongs to the day it was opened on. Keyed on the day rather than
+  // cleared at each call site because it was only ever cleared at SOME of them:
+  // the day chips did it, the ‹ › arrows did not, so arrowing to the next day
+  // left the previous day's pin floating over a route it is not part of. One
+  // effect makes that structural — a new way to change day cannot forget.
+  useEffect(() => { setPopup(null); }, [safeDay]);
 
   // Build the entries for the active day with image + coord
   const dayEntries = useMemo((): DayEntry[] => {
@@ -498,7 +558,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
           {/* Itinerary variant switcher — mirrors Dashboard ITINERARY_VARIANTS */}
           <div style={{ padding: '10px 16px 0' }}>
             <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 4 }}>
-              {PLAN_VARIANTS.map((v, i) => {
+              {variantLabels.map((v, i) => {
                 const active = activePlanIdx === i;
                 return (
                   <button
@@ -514,7 +574,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
             {/* Left-aligned so it reads as a subtitle for the whole control, not
                 a caption under the centred middle option. */}
             <p style={{ textAlign: 'left', fontSize: 11, color: '#aaa', fontFamily: 'Inter,sans-serif', margin: 0 }}>
-              {PLAN_VARIANTS[activePlanIdx].description}
+              {variantLabels[activePlanIdx].description}
             </p>
           </div>
 
@@ -547,7 +607,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
               return (
                 <button
                   key={d.day}
-                  onClick={() => { setActiveDay(i + 1); setPopup(null); }}
+                  onClick={() => setActiveDay(i + 1)}
                   style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'transparent', border: 'none', cursor: 'pointer', padding: '0 10px', flexShrink: 0 }}
                 >
                   <span style={{ fontSize: 11, fontWeight: active ? 700 : 400, fontFamily: 'Inter,sans-serif', color: active ? '#1a1a1a' : '#aaa', whiteSpace: 'nowrap', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>
