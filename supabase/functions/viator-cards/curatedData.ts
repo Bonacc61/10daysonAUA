@@ -1,7 +1,7 @@
 // GENERATED FILE — do not edit by hand.
 // Run `npm run build:curated` to regenerate from src/data/activities.ts.
 //
-// Built: 2026-08-15T12:11:50.742Z
+// Built: 2026-08-17T10:44:40.556Z
 // 26 curated locals, median 266 chars, 0 truncated at 500.
 //
 // These are the island's own picks — beaches, fish fries, walking tours — that
@@ -33,6 +33,6 @@ export const CURATED_SEARCH_ENTRIES: Array<{ id: string; text: string }> = [
   { id: "boca-catalina-shore", text: "Boca Catalina Shore Snorkel. A small rocky cove between Malmok and Arashi where the catamarans anchor offshore. Walk in from the road, swim out twenty metres, and the fish are already there — no boat needed.  Located in Boca Catalina, Malmok. Category: Beaches." },
   { id: "alto-vista-chapel", text: "Alto Vista Chapel & Hilltop Walk. Aruba's first chapel, alone on a hill above the north coast, reached by a lane lined with white crosses. Short walk, big view, and it empties out completely in the late afternoon.  Located in Alto Vista, Noord. Category: Activities." },
   { id: "california-dunes-sunset", text: "California Dunes at Sunset. Rolling white sand dunes behind the lighthouse, walkable in an hour. Go late: the low sun throws the ridges into relief and the whole northwest coast is below you.  Located in Hudishibana, Noord. Category: Activities." },
-  { id: "bushiribana-loop", text: "Bushiribana Ruins Coastal Loop. The shell of a 19th-century gold smelter on the windward coast, with a rough loop along the cliffs from Calbas. Exposed, windy, and the sea here does not stop.  Located in Bushiribana, north coast. Category: Activities." },
+  { id: "bushiribana-loop", text: "Bushiribana Coastal Walk. The shell of a 19th-century gold smelter on the windward coast, with a rough loop along the cliffs from Calbas. Exposed, windy, and the sea here does not stop.  Located in Bushiribana, north coast. Category: Activities." },
   { id: "san-nicolas-murals", text: "San Nicolas Mural Walk. The old refinery town turned open-air gallery — dozens of large-scale murals across a few walkable blocks, plus Aruba's oldest bars. Self-guided, or join a walking tour.  Located in San Nicolas. Category: Tours." },
 ];
