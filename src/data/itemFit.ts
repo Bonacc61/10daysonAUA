@@ -18,20 +18,62 @@ const BUDGET_ORDER: MatchTag[] = ['budget', 'mid-range', 'treat-yourself', 'mone
 const isBudgetTag = (t: MatchTag) => BUDGET_ORDER.includes(t);
 const budgetIdx = (t: MatchTag | undefined) => (t ? BUDGET_ORDER.indexOf(t) : -1);
 
-// Per-tier daily spending ceiling (USD) implied by the budget answer. Used two
-// ways: (1) no single activity priced above the cap is ever shown at that tier
-// — the per-item guard below, enforced on every surface; (2) the generator caps
-// the trip's AVERAGE daily activity spend at it (a pool of cap × days), so days
-// can vary but the trip averages out. Mirrors the questionnaire copy (mid-range
-// = "~$100–200/day").
-export const BUDGET_DAY_CAP: Partial<Record<MatchTag, number>> = {
+// Per-tier PER-ITEM ceiling (USD): no single activity priced above this is ever
+// shown at that tier. Mirrors the questionnaire copy (mid-range = "~$100–200/day").
+//
+// Named `BUDGET_DAY_CAP` until 2026-08-17, and the `_DAY_` was not cosmetic — it
+// was the bug. One name meaning both "per item" and "per day" is what let the
+// trip pool be read off a price ceiling for months. Renamed the moment the two
+// numbers were separated, so the name can never re-suggest the conflation.
+//
+// "Enforced on every surface" is what this note used to claim, and it is not
+// true. `fitItem` below applies it to every VIATOR item wherever one is scored,
+// but a curated local reaches it at exactly one call site — `candidatesFor` in
+// the generator. Explore and the "Other suggestions" / "Swap this" shelf still
+// show an over-ceiling curated local to a budget traveller. Both are deliberate
+// (Explore does not hide on budget by design; the manual add/swap paths are
+// uncapped on purpose), so this is a description of where the guard runs, not a
+// gap to close.
+export const BUDGET_ITEM_CAP: Partial<Record<MatchTag, number>> = {
   'budget': 110,
   'mid-range': 200,
   'treat-yourself': 400,
   // money-no-object: no cap
 };
 export function budgetCap(tags: Set<MatchTag>): number {
-  for (const b of BUDGET_ORDER) if (tags.has(b)) return BUDGET_DAY_CAP[b] ?? Infinity;
+  for (const b of BUDGET_ORDER) if (tags.has(b)) return BUDGET_ITEM_CAP[b] ?? Infinity;
+  return Infinity;
+}
+
+// Per-tier AVERAGE daily spend (USD). The generator turns this into a pool of
+// cap × days, so individual days vary while the trip averages out.
+//
+// This used to BE the same number as the per-item ceiling — one constant doing
+// both jobs, then named `BUDGET_DAY_CAP`. Splitting them
+// was a reported bug, not a refactor: measured on the live catalog (2026-08-17),
+// a 7-day budget-conscious trip booked 6 paid outings totalling $443 ($63/day)
+// while the same trip at MID-RANGE booked 4 for $330 ($47/day). The cheaper tier
+// outspent the dearer one by 34%, because a price ceiling limits how EXPENSIVE
+// an outing is and says nothing about how OFTEN one is booked — and cheap
+// outings are always "affordable", so every day got one.
+//
+// Owner's call on 2026-08-17: budget-conscious averages at most ~$60/day. Kept
+// separate from the per-item ceiling deliberately — collapsing them to 60 would
+// also delete every $60–110 activity from budget plans (the $99 PADI dive, the
+// $95 trikes tour), which is a different and much bigger change than the one
+// asked for. A budget traveller may still be SHOWN one $89 outing in a week;
+// they just can't be shown seven.
+// Written as an OVERRIDE rather than a second full table on purpose: only the
+// budget tier's average differs from its ceiling, and a parallel table that
+// duplicated three of four values would let mid-range drift in one place and not
+// the other with nothing to catch it.
+const BUDGET_AVG_OVERRIDE: Partial<Record<MatchTag, number>> = {
+  'budget': 60,
+};
+export function budgetAvgCap(tags: Set<MatchTag>): number {
+  for (const b of BUDGET_ORDER) {
+    if (tags.has(b)) return BUDGET_AVG_OVERRIDE[b] ?? BUDGET_ITEM_CAP[b] ?? Infinity;
+  }
   return Infinity;
 }
 

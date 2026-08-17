@@ -18,7 +18,7 @@ import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry, ViatorItem, ViatorGroup } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, entryPrice, parseActivityCost } from './matcher';
-import { fitItem, budgetCap, activityKind, adventureCapForFlags, isEveningItem, isWaterBased, isCrowdPleaser, isAutoFillExcluded, isKidsOriented, isCouplesOriented, isFullDayProduct, titleTimeOfDay, isNaturalPool, offroadAdrenalineBonus, contentCreatorBonus, itemSlotOkForFill, itemAdventure } from './itemFit';
+import { fitItem, budgetCap, budgetAvgCap, activityKind, adventureCapForFlags, isEveningItem, isWaterBased, isCrowdPleaser, isAutoFillExcluded, isKidsOriented, isCouplesOriented, isFullDayProduct, titleTimeOfDay, isNaturalPool, offroadAdrenalineBonus, contentCreatorBonus, itemSlotOkForFill, itemAdventure } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 import { effectiveFlags } from './notesFlags';
@@ -634,7 +634,7 @@ export const MAX_PAID_OUTINGS_PER_DAY = 1;
 // "Has a Book now button" (`viator_item_url` && paid) is what the card renders
 // (ItineraryCard.tsx:47-49) and on the live catalog it agrees with price on all
 // 328 Viator products — measured, zero divergence. The two differ on exactly
-// three curated locals, which the owner ruled IN: the $11 Arikok gate, the $99
+// three curated locals, which the owner ruled IN: the $11 Arikok gate, the $125
 // Flamingo day pass and the $120 kitesurfing lesson are strenuous 2.5-3h
 // outings whoever takes the payment, so a day should carry one of them and
 // nothing else.
@@ -882,7 +882,33 @@ function candidatesFor(ctx: Ctx, slot: Slot, useTags: Set<MatchTag> | null): Car
     itemEntries.push({ kind: 'group', group, bestSeller: item, others: [] });
   }
 
-  const activityEntries: CardEntry[] = activities.map((a) => ({ kind: 'activity', activity: a }));
+  // The per-item budget ceiling, applied to curated locals too. `fitItem` above
+  // enforces it for Viator items, but it takes a ViatorItem, so for as long as
+  // this line just mapped the pool a curated activity was never price-gated by
+  // tier at all. Reported 2026-08-17: the Renaissance/Flamingo day pass reached
+  // budget-conscious plans. It also had a stale price ($99 in the card, $125 at
+  // the gate) — both halves were needed, because at $99 it cleared the $110
+  // ceiling anyway and only the corrected price puts it over.
+  //
+  // TWO of the 26 curated locals clear the $110 budget ceiling, and the second
+  // one is not the reported bug: `kitesurfing-lesson` at $120. Measured over 72
+  // budget-conscious trips (3 personas × 4 lengths × 6 seeds), it appeared in
+  // 30 of them — 42% — and this gate takes it to zero. That follows from the
+  // rule rather than from a special case ($120 > $110, the same test the $125
+  // pass fails), and a budget traveller arguably should never have been sold it,
+  // but it is a bigger behavioural change than the report asked for — so it was
+  // put to the owner rather than shipped quietly. **Approved 2026-08-17: the
+  // exclusion stays.** Closed question; do not reopen it. If it is ever revisited
+  // the lever is a per-activity opt-out, NOT a higher ceiling — raising the
+  // ceiling lets the $125 pass back in, which is the bug this started as.
+  //
+  // No other tier loses anything: nothing curated exceeds mid-range's $200. The
+  // 17 free locals are unaffected everywhere, which is what keeps budget days
+  // filled once the paid pool is spent.
+  const itemCap = budgetCap(ctx.tags);
+  const activityEntries: CardEntry[] = activities
+    .filter((a) => parseActivityCost(a.cost) <= itemCap)
+    .map((a) => ({ kind: 'activity', activity: a }));
   // Items first (mirrors blendPools' groups-first commercial tie-break on equal fit).
   return [...itemEntries, ...activityEntries];
 }
@@ -1091,7 +1117,22 @@ function pickForSlot(
     if (t2) return { pick: t2, tier: 'affordable+widened' };
     // When maxPrice === 0 (arrival-day free-only rule), never fall through to the
     // over-budget tiers — leave the slot open rather than place a paid item.
-    if (maxPrice === 0) return null;
+    //
+    // Budget-conscious gets the same treatment at ANY remaining balance, which is
+    // what makes its trip pool a real ceiling instead of a suggestion. Measured
+    // 2026-08-17: with the over-budget rungs live, a pool of $30 still admitted a
+    // $90 outing — `affordable` rejected it, but maxPrice was 30 rather than 0, so
+    // rungs 3 and 4 placed it and the pool went to -$60. That leak is why simply
+    // lowering the tier's pool from $110/day to $60/day moved live spend by
+    // nothing at all ($443 → $458 on a 7-day trip): the pool was never what
+    // decided the total.
+    //
+    // Only the cheapest tier. The dearer tiers keep the old behaviour on purpose
+    // — for them a full slot beats a strictly-observed average, and none of them
+    // was reported as overspending. The cost here is real and one-directional: a
+    // budget slot that would have held an over-budget outing now holds a free
+    // local, or stays open once the free pool is exhausted too.
+    if (maxPrice === 0 || ctx.tags.has('budget')) return null;
     const t3 = ok(matchedAll).find(unused);
     if (t3) return { pick: t3, tier: 'over-budget+on-theme' };
     const t4 = ok(widenedAll).find(unused);
@@ -1130,11 +1171,26 @@ function pickForSlot(
         rejections.push({ id, title, reason: 'day-time-budget' });
       } else if (!kindOk(e)) {
         rejections.push({ id, title, reason: 'same-kind-today', detail: `kind "${entryKind(e)}" already placed today` });
-      } else if (maxPrice === 0 && !affordable(e)) {
-        // Price is only ever DECISIVE on a free-only arrival day. Everywhere else
-        // the over-budget tiers still run, so an unaffordable item that got this
-        // far was out-ranked, not rejected — it counts as a survivor.
-        rejections.push({ id, title, reason: 'over-budget', detail: `$${entryPrice(e)} on a free-only arrival day` });
+      } else if ((maxPrice === 0 || ctx.tags.has('budget')) && !affordable(e)) {
+        // Price is DECISIVE wherever the over-budget rungs do not run: a
+        // free-only arrival day, and — since 2026-08-17 — every slot of a
+        // budget-conscious trip. Everywhere else those rungs still fire, so an
+        // unaffordable item that got this far was out-ranked rather than
+        // rejected, and counts as a survivor.
+        //
+        // This condition MUST track the ladder's at line ~1123. When it did not,
+        // the trace reported a budget slot as having survivors while the ladder
+        // had refused to fill it — "survivors > 0 with an empty slot is
+        // impossible" is the one invariant the trace's own docs promise.
+        rejections.push({
+          id, title, reason: 'over-budget',
+          // Budget tier FIRST. `maxPrice` is `Math.max(0, budgetLeft)`, so a
+          // budget pool driven negative by a pin also reads 0 — branching on
+          // that alone labelled mid-trip rejections "free-only arrival day".
+          detail: ctx.tags.has('budget')
+            ? `$${entryPrice(e)} with $${maxPrice} left in the budget-conscious pool`
+            : `$${entryPrice(e)} on a free-only arrival day`,
+        });
       } else {
         survivors += 1;
       }
@@ -1390,9 +1446,14 @@ export function generatePlan(
   const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), placements: new Map(), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], dayTagSets: [], day: 0, nDays, lastFamilyDay: new Map(), dayFamilies: new Set(), pinnedIds: new Set(), usedRouteFamilies: new Set() };
 
   // Trip-wide budget pool: keeps the AVERAGE daily activity spend within the
-  // tier cap (budget-conscious ≈ $110/day on average), letting days vary while
-  // the trip averages out. Infinity for tiers with no cap (money-no-object).
-  const cap = budgetCap(tags);
+  // tier's average cap (budget-conscious ≈ $60/day on average), letting days
+  // vary while the trip averages out. Infinity for tiers with no cap
+  // (money-no-object).
+  //
+  // `budgetAvgCap`, NOT `budgetCap` — see the note in itemFit.ts. The per-item
+  // ceiling and the trip average are different numbers for the budget tier, and
+  // reading the ceiling here is what let a budget trip outspend a mid-range one.
+  const cap = budgetAvgCap(tags);
   let budgetLeft = cap === Infinity ? Infinity : cap * nDays;
 
   // --- Pin pre-pass: claim slots for shortlisted picks before normal fill. ----

@@ -1455,6 +1455,130 @@ by widening the plan-level test across five personas.
 
 ---
 
+### 2026-08-17 — the cheap tier cost more than the dear one, and a $99 card that cost $125
+
+Three reports against the live catalog, one session. All three were measured
+before and after; the numbers below are from `tools/` probes, not estimates.
+
+**Symptom 1 — budget-conscious outspent mid-range.** A 7-day Budget-conscious
+trip booked 6 paid outings totalling **$443 ($63/day)**. The same trip at
+Mid-range booked 4 for **$330 ($47/day)**. The cheaper tier cost 34% more. At 10
+days it was $641 vs $502.
+
+**Root cause.** The tier's only lever was `BUDGET_DAY_CAP`, and it was one number
+doing two jobs: a per-item ceiling AND the trip's average-spend pool. A price
+ceiling limits how *expensive* an outing is and says nothing about how *often*
+one is booked — and cheap outings are always affordable, so budget-conscious got
+one every single day.
+
+Lowering the pool alone did nothing. Split into `BUDGET_DAY_AVG_CAP` at $60/day
+and live spend went **$443 → $458** — it went UP. The pool had never been the
+binding constraint: the old pool was $770 and actual spend was $443, so it never
+ran dry. What decided the total was the fill ladder's over-budget rungs (t3/t4),
+which fire whenever `maxPrice !== 0`. With $30 left in the pool and a $90 outing
+on offer, `affordable` rejected it, `maxPrice` was 30 rather than 0, and rungs 3
+and 4 placed it anyway — the pool went to **-$60**. It leaked by one outing every
+time it emptied.
+
+**Fix.** Two parts, and neither works alone: split the constant — the per-item
+ceiling kept its values and was renamed `BUDGET_DAY_CAP` → `BUDGET_ITEM_CAP`
+(the `_DAY_` was the conflation in miniature), and the trip average became
+`BUDGET_AVG_OVERRIDE` + `budgetAvgCap()`, budget = $60/day — and make the budget tier skip the
+over-budget rungs at *any* remaining balance, not only at zero
+(`maxPrice === 0 || ctx.tags.has('budget')`). Measured after: 7-day $393, 10-day
+$564, i.e. **$52–60/day**. Only the cheapest tier is affected; for the dearer
+tiers a full slot still beats a strictly-observed average.
+
+It is a SOFT ceiling, not an invariant. The pre-passes (pin, staple, template,
+premium) decrement `budgetLeft` unconditionally and can take it negative, so some
+trips land just over. How many depends entirely on the persona mix swept: one
+180-trip sweep found 4 over $60/day (worst $60.5), an independent 180-trip sweep
+with a different mix found 25 (worst $61.40). Do not quote either as the rate.
+The durable claim is the qualitative one — it holds to within about a dollar, and
+the synthetic fixture in the test holds at ≤$60 exactly.
+
+**Known and accepted — the reported inversion is NOT closed.** Budget-conscious
+still totals more than mid-range: $393 vs $330 at 7 days on one persona, $392 vs
+$365 on an independent three-persona sweep; $564 vs $502 and $576 vs $555 at 10
+days. Every measurement agrees on the direction. The cause is that MID-RANGE
+under-books — 4 paid outings to budget's 5 — so it is a mid-range defect, not a
+budget one, and closing it means RAISING mid-range spend, which nobody asked for.
+The owner's stated target (~$60/day for budget) is met; the comparison they used
+to describe the problem is not. Whoever files the next report on this should be
+pointed here first.
+
+**Symptom 2 — the Renaissance/Flamingo day pass reached budget-conscious**, and
+its card read $99 when the gate charges $125.
+
+**Root cause.** Two independent faults that each hid the other. The price in
+`activities.ts` was stale. And `budgetCap` was enforced only inside `fitItem`,
+which takes a `ViatorItem` — so no curated local had *ever* been price-gated by
+tier. At the stale $99 it cleared the $110 budget ceiling anyway, so correcting
+the price alone would not have moved it either.
+
+**Fix.** Price → $125, and `candidatesFor` now applies the per-item ceiling to
+curated activities as well.
+
+**It removed a second thing, and the first draft of this entry wrongly said it
+did not.** Of the 26 curated locals, TWO clear the $110 budget ceiling: the $125
+pass and `kitesurfing-lesson` at $120. Measured over 72 budget-conscious trips
+(3 personas × 4 lengths × 6 seeds) the lesson appeared in 30 — **42%** — and the
+gate takes it to zero. That follows from the rule rather than a special case, and
+a $120 lesson arguably never belonged in a $110-ceiling tier, but it is a larger
+change than the report asked for and was flagged to the owner rather than shipped
+quietly. If it should stay, the fix is a per-activity opt-out; raising the ceiling
+would let the $125 pass back in. Nothing curated exceeds mid-range's $200, and the
+17 free locals are unaffected everywhere, which is what keeps budget days filled.
+
+The "24 activities / one over the ceiling / 11 free" figures in the first draft
+came from a regex over the source that silently skipped rows whose fields were
+ordered differently. Counting through `parseActivityCost` gives 26 / two / 17.
+
+**Symptom 3 — the same activity twice in one itinerary.**
+
+**Root cause — reported case not reproduced.** `Aruba Downtown Historic and
+Cultural Walking Tour` (`62666P1`) is placed exactly once on every seed traced;
+the ladder rejects it as `already placed` on every later day. What the catalog
+*does* hold is three near-identical downtown walking tours plus a curated one
+($10 / $25 / $39 / $40), which is the likelier read of the report — near
+duplicates, not one id twice. A scan of 192 generated plans found **414 repeated
+ids and not one of them paid** (426 placements in excess of the first sighting —
+the same scan, counted the other way): all free beaches and free sunset
+viewpoints.
+
+**Owner's decision (2026-08-17):** free locals may repeat; paid locals never may.
+So the revisit rule is unchanged and the guard is now enforced rather than
+assumed — `plan-diff` gained a `no repeated PAID local` rule, closing the same
+KNOWN GAP its sail rules carry (`itemsOf` returns Viator products only, so a
+repeated curated local was invisible to the checker).
+
+**Still open, not fixed:** `california-lighthouse-sunset` is `category:
+'Beaches'` + `Free`, so `isRevisitableBeach` treats an *evening viewpoint* as a
+revisitable beach. It repeats in **153 of 192** plans (80%) — far and away the
+most-repeated card — because the evening pool is 7 candidates deep and the
+allowance fires almost every time. Legal under the decision above, and left
+alone deliberately, but it is the evening-pool-depth limitation below wearing a
+different hat.
+
+**Mutation-checked in both directions**, and it mattered: the first drafts of all
+four regression tests passed against the broken code. The spend tests used $40
+items, where one paid outing a day can never reach $60/day; the tier-ceiling test
+had 30 cheap Viator items crowding curated locals out of every slot; the
+paid-repeat test left a free evening local in the pool, so the engine was never
+forced to choose.
+
+The paid-repeat fixture took THREE attempts and survived the first round of
+mutation checking by luck. Starving it of a free evening local was not enough: at
+$90 a day the daytime items spent each day's one paid outing, and making them
+free swapped that blocker for `MAX_ACTIVITIES_PER_DAY` filling morning and
+afternoon. Either way `paid-eve` was placeable on exactly one day in ten, so
+`toBe(1)` was guaranteed by arithmetic and the test passed with the revisit rule
+deleted — caught in review, not by me. The fixture now carries no Viator items at
+all (`groups: [], items: []`), which gives it nine real chances; with the guard
+removed it places twice.
+
+---
+
 ## Current state — embedding clustering
 
 Present-tense. The dated entries above are records of what was built on the day;

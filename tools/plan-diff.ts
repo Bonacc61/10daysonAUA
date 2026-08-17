@@ -23,6 +23,8 @@
 import { generatePlan, isBoatOuting, isSailOuting, isPaidOuting, MAX_PAID_OUTINGS_PER_DAY, SECOND_SAIL_MIN_DAYS } from '../src/data/itineraryGenerator';
 import { loadCatalog } from '../src/data/activitySource';
 import { activityKind, isFullDayProduct, isEveningItem } from '../src/data/itemFit';
+import { parseActivityCost } from '../src/data/matcher';
+import { LUNCHSPOTS } from '../src/data/lunchspots';
 
 // routeFamilyOf retires kayaks and day passes into their own families BEFORE the
 // sail test runs, so the trip-wide sail count has to exclude them the same way.
@@ -145,6 +147,36 @@ function checkInvariants(plan: Day[], catalog: Catalog): Violation[] {
   const seenItem = new Map<string, number>();
   plan.forEach((d) => itemsOf(d).forEach((i) => seenItem.set(i.id, (seenItem.get(i.id) ?? 0) + 1)));
   for (const [id, n] of seenItem) if (n > 1) out.push({ rule: 'no repeated product', detail: `${id} ×${n}` });
+
+  // ...and no repeated PAID CURATED activity either. The rule above reads
+  // `itemsOf`, which returns Viator products only, so for as long as it stood
+  // alone a repeated curated local was invisible to this checker — the same
+  // KNOWN GAP called out on the sail rules above. Measured on the live catalog
+  // (2026-08-17): 414 ids repeated at least once across 192 generated plans, every
+  // one of them a FREE local, so this rule passes today and is not a bug being
+  // papered over — it is the guard that keeps it that way.
+  //
+  // Free locals are exempt BY OWNER'S DECISION (2026-08-17): a free beach or
+  // sunset viewpoint may appear more than once in a trip. Paid ones may not,
+  // ever — being charged twice for the same thing is the complaint this exists
+  // to catch, and no revisit gap makes it acceptable.
+  // LUNCHSPOTS too, not just catalog.activities. All ten are paid ($6–30 pp) and
+  // the en-route food post-pass places them, but they live in their own array —
+  // so seeding from `catalog.activities` alone would have opened a second blind
+  // spot while the comment above claimed to be closing the first one. The
+  // generator's `usedPlaceKeys` stops a repeat today; this is what notices if
+  // that ever stops being true.
+  const actById = new Map([...catalog.activities, ...LUNCHSPOTS].map((a) => [a.id, a]));
+  const seenAct = new Map<string, number>();
+  plan.forEach((d) => SLOTS.flatMap((s) => d[s]).forEach((e) => {
+    if (e.kind !== 'activity') return;
+    const a = actById.get(e.id);
+    if (!a || parseActivityCost(a.cost) === 0) return;   // free locals may repeat
+    seenAct.set(e.id, (seenAct.get(e.id) ?? 0) + 1);
+  }));
+  for (const [id, n] of seenAct) {
+    if (n > 1) out.push({ rule: 'no repeated PAID local', detail: `${id} ×${n}` });
+  }
 
   // One experience cluster, once per trip.
   const seenCluster = new Map<string, string[]>();

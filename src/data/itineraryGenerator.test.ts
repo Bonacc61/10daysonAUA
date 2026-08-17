@@ -2454,7 +2454,7 @@ describe('generatePlan — template alternatives swap by answer', () => {
 // A day may carry at most ONE paid outing — the traveller's "one Viator
 // activity a day". Free beaches and restaurants are exempt, and the curated
 // template outranks the cap. Requested 2026-08-15; the reasoning for counting
-// the paid CURATED locals (the $11 Arikok gate, the $99 Flamingo pass, the $120
+// the paid CURATED locals (the $11 Arikok gate, the $125 Flamingo pass, the $120
 // kitesurfing lesson) is that they are strenuous 2.5-3h outings whatever the
 // booking channel, so "costs money" is the test, not "has an affiliate link".
 describe('generatePlan — one paid outing a day', () => {
@@ -2550,7 +2550,7 @@ describe('generatePlan — one paid outing a day', () => {
     // The three the owner ruled IN on 2026-08-15: strenuous 2.5-3h outings that
     // are paid at the gate rather than booked through us.
     expect(isPaidOuting(asActivity({ category: 'Activities', cost: '$11 entry' }))).toBe(true);      // Arikok
-    expect(isPaidOuting(asActivity({ category: 'Activities', cost: '$99 day pass' }))).toBe(true);   // Flamingo
+    expect(isPaidOuting(asActivity({ category: 'Activities', cost: '$125 day pass' }))).toBe(true);   // Flamingo
     expect(isPaidOuting(asActivity({ category: 'Watersports', cost: '$120 lesson' }))).toBe(true);   // kitesurfing
     // A free curated local is not an outing you paid for.
     expect(isPaidOuting(asActivity({ category: 'Activities', cost: 'Free' }))).toBe(false);
@@ -2567,5 +2567,137 @@ describe('generatePlan — one paid outing a day', () => {
     };
     expect(isPaidOuting(mkEntry(60))).toBe(true);
     expect(isPaidOuting(mkEntry(0))).toBe(false);
+  });
+});
+
+// === Budget tier: spend, price gate, and paid-repeat guard ====================
+// All three reported on 2026-08-17 against the live catalog. The measurements
+// quoted below are from tools/ probes (npm test is offline), and each test here
+// is the offline reproduction of one of them.
+describe('generatePlan — budget tier holds its spend', () => {
+  const mkGroup = (id: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  // Cheap, plentiful, always affordable — the exact shape that let a budget trip
+  // book a paid outing every single day and outspend a mid-range one.
+  const mkItem = (id: string, price: number, evening = false): ViatorItem => ({
+    id, group_id: `g-${id}`, title: evening ? `Outing ${id} at Sunset` : `Outing ${id}`,
+    image_url: '', price_usd: price, duration: '2 hrs', rating: 4.6, review_count: 200,
+    viator_item_url: '', is_best_seller: true, display_order: 0,
+    tags: [90000 + Number(id.replace(/\D/g, ''))], experience_cluster_id: `c-${id}`,
+  });
+  const mkAct = (id: string, cost: string, timeOfDay: Activity['timeOfDay'], category = 'Activities'): Activity =>
+    ({
+      id, title: `Local ${id}`, category, image: '', description: '', localsSay: '',
+      cost, duration: '2 hrs', timeOfDay, fitReason: '', location: 'Oranjestad',
+      rating: 4.5, reviewCount: 10, adventure: 20, sections: ['tours-sightseeing'], matched_by: [],
+    } as unknown as Activity);
+
+  // $90 is the price that separates the two caps, and nothing else does. Under
+  // the OLD rule the pool was the $110 per-item ceiling × days, so a 7-day trip
+  // could afford seven of these ($630, $90/day); under the average cap the pool
+  // is $60 × 7 = $420 and it runs dry after four. At $40 an item the bug is
+  // invisible — one paid outing a day can never reach $60/day — which is
+  // exactly how the first draft of these tests passed against the broken code.
+  const items: ViatorItem[] = [];
+  for (let n = 0; n < 30; n += 1) items.push(mkItem(`d${n}`, 90));
+  for (let n = 0; n < 12; n += 1) items.push(mkItem(`e${n}`, 90, true));
+
+  const spendOf = (plan: Day[], cat: Catalog): number => {
+    const itemById = new Map(cat.items.map((i) => [i.id, i]));
+    const actById = new Map(cat.activities.map((a) => [a.id, a]));
+    let total = 0;
+    for (const d of plan) {
+      for (const e of [...d.morning, ...d.afternoon, ...d.evening]) {
+        total += e.kind === 'activity'
+          ? parseActivityCost(actById.get(e.id)?.cost ?? 'Free')
+          : (itemById.get(e.bestSellerId)?.price_usd ?? 0);
+      }
+    }
+    return total;
+  };
+
+  it('averages no more than $60/day for budget-conscious', () => {
+    // The reported bug: measured live, a 7-day budget trip spent $443 ($63/day)
+    // while the SAME trip at mid-range spent $330. A price ceiling caps how dear
+    // an outing is, never how often one is booked, so every day got one.
+    const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
+    const days = 7;
+    const plan = generatePlan(
+      { ...DEFAULT_ANSWERS, days, budget: 'Budget-conscious', interests: ['Culture & history'], groupType: 'Couple' },
+      cat, { seed: 0 },
+    );
+    expect(spendOf(plan, cat) / days).toBeLessThanOrEqual(60);
+  });
+
+  it('lets mid-range spend more per day than budget-conscious', () => {
+    // The inversion is the actual complaint — not the absolute number. A cheaper
+    // tier must never cost more than a dearer one on the same catalog and seed.
+    const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
+    const days = 7;
+    const mk = (budget: string) => generatePlan(
+      { ...DEFAULT_ANSWERS, days, budget, interests: ['Culture & history'], groupType: 'Couple' },
+      cat, { seed: 0 },
+    );
+    // STRICTLY less. Under the bug the two tiers spent the SAME $630 here (both
+    // pools were large enough for one $90 outing every day), so a
+    // less-than-or-equal assertion passed against the very thing being fixed.
+    expect(spendOf(mk('Budget-conscious'), cat)).toBeLessThan(spendOf(mk('Mid-range'), cat));
+  });
+
+  it('never shows a curated local priced above the tier ceiling', () => {
+    // The Flamingo/Renaissance report. budgetCap was enforced in fitItem, which
+    // takes a ViatorItem — so no curated activity was ever price-gated by tier.
+    // $125 is over the $110 budget ceiling and under the $200 mid-range one, so
+    // the same catalog proves both halves.
+    const pricey = mkAct('flamingo', '$125 day pass', 'Morning');
+    const cheap = mkAct('walk', '$25 guided', 'Morning');
+    // EVENING Viator items only, so a morning slot can be filled by nothing but
+    // a curated local. With the usual daytime pool present the locals never win
+    // a slot at all (items rank first), and the tier assertion below would pass
+    // against a catalog that simply never offered one.
+    const eveOnly = items.filter((i) => i.title.includes('Sunset'));
+    const cat: Catalog = {
+      activities: [pricey, cheap], groups: eveOnly.map((i) => mkGroup(i.group_id)), items: eveOnly,
+    };
+    const idsFor = (budget: string) => entryIds(generatePlan(
+      { ...DEFAULT_ANSWERS, days: 7, budget, interests: ['Culture & history'], groupType: 'Couple' },
+      cat, { seed: 0 },
+    ));
+    expect(idsFor('Budget-conscious')).not.toContain('flamingo');
+    // Sanity: the gate is the PRICE, not the activity being curated. Without
+    // this the test would pass against a rule that dropped every local.
+    expect(idsFor('Treat yourself')).toContain('flamingo');
+  });
+
+  it('never repeats a PAID local, while a free one may repeat', () => {
+    // Owner's decision 2026-08-17: free locals may appear more than once; paid
+    // ones never may. Starved evening pool on purpose — one paid and one free
+    // evening local and nothing else — so the engine is forced to choose which
+    // one it is willing to repeat.
+    // The evening pool is ONE paid local and nothing else — no evening Viator
+    // items, no free evening local. Ten evenings, one candidate: if a paid local
+    // were ever allowed back, this is the plan that would show it. An earlier
+    // draft left a free evening local in the pool and passed even with the
+    // revisit guard deliberately removed, because the free one simply won every
+    // rematch and the engine was never made to choose.
+    // NOTHING else in the catalog — no Viator items at all. Two earlier drafts
+    // of this fixture were vacuous in two different ways: at $90 a day the
+    // daytime items spent each day's one paid outing (MAX_PAID_OUTINGS_PER_DAY)
+    // so the evening local was never reachable; making them free swapped that
+    // for MAX_ACTIVITIES_PER_DAY, which filled morning + afternoon and blocked
+    // the evening just the same, leaving `paid-eve` placeable on exactly one day
+    // out of ten. `toBe(1)` was then guaranteed by arithmetic rather than by the
+    // guard, and the test passed with the revisit rule deleted.
+    const paidEve = mkAct('paid-eve', '$45 tour', 'Evening');
+    const cat: Catalog = { activities: [paidEve], groups: [], items: [] };
+    const ids = entryIds(generatePlan(
+      { ...DEFAULT_ANSWERS, days: 10, budget: 'Mid-range', interests: ['Culture & history'], groupType: 'Couple' },
+      cat, { seed: 0 },
+    ));
+    // Present at all — otherwise the count assertion below is vacuous.
+    expect(ids).toContain('paid-eve');
+    expect(ids.filter((i) => i === 'paid-eve').length).toBe(1);
   });
 });

@@ -54,7 +54,12 @@ afternoon  ✓  Arikok National Park 4x4 Jeep Safari   $89  pool 18/21, survivor
 - **variety gate relaxed** — nothing of a new kind was available, so `newKind` had
   to be dropped. Frequent relaxation means the pool is too thin for the trip length.
 - **free-only day** — arrival day of a multi-day trip; the over-budget rungs never
-  run, so price is genuinely decisive here and only here.
+  run, so price is genuinely decisive there. Since 2026-08-17 the same is true of
+  EVERY slot on a budget-conscious trip: that tier skips the over-budget rungs at
+  any remaining balance — whenever the price exceeds what is LEFT in the pool, not
+  only at zero, so a $90 outing is already decisive with $30 remaining. The slot
+  then takes a free local or stays open. Those are the only two places price
+  decides anything.
 
 ### Rejection reasons
 
@@ -64,7 +69,7 @@ afternoon  ✓  Arikok National Park 4x4 Jeep Safari   $89  pool 18/21, survivor
 | `duplicate experience` | route family, boat day-gap, one-boat-per-day, same-day Jaccard, cluster id, trip-wide Jaccard, or group | `similarReason` |
 | `day time budget` | past 8h of daytime activity, or past the 4h evening cap | `DAY_CAP_MIN` / `EVENING_CAP_MIN` |
 | `same kind today` | variety gate, first pass only | `entryKind` |
-| `over budget` | free-only arrival day only | `maxPrice === 0` |
+| `over budget` | free-only arrival day, or a budget-conscious trip with its pool spent | `maxPrice === 0 \|\| tags.has('budget')` |
 
 `duplicate experience` always names which of the six rules fired, with the
 Jaccard score where relevant — that is usually the whole diagnosis.
@@ -86,7 +91,9 @@ overbooked upstream, not that the pool is thin.
 `--why "<part of the title>"`. If nothing matches at all, it was filtered
 *before* the ladder — by slot, a Q8 flag, budget tier, the champion pool
 (`MIN_CHAMPION_REVIEWS`), or `isAutoFillExcluded` —
-and the trace cannot see it. Check `fitItem` / `applyCatalogFlags` instead.
+and the trace cannot see it. Check `fitItem` (Viator items), the per-item price
+gate in `candidatesFor` (curated locals — `fitItem` takes a ViatorItem and never
+sees an Activity), or `applyCatalogFlags`.
 
 ## After you fix something
 
