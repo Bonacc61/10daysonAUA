@@ -140,7 +140,7 @@ type Props = { answers: Answers; canSeeItinerary: boolean; setPage: (p: PageId) 
 
 export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   const { catalog } = useCatalog();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   // Same tags the itinerary resolves with, so both surfaces pick the same face
   // for a card whose stored product has left the catalog.
   const tags = useMemo(() => answersToTags(answers), [answers]);
@@ -195,10 +195,19 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   // it does, not the trip Itinerary has stopped editing. It also keeps `tags`
   // honest, since those are derived from `answers` and used to resolve a card's
   // face on both surfaces.
+  // Keyed on `user?.id`, NOT `user`: useAuth derives `user` from the session
+  // object, so every INITIAL_SESSION / TOKEN_REFRESH / visibility-change recovery
+  // hands back a new identity for the same person. Depending on the object would
+  // refetch the trip and replace `savedPlan` with an equal-but-new array on each
+  // one, and that cascade reaches the fitBounds effect — a token refresh while
+  // the map is open would fly the camera for no reason.
   const [savedPlan, setSavedPlan] = useState<Day[] | null>(null);
+  const [savedResolved, setSavedResolved] = useState(false);
   useEffect(() => {
-    if (!user) { setSavedPlan(null); return; }
+    if (authLoading) return;            // decide nothing before we know whose map this is
+    if (!user) { setSavedPlan(null); setSavedResolved(true); return; }
     let alive = true;
+    setSavedResolved(false);
     const wanted = readActiveTripId();
     const fetch = wanted
       ? loadTripById(user.id, wanted).then((t) => t ?? loadTrip(user.id))
@@ -206,9 +215,10 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
     fetch.then((t) => {
       if (!alive) return;
       setSavedPlan(t && sameAnswers(t.answers, answers) ? unseedPlan(t.plan) : null);
+      setSavedResolved(true);
     });
     return () => { alive = false; };
-  }, [user, answers]);
+  }, [authLoading, user?.id, answers]);
 
   // Slot 0 is the saved trip when there is one; the generated plan otherwise.
   const variants = useMemo(
@@ -219,7 +229,13 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
     ? [SAVED_VARIANT, PLAN_VARIANTS[1], PLAN_VARIANTS[2]]
     : PLAN_VARIANTS;
 
-  const plan = variants?.[activePlanIdx] ?? null;
+  // Nothing is drawn until we know whether there is a saved trip. Otherwise a
+  // signed-in traveller gets one frame of the GENERATED plan under "Balanced /
+  // Your personalised itinerary", which then swaps to their real trip and flies
+  // the camera — the wrong itinerary shown confidently, which is the failure this
+  // whole change is about. A blank moment is the honest state. Itinerary.tsx
+  // solves the same problem with its `hydrated` gate.
+  const plan = savedResolved ? (variants[activePlanIdx] ?? null) : null;
 
   const switchPlan = (idx: number) => {
     setActivePlanIdx(idx);
