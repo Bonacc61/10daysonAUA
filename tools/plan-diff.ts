@@ -5,7 +5,8 @@
  * The generator's rules were derived painfully, one production report at a time:
  * one kayak per trip, one sail (daytime and evening alike), two outings and one
  * meal per day, ONE PAID outing per day (2026-08-15), nothing repeated except a
- * revisitable beach. Those rules are guarded by tests — but the tests run
+ * revisitable beach (or any free card the blank-day rescue reuses), no repeated
+ * PAID local (2026-08-17), and no activity-less day (2026-08-17). Those rules are guarded by tests — but the tests run
  * against the OFFLINE STUB catalog
  * (`getCatalog()`), and enrichment is merged only in the live path
  * (`loadCatalog()`). So `npm test` is structurally incapable of telling you
@@ -176,6 +177,22 @@ function checkInvariants(plan: Day[], catalog: Catalog): Violation[] {
   }));
   for (const [id, n] of seenAct) {
     if (n > 1) out.push({ rule: 'no repeated PAID local', detail: `${id} ×${n}` });
+  }
+
+  // No day is activity-less. Asked for explicitly on 2026-08-17 after the budget
+  // ladder change: "there shouldn't ever be an activity-less day planned (free or
+  // paid)". It was already true — 0 empty days over 150 budget trips / 1170 days,
+  // before the change and after — but only INCIDENTALLY, because the free locals
+  // happen to cover the daytime. Nothing stated it, so nothing would have caught
+  // it turning false. Now something does.
+  //
+  // Deliberately counts cards of ANY kind, free included: the promise is that a
+  // traveller is never handed a blank day, not that they are never handed a free
+  // one. An empty EVENING is legal and common (a 7-deep evening pool cannot fill
+  // ten evenings); an empty DAY is not.
+  for (const d of plan) {
+    const cards = SLOTS.reduce((n, s) => n + d[s].length, 0);
+    if (cards === 0) out.push({ rule: 'no activity-less day', detail: `day ${d.day} has no cards at all` });
   }
 
   // One experience cluster, once per trip.

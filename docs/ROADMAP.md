@@ -99,7 +99,10 @@ feeds the engine is in `docs/matching-engine/geography.md`:
   Zeerover and O'Neil's are close to the only decent stops down there, and each
   is offered once per trip, so a fortnight with four south-coast days cannot
   cover them all. Letting a restaurant repeat after a gap reaches ~73% but
-  breaks the "nothing repeats except a free beach" guarantee (4 tests guard it).
+  breaks the "nothing repeats except a free card" guarantee — free beaches after a
+  clear day, plus whatever free card the blank-day rescue reuses (2026-08-17); a
+  PAID local still never repeats, which is what the reasoning here rests on, since
+  no curated restaurant is free.
   Needs a product decision, not a constant.
 - Same-day cross-slot (largely addressed): `SAME_DAY_SIMILARITY_THRESHOLD = 0.08`
   plus a hard one-boat-per-day cap now govern within a day. What remains: two items

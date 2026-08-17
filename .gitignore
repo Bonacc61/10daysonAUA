@@ -25,3 +25,12 @@ supabase/.temp
 
 # Ralph run state (per-machine, not source)
 scripts/ralph/.last-branch
+
+# Agent worktrees. 341 MB of full repo copies, and `vitest run` walks into them:
+# a bare `npm test` picks up the duplicated src/ and reports ~1420 tests instead
+# of ~950, with ~63 phantom failures from the older copy's components. Ignored so
+# neither `git add -A` nor a test run can be misled by them.
+.claude/worktrees/
+
+# Source dumps generated for external review (engine-bundle.md and friends).
+engine-bundle*.md

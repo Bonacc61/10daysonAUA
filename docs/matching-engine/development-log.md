@@ -31,6 +31,7 @@ answersToTags(answers)
         pickForSlot(ctx, slot, …)         // ranked fill ladder
         record pick → update ctx
       empty-day rescue                    // spends the open afternoon rather than render a blank day
+      blank-day rescue                    // then the last-resort rung, ANY unclaimed slot, free cards only
   → en-route food post-pass               // appends a lunch stop; NOT time-budgeted
 ```
 
@@ -40,8 +41,8 @@ Accumulates trip-wide state across the day loop:
 
 | Field | Purpose |
 |---|---|
-| `lastUsedDay` | item-id → day number; no id repeats, except a free local `Beaches` activity, which may return after ONE clear day (`REVISITABLE_MIN_DAY_GAP` = 2 is a gap of two day NUMBERS, so day 5 → day 7) — unless the traveller pinned it |
-| `pinnedIds` | ids the traveller pinned; exempt from the beach-revisit allowance, so a pinned pick is placed exactly once |
+| `lastUsedDay` | item-id → day number; no id repeats, except a free local `Beaches` activity, which may return after ONE clear day (`REVISITABLE_MIN_DAY_GAP` = 2 is a gap of two day NUMBERS, so day 5 → day 7) — unless the traveller pinned it. One further exception since 2026-08-17: the blank-day rescue's last-resort rung never calls `unused` at all, so ANY free card may repeat there — no day gap, no placement cap — to stop a day rendering blank. It never considers a paid one. |
+| `pinnedIds` | ids the traveller pinned; exempt from the beach-revisit allowance, so a pinned pick is placed exactly once BY THE LADDER. The blank-day last-resort rung does not consult `unused`, so a free pinned card is the one way a pin can appear twice (theoretical — the pin path is not live). |
 | `usedClusterIds` | embedding clusters placed; a hit is conclusive, a miss falls through |
 | `usedTagSets` | tag arrays of placed items; trip-wide Jaccard at 0.35 |
 | `dayTagSets` | tag arrays placed TODAY, reset per day; stricter Jaccard at 0.08 |
@@ -61,19 +62,30 @@ in mind" only — the traveller drops it into a slot from the empty-slot picker 
 
 ### Fill ladder (`pickForSlot`)
 
-Four tiers, best → worst. Every tier is gated by `unused` (no id repeats, except a free local beach after a 2-day gap),
+Four tiers, best → worst, plus a fifth rung below them that only the blank-day
+rescue may unlock. Every one of the FOUR tiers is gated by `unused` (no id
+repeats, except a free local beach after a 2-day gap),
 `notSimilar` (semantic dedup) and `feasible` — the day/evening time budget AND
 the day shape (<=3 cards a day INCLUDING the meal, <=2 outings, <=1 meal, and a
-full-day pass alone on its day); when
-`maxPrice === 0` (the free-only arrival day) it returns before tiers 3-4. `kindOk` runs the whole ladder for
+full-day pass alone on its day); tiers 3-4 are skipped when
+`maxPrice === 0` (the free-only arrival day) or the traveller is
+budget-conscious (2026-08-17). `kindOk` runs the whole ladder for
 variety-introducing picks first, then relaxes for same-kind picks:
 
 1. Affordable + on-theme
 2. Affordable + widened (any slot)
 3. Over-budget + on-theme
 4. Over-budget + widened
+5. **Last resort** (`lastResortPick`, trace tier `last-resort`) — FREE cards only
+   (`entryPrice === 0`), still gated by `notSimilar` and `feasible`, but it
+   ignores `unused` and the same-day variety gate, and with `unused` also the
+   revisit day-gap and placement cap. Reachable ONLY via the `lastResort` flag,
+   which only the day loop sets, and only for a day that has no card at all.
 
-When all tiers are exhausted the slot stays open ("Drop an activity here").
+When all FOUR tiers are exhausted the slot stays open ("Drop an activity here") —
+unless the whole DAY is empty, in which case the last-resort rung is offered to
+each unclaimed slot in the order afternoon, morning, evening, stopping at the
+first placement. So a slot may be empty; a day may not.
 
 ---
 
@@ -1576,6 +1588,69 @@ afternoon. Either way `paid-eve` was placeable on exactly one day in ten, so
 deleted — caught in review, not by me. The fixture now carries no Viator items at
 all (`groups: [], items: []`), which gives it nine real chances; with the guard
 removed it places twice.
+
+---
+
+### 2026-08-17 (later) — a blank day was never actually forbidden
+
+**Symptom.** None reported in production. The owner read a warning left in the
+ladder comment — "a budget slot ... stays open once the free pool is exhausted
+too" — and asked the reasonable question: does a budget-conscious traveller now
+get days with nothing on them at all?
+
+**Answer: no, and never did.** 0 completely empty days across 150 budget trips /
+1170 days on the live catalogue, with the ladder change and without it. An
+independent sweep put it at 0 across 6,804 trips / 51,030 days. The comment was
+mine and it was wrong; it described a slot and read as though it described a day.
+What actually changed at 8b420b4 was thinner days, not empty ones: open slots
+20.7% → 22.3%, and 38 more one-card days out of 1170. The open slots are
+evenings, and the cause is inventory rather than price — across open evening
+slots `already placed` runs 4.6 per slot against `over budget` at 0.4.
+
+**Root cause of the real problem.** "No blank day" was a CONSEQUENCE, not a rule.
+It held because the catalogue carries 17 free curated locals — 9 morning, 5
+afternoon, 3 evening — and mornings and afternoons always covered a day. Nothing
+in the engine required it, so nothing would have noticed it stopping. Probed at
+shallower depths it broke immediately: 1 free local per slot blanks day 5 of a
+5-day trip; 2/2/2 blanks days 6-7 of a seven-day one; 3/2/1 blanks day 7. At
+EVERY budget tier, and identically with the whole of 8b420b4 reverted — so this
+predates the budget work and was never a regression from it.
+
+**Fix.** Owner's call: a blank day must be structurally impossible, accepting a
+partially-matched card as the price. The day loop already had an empty-day rescue
+that re-ran the ordinary ladder on the afternoon; that only helps when the
+afternoon was held open for pacing, and cannot help when the ladder itself is out
+of cards — which is the case that produced blanks. Added a rung BELOW the ladder
+(`lastResortPick`, trace tier `last-resort`) plus a day-loop pass that offers it
+every slot, not just the afternoon, since a `no-early-mornings` traveller on a
+departure day has only the evening left.
+
+**What the rescue relaxes, and what it must not.** Two things only: theme/variety
+and the no-repeat rule. A first draft also dropped `notSimilar` and the budget
+pool and **broke seven existing tests at once** — a rescue that ignores route
+families puts a second catamaran or a second kayak in a trip, and one that
+ignores the pool undoes the $60/day cap. Those are trip-wide promises and a thin
+day does not outrank them. The rung is therefore FREE-CARDS-ONLY, which is what
+makes the rest safe: a free card costs the pool nothing, and a paid card can
+never be repeated because none is ever considered. It matches how the decision
+was framed — "there are enough beaches to visit" — so the rescue is a beach.
+
+**The guarantee, stated exactly:** no blank day for any traveller whose catalogue
+holds at least one free card fitting an open slot. Live, that is 17 of them and
+the condition cannot fail. With no free card at all a day can still come back
+empty, and nothing better is reachable without breaking a rule above.
+
+**Cost on the live catalogue: zero.** Spend, open slots and the cards-per-day
+distribution are byte-identical before and after ($392.8/7d and $564/10d;
+781 open slots of 3510; 9.6% / 35.5% / 55.0%). The rung never fires in
+production — it exists for the catalogue we do not have yet.
+
+Guarded two ways, because a rule nothing checks is how the last one rotted: a
+`no activity-less day` conformance rule in `tools/plan-diff.ts` (counts cards of
+any kind, 5 personas × 4 seeds against the real catalogue) and three tests here.
+Mutation-checked: disabling the rung blanks day 5 again, removing the day-loop
+pass blanks it again, and letting the rung consider paid cards produces 8 repeats
+of one paid activity.
 
 ---
 

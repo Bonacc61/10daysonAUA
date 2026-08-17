@@ -50,7 +50,11 @@ afternoon  ✓  Arikok National Park 4x4 Jeep Safari   $89  pool 18/21, survivor
 - **survivors** — cleared every gate but were out-ranked. Not rejections: `ranked`
   put the pick first. Survivors > 0 with an empty slot is impossible.
 - **rung** — which rung of the fill ladder fired: `affordable+on-theme` →
-  `affordable+widened` → `over-budget+on-theme` → `over-budget+widened`.
+  `affordable+widened` → `over-budget+on-theme` → `over-budget+widened` →
+  `last-resort`. The last one fires ONLY to stop a day rendering blank, after
+  every other rung returned nothing; it takes a FREE card and will repeat one
+  rather than leave the day empty. Seeing it means that day had no other card at
+  all, so read it as a statement about catalogue depth, not a normal pick.
 - **variety gate relaxed** — nothing of a new kind was available, so `newKind` had
   to be dropped. Frequent relaxation means the pool is too thin for the trip length.
 - **free-only day** — arrival day of a multi-day trip; the over-budget rungs never

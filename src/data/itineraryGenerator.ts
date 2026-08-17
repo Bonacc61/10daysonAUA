@@ -382,7 +382,11 @@ export type TraceTier =
   | 'affordable+on-theme'
   | 'affordable+widened'
   | 'over-budget+on-theme'
-  | 'over-budget+widened';
+  | 'over-budget+widened'
+  // Fires ONLY to stop a day rendering blank, and only after every rung above
+  // returned nothing. Seeing this in a trace means the day had no other card at
+  // all — it is a signal about catalogue depth, not a normal outcome.
+  | 'last-resort';
 
 export type TraceEvent =
   | {
@@ -1007,6 +1011,10 @@ function pickForSlot(
   // boost (used for a day's anchor slot) — a nudge, not a filter, so regenerate
   // variety survives and the slot never blanks for lack of an on-theme option.
   themeGroupId?: string,
+  // Blank-day rescue. Set ONLY by the day loop, and only for a day that has come
+  // back with no card at all after every slot has had its turn. It unlocks one
+  // extra rung below the ladder — see `lastResortPick`.
+  lastResort = false,
 ): CardEntry | null {
   const affordable = (e: CardEntry) => entryPrice(e) <= maxPrice;
   // `unused` is trip-wide: lastUsedDay holds every id placed on any prior day,
@@ -1129,9 +1137,25 @@ function pickForSlot(
     //
     // Only the cheapest tier. The dearer tiers keep the old behaviour on purpose
     // — for them a full slot beats a strictly-observed average, and none of them
-    // was reported as overspending. The cost here is real and one-directional: a
-    // budget slot that would have held an over-budget outing now holds a free
-    // local, or stays open once the free pool is exhausted too.
+    // was reported as overspending.
+    //
+    // The cost, measured rather than guessed. Recipe, so it can be re-derived:
+    // personas `default` + `foodie` + `splurge` all forced to Budget-conscious,
+    // lengths [3,5,7,10,14], 10 seeds = 150 trips / 1170 days on the live
+    // catalogue. Open slots 20.7% → 22.3%; days carrying one card 6.3% → 9.6%
+    // (+38, drawn from both two- and three-card days).
+    // **Completely empty days: 0 before and 0 after** — and since 2026-08-17
+    // that is enforced rather than observed (see the blank-day rescue in the day
+    // loop), because it was only ever a consequence of free-local inventory
+    // depth.
+    //
+    // What stays open is the EVENING, and the reason is inventory, not price:
+    // across open evening slots the trace counts `already placed` at 4.6 per
+    // slot against `over budget` at 0.4 — a 7-deep evening pool spread over ten
+    // evenings. (An earlier draft of this note said "one over-budget rejection
+    // in a whole 10-day trip", which was one persona/seed pair quoted as if it
+    // were typical; the real spread is 0–13.7 per trip depending on persona.)
+    // Evening depth pre-dates this rule and is unchanged by it.
     if (maxPrice === 0 || ctx.tags.has('budget')) return null;
     const t3 = ok(matchedAll).find(unused);
     if (t3) return { pick: t3, tier: 'over-budget+on-theme' };
@@ -1140,8 +1164,63 @@ function pickForSlot(
     return null;
   };
 
+  // The rung below the ladder. Fires only when the day loop says this day has no
+  // card at all, and only after both ladder passes have come back empty — so it
+  // can never change a day that was going to be fine.
+  //
+  // "No blank day" used to be a CONSEQUENCE rather than a rule: 17 free curated
+  // locals (9 morning / 5 afternoon / 3 evening) happened to cover every daytime
+  // slot, so it held on the live catalogue and nothing enforced it. Probed at
+  // shallower depths it broke — 1 free local per slot blanks day 5 of a 5-day
+  // trip, 2/2/2 blanks days 6-7 of a seven-day one — at EVERY budget tier, and
+  // that predates the budget ladder change (it reproduces with the whole of
+  // 8b420b4 reverted). Owner's call 2026-08-17: a blank day must be structurally
+  // impossible, and a partially-matched card is the right price to pay.
+  //
+  // FREE CARDS ONLY (`entryPrice === 0`). That single constraint is what makes
+  // the rung safe, and it is worth being precise about why, because an earlier
+  // note here credited `notSimilar` and was wrong. A free card debits the trip's
+  // budget pool by zero, so the $60/day guarantee is untouched however often this
+  // fires; and a PAID card can never be repeated because none is ever considered.
+  // It matches how the owner framed the decision — "there are enough beaches to
+  // visit" — so the rescue is a beach, every time.
+  //
+  // What it bypasses, named individually because each is a separate rule with its
+  // own tests: `kindOk` (same-day variety), `unused` (no repeats), and via
+  // `unused` also REVISITABLE_MIN_DAY_GAP and MAX_REVISITABLE_PLACEMENTS — so a
+  // rescue may re-place yesterday's beach, and may be that card's third
+  // appearance. Measured on a starved catalogue: day 5 takes the card placed on
+  // day 4, as its 3rd placement. Deliberate. A repeated beach beats a blank page,
+  // and only a day with NO other card reaches here.
+  //
+  // `notSimilar` and `feasible` are still applied, but honesty about coverage:
+  // `notSimilar` is inert today and deleting it breaks no test. Free curated
+  // locals carry no Viator tags and no cluster id, so `similarReason` returns
+  // null for them by construction, and no free Viator PRODUCT exists to exercise
+  // it. It stays as a rail for the day one does — not as the thing keeping the
+  // one-sail and one-kayak rules intact. What keeps those intact is that a boat
+  // is never free. (The draft that really did break seven tests dropped the price
+  // filter as well; that was the price filter's doing, not this line's.)
+  //
+  // The guarantee is therefore precisely: no blank day for any traveller whose
+  // catalogue holds at least one free card that fits an open slot. On the live
+  // catalogue that is 17 of them (9 morning / 5 afternoon / 3 evening) and the
+  // condition cannot fail. With NO free card the day can still come back empty,
+  // and nothing better is available without breaking a rule above.
+  //
+  // A plain `.find` — no ranking. Sorting unused-before-revisited would be dead
+  // code: a free candidate that is unused is also affordable (0 <= maxPrice
+  // always) and clears the same `notSimilar`/`feasible` closures, so rung t2 with
+  // `kindOk` relaxed would already have taken it. Instrumented over every firing
+  // in the suite: an unused candidate never reaches this line.
+  const lastResortPick = (): { pick: CardEntry; tier: TraceTier } | null => {
+    const pick = [...matchedAll, ...widenedAll]
+      .find((e) => entryPrice(e) === 0 && feasible(e) && notSimilar(e));
+    return pick ? { pick, tier: 'last-resort' } : null;
+  };
+
   const strict = runLadder(newKind);
-  const result = strict ?? runLadder(() => true);
+  const result = strict ?? runLadder(() => true) ?? (lastResort ? lastResortPick() : null);
 
   if (ctx.trace) {
     // Runs over the same ctx state the ladder just used, so what it reports is
@@ -2039,7 +2118,7 @@ export function generatePlan(
     // The fill ladder for one slot. A closure rather than inline code so the
     // empty-day rescue below can run it a second time — see there for why a
     // day can otherwise come back with nothing at all on it.
-    const fillSlot = (slot: Slot): void => {
+    const fillSlot = (slot: Slot, lastResort = false): void => {
     // Arrival day (day 1) is a free/chill settle-in day — no paid tours.
     // Single-day trips are exempted (the traveller has no other day).
     const freeOnly = nDays > 1 && d === 1;
@@ -2108,7 +2187,7 @@ export function generatePlan(
     // Theme-first: the day's anchor (first placed) slot is biased toward the
     // day theme; later slots fill freely (variety).
     const themeId = picks.length === 0 ? dayTheme?.id : undefined;
-    const pick = pickForSlot(ctx, slot, anchor, anchorCoord, maxP, usedKinds, feasible, themeId);
+    const pick = pickForSlot(ctx, slot, anchor, anchorCoord, maxP, usedKinds, feasible, themeId, lastResort);
     if (!pick) return;
     budgetLeft -= entryPrice(pick);
     ctx.lastUsedDay.set(entryId(pick), d);
@@ -2242,6 +2321,27 @@ export function generatePlan(
     // here — better a departure-day beach than a page with nothing on it.
     if (picks.length === 0 && !blocked.has('afternoon') && !pinClaimed.get(d)?.has('afternoon')) {
       fillSlot('afternoon');
+    }
+
+    // ...and if THAT found nothing, drop to the last-resort rung. The pass above
+    // re-runs the ordinary ladder, so it only helps when the afternoon was held
+    // open for pacing; it cannot help when the ladder itself is out of cards,
+    // which is the case that actually produced blank days. Owner's call
+    // 2026-08-17: a blank day must be structurally impossible.
+    //
+    // Every slot gets a turn, not just the afternoon — a `no-early-mornings`
+    // traveller on a departure day has only the evening left, and that is
+    // precisely the traveller this is for. `blocked` (a prior activity
+    // overrunning) and pinned slots are still respected: those are physical
+    // facts about the day, not preferences. Ordering is afternoon-first for the
+    // same pacing reason the rescue above uses it.
+    if (picks.length === 0) {
+      for (const slot of ['afternoon', 'morning', 'evening'] as Slot[]) {
+        if (blocked.has(slot) || pinClaimed.get(d)?.has(slot) || slots[slot].length > 0) continue;
+        if (slot === 'morning' && flags.has('no-early-mornings')) continue;
+        fillSlot(slot, true);
+        if (picks.length > 0) break;
+      }
     }
 
     const title = titleFor(picks, d);

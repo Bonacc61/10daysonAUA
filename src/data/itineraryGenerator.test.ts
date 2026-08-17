@@ -2701,3 +2701,121 @@ describe('generatePlan — budget tier holds its spend', () => {
     expect(ids.filter((i) => i === 'paid-eve').length).toBe(1);
   });
 });
+
+// Asked for on 2026-08-17: "there shouldn't ever be an activity-less day
+// planned (free or paid)". True before that date and true after, but only
+// incidentally — the free locals happen to cover the daytime and no rule said
+// they had to. This is the rule saying so.
+// Named for the guarantee, but note the unit tests below cover a handful of
+// personas at one seed each; the live breadth comes from the `no activity-less
+// day` rule in tools/plan-diff.ts, which runs 5 personas x 4 seeds against the
+// real catalog.
+describe('generatePlan — no traveller gets a blank day', () => {
+  const mkGroup = (id: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  const mkAct = (id: string, cost: string, timeOfDay: Activity['timeOfDay'], category: string): Activity =>
+    ({
+      id, title: `Local ${id}`, category, image: '', description: '', localsSay: '',
+      cost, duration: '2 hrs', timeOfDay, fitReason: '', location: 'Oranjestad',
+      rating: 4.5, reviewCount: 10, adventure: 20, sections: ['beaches'], matched_by: [],
+    } as unknown as Activity);
+
+  // A catalogue a budget traveller cannot buy from: every Viator item is priced
+  // far over the $110 tier ceiling, so the paid pool is entirely unreachable and
+  // only the free locals can fill anything — the hardest case for the free pool
+  // to cover. That framing holds for Budget-conscious; the loop below also runs
+  // Money-no-object, where $400 is affordable and the assertion cannot fail. The
+  // failure that matters is the budget one. NOT a case the budget ladder change created: mid-range blanks at
+  // identical inventory depths, and the blanks reproduce with the whole of
+  // 8b420b4 reverted.
+  const items: ViatorItem[] = Array.from({ length: 12 }, (_, n) => ({
+    id: `rich-${n}`, group_id: `g-rich-${n}`, title: `Luxury Outing ${n}`,
+    image_url: '', price_usd: 400, duration: '2 hrs', rating: 4.8, review_count: 300,
+    viator_item_url: '', is_best_seller: true, display_order: 0,
+    tags: [95000 + n], experience_cluster_id: `c-rich-${n}`,
+  }));
+  // Mirrors the live free-local inventory: 9 morning / 5 afternoon / 3 evening
+  // (counted through parseActivityCost, 2026-08-17). The depth matters and the
+  // test is worthless without it — a first draft with ONE free local per slot
+  // produced a genuinely blank day 5 on a 5-day trip. That is not a regression
+  // from the budget ladder change (it reproduces identically with the change
+  // reverted); it is the standing fact that "no blank day" is a CONSEQUENCE of
+  // having enough free inventory, never a rule the engine enforces. Starve the
+  // free pool and a blank day is reachable at any tier. This test pins the
+  // guarantee at the inventory the catalogue actually has.
+  const frees = [
+    ...Array.from({ length: 9 }, (_, n) => mkAct(`free-morn-${n}`, 'Free', 'Morning', 'Beaches')),
+    ...Array.from({ length: 5 }, (_, n) => mkAct(`free-aft-${n}`, 'Free', 'Afternoon', 'Beaches')),
+    ...Array.from({ length: 3 }, (_, n) => mkAct(`free-eve-${n}`, 'Free', 'Evening', 'Beaches')),
+  ];
+  const cat: Catalog = { activities: frees, groups: items.map((i) => mkGroup(i.group_id)), items };
+
+  // The case that proved the guarantee was not a rule. One free local per slot
+  // is far below the live catalogue's 9/5/3, and before the last-resort rung it
+  // produced a genuinely blank day 5 on a 5-day trip — at EVERY budget tier, and
+  // identically with the whole of 8b420b4 reverted, so it was never a regression
+  // from the budget work. It is now impossible by construction.
+  it('fills a day even when the free pool is far too thin', () => {
+    const thin = [
+      mkAct('one-morn', 'Free', 'Morning', 'Beaches'),
+      mkAct('one-aft', 'Free', 'Afternoon', 'Beaches'),
+      mkAct('one-eve', 'Free', 'Evening', 'Beaches'),
+    ];
+    const thinCat: Catalog = { activities: thin, groups: items.map((i) => mkGroup(i.group_id)), items };
+    for (const budget of ['Budget-conscious', 'Mid-range', 'Treat yourself', 'Money no object']) {
+      for (const days of [5, 7, 10, 14]) {
+        const plan = generatePlan(
+          { ...DEFAULT_ANSWERS, days, budget, interests: ['Beach & chill'], groupType: 'Couple' },
+          thinCat, { seed: 0 },
+        );
+        plan.forEach((d, i) => {
+          const cards = d.morning.length + d.afternoon.length + d.evening.length;
+          expect(cards, `${budget} ${days}-day trip, day ${i + 1} is blank`).toBeGreaterThan(0);
+        });
+      }
+    }
+  });
+
+  // The rescue may repeat a FREE local to save a day. It may never repeat a PAID
+  // one — that decision (2026-08-17) outranks a thin day, and a rescue that
+  // booked the same paid outing twice would be worse than the problem.
+  it('rescues with a free repeat, never a paid one', () => {
+    const thin = [
+      mkAct('one-morn', 'Free', 'Morning', 'Beaches'),
+      mkAct('paid-aft', '$45 tour', 'Afternoon', 'Activities'),
+    ];
+    const thinCat: Catalog = { activities: thin, groups: [], items: [] };
+    const plan = generatePlan(
+      { ...DEFAULT_ANSWERS, days: 10, budget: 'Mid-range', interests: ['Beach & chill'], groupType: 'Couple' },
+      thinCat, { seed: 0 },
+    );
+    const ids = entryIds(plan);
+    expect(ids.filter((i) => i === 'paid-aft').length).toBeLessThanOrEqual(1);
+    // ...and no day was left blank getting there. This assertion, not the repeat
+    // count, is what makes the test about the RESCUE. An earlier version asserted
+    // `one-morn` appeared more than once and passed with the whole feature
+    // reverted: a free 'Beaches' local reaches two placements through the
+    // ORDINARY revisit allowance, so the count was already satisfied while 7 of
+    // the 10 days came back empty. Third vacuous fixture on this task; the tell
+    // each time was an assertion that some other rule already guaranteed.
+    plan.forEach((d, i) => {
+      const cards = d.morning.length + d.afternoon.length + d.evening.length;
+      expect(cards, `day ${i + 1} is blank`).toBeGreaterThan(0);
+    });
+  });
+
+  it('never leaves a budget-conscious day with zero cards', () => {
+    for (const days of [3, 5, 7, 10, 14]) {
+      const plan = generatePlan(
+        { ...DEFAULT_ANSWERS, days, budget: 'Budget-conscious', interests: ['Beach & chill'], groupType: 'Couple' },
+        cat, { seed: 0 },
+      );
+      plan.forEach((d, i) => {
+        const cards = d.morning.length + d.afternoon.length + d.evening.length;
+        expect(cards, `${days}-day trip, day ${i + 1} has no cards at all`).toBeGreaterThan(0);
+      });
+    }
+  });
+});
