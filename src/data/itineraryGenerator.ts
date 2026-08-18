@@ -1211,8 +1211,27 @@ function pickForSlot(
     return pick ? { pick, tier: 'last-resort' } : null;
   };
 
-  const strict = runLadder(newKind);
-  const result = strict ?? runLadder(() => true) ?? (lastResort ? lastResortPick() : null);
+  // Tier 1 first, across BOTH kind gates, before tier 2 is allowed at all.
+  // The curated must-do set has first claim on the trip's booking days; a
+  // tier 2 extra (Atlantis Submarine, De Palm Island) may only take a day the
+  // must-do set truly cannot use — even relaxing same-day kind variety first.
+  // Without this a family books the submarine on day 3 and never gets a
+  // catamaran. Wraps the existing kindOk gates rather than replacing the
+  // strict/relaxed cascade; `lastResort` behaviour is untouched.
+  const tier1Only = (kindOk: (e: CardEntry) => boolean) =>
+    (e: CardEntry) => kindOk(e) && bookableTier(e, ctx.tags) !== 2;
+
+  const tier1Strict = runLadder(tier1Only(newKind));
+  const tier1Relaxed = tier1Strict ? null : runLadder(tier1Only(() => true));
+  const fullStrict = (tier1Strict || tier1Relaxed) ? null : runLadder(newKind);
+  const fullRelaxed = (tier1Strict || tier1Relaxed || fullStrict) ? null : runLadder(() => true);
+
+  // `strict` preserves its original meaning below (the trace's `kindOk`
+  // mirror): true when the pick came from a newKind-gated call, regardless of
+  // whether that call was tier1-restricted.
+  const strict = !!(tier1Strict || fullStrict);
+  const result = tier1Strict ?? tier1Relaxed ?? fullStrict ?? fullRelaxed
+    ?? (lastResort ? lastResortPick() : null);
 
   if (ctx.trace) {
     // Runs over the same ctx state the ladder just used, so what it reports is

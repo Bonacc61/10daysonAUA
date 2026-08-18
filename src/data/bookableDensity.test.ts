@@ -265,3 +265,50 @@ describe('bookable density — the whitelist excludes what it must', () => {
     }
   });
 });
+
+// Task 5: tier 1 (the curated must-do set) has first claim on the trip's
+// booking days; tier 2 (Atlantis Submarine, De Palm Island) may only take a
+// day tier 1 could not use. Family with young kids sees both tiers in this
+// fixture: '7389P10' (animal sanctuary, tier 1, young-kids-only) alongside
+// '2455SUB' (submarine, tier 2, young-kids-only) and '2455P18' (De Palm
+// Island, tier 2, any kids) — exactly the case the rule exists to order.
+//
+// NOT 'Mid-range' + med-adventure (roughly 34-66): that combination is
+// `isBalancedTraveller`, which seeds the trip from the curated day-by-day
+// template (balancedTemplate.ts) instead of the fill ladder — its "kids"
+// alternative places '7389P10'/'2455P18'/'2455SUB' on FIXED template days by
+// construction, entirely outside `pickForSlot`. That is a real ordering gap
+// too (day 5's De Palm Island precedes day 9's staple-placed catamaran), but
+// it belongs to the template, which this task does not touch. 'Treat
+// yourself' + adventureLevel 20 keeps both tiers reachable while routing
+// every booking through the ladder this task actually changes — confirmed by
+// running this exact persona/seed against the pre-fix ladder, where it fails
+// with De Palm Island (tier 2) on day 7 and the natural-pool jeep (tier 1)
+// still unplaced until day 9.
+const FAMILY: Answers = {
+  ...DEFAULT_ANSWERS, days: 10, groupType: 'Family with young kids',
+  budget: 'Treat yourself', interests: ['Watersports'], adventureLevel: 20,
+};
+
+describe('bookable density — tier 1 has first claim', () => {
+  it('never spends a booking day on a tier 2 extra while tier 1 is unplaced', () => {
+    const tags = answersToTags(FAMILY);
+    const seen: Array<{ day: number; tier: number }> = [];
+    for (const day of generatePlan(FAMILY, CATALOG, { seed: 0 })) {
+      for (const se of [...day.morning, ...day.afternoon, ...day.evening]) {
+        const card = resolveSlotEntry(se, CATALOG, tags);
+        const tier = card ? bookableTier(card, tags) : null;
+        if (tier !== null) seen.push({ day: day.day, tier });
+      }
+    }
+    // Guard against the trivial pass this suite exists to rule out: this
+    // persona must actually book something, or the assertion below holds
+    // vacuously regardless of what the engine does. (Tier 2 itself need not
+    // appear — when tier 1 alone can cover every booking day, as it correctly
+    // does here once fixed, that IS the rule working.)
+    expect(seen.length).toBeGreaterThan(0);
+    // Every tier 2 booking must come after every tier 1 booking.
+    const lastTier1 = Math.max(-1, ...seen.filter((s) => s.tier === 1).map((s) => s.day));
+    for (const s of seen.filter((s) => s.tier === 2)) expect(s.day).toBeGreaterThan(lastTier1);
+  });
+});
