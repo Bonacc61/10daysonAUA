@@ -29,7 +29,7 @@ import { pickEnRouteStop, foodPlaceKey, distanceKm } from './enRoute';
 import { budgetTag, adventureBandTag } from './classify';
 import { resolveStaples } from './staples';
 import { isBalancedTraveller, resolveBalancedTemplate, pickAlternative, type Alternative } from './balancedTemplate';
-import { isMealEntry, isPaidOuting } from './bookables';
+import { isMealEntry, isPaidOuting, bookableTier, bookingDays } from './bookables';
 
 export const DAY_COLORS = ['#FF6B47', '#3B82F6', '#22C55E', '#EAB308', '#E63946', '#8B5CF6', '#0EA5E9'];
 
@@ -484,6 +484,16 @@ type Ctx = {
   // same Aruba circuit, so once one is placed the whole family is retired for the
   // rest of the trip — regardless of trip length (see routeFamilyOf).
   usedRouteFamilies: Set<string>;
+  // Days permitted to carry a bookable, and the days that already do. Together
+  // they are the trip-wide COUNT cap the engine never had: bookedDays.size is
+  // how many advance bookings this trip has, and it may not exceed
+  // bookingDaySet.size. See docs/superpowers/specs/2026-08-18-bookable-density-design.md.
+  //
+  // Two sets rather than a counter because a pin is exempt from the SCHEDULE but
+  // not from the COUNT: a shortlisted tour lands on whatever day it lands on and
+  // still spends one of the trip's bookings.
+  bookingDaySet: Set<number>;
+  bookedDays: Set<number>;
 };
 
 // The shared "route family" of an entry: tours that are the same real-world
@@ -732,6 +742,15 @@ export function routeFamilyOf(e: CardEntry): string | undefined {
   if (CRUISE_PLACE_RE.test(title)) return undefined;
   if (!LOCAL_SAIL_RE.test(title)) return undefined;
   return isEveningItem({ title } as ViatorItem) ? 'evening-cruise' : 'day-sail';
+}
+
+// Whether a bookable may be placed on this day. Pins bypass the SCHEDULE half
+// (an explicit shortlist choice always lands) but never this function — see the
+// pin pre-pass, which marks the day booked without asking.
+function mayBook(ctx: Ctx, day: number): boolean {
+  if (ctx.bookedDays.has(day)) return false;                  // one booking per day
+  if (ctx.bookedDays.size >= ctx.bookingDaySet.size) return false;  // trip cap spent
+  return ctx.bookingDaySet.has(day);
 }
 
 // Boat outings, treated as ONE family for the minimum-gap rule below. Two
@@ -1479,7 +1498,7 @@ export function generatePlan(
     // random food day on the opposite coast by normal fill.
     activities: filteredCatalog.activities.filter((a) => !dupedLocal(a) && !foodPlaceKey(a.id)),
   };
-  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), placements: new Map(), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], dayTagSets: [], day: 0, nDays, lastFamilyDay: new Map(), dayFamilies: new Set(), pinnedIds: new Set(), usedRouteFamilies: new Set() };
+  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), placements: new Map(), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], dayTagSets: [], day: 0, nDays, lastFamilyDay: new Map(), dayFamilies: new Set(), pinnedIds: new Set(), usedRouteFamilies: new Set(), bookingDaySet: new Set<number>(), bookedDays: new Set<number>() };
 
   // Trip-wide budget pool: keeps the AVERAGE daily activity spend within the
   // tier's average cap (budget-conscious ≈ $60/day on average), letting days
@@ -1666,6 +1685,28 @@ export function generatePlan(
       templateSlots.get(day)!.set(slot, {
         cardEntry: entry, slotEntry: { ...toSlotEntry(entry), staple: true },
       });
+    }
+  }
+  // ---------------------------------------------------------------------------
+
+  // --- The trip's booking schedule -------------------------------------------
+  // Computed HERE and not earlier because the balanced template places two
+  // bookables by construction — a wreck snorkel on day 2 and a natural-pool jeep
+  // on day 4 — and those days are pinned into the schedule rather than moved.
+  // The template's day placement carries geography and day-theme reasoning that
+  // a generic "latest legal pattern" would throw away.
+  const templateBookingDays = [...templateSlots.entries()]
+    .filter(([, slots]) => [...slots.values()].some((p) => bookableTier(p.cardEntry, tags) !== null))
+    .map(([day]) => day);
+  for (const d of bookingDays(nDays, templateBookingDays)) ctx.bookingDaySet.add(d);
+  for (const d of templateBookingDays) if (ctx.bookingDaySet.has(d)) ctx.bookedDays.add(d);
+
+  // A pin is exempt from the schedule — the traveller chose it explicitly — but
+  // it still spends one of the trip's bookings, exactly as it is budget-exempt
+  // while still debiting the budget pool.
+  for (const [day, slots] of pinnedSlots) {
+    for (const p of slots.values()) {
+      if (bookableTier(p.cardEntry, tags) !== null) ctx.bookedDays.add(day);
     }
   }
   // ---------------------------------------------------------------------------
@@ -2136,6 +2177,10 @@ export function generatePlan(
       // against the ladder — which is the whole point: the template's booking
       // wins the slot and the ladder may not add a second.
       if (isPaidOuting(e) && today.filter(isPaidOuting).length >= MAX_PAID_OUTINGS_PER_DAY) return false;
+      // The trip-wide booking cap. Strictly tighter than the per-day rule above,
+      // which still governs everything that merely costs money — a day may still
+      // read "jeep safari + a free beach + a sunset".
+      if (bookableTier(e, ctx.tags) !== null && !mayBook(ctx, d)) return false;
       return outingsToday < MAX_ACTIVITIES_PER_DAY;
     };
     const feasible = (e: CardEntry) => withinDayShape(e) && (slot === 'evening'
@@ -2147,6 +2192,7 @@ export function generatePlan(
     const pick = pickForSlot(ctx, slot, anchor, anchorCoord, maxP, usedKinds, feasible, themeId, lastResort);
     if (!pick) return;
     budgetLeft -= entryPrice(pick);
+    if (bookableTier(pick, ctx.tags) !== null) ctx.bookedDays.add(d);
     ctx.lastUsedDay.set(entryId(pick), d);
     bumpPlacement(ctx, entryId(pick));
     { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }

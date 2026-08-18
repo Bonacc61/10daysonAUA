@@ -1698,7 +1698,21 @@ describe('generatePlan — a day pass consumes the whole daytime', () => {
   // 60 minutes of the 8h cap, so only a very short product can follow it — and
   // the live catalog has several (the 30-min clear-kayak listings). With 2-hour
   // fillers this test would pass without the rule and prove nothing.
-  const items = [mk('daypass', 'Aruba De Palm Island Day Pass', '6 hrs', [11912, 12043])];
+  // Tag 12043 (WATER_PARK_TAG) is what isKidsOriented reads. Tag 11912
+  // (snorkel) was swapped for 11902 (hike) 2026-08-18 when the bookable
+  // whitelist shipped: 11912 plus this title ("Island" + "Day Pass") made
+  // `activityKind` resolve 'snorkel' and pass `bookableTier`'s WATER_TITLE
+  // guard, so this synthetic item (id 'daypass', not the real De Palm
+  // product's id 2455P18) newly classified as tier-1 bookable for everyone
+  // and got schedule-capped to bookingDays(3) = [2] — unrelated to what this
+  // describe block tests (the day-pass/evening-budget interaction), and
+  // starved the 3-day, pinned-evening scenario below of a day to land on.
+  // Dropping the tag outright (rather than swapping it) also fails: without
+  // any KIND_BY_TAG match at all the item stops being discoverable in this
+  // fixture for reasons that predate this task. 'hike' keeps the item
+  // reachable (`activityKind` resolving to a real kind still matters here)
+  // while staying outside bookableTier's sail/snorkel/offroad rows.
+  const items = [mk('daypass', 'Aruba De Palm Island Day Pass', '6 hrs', [11902, 12043])];
   for (let n = 0; n < 20; n += 1) items.push(mk(`filler-${n}`, `Beach Walk ${n}`, '30 min', [90000 + n]));
   // Evening-suitable fillers. Without these the day pass's evening could never
   // be tested at all — isEveningItem reads the TITLE, so a "Beach Walk" is
