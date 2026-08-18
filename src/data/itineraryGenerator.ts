@@ -603,10 +603,6 @@ const MAX_ACTIVITIES_PER_DAY = 2;
 // Zeerover and O'Neil's are close to the only decent options down there. Those
 // days now lose their third card instead of gaining a fourth.
 const MAX_CARDS_PER_DAY = 3;
-// A food card: the curated restaurants ('Dinner at Gasparito', 'Zeerovers Fish
-// Fry') and every lunchspot, all of which carry category 'Food'. A Viator
-// dinner cruise or sunset sail is deliberately NOT a meal — it is an outing you
-// booked, so it counts as one of the two.
 // A day pass IS the day — you ferry to an island and it is gone. The engine
 // already inflates one to FULL_DAY_MIN so it crowds out the rest of the
 // DAYTIME budget, but the evening is a separate EVENING_CAP_MIN bucket that

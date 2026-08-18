@@ -26,15 +26,36 @@ export function isMealEntry(e: CardEntry): boolean {
 //
 // The test is PRICE, not the affiliate link, and that was a deliberate call.
 // "Has a Book now button" (`viator_item_url` && paid) is what the card renders
-// and on the live catalog it agrees with price on all 328 Viator products —
-// measured, zero divergence. The two differ on exactly three curated locals,
-// which the owner ruled IN: the $11 Arikok gate, the $125 Flamingo day pass and
-// the $120 kitesurfing lesson are strenuous outings whoever takes the payment.
+// (ItineraryCard.tsx:47-49) and on the live catalog it agrees with price on all
+// 328 Viator products — measured, zero divergence. The two differ on exactly
+// three curated locals, which the owner ruled IN: the $11 Arikok gate, the $125
+// Flamingo day pass and the $120 kitesurfing lesson are strenuous 2.5-3h
+// outings whoever takes the payment, so a day should carry one of them and
+// nothing else.
 //
-// Price is also the only testable half. Every ViatorItem fixture in the suite
-// carries `viator_item_url: ''`, so a link-based rule would be inert under
-// `npm test` and every test written for it would pass against a rule that never
-// fired.
+// Price also happens to be the only testable half. Every ViatorItem fixture in
+// the suite — and all 20 items in the offline stub — carries
+// `viator_item_url: ''`, so a link-based rule would be inert under `npm test`
+// and every test written for it would pass against a rule that never fired.
+//
+// The generator's two call sites (the day-fill guards in itineraryGenerator.ts
+// that decide whether a candidate can join a day already in progress) check
+// the CANDIDATE only after their own meal and free-beach early-returns, so the
+// meal exemption here is load-bearing on the COUNTING side alone —
+// `today.filter(isPaidOuting)`, where a $35-60 Gasparito dinner already sitting
+// on the day would otherwise spend its outing slot. Instrumented 2026-08-15: no
+// live ordering reaches that today, which is why it is asserted on the
+// predicate directly rather than through a generated plan. It is one
+// staple-ordering change away from mattering.
+//
+// There is NO beach clause, and that is deliberate rather than an omission. An
+// `isRevisitableBeach` test here would be strictly dead: it requires cost 0, and
+// the price test below already rejects anything free. Every curated beach is
+// free today (13 of 13 — the "Free + $16 gear" ones parse to 0), and no Viator
+// product carries the `beaches` section at all (0 of 328, measured), so "beaches
+// don't count" holds by construction. The one case that would separate them is a
+// PAID beach, which does not exist in either catalog; if one is ever added it
+// counts as the day's outing, and that is the line to revisit.
 export function isPaidOuting(e: CardEntry): boolean {
   if (isMealEntry(e)) return false;
   return e.kind === 'group'
