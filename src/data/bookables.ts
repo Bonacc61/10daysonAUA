@@ -145,3 +145,74 @@ export function bookableTier(e: CardEntry, tags: Set<MatchTag>): BookableTier | 
 export function isBookable(e: CardEntry, tags: Set<MatchTag>): boolean {
   return bookableTier(e, tags) !== null;
 }
+
+// --- When a trip may book --------------------------------------------------
+//
+// One booking per 2.5 days, floor 1, cap 6 — the owner's rule, 2026-08-18.
+// Everything else in that rule falls out of the CONSTRUCTION below rather than
+// being enforced separately: arrival and departure days are outside the window,
+// "never consecutive" is what latest-non-consecutive means, and with alternating
+// days every other day is free of bookings, so "at least one unstructured middle
+// day" needs no code of its own.
+export const MAX_BOOKABLES = 6;
+export const DAYS_PER_BOOKABLE = 2.5;
+
+/**
+ * The days of an `nDays` trip permitted to carry a bookable, ascending.
+ *
+ * Latest-first, because people book more readily once they have been on the
+ * island a few days and trust the itinerary. A 10-day trip gets days 3, 5, 7, 9.
+ *
+ * It is FIXED rather than seed-varied, and that is a measured choice rather than
+ * an oversight: there is no Regenerate button on the site — `Itinerary.tsx`
+ * passes no seed and `Map.tsx` passes `{ seed: 0 }` — so a seed-weighted chooser
+ * would carry a weighting table and tests for machinery nothing can trigger.
+ * Swapping "always the latest" for "pick by seed" is a change to this function
+ * alone if a Regenerate button ever ships.
+ *
+ * `mustInclude` are days a curated pre-pass has already committed to (the
+ * balanced template places two bookables by construction). They are honoured
+ * first and the remainder fill latest-first around them; an illegal or adjacent
+ * one is dropped rather than bending the rules.
+ *
+ * A 10-day trip gets 4 and not the owner's "4 or 5" because 5 non-consecutive
+ * days do not fit the window; 12 days is the first length that reaches 5.
+ * Trips of 1 and 2 days drop the departure-day rule — on a 2-day trip day 2 IS
+ * the departure day, and the alternative is a trip that can book nothing.
+ */
+export function bookingDays(nDays: number, mustInclude: number[] = []): number[] {
+  const lo = nDays <= 1 ? 1 : 2;
+  const hi = nDays <= 2 ? nDays : nDays - 1;
+  if (hi < lo) return [];
+
+  const width = hi - lo + 1;
+  const wanted = Math.max(1, Math.min(MAX_BOOKABLES, Math.round(nDays / DAYS_PER_BOOKABLE)));
+  let k = Math.min(wanted, Math.ceil(width / 2));
+
+  const days: number[] = [];
+  const free = (d: number) => d >= lo && d <= hi && days.every((x) => Math.abs(x - d) > 1);
+
+  // First pass: identify which mustInclude days are adjacent to others in the set.
+  // Keep the lower one, drop the higher one. Count adjacency-driven drops to reduce k.
+  const sorted = [...mustInclude].sort((a, b) => a - b);
+  const toKeep = new Set(sorted);
+  for (let i = 0; i < sorted.length; i++) {
+    for (let j = i + 1; j < sorted.length; j++) {
+      if (Math.abs(sorted[i] - sorted[j]) <= 1) {
+        toKeep.delete(sorted[j]);
+      }
+    }
+  }
+  const adjacencyDrops = sorted.length - toKeep.size;
+  k -= adjacencyDrops;
+
+  for (const d of sorted) {
+    if (!toKeep.has(d)) continue;
+    if (days.length >= k) break;
+    if (free(d)) days.push(d);
+  }
+  for (let d = hi; d >= lo && days.length < k; d -= 1) {
+    if (free(d)) days.push(d);
+  }
+  return days.sort((a, b) => a - b);
+}

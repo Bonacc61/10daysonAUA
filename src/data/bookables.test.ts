@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bookableTier, isBookable, ANIMAL_SANCTUARY_ID, JET_SKI_ID, SUBMARINE_ID, DE_PALM_ISLAND_ID } from './bookables';
+import { bookableTier, isBookable, bookingDays, ANIMAL_SANCTUARY_ID, JET_SKI_ID, SUBMARINE_ID, DE_PALM_ISLAND_ID } from './bookables';
 import type { CardEntry, MatchTag, Section, ViatorGroup, ViatorItem } from '../types';
 import type { Activity } from './activities';
 
@@ -110,5 +110,54 @@ describe('isBookable', () => {
   it('agrees with bookableTier on presence', () => {
     expect(isBookable(SAIL, tags('couple'))).toBe(true);
     expect(isBookable(ESCOOTER, tags('couple'))).toBe(false);
+  });
+});
+
+describe('bookingDays', () => {
+  // Verified against a reference implementation run over all 14 lengths while
+  // the spec was written. If you change the formula, regenerate this table
+  // rather than editing rows to match.
+  const EXPECTED: Record<number, number[]> = {
+    1: [1], 2: [2], 3: [2], 4: [3], 5: [2, 4], 6: [3, 5], 7: [2, 4, 6],
+    8: [3, 5, 7], 9: [2, 4, 6, 8], 10: [3, 5, 7, 9], 11: [4, 6, 8, 10],
+    12: [3, 5, 7, 9, 11], 13: [4, 6, 8, 10, 12], 14: [3, 5, 7, 9, 11, 13],
+  };
+
+  it('matches the schedule table for every trip length', () => {
+    for (const [n, days] of Object.entries(EXPECTED)) {
+      expect(bookingDays(Number(n))).toEqual(days);
+    }
+  });
+
+  it('never books the arrival or the departure day on a real trip', () => {
+    for (let n = 3; n <= 14; n += 1) {
+      const days = bookingDays(n);
+      expect(days).not.toContain(1);
+      expect(days).not.toContain(n);
+    }
+  });
+
+  it('never books two days running', () => {
+    for (let n = 1; n <= 14; n += 1) {
+      const days = bookingDays(n);
+      for (let i = 1; i < days.length; i += 1) expect(days[i] - days[i - 1]).toBeGreaterThan(1);
+    }
+  });
+
+  it('caps at six however long the trip', () => {
+    expect(bookingDays(14).length).toBe(6);
+  });
+
+  it('honours days a curated template has already claimed', () => {
+    // The balanced template places a wreck snorkel on day 2 and a natural-pool
+    // jeep on day 4, both by construction and both bookables. They are pinned
+    // into the schedule and the rest fill latest-first.
+    expect(bookingDays(10, [2, 4])).toEqual([2, 4, 7, 9]);
+  });
+
+  it('ignores a pinned day that is illegal or adjacent to another', () => {
+    expect(bookingDays(10, [1])).toEqual([3, 5, 7, 9]);   // arrival day
+    expect(bookingDays(10, [10])).toEqual([3, 5, 7, 9]);  // departure day
+    expect(bookingDays(10, [4, 5])).toEqual([4, 7, 9]);   // 5 is adjacent to 4
   });
 });
