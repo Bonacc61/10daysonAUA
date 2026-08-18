@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { generatePlan } from './itineraryGenerator';
-import { bookableTier, bookingDays } from './bookables';
-import { resolveSlotEntry, type Catalog } from './activitySource';
+import {
+  bookableTier, bookingDays, isPaidOuting,
+  ANIMAL_SANCTUARY_ID, JET_SKI_ID, SUBMARINE_ID, DE_PALM_ISLAND_ID,
+} from './bookables';
+import { resolveSlotEntry, getCatalog, loadCatalog, type Catalog } from './activitySource';
 import { answersToTags } from './answerTags';
 import { ACTIVITIES } from './activities';
 import { DEFAULT_ANSWERS, type Answers } from '../App';
@@ -375,5 +378,126 @@ describe('bookable density — the balanced template obeys the schedule too (R13
     expect(days.length).toBeLessThanOrEqual(bookingDays(10).length);
     for (const d of days) expect(perDay.get(d)).toBe(1);
     for (let i = 1; i < days.length; i += 1) expect(days[i] - days[i - 1]).toBeGreaterThan(1);
+  });
+});
+
+// Task 6: breadth. Every task before this one tested one persona at a time.
+// This is the test that would have caught the reported bug — an adventurous
+// family with kids got nine paid activities on nine consecutive days, ending
+// with a $120 dive on the departure morning and a fill ladder that reached far
+// enough down the catalog to suggest a sip-and-paint class. The five personas
+// below are exactly the ones already defined earlier in this file (COUPLE,
+// SPLURGE, OFFROAD_NO_BOATS, BALANCED_YOUNG_KIDS, BALANCED_TEENS) — reused
+// rather than redeclared, per the Task 5/6 addendum.
+const PERSONAS: Record<string, Answers> = {
+  couple: COUPLE,
+  splurge: SPLURGE,
+  'offroad, no boats': OFFROAD_NO_BOATS,
+  'balanced, young kids': BALANCED_YOUNG_KIDS,
+  'balanced, teens': BALANCED_TEENS,
+};
+
+// KNOWN FAILURE, reported rather than fixed here (task-6 is tests-only): the
+// four 'balanced, teens' cases below are red on this branch. Root cause is in
+// balancedTemplate.ts, not in anything this task touches.
+//
+// `altTypesFor` (balancedTemplate.ts:93-99) files BOTH `family-young-kids` and
+// `family-teens` under one `AltType: 'kids'`. Two of the template's three
+// 'kids' alternatives resolve to a Viator product `bookableTier` restricts to
+// YOUNG KIDS ONLY: the animal sanctuary (`7389P10`, day 2 afternoon,
+// balancedTemplate.ts:124) and the Atlantis Submarine (`2455SUB`, day 7
+// morning, balancedTemplate.ts:151) — see bookables.ts's
+// `if (item.id === SUBMARINE_ID) return youngKids ? 2 : null;` and the
+// `ANIMAL_SANCTUARY_ID` row right above it. A 'Family with teens' traveller
+// (youngKids === false) gets both swapped in anyway, because the template
+// places by construction and never consults `bookableTier`/
+// `isExcludedPaidProduct` the way the fill ladder and the pre-passes do.
+//
+// The design spec anticipated exactly this failure mode for these two
+// products by name and called for separate predicates: "The two therefore
+// need different audience predicates, and they must be named distinctly...
+// Reusing the word 'kids' for both meanings is how this gets broken later."
+// (docs/superpowers/specs/2026-08-18-bookable-density-design.md, "Tier 2 —
+// contingent extras"). De Palm Island (`2455P18`, day 5), the template's third
+// 'kids' alternative, is unaffected — `bookableTier` allows it for teens too
+// (`anyKids`) — which is why only two of the three swaps are wrong and only
+// this one persona among the five fails.
+//
+// Confirmed with a direct trace (BALANCED_TEENS, seed 0): day 2 places
+// `7389P10` at `bookableTier === null` and day 7 places `2455SUB` at
+// `bookableTier === null`, both reproducible on every seed 0-3. Per this
+// task's brief, this is a production bug to report, not to fix here.
+describe('bookable density — every persona, every seed', () => {
+  for (const [name, answers] of Object.entries(PERSONAS)) {
+    for (const seed of [0, 1, 2, 3]) {
+      it(`${name}, seed ${seed}`, () => {
+        const tags = answersToTags(answers);
+        const booked = bookedDaysOf(answers, seed);
+        const allowed = bookingDays(answers.days);
+
+        expect(booked.length).toBeLessThanOrEqual(allowed.length);
+        expect(booked).not.toContain(1);
+        expect(booked).not.toContain(answers.days);
+        for (let i = 1; i < booked.length; i += 1) expect(booked[i] - booked[i - 1]).toBeGreaterThan(1);
+
+        // The assertion this task exists for: every paid Viator PRODUCT placed
+        // anywhere in the plan must be a bookable for THIS traveller — that is
+        // the whitelist doing its job, not merely the trip-wide cap doing its
+        // job. Scoped to `kind === 'group'` on purpose, matching
+        // `isExcludedPaidProduct`'s own scope (itineraryGenerator.ts): curated
+        // LOCAL activities are deliberately exempt from this rule. The design
+        // spec is explicit that this is not an oversight — three curated
+        // locals (the Arikok gate, the Oranjestad guide, the kitesurfing
+        // lesson) can spend a day's one paid-outing slot
+        // (`MAX_PAID_OUTINGS_PER_DAY`) "while not necessarily being one of the
+        // trip's four bookables. Two overlapping predicates, two distinct
+        // purposes; neither replaces the other."
+        // (docs/superpowers/specs/2026-08-18-bookable-density-design.md,
+        // "Relationship to MAX_PAID_OUTINGS_PER_DAY"). Asserting this for
+        // curated locals too would fail against correct code, not buggy code.
+        for (const day of generatePlan(answers, CATALOG, { seed })) {
+          for (const se of [...day.morning, ...day.afternoon, ...day.evening]) {
+            const card = resolveSlotEntry(se, CATALOG, tags);
+            if (!card || card.kind !== 'group') continue;
+            if (isPaidOuting(card)) expect(bookableTier(card, tags)).not.toBeNull();
+          }
+        }
+      });
+    }
+  }
+});
+
+// Task 6 addendum: the design spec requires proof that the four hard-coded
+// product ids `bookableTier` reaches by id (not by Viator kind) still resolve
+// against the LIVE catalog, because a catalog refresh can silently drop or
+// renumber one and nothing else in this suite would notice — every other test
+// here runs against the fixture, which carries these ids by construction
+// regardless of whether Viator still sells them.
+//
+// Skips (does not fail) when `loadCatalog()` falls back to the offline stub —
+// no network, no Viator credentials, or a live fetch error — so `npm test`
+// stays offline and free. Detected by comparing item counts against
+// `getCatalog()`: the stub is the ONLY thing `loadCatalog()` can return with
+// that exact count, since a live payload validates as non-empty
+// (`items.length === 0` throws before reaching the merge) and the two catalogs
+// are built from unrelated product sets.
+describe('bookable density — live-catalog ids', () => {
+  it('resolves the four named-id bookables against the live catalog', async (ctx) => {
+    const stub = getCatalog();
+    const live = await loadCatalog();
+    if (live.items.length === stub.items.length) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[bookableDensity] SKIPPED: loadCatalog() fell back to the offline stub '
+        + '(no network / no Viator credentials in this environment) — the live-catalog '
+        + 'id check did not run.',
+      );
+      ctx.skip();
+      return;
+    }
+    const liveIds = new Set(live.items.map((i) => i.id));
+    for (const id of [ANIMAL_SANCTUARY_ID, JET_SKI_ID, SUBMARINE_ID, DE_PALM_ISLAND_ID]) {
+      expect(liveIds.has(id)).toBe(true);
+    }
   });
 });
