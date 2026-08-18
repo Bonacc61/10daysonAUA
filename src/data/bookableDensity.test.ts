@@ -312,3 +312,68 @@ describe('bookable density — tier 1 has first claim', () => {
     for (const s of seen.filter((s) => s.tier === 2)) expect(s.day).toBeGreaterThan(lastTier1);
   });
 });
+
+
+// Task 5 follow-on (ruling R13, 2026-08-18): the balanced template
+// (balancedTemplate.ts) places unconditionally — it goes through neither
+// `fitsDayShape` nor `withinDayShape` the way the premium/staple pre-passes
+// and the fill ladder do — so its own bookable swaps ("kids" alternatives
+// especially) could break the trip cap, the one-booking-per-day rule and the
+// no-consecutive-days rule all at once. Measured on the live catalog: a
+// balanced family with young kids got SIX bookings against a cap of four, two
+// of them stacked on day 2 alone; a balanced family with teens got exactly
+// four but on {2,4,5,9} — 4 and 5 adjacent. `isBalancedTraveller` requires
+// `med-adventure` (34-66) AND `mid-range`, which this fixture's `fitItem`
+// does not reject for either persona, and both personas' template
+// alternatives resolve against real ids this fixture already carries
+// ('7389P10', '2455SUB', '2455P18' as items; every curated default —
+// 'alto-vista-chapel', 'palm-beach-strip', 'san-nicolas-murals', etc. — from
+// the real `ACTIVITIES` array `CATALOG` already uses) — so this fixture DOES
+// reach the template path with no changes needed; confirmed directly by
+// inspecting the generated plan's per-day bookable counts before writing
+// these assertions.
+function bookablesByDay(answers: Answers, seed = 0): Map<number, number> {
+  const tags = answersToTags(answers);
+  const perDay = new Map<number, number>();
+  for (const day of generatePlan(answers, CATALOG, { seed })) {
+    let n = 0;
+    for (const se of [...day.morning, ...day.afternoon, ...day.evening]) {
+      const card = resolveSlotEntry(se, CATALOG, tags);
+      if (card && bookableTier(card, tags) !== null) n += 1;
+    }
+    if (n > 0) perDay.set(day.day, n);
+  }
+  return perDay;
+}
+
+const BALANCED_YOUNG_KIDS: Answers = {
+  ...DEFAULT_ANSWERS, days: 10, groupType: 'Family with young kids',
+  budget: 'Mid-range', interests: ['Beach & chill'], adventureLevel: 50,
+};
+const BALANCED_TEENS: Answers = {
+  ...DEFAULT_ANSWERS, days: 10, groupType: 'Family with teens',
+  budget: 'Mid-range', interests: ['Beach & chill'], adventureLevel: 50,
+};
+
+describe('bookable density — the balanced template obeys the schedule too (R13)', () => {
+  it('holds the cap, one-per-day and no-consecutive-days rules for a balanced family with young kids', () => {
+    const perDay = bookablesByDay(BALANCED_YOUNG_KIDS);
+    const days = [...perDay.keys()].sort((a, b) => a - b);
+    // Guard: this persona's template swaps two "kids" alternatives into
+    // bookables (the animal sanctuary and, for young kids, the submarine),
+    // so without R13 this is exactly the case that overshoots.
+    expect(days.length).toBeGreaterThan(0);
+    expect(days.length).toBeLessThanOrEqual(bookingDays(10).length);
+    for (const d of days) expect(perDay.get(d)).toBe(1); // one booking per day
+    for (let i = 1; i < days.length; i += 1) expect(days[i] - days[i - 1]).toBeGreaterThan(1); // never consecutive
+  });
+
+  it('holds the cap, one-per-day and no-consecutive-days rules for a balanced family with teens', () => {
+    const perDay = bookablesByDay(BALANCED_TEENS);
+    const days = [...perDay.keys()].sort((a, b) => a - b);
+    expect(days.length).toBeGreaterThan(0);
+    expect(days.length).toBeLessThanOrEqual(bookingDays(10).length);
+    for (const d of days) expect(perDay.get(d)).toBe(1);
+    for (let i = 1; i < days.length; i += 1) expect(days[i] - days[i - 1]).toBeGreaterThan(1);
+  });
+});

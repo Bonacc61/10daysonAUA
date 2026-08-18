@@ -1617,6 +1617,14 @@ export function generatePlan(
   // traveller's. Runs AFTER pins so an explicit shortlist choice still wins the
   // slot, and BEFORE staples so it is not crowded out by them.
   const templateSlots = new Map<number, Map<Slot, PinPlacement>>();
+  // R13: which days the template has already given a bookable (rule 2), and
+  // "day:slot" -> the curated default an alternative can revert to (rules 1
+  // and 2 both only ever revert an alt). Declared here, alongside
+  // `templateSlots`, rather than inside the `isBalancedTraveller` block below,
+  // because rule 1's second pass — after the booking schedule is computed —
+  // needs to read them and runs after that block closes.
+  const templateBookableDays = new Set<number>();
+  const templateAltFallback = new Map<string, CardEntry>();
   // GATE STILL IN PLACE, deliberately. The yield curve below is built and
   // measured but NOT enabled: removing this gate makes the template the baseline
   // for everyone, and measurement showed that costs the Regenerate button —
@@ -1693,6 +1701,31 @@ export function generatePlan(
       return group ? { kind: 'group', group, bestSeller: best, others: otherItemsInGroup(group.id, best.id, filteredCatalog) } : undefined;
     };
 
+    // R13 (2026-08-18): the template places unconditionally and never passes
+    // `fitsDayShape`/`withinDayShape` the way the premium and staple passes
+    // do, so its own bookable swaps ("kids" alternatives especially) could
+    // break the trip cap, the one-booking-per-day rule and the
+    // no-consecutive-days rule simultaneously — all three at once, measured
+    // on a balanced family with young kids: SIX bookings placed against a cap
+    // of four, two of them on one day (day 2), one on a day the schedule
+    // never legalises (day 5). Two rules fix it:
+    //   1. A template bookable may not land on a day outside the trip's
+    //      booking schedule.
+    //   2. A template bookable may not land on a day that already carries one.
+    // Rule 2 is decided inline below (same pass, same day, no schedule
+    // needed). Rule 1 needs the schedule, which in turn is built FROM the
+    // template's (rule-2-deduped) bookable days — so it can only be applied
+    // in a second pass, after every entry below has committed and the
+    // schedule immediately following this loop has been computed.
+    //
+    // Either rule reverts an ALTERNATIVE to its curated DEFAULT rather than
+    // dropping the slot — the day keeps a card and loses only the booking.
+    // A bookable that is itself the curated DEFAULT (no alt in play) is left
+    // alone: nothing in today's table puts two default bookables on one day,
+    // and there is no "further" fallback to revert a default to.
+    // (`templateBookableDays`/`templateAltFallback` declared above, alongside
+    // `templateSlots` — rule 1's second pass, after this block, needs them.)
+
     for (const { day, slot, activity, alternatives } of resolveBalancedTemplate(filteredCatalog, nDays, tags)) {
       if (!templateAvail(day, slot)) continue;
       if (pinnedFullDayOn(day)) continue;
@@ -1707,7 +1740,20 @@ export function generatePlan(
       // slot — a template slot is a promise about the SHAPE of the day.
       const fallback: CardEntry = { kind: 'activity', activity };
       const alt = alternatives ? pickAlternative({ day, slot, id: activity.id, alternatives }, tags) : undefined;
-      const entry: CardEntry = (alt && resolveAlternative(alt, fallback)) ?? fallback;
+      const altResolved = alt ? resolveAlternative(alt, fallback) : undefined;
+      let entry: CardEntry = altResolved ?? fallback;
+
+      // R13 rule 2: this day already has a template bookable — only an
+      // alternative can be reverted to make room for it.
+      if (altResolved && bookableTier(entry, tags) !== null && templateBookableDays.has(day)) {
+        entry = fallback;
+      }
+      if (bookableTier(entry, tags) !== null) templateBookableDays.add(day);
+      // Recorded whenever the alternative won, whether or not it turned out
+      // to be a bookable — rule 1's later pass only reads this for entries
+      // that ARE bookable, but the map itself doesn't need that filter.
+      if (altResolved && entry === altResolved) templateAltFallback.set(`${day}:${slot}`, fallback);
+
       if (!pinClaimed.has(day)) pinClaimed.set(day, new Set());
       pinClaimed.get(day)!.add(slot);
       // Retired trip-wide up front, exactly as pins and staples are, so normal
@@ -1730,10 +1776,35 @@ export function generatePlan(
   // on day 4 — and those days are pinned into the schedule rather than moved.
   // The template's day placement carries geography and day-theme reasoning that
   // a generic "latest legal pattern" would throw away.
-  const templateBookingDays = [...templateSlots.entries()]
+  let templateBookingDays = [...templateSlots.entries()]
     .filter(([, slots]) => [...slots.values()].some((p) => bookableTier(p.cardEntry, tags) !== null))
     .map(([day]) => day);
   for (const d of bookingDays(nDays, templateBookingDays)) ctx.bookingDaySet.add(d);
+
+  // R13 rule 1, second pass: any template bookable whose day did not survive
+  // the schedule above (dropped for the trip cap, or for sitting adjacent to
+  // a day the schedule kept) reverts to its curated default. Only entries
+  // recorded in `templateAltFallback` — i.e. ones that came from an
+  // alternative — have anywhere to revert to; a bookable DEFAULT outside the
+  // schedule is left as placed (unreached by today's table: every default
+  // bookable's day is early enough in `bookingDays`' ascending mustInclude
+  // pass to always survive).
+  for (const [day, slots] of templateSlots) {
+    if (ctx.bookingDaySet.has(day)) continue;
+    for (const [slot, placement] of slots) {
+      if (bookableTier(placement.cardEntry, tags) === null) continue;
+      const revertTo = templateAltFallback.get(`${day}:${slot}`);
+      if (!revertTo) continue;
+      if (ctx.lastUsedDay.get(entryId(placement.cardEntry)) === day) ctx.lastUsedDay.delete(entryId(placement.cardEntry));
+      ctx.lastUsedDay.set(entryId(revertTo), day);
+      slots.set(slot, { cardEntry: revertTo, slotEntry: { ...toSlotEntry(revertTo), staple: true } });
+    }
+  }
+  // Recomputed post-revert: a day that lost its only bookable to rule 1 must
+  // not still count toward `bookedDays` below.
+  templateBookingDays = [...templateSlots.entries()]
+    .filter(([, slots]) => [...slots.values()].some((p) => bookableTier(p.cardEntry, tags) !== null))
+    .map(([day]) => day);
   for (const d of templateBookingDays) if (ctx.bookingDaySet.has(d)) ctx.bookedDays.add(d);
 
   // A pin is exempt from the schedule — the traveller chose it explicitly — but
