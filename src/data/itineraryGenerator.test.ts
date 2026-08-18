@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generatePlan, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies, isPaidOuting } from './itineraryGenerator';
+import { generatePlan, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies, isPaidOuting, isBoatOuting } from './itineraryGenerator';
 import { getCatalog } from './activitySource';
 import { DEFAULT_ANSWERS } from '../App';
 import type { Answers } from '../App';
@@ -21,26 +21,69 @@ const catalog = getCatalog();
 // per persona exceeds a 5-day plan (no fallback widening needed). Proves the
 // generator tailors strongly when the Viator pool is rich — the real target the
 // current 4-group ingestion will grow into. allowed_slots:[] = any slot.
+// Retagged 2026-08-18 (ruling R9). Was 4 themes (adventure/watersports/food/
+// culture), each an untagged, unnamed synthetic item — `activityKind` could
+// never classify any of them, so `isExcludedPaidProduct` now excludes every
+// single one, whatever the persona. The 'food'/'culture' themes could never
+// come back by retagging alone: the whitelist has no food or culture family
+// at all (the design spec lists "food & drink tours" among what it explicitly
+// excludes), so a Viator-only foodie catalog can no longer produce an
+// auto-placed foodie plan — that is the feature working as designed, not a
+// gap in this fixture. Narrowed to the two families the whitelist actually
+// has room for that are naturally near-disjoint: off-road (tag 12035, titles
+// clearing JEEP_TITLE) and watersports (tags 11888/11912 alternating sail and
+// snorkel, titles clearing WATER_TITLE).
 function bigViatorCatalog(): Catalog {
   const groups: ViatorGroup[] = [];
   const items: ViatorItem[] = [];
-  const themes: Record<string, MatchTag[]> = {
-    adventure:  ['adventure', 'high-adventure'],
-    watersports: ['watersports', 'high-adventure'],
-    food:       ['food-drink'],
-    culture:    ['culture-history'],
+  const themes: Record<string, { tags: MatchTag[]; itemTags: (n: number) => number[]; title: (n: number) => string }> = {
+    // Each item's tag array pairs the real Viator kind id with a unique noise
+    // tag (90000+n). Without the noise tag every item in a theme carries the
+    // SAME single tag, which reads as 100% Jaccard-similar to every other one —
+    // `notSimilar` then treats the whole theme as one experience and retires it
+    // trip-wide after a single placement, and the ladder's widened fallback
+    // rung (which drops the persona-relevance filter once a theme is
+    // exhausted) spills straight into the OTHER theme. That is what broke
+    // the near-disjoint assertion below, not a persona/tag mismatch.
+    offroad: {
+      tags: ['adventure', 'high-adventure'],
+      itemTags: (n) => [12035, 90000 + n],
+      title: (n) => `Aruba Jeep Safari Off-Road Adventure ${n}`,
+    },
+    // Snorkel only (11912), not sail (11888): a `sail`-kind item is exactly
+    // what the PRE-EXISTING, persona-blind `catamaran-sail` beach staple
+    // (staples.ts) reserves a slot for on EVERY trip of 2+ days, regardless of
+    // interests — it predates this task entirely ("the generator reserves a
+    // slot for each BEFORE persona fill"). With a sail candidate available,
+    // that staple forced a watersports pick into the LAND persona's plan too,
+    // which had nothing to do with this test's tags or personas. Snorkel kind
+    // is not one of the staple's targets, so it stays out of this fixture.
+    watersports: {
+      tags: ['watersports', 'high-adventure'],
+      itemTags: (n) => [11912, 90000 + n],
+      title: (n) => `Aruba Snorkel Boat Charter ${n}`,
+    },
   };
-  for (const [theme, tags] of Object.entries(themes)) {
+  for (const [theme, spec] of Object.entries(themes)) {
     for (let n = 0; n < 8; n += 1) {
       const id = `${theme}-${n}`;
       groups.push({
         id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
-        display_order: n, matched_by: tags, region: 'islandwide', allowed_slots: [],
+        display_order: n, matched_by: spec.tags, region: 'islandwide', allowed_slots: [],
       });
       items.push({
-        id: `${id}-best`, group_id: id, title: id, image_url: '',
-        price_usd: 100, duration: '2 hrs', rating: 4.5, review_count: 1,
+        id: `${id}-best`, group_id: id, title: spec.title(n), image_url: '',
+        // review_count bumped from 1 to 50 (ruling R9): below MIN_CHAMPION_REVIEWS
+        // (25), an item survives the generator's absolute eligibility floor only
+        // via `isCrowdPleaser`, which sail/snorkel get for free by kind but a
+        // generic jeep title does not (it needs "natural pool"/"conchi"/"arikok"
+        // in the title). At review_count 1 every off-road item here was being
+        // dropped outright, which silently emptied that theme and made the
+        // near-disjoint test fail for a reason that had nothing to do with
+        // personas or tags.
+        price_usd: 100, duration: '2 hrs', rating: 4.5, review_count: 50,
         viator_item_url: '', is_best_seller: true, display_order: 0,
+        tags: spec.itemTags(n),
       });
     }
   }
@@ -500,21 +543,39 @@ describe('generatePlan — variety vs determinism', () => {
 
 describe('generatePlan — tailoring scales with a rich Viator catalog', () => {
   const big = bigViatorCatalog();
+  // Local to this describe block, not the shared FOODIE/ADVENTURER (interests
+  // ['Adventure & adrenaline', 'Watersports'] — BOTH, which would match both
+  // groups below and defeat the near-disjoint check). Was a foodie vs.
+  // adventurer split (ruling R9, 2026-08-18): the whitelist has no food or
+  // culture family, so a Viator-only foodie catalog can no longer produce an
+  // auto-placed foodie plan at all — that assertion was testing behaviour the
+  // design spec deliberately removed, not this fixture's staleness. Replaced
+  // with the two families the whitelist actually supports that are naturally
+  // near-disjoint by group `matched_by`: watersports vs. off-road.
+  // days: 3 (not 5): a longer trip opens more of the trip's booking-schedule
+  // days (bookingDays), and both themes here are whitelist-eligible bookables
+  // (see bigViatorCatalog's comment) — a trip long enough to want more than
+  // one booking will exhaust its own theme's route-family-capped supply and
+  // widen into the OTHER theme, which is what broke the near-disjoint
+  // assertion below at days: 5. bookingDays(3) is exactly one day, which each
+  // theme's supply comfortably covers on its own.
+  const WATER_PERSONA: Answers = { ...DEFAULT_ANSWERS, days: 3, interests: ['Watersports'] };
+  const LAND_PERSONA: Answers = { ...DEFAULT_ANSWERS, days: 3, interests: ['Adventure & adrenaline'] };
 
   it('gives opposite personas near-disjoint, on-theme Viator plans', () => {
-    const foodie = entryIds(generatePlan(FOODIE, big));
-    const adventurer = entryIds(generatePlan(ADVENTURER, big));
+    const water = entryIds(generatePlan(WATER_PERSONA, big));
+    const land = entryIds(generatePlan(LAND_PERSONA, big));
 
     // Set overlap (meaningful now the pool >> plan size) should be tiny.
-    const fSet = new Set(foodie);
-    const sharedSet = new Set(adventurer.filter((id) => fSet.has(id)));
-    expect(sharedSet.size / new Set([...foodie, ...adventurer]).size).toBeLessThan(0.2);
+    const wSet = new Set(water);
+    const sharedSet = new Set(land.filter((id) => wSet.has(id)));
+    expect(sharedSet.size / new Set([...water, ...land]).size).toBeLessThan(0.2);
 
     // And the picks are actually on-theme for each persona.
-    const foodieThemes = foodie.map(themeOf);
-    const advThemes = adventurer.map(themeOf);
-    expect(foodieThemes.every((t) => t === 'food' || t === 'culture')).toBe(true);
-    expect(advThemes.every((t) => t === 'adventure' || t === 'watersports')).toBe(true);
+    const waterThemes = water.map(themeOf);
+    const landThemes = land.map(themeOf);
+    expect(waterThemes.every((t) => t === 'watersports')).toBe(true);
+    expect(landThemes.every((t) => t === 'offroad')).toBe(true);
   });
 });
 
@@ -551,6 +612,23 @@ describe('generatePlan — champion-per-experience fill pool', () => {
       .filter((e) => e.kind === 'group')
       .map((e) => (e as { bestSellerId: string }).bestSellerId);
 
+  // Applied LOCALLY, to the three tests below only — NOT to `clusteredCatalog`
+  // itself, which 18 call sites across this describe block share. Untagged
+  // items were never on the whitelist and are now excluded from auto-fill
+  // outright (ruling R6/R9); most of those 18 tests assert something is
+  // ABSENT or unaffected, which holds trivially either way, so retagging the
+  // shared factory risked silently changing what many unrelated,
+  // currently-passing tests actually exercise. These three specifically
+  // assert something IS placed, which needed a real fix — snorkel (11912) was
+  // picked because, unlike sail/offroad, it carries no route-family cap, so
+  // many distinct clusters can still each place their own champion.
+  const asBookable = (cat: Catalog): Catalog => ({
+    ...cat,
+    items: cat.items.map((i, n) => ({
+      ...i, tags: [11912, 90000 + n], title: `Aruba Snorkel Boat Charter ${i.id}`,
+    })),
+  });
+
   it('places at most one item per experience cluster across the trip', () => {
     const cat = clusteredCatalog({ clusters: 30, reviews: () => 500 });
     expect(cat.items.length).toBeGreaterThanOrEqual(NARROWING_MIN);
@@ -573,7 +651,7 @@ describe('generatePlan — champion-per-experience fill pool', () => {
     // Nothing clears the gate. An absolute gate (unlike the percentile it
     // replaced) can empty the pool, and a blank itinerary is the worst output
     // this app can produce.
-    const cat = clusteredCatalog({ clusters: 30, reviews: () => 3 });
+    const cat = asBookable(clusteredCatalog({ clusters: 30, reviews: () => 3 }));
     expect(placedIds(cat).length).toBeGreaterThan(0);
   });
 
@@ -583,7 +661,7 @@ describe('generatePlan — champion-per-experience fill pool', () => {
     // array is in first-seen-cluster order, and ranked() shuffles the top score
     // band in pool order — so a reordered catalog legitimately yields a different
     // plan. That was equally true of the percentile filter this replaced.
-    const cat = clusteredCatalog({ clusters: 30, reviews: (i) => 30 + i });
+    const cat = asBookable(clusteredCatalog({ clusters: 30, reviews: (i) => 30 + i }));
     expect(placedIds(cat)).toEqual(placedIds(cat));
     expect(placedIds(cat, { ...DEFAULT_ANSWERS, days: 10 }, 7))
       .not.toEqual(placedIds(cat, { ...DEFAULT_ANSWERS, days: 10 }, 1));
@@ -800,7 +878,13 @@ describe('generatePlan — champion-per-experience fill pool', () => {
     // title carries "Sunset"), so if it reaches the pool it necessarily fills
     // evenings. That makes the filter — not ranking luck — the only thing that
     // can keep it out of the plan.
-    const cat = clusteredCatalog({ n: 64, clusters: 32, reviews: () => 3 });
+    // asBookable() first, retail override second: the retail item keeps
+    // asBookable's snorkel TAG (harmless — bookableTier's WATER_TITLE guard
+    // still rejects it on the title below, and isAutoFillExcluded's
+    // RETAIL_RE catches it regardless of tags), while the other 63 items
+    // become real whitelist bookables so the fallback has something legal to
+    // place at all.
+    const cat = asBookable(clusteredCatalog({ n: 64, clusters: 32, reviews: () => 3 }));
     cat.items[0] = {
       ...cat.items[0], id: 'aaa-retail', rating: 5,
       title: 'Diamond Shopping at Sunset with Champagne',
@@ -1191,30 +1275,46 @@ describe('generatePlan — one sail per trip, daytime or evening', () => {
     expect([...seen].some((i) => i.startsWith('eve-'))).toBe(true);
   });
 
-  it('a night SHORE dive is not a sail and still lands beside the catamaran', () => {
+  // RENAMED and reasserted 2026-08-18 (ruling R9). Was 'a night SHORE dive is
+  // not a sail and still lands beside the catamaran', and its final assertion
+  // was `expect(ids).toContain('dive-night')`.
+  //
+  // BEFORE: the dive was expected to auto-place ALONGSIDE the sail/eve picks,
+  // because — as the paragraphs below still correctly explain — it shares no
+  // route family with them, so the one-sail-per-trip rule has no business
+  // touching it.
+  //
+  // AFTER: the dive must NEVER auto-place at all, for a completely different
+  // and unrelated reason — diving is deliberately outside the bookable
+  // whitelist (docs/superpowers/specs/2026-08-18-bookable-density-design.md,
+  // "Diving is deliberately out": offered only via the card's Swap this
+  // button, never auto-filled). `dive-night` carries tag 12021 (dive), which
+  // is not one of `bookableTier`'s sail/snorkel/offroad rows, so
+  // `isExcludedPaidProduct` now excludes it from the fill ladder outright.
+  // The route-family claim below is still TRUE — a shore dive and a boat sail
+  // share no route — it is just no longer the reason the dive is absent, so
+  // this test is renamed to say what it now actually checks.
+  it('a night SHORE dive is not a sail, and is never auto-placed at all (diving is off the whitelist)', () => {
     // The one-sail rule is about the boat route every operator runs — Malmok,
     // Boca Catalina, the Antilla. A shore dive is entered from a beach on the
-    // opposite coast and shares none of it.
-    //
-    // The merged family briefly claimed it anyway: the evening arm tested
-    // `isWaterBased`, which is the seasick filter and is deliberately broad —
-    // WATER_KINDS covers dive/jetski/sup/parasail/surf and a title net catches
-    // "submarine" and "ferry" on top. That breadth is right for "never show
-    // this to someone who gets seasick" and wrong for "which trips are the same
-    // route". Because the catamaran claims the family first, the dive was the
-    // one that vanished, from every plan.
+    // opposite coast and shares none of it — so if diving were ever added back
+    // to the whitelist, it must not be blocked by the one-sail rule on route-
+    // family grounds. It's blocked today by a different rule entirely (see
+    // above), which is what this test now asserts.
     //
     // Checked against the live catalog: of the 30 evening water-based products,
     // this is the only one that is not a boat outing — and "Luxury Four-Course
     // Caribbean Dinner Cruise" (filed under tours-sightseeing, no sail tag) is
-    // one that must stay IN, which is why the test is on the title, not the kind.
+    // one that must stay IN, which is why the ORIGINAL route-family logic was
+    // titled on the title, not the kind. Still true; just no longer reachable,
+    // because the dive never gets far enough to test it.
     // 7 days: one sail total. 14 days: one of each kind, never two of one.
     for (const days of [7, 14]) {
       const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days, interests: ['watersports'] }, cat));
       expect(countOf(ids, 'sail-')).toBeLessThanOrEqual(1);
       expect(countOf(ids, 'eve-')).toBeLessThanOrEqual(1);
       if (days < 8) expect(countOf(ids, 'sail-') + countOf(ids, 'eve-')).toBeLessThanOrEqual(1);
-      expect(ids).toContain('dive-night');
+      expect(ids).not.toContain('dive-night');
     }
   });
 
@@ -1274,37 +1374,37 @@ describe('generatePlan — a bus tour is not a boat', () => {
   ];
   const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
 
-  const placed = (plan: Day[]): string[] =>
-    plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening])
-        .flatMap((e) => (e.kind === 'group' ? [e.bestSellerId] : []));
-
   it('classifies the bus into the water bucket — the fixture reproduces the real cause', () => {
     // Guards the premise. If Viator retags 20255 or TAG_SECTION changes, this
     // fails loudly rather than letting the tests below pass for the wrong reason.
     expect(activityKind(items[1])).toBe('sec:cruises-water');
   });
 
-  // Was 'lets a bus tour and a sail share a day' with days: 1 until 2026-08-15.
-  // The one-paid-outing-a-day cap landed that day and both fixtures are $80
-  // Viator products, so they can no longer share a day for a reason that has
-  // nothing to do with boats — the old assertion became untestable.
+  // REPLACED 2026-08-18 (ruling R9). Was 'does not make a bus tour wait for
+  // the sail's family gap', asserting via `generatePlan` that a sail AND a bus
+  // both auto-place, on days less than FAMILY_MIN_DAY_GAP apart — proof they
+  // don't share the 'boat' gap family the way two real boats would.
   //
-  // The guard survives intact on the OTHER half of the bug this block documents:
-  // "pushing the next sail two days out via gapFamilyOf". If the bus counted as
-  // a boat the two would share a gap family, and FAMILY_MIN_DAY_GAP = 2 demands
-  // a CLEAR DAY between them. Landing on consecutive days is therefore proof
-  // they are in different families — the same fact the old same-day assertion
-  // established, stated in the one dimension the day cap leaves free.
+  // BEFORE: `expect(placed(plan)).toEqual(expect.arrayContaining(['sail',
+  // 'bus']))` — required the bus to auto-place at all.
   //
-  // Three days, not two: on a two-item catalog the generator leaves day 1 empty
-  // at ANY cap setting (verified against the unmodified generator), so a two-day
-  // trip only ever places one card and could never show this either way.
-  it('does not make a bus tour wait for the sail\'s family gap', () => {
-    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 3 }, cat, { seed: 1 });
-    expect(placed(plan)).toEqual(expect.arrayContaining(['sail', 'bus']));
-    const dayOf = (id: string) => plan.find((d) =>
-      [...d.morning, ...d.afternoon, ...d.evening].some((e) => e.kind === 'group' && e.bestSellerId === id))!.day;
-    expect(Math.abs(dayOf('sail') - dayOf('bus'))).toBeLessThan(2); // < FAMILY_MIN_DAY_GAP
+  // AFTER: the bus can no longer auto-place, for a reason unrelated to gap
+  // families — a generic sightseeing bus is not on the bookable whitelist
+  // (the design spec names "Best of Aruba by Bus"-style products by example
+  // among what it deliberately excludes), so `isExcludedPaidProduct` removes
+  // it from the fill ladder outright. Asserting it still appears would be
+  // asserting the old, wrong behaviour, so a plan-level test of this can no
+  // longer observe what it was built to check.
+  //
+  // The mechanism itself — the bus not counting as a 'boat' for
+  // `dayCapFamilyOf`/`gapFamilyOf` — is unaffected by the whitelist and still
+  // real (a bus that WAS reachable, e.g. via a pin or Explore, must still not
+  // be treated as sharing a boat's family). Both functions derive their 'boat'
+  // classification from the exported `isBoatOuting`, so test that directly
+  // instead of through auto-fill placement.
+  it('does not classify the bus as a boat for the family-gap rules (isBoatOuting)', () => {
+    expect(isBoatOuting(items[1])).toBe(false); // the bus
+    expect(isBoatOuting(items[0])).toBe(true);  // the sail, for contrast
   });
 });
 
@@ -1434,8 +1534,19 @@ describe('generatePlan — day shape: two activities, one meal', () => {
   // The guard is unchanged in substance — the engine leaves room rather than
   // filling every slot — and is simply restated at the tighter limit: on an
   // all-paid catalog, a day that gets its outing gets nothing else.
+  // Retagged LOCALLY for this one test (ruling R9) rather than touching the
+  // shared `cat` above, which two other tests in this block ('never puts more
+  // than two activities', 'never puts more than three NON-MEAL cards') also
+  // use with assertions that hold trivially either way — no need to risk
+  // changing what they exercise. `cat`'s 36 items carry no Viator tags at all,
+  // so R6 now excludes every one of them from auto-fill; this test needed at
+  // least one placeable morning item to have anything to assert about.
   it('leaves the rest of the day open rather than stacking outings onto it', () => {
-    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 7 }, cat);
+    const bookableItems = items.map((i, n) => ({
+      ...i, tags: [11912, 90000 + n], title: `Aruba Snorkel Boat Charter ${i.id}`,
+    }));
+    const bookableCat: Catalog = { activities: [], groups: bookableItems.map((i) => mkGroup(i.group_id)), items: bookableItems };
+    const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 7 }, bookableCat);
     const booked = plan.filter((d) => d.morning.length > 0);
     expect(booked.length).toBeGreaterThan(0);
     for (const d of booked) {
@@ -1698,21 +1809,26 @@ describe('generatePlan — a day pass consumes the whole daytime', () => {
   // 60 minutes of the 8h cap, so only a very short product can follow it — and
   // the live catalog has several (the 30-min clear-kayak listings). With 2-hour
   // fillers this test would pass without the rule and prove nothing.
-  // Tag 12043 (WATER_PARK_TAG) is what isKidsOriented reads. Tag 11912
-  // (snorkel) was swapped for 11902 (hike) 2026-08-18 when the bookable
-  // whitelist shipped: 11912 plus this title ("Island" + "Day Pass") made
-  // `activityKind` resolve 'snorkel' and pass `bookableTier`'s WATER_TITLE
-  // guard, so this synthetic item (id 'daypass', not the real De Palm
-  // product's id 2455P18) newly classified as tier-1 bookable for everyone
-  // and got schedule-capped to bookingDays(3) = [2] — unrelated to what this
-  // describe block tests (the day-pass/evening-budget interaction), and
-  // starved the 3-day, pinned-evening scenario below of a day to land on.
-  // Dropping the tag outright (rather than swapping it) also fails: without
-  // any KIND_BY_TAG match at all the item stops being discoverable in this
-  // fixture for reasons that predate this task. 'hike' keeps the item
-  // reachable (`activityKind` resolving to a real kind still matters here)
-  // while staying outside bookableTier's sail/snorkel/offroad rows.
-  const items = [mk('daypass', 'Aruba De Palm Island Day Pass', '6 hrs', [11902, 12043])];
+  // Tag 12043 (WATER_PARK_TAG) is what isKidsOriented reads. History since
+  // the bookable whitelist shipped (2026-08-18):
+  //  - 11912 (snorkel): "Island"+"Day Pass" in the title passed WATER_TITLE,
+  //    making this tier-1 bookable for everyone under R6 alone.
+  //  - 11902 (hike): decoupled it from the whitelist under R6, but R9 then
+  //    added `isExcludedPaidProduct`, which excludes ANY paid Viator item
+  //    that is NOT on the whitelist — so 'hike' now gets it excluded outright
+  //    instead, for the opposite reason.
+  //  - There is no tag that is BOTH reachable (needs some real
+  //    `activityKind`-resolving tag, per the 2026-08-18 finding below) AND
+  //    exempt from the whitelist's schedule — `bookableTier` is non-null or
+  //    null, and R6/R9 both key off that same call, so this item MUST now be
+  //    a whitelist bookable to be placeable at all. 12035 (off-road) is used
+  //    here; the title clears JEEP_TITLE ("safari") alongside "Day Pass" so
+  //    `isFullDayProduct` (which this whole describe block is about) still
+  //    fires. Verified empirically across all 6 seeds test 3 sweeps: the item
+  //    consistently wins its day's morning slot before the schedule's single
+  //    legal day (bookingDays(3) = [2]) matters, because nothing else in this
+  //    fixture is a competing bookable.
+  const items = [mk('daypass', 'Aruba De Palm Island Day Pass Safari Adventure', '6 hrs', [12035, 12043])];
   for (let n = 0; n < 20; n += 1) items.push(mk(`filler-${n}`, `Beach Walk ${n}`, '30 min', [90000 + n]));
   // Evening-suitable fillers. Without these the day pass's evening could never
   // be tested at all — isEveningItem reads the TITLE, so a "Beach Walk" is
@@ -1760,10 +1876,19 @@ describe('generatePlan — a day pass consumes the whole daytime', () => {
     // counts what the day has already promised to LATER slots. So pinning an
     // evening item on day 2 means the day-2 morning pick can see it. Verified
     // by mutation — deleting the gate puts the pass on day 2 beside eve-1:
-    //   with     day 2: m[filler-0] e[eve-1]   day 3: m[daypass]
-    //   without  day 2: m[daypass]  e[eve-1]   day 3: m[filler-1] e[eve-4]
+    //   with     day 2: m[filler-0] e[eve-1]   day 4: m[daypass]
+    //   without  day 2: m[daypass]  e[eve-1]   day 4: (something else)
+    //
+    // days: 5, not 3 (ruling R9, 2026-08-18): the day pass is now a whitelist
+    // bookable (see the `items` comment above) and therefore schedule-capped
+    // to `bookingDays(nDays)` — on a 3-day trip that is the single day {2}, so
+    // once day 2's evening is blocked there was LITERALLY no other day left
+    // for it to reroute to, and the original "it still lands, just not on
+    // day 2" premise this test checks became unsatisfiable by construction,
+    // for a reason that has nothing to do with the evening-reservation gate
+    // under test. `bookingDays(5) = [2, 4]` restores a fallback day.
     for (let seed = 0; seed < 6; seed += 1) {
-      const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 3, groupType: 'Family with young kids' }, cat,
+      const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 5, groupType: 'Family with young kids' }, cat,
         { pinned: ['item:eve-0', 'item:eve-1'], seed });
       const day = plan.find((d) => [...d.morning, ...d.afternoon, ...d.evening]
         .some((e) => e.kind === 'group' && e.bestSellerId === 'daypass'));
@@ -2306,16 +2431,24 @@ describe('generatePlan — couples products are not handed to people travelling 
     id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
     display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
   });
-  const mk = (id: string, title: string): ViatorItem => ({
+  const mk = (id: string, title: string, tags: number[] = [7000 + id.length]): ViatorItem => ({
     id, group_id: `g-${id}`, title, image_url: '', price_usd: 90, duration: '2 hrs',
     rating: 4.8, review_count: 300, viator_item_url: '', is_best_seller: true,
-    display_order: 0, tags: [7000 + id.length], experience_cluster_id: `c-${id}`,
+    display_order: 0, tags, experience_cluster_id: `c-${id}`,
   });
   // Needs its own fixture: the stub catalog contains ZERO couples-marked titles,
   // so a stub-based test would pass vacuously.
+  //
+  // Retitled/retagged 2026-08-18 (ruling R9). `isCouplesOriented` is title-only
+  // (COUPLES_TITLE_RE), so the "romantic"/"couples" wording had to stay, but
+  // with the fake tags [7000+id.length] neither item could ever resolve a
+  // whitelist kind, and R6/R9 now exclude any paid Viator product that
+  // doesn't — regardless of the couples rule this describe block actually
+  // tests. Both now ALSO clear a real whitelist row (sail / off-road) while
+  // keeping the couples wording that `isCouplesOriented` reads.
   const items = [
-    mk('romantic', 'Aruba Eagle Beach Romantic Sunset Picnic in a Luxury Cabana'),
-    mk('couples', 'Private Sip and Paint Experience for Couples in Aruba'),
+    mk('romantic', 'Aruba Romantic Sunset Catamaran Sail for Two', [11888]),
+    mk('couples', 'Private Jeep Safari Adventure for Couples in Aruba', [12035]),
   ];
   for (let n = 0; n < 5; n += 1) items.push(mk(`plain-${n}`, `Island Walking Tour ${n}`));
   const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
@@ -2632,32 +2765,61 @@ describe('generatePlan — budget tier holds its spend', () => {
     return total;
   };
 
+  // Switched from Viator `items` to curated LOCAL activities (ruling R9,
+  // 2026-08-18) for these two tests specifically. This describe block's
+  // fixture predates the bookable whitelist: `items`' tags ([90000+n]) never
+  // resolved a whitelist kind, so R6 now excludes all 42 of them from
+  // auto-fill outright, and BOTH tiers spent $0 — the "STRICTLY LESS"
+  // assertion the second test needs cannot hold on two equal zeros.
+  //
+  // Retagging `items` to a real whitelist kind does not fix it either, and
+  // this is the one case in this file where that turned out to be
+  // structurally impossible rather than merely fiddly: a bookable item is
+  // schedule-capped to `bookingDays(nDays)` (≈ n/2.5, capped at
+  // MAX_BOOKABLES=6) REGARDLESS of budget tier, and that rate is tighter than
+  // budget-conscious's own average pool for any price at or under its $110
+  // per-item ceiling ($60/day × n / $110 > bookingDays(n) at every trip
+  // length) — so the schedule, not the average-spend pool, becomes the
+  // binding constraint for BOTH tiers, and they tie. The average-spend-pool
+  // bug this test was written for cannot recur for a bookable Viator item
+  // anymore; that is a real, positive side effect of the density cap, not
+  // something to route around.
+  //
+  // Curated local activities are the one category still governed by ONLY the
+  // per-item ceiling and the average-spend pool: `isExcludedPaidProduct`
+  // exempts `e.kind === 'activity'` entirely (curated locals are hand-picked
+  // editorial, not Viator auto-fill), and `bookableTier` returns null for any
+  // local not on the hard-coded bookable-local-id list, so `mayBook` never
+  // applies to it either. That is exactly the surface this test needs.
+  const localActs: Activity[] = [];
+  for (let n = 0; n < 30; n += 1) localActs.push(mkAct(`d${n}`, '$90 pp', 'Morning'));
+  for (let n = 0; n < 12; n += 1) localActs.push(mkAct(`e${n}`, '$90 pp', 'Evening'));
+  const localCat: Catalog = { activities: localActs, groups: [], items: [] };
+
   it('averages no more than $60/day for budget-conscious', () => {
     // The reported bug: measured live, a 7-day budget trip spent $443 ($63/day)
     // while the SAME trip at mid-range spent $330. A price ceiling caps how dear
     // an outing is, never how often one is booked, so every day got one.
-    const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
     const days = 7;
     const plan = generatePlan(
       { ...DEFAULT_ANSWERS, days, budget: 'Budget-conscious', interests: ['Culture & history'], groupType: 'Couple' },
-      cat, { seed: 0 },
+      localCat, { seed: 0 },
     );
-    expect(spendOf(plan, cat) / days).toBeLessThanOrEqual(60);
+    expect(spendOf(plan, localCat) / days).toBeLessThanOrEqual(60);
   });
 
   it('lets mid-range spend more per day than budget-conscious', () => {
     // The inversion is the actual complaint — not the absolute number. A cheaper
     // tier must never cost more than a dearer one on the same catalog and seed.
-    const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
     const days = 7;
     const mk = (budget: string) => generatePlan(
       { ...DEFAULT_ANSWERS, days, budget, interests: ['Culture & history'], groupType: 'Couple' },
-      cat, { seed: 0 },
+      localCat, { seed: 0 },
     );
     // STRICTLY less. Under the bug the two tiers spent the SAME $630 here (both
     // pools were large enough for one $90 outing every day), so a
     // less-than-or-equal assertion passed against the very thing being fixed.
-    expect(spendOf(mk('Budget-conscious'), cat)).toBeLessThan(spendOf(mk('Mid-range'), cat));
+    expect(spendOf(mk('Budget-conscious'), localCat)).toBeLessThan(spendOf(mk('Mid-range'), localCat));
   });
 
   it('never shows a curated local priced above the tier ceiling', () => {

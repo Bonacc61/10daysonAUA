@@ -130,10 +130,29 @@ describe('answersToTags — flag effects', () => {
 describe('generatePlan — no-boats flag', () => {
   const boatActivity = act('snorkel-cruise', { sections: ['cruises-water'], adventure: 40, timeOfDay: 'Morning' });
   const watersportsGroup = grp('sailing-group', ['watersports']);
+  // Retagged 2026-08-18 (ruling R9): without a Viator tag matching a
+  // whitelist kind, `bookableTier` can never resolve this paid item and
+  // `isExcludedPaidProduct` now excludes it from auto-fill unconditionally —
+  // flag or no flag — which made "without the flag the group can appear" fail
+  // for a reason unrelated to no-boats, and quietly turned "never appears WITH
+  // no-boats" vacuous (true regardless of the flag).
+  //
+  // Deliberately tagged 12035 (off-road, NOT a sail/snorkel tag): this group
+  // is still excluded under no-boats — the GROUP itself carries `matched_by:
+  // ['watersports']`, and `applyCatalogFlags` drops any group tagged
+  // 'watersports' wholesale, before it ever looks at the item inside — but an
+  // off-road item does not compete with `boatActivity` (a MORNING local
+  // 'cruises-water' pick) the way a same-themed sail item does. A tagged sail
+  // here reliably won the slot outright and made `boatActivity` unplaceable in
+  // every one of the 8 swept seeds, breaking 'without the flag the boat
+  // activity can appear' — a test this fixture change has no business touching.
+  const sailingItem: ViatorItem = {
+    ...bestItem('sailing-group'), tags: [12035], title: 'Aruba Rugged Off-Road Jeep Safari Adventure',
+  };
   const catalog: Catalog = {
     activities: [...fillerPool(), boatActivity],
     groups: [watersportsGroup],
-    items: [bestItem('sailing-group')],
+    items: [sailingItem],
   };
 
   it('cruises-water local activity never appears in any plan with no-boats', () => {
@@ -249,9 +268,17 @@ describe('generatePlan — influencer flag', () => {
   const shoot = bestItem('culture-group');
   shoot.id = 'vacation-photoshoot';
   shoot.title = 'Private Vacation Photoshoot with Photographer in Aruba';
-  const tour = bestItem('culture-group');
-  tour.id = 'walking-tour';
-  tour.title = 'Oranjestad Walking Tour';
+  // Was 'Oranjestad Walking Tour' (ruling R9, 2026-08-18): a walking tour is
+  // one of the whitelist's own canonical exclusions (R2's fixture spec), so
+  // retitling this control item to a walking tour would have made it
+  // unreachable BY DESIGN, for the same reason as the photoshoot — the "control
+  // proves the group is reachable" premise would be false. Retagged as a jeep
+  // safari (tag 12035, title clearing JEEP_TITLE) instead: a real,
+  // whitelist-eligible product, so its presence is still evidence the group and
+  // the catalog work, not an accident of R6 excluding it too.
+  const tour: ViatorItem = { ...bestItem('culture-group'), tags: [12035] };
+  tour.id = 'plain-tour';
+  tour.title = 'Aruba Rugged Jeep Safari Adventure';
 
   const catalog: Catalog = {
     activities: fillerPool(),
@@ -272,7 +299,7 @@ describe('generatePlan — influencer flag', () => {
     expect(seen.has('vacation-photoshoot')).toBe(false);
     // The group is reachable — so the absence above is the auto-fill rule, not
     // an unreachable catalog.
-    expect(seen.has('walking-tour')).toBe(true);
+    expect(seen.has('plain-tour')).toBe(true);
   });
 
   it('the photoshoot appears once the influencer flag is set', () => {

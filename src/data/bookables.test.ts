@@ -88,6 +88,21 @@ describe('bookableTier — persona-conditional families, both directions', () =>
   });
 });
 
+describe('bookableTier — content products (ruling R8)', () => {
+  // isContentProduct reads the TITLE ("photoshoot"/"photography"/"photo shoot",
+  // or the broader footage/video net) — see itemFit.ts. Untagged and unnamed by
+  // id, so it must be tested by title like the curated locals above.
+  const photoshoot = group({ id: 'photo-1', title: 'Private Vacation Photoshoot with Photographer in Aruba' });
+
+  it('is tier 1 for a traveller who ticked "I am an influencer"', () => {
+    expect(bookableTier(photoshoot, tags('influencer'))).toBe(1);
+  });
+
+  it('is null for a traveller who did not — both directions matter, or the tag is decorative', () => {
+    expect(bookableTier(photoshoot, tags('couple', 'mid-range'))).toBe(null);
+  });
+});
+
 describe('bookableTier — curated locals', () => {
   it('accepts the three curated boat and jeep trips', () => {
     for (const id of ['antilla-wreck-dive', 'boca-catalina-snorkel', 'natural-pool-jeep']) {

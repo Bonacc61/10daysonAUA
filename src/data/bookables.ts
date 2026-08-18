@@ -1,5 +1,5 @@
 import type { CardEntry, MatchTag } from '../types';
-import { activityKind } from './itemFit';
+import { activityKind, isContentProduct } from './itemFit';
 import { parseActivityCost } from './matcher';
 
 // === What a traveller must BOOK, as opposed to merely pay for ==============
@@ -106,7 +106,7 @@ export type BookableTier = 1 | 2;
  * Tier 1 is the curated must-do set and has first claim on the trip's booking
  * days. Tier 2 is placed only when a booking day is left over.
  *
- * `tags` is load-bearing: three families are persona-conditional, so the same
+ * `tags` is load-bearing: four families are persona-conditional, so the same
  * product is a bookable for one traveller and not for another. A test that
  * asserts only one direction would pass against an implementation that ignored
  * this argument entirely.
@@ -133,6 +133,21 @@ export function bookableTier(e: CardEntry, tags: Set<MatchTag>): BookableTier | 
   if (item.id === SUBMARINE_ID) return youngKids ? 2 : null;
   if (item.id === ANIMAL_SANCTUARY_ID) return youngKids ? 1 : null;
   if (item.id === JET_SKI_ID) return teensAdventurous ? 1 : null;
+  // Content products (a photoshoot, a drone shoot, "professional video
+  // footage") are tier 1 for a traveller who ticked "I'm an influencer" and
+  // null for everyone else. `influencer` is one of only two Q8 pills that
+  // survived a deliberate cull (docs/ROADMAP.md item 7) precisely because it
+  // DOES change what the plan contains — `birthday` and `work-trip` were
+  // deleted for doing nothing, on the principle that "a pill that reseeds is
+  // worse than one that does nothing, because it fakes a response". Without
+  // this row, R6's whitelist-only auto-fill rule would silently recreate that
+  // exact defect: `contentCreatorBonus` (itemFit.ts) could keep scoring a
+  // photoshoot for an influencer, but `isExcludedPaidProduct` would exclude it
+  // before that score is ever consulted, same as sip-and-paint. This mirrors
+  // an existing, sanctioned carve-out — `isAutoFillExcluded(item, influencer)`
+  // already exempts photo services from auto-fill exclusion for exactly this
+  // traveller — rather than inventing a new idea.
+  if (isContentProduct(item)) return tags.has('influencer') ? 1 : null;
 
   const kind = activityKind(item);
   if (kind === 'sail') return 1;
