@@ -158,6 +158,8 @@ describe('bookingDays', () => {
   it('ignores a pinned day that is illegal or adjacent to another', () => {
     expect(bookingDays(10, [1])).toEqual([3, 5, 7, 9]);   // arrival day
     expect(bookingDays(10, [10])).toEqual([3, 5, 7, 9]);  // departure day
-    expect(bookingDays(10, [4, 5])).toEqual([4, 7, 9]);   // 5 is adjacent to 4
+    // 5 is adjacent to 4, so it is skipped; the schedule still fills to its full count,
+    // the same as when a pinned day is illegal — both are "cannot be honoured" cases
+    expect(bookingDays(10, [4, 5])).toEqual([2, 4, 7, 9]);
   });
 });

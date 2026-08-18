@@ -187,27 +187,12 @@ export function bookingDays(nDays: number, mustInclude: number[] = []): number[]
 
   const width = hi - lo + 1;
   const wanted = Math.max(1, Math.min(MAX_BOOKABLES, Math.round(nDays / DAYS_PER_BOOKABLE)));
-  let k = Math.min(wanted, Math.ceil(width / 2));
+  const k = Math.min(wanted, Math.ceil(width / 2));
 
   const days: number[] = [];
   const free = (d: number) => d >= lo && d <= hi && days.every((x) => Math.abs(x - d) > 1);
 
-  // First pass: identify which mustInclude days are adjacent to others in the set.
-  // Keep the lower one, drop the higher one. Count adjacency-driven drops to reduce k.
-  const sorted = [...mustInclude].sort((a, b) => a - b);
-  const toKeep = new Set(sorted);
-  for (let i = 0; i < sorted.length; i++) {
-    for (let j = i + 1; j < sorted.length; j++) {
-      if (Math.abs(sorted[i] - sorted[j]) <= 1) {
-        toKeep.delete(sorted[j]);
-      }
-    }
-  }
-  const adjacencyDrops = sorted.length - toKeep.size;
-  k -= adjacencyDrops;
-
-  for (const d of sorted) {
-    if (!toKeep.has(d)) continue;
+  for (const d of [...mustInclude].sort((a, b) => a - b)) {
     if (days.length >= k) break;
     if (free(d)) days.push(d);
   }
