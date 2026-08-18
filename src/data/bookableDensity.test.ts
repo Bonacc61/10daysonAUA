@@ -1,10 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { readFileSync } from 'fs';
 import { generatePlan } from './itineraryGenerator';
 import {
   bookableTier, bookingDays, isPaidOuting,
   ANIMAL_SANCTUARY_ID, JET_SKI_ID, SUBMARINE_ID, DE_PALM_ISLAND_ID,
 } from './bookables';
-import { resolveSlotEntry, getCatalog, loadCatalog, type Catalog } from './activitySource';
+import { resolveSlotEntry, type Catalog } from './activitySource';
 import { answersToTags } from './answerTags';
 import { ACTIVITIES } from './activities';
 import { DEFAULT_ANSWERS, type Answers } from '../App';
@@ -562,30 +563,170 @@ describe('bookable density — every persona, every seed', () => {
 // here runs against the fixture, which carries these ids by construction
 // regardless of whether Viator still sells them.
 //
-// Skips (does not fail) when `loadCatalog()` falls back to the offline stub —
-// no network, no Viator credentials, or a live fetch error — so `npm test`
-// stays offline and free. Detected by comparing item counts against
-// `getCatalog()`: the stub is the ONLY thing `loadCatalog()` can return with
-// that exact count, since a live payload validates as non-empty
-// (`items.length === 0` throws before reaching the merge) and the two catalogs
-// are built from unrelated product sets.
-describe('bookable density — live-catalog ids', () => {
-  it('resolves the four named-id bookables against the live catalog', async (ctx) => {
-    const stub = getCatalog();
-    const live = await loadCatalog();
-    if (live.items.length === stub.items.length) {
+// I5 (final whole-branch review, 2026-08-18): this used to call `loadCatalog()`
+// and skip when the item count matched the offline stub's. It skipped ALWAYS.
+// `loadCatalog()` reads `import.meta.env.VITE_SUPABASE_ANON_KEY`, which vitest
+// does not populate at runtime, so it took its own catch-and-fall-back-to-stub
+// path on every run and the four ids were never checked against anything — the
+// exact failure the spec wrote this test for. It now reads `.env.production`
+// off disk and calls the edge function directly, which is the pattern
+// `e2e-engine.test.ts` and `influencer-e2e.test.ts` already use for the same
+// reason.
+//
+// Still offline-safe: no key on disk skips the whole describe, and a fetch or
+// payload failure skips the test with a warning rather than failing it. Both
+// skips say so out loud, because a guard that quietly does nothing is what I5
+// was.
+function loadEnvKey(key: string): string | undefined {
+  try {
+    const raw = readFileSync(new URL('../../.env.production', import.meta.url), 'utf8');
+    return raw.match(new RegExp(`^${key}=(.+)$`, 'm'))?.[1]?.trim();
+  } catch { return undefined; }
+}
+const ANON_KEY = loadEnvKey('VITE_SUPABASE_ANON_KEY');
+const FN_URL = loadEnvKey('VITE_VIATOR_FN_URL')
+  ?? 'https://mrfblzsihpecockhsnqe.supabase.co/functions/v1/viator-cards';
+
+if (!ANON_KEY) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[bookableDensity] SKIPPED: no VITE_SUPABASE_ANON_KEY in .env.production — '
+    + 'the live-catalog id check did not run.',
+  );
+}
+
+describe.skipIf(!ANON_KEY)('bookable density — the live catalog', () => {
+  let items: ViatorItem[] = [];
+  let groups: ViatorGroup[] = [];
+  let reachable = false;
+
+  beforeAll(async () => {
+    try {
+      const res = await fetch(FN_URL, {
+        headers: { Authorization: `Bearer ${ANON_KEY}`, apikey: ANON_KEY! },
+      });
+      if (!res.ok) throw new Error(`viator-cards ${res.status}`);
+      const data = (await res.json()) as { items?: ViatorItem[]; groups?: ViatorGroup[] };
+      items = data.items ?? [];
+      groups = data.groups ?? [];
+      if (items.length === 0) throw new Error('viator-cards returned no items');
+      reachable = true;
+    } catch (e) {
       // eslint-disable-next-line no-console
-      console.warn(
-        '[bookableDensity] SKIPPED: loadCatalog() fell back to the offline stub '
-        + '(no network / no Viator credentials in this environment) — the live-catalog '
-        + 'id check did not run.',
-      );
-      ctx.skip();
-      return;
+      console.warn(`[bookableDensity] SKIPPED: live catalog unreachable (${String(e)}) — `
+        + 'the live-catalog checks did not run.');
     }
-    const liveIds = new Set(live.items.map((i) => i.id));
+  }, 60_000);
+
+  it('resolves the four named-id bookables', (ctx) => {
+    if (!reachable) { ctx.skip(); return; }
+    // A short payload would make the four assertions below fail for the wrong
+    // reason. The live catalog has carried 300+ products all through this
+    // branch; anything less is a broken fetch, not a re-curation.
+    expect(items.length).toBeGreaterThanOrEqual(300);
+    const liveIds = new Set(items.map((i) => i.id));
     for (const id of [ANIMAL_SANCTUARY_ID, JET_SKI_ID, SUBMARINE_ID, DE_PALM_ISLAND_ID]) {
       expect(liveIds.has(id)).toBe(true);
     }
   });
+
+  // A KNOWN CONSEQUENCE, pinned rather than fixed (final whole-branch review,
+  // 2026-08-18). A traveller who ticked "we get seasick" (`no-boats`) now
+  // books NOTHING: the flag strips every sail and snorkel product from the
+  // catalog, which leaves off-road as the only tier 1 family open to a
+  // childless traveller — and a budget ceiling or a low adventure slider
+  // excludes that too. Measured here on the live catalog, 10 days, seeds 0-1,
+  // Couple + Budget-conscious + adventure 20 + `no-boats`: 0 bookings, against
+  // 6 paid products and $422 on the merge base.
+  //
+  // The owner has ruled this an owner decision rather than something to patch
+  // at the end of a build — the alternatives are inventing a boat-free
+  // bookable family or relaxing the budget/adventure gates, and both are
+  // product calls. This pins it so the behaviour is deliberate rather than
+  // accidental: if it ever changes, someone chose to change it.
+  //
+  // LIVE and not the fixture, because the fixture does not reproduce it — its
+  // synthetic $99 jeep clears a budget cap that every live off-road product
+  // fails. The second assertion is what stops the first passing vacuously:
+  // the same traveller with the flag cleared books normally, so a zero above
+  // is the flag's doing and not a dead engine.
+  it('books nothing for a budget, low-adventure traveller who cannot take a boat', (ctx) => {
+    if (!reachable) { ctx.skip(); return; }
+    const live: Catalog = { activities: ACTIVITIES, groups, items };
+    const seasick: Answers = {
+      ...DEFAULT_ANSWERS, days: 10, groupType: 'Couple', budget: 'Budget-conscious',
+      interests: ['Beach & chill'], adventureLevel: 20, flags: ['no-boats'],
+    };
+    const bookedOn = (answers: Answers, seed: number): number[] => {
+      const tags = answersToTags(answers);
+      const out: number[] = [];
+      for (const day of generatePlan(answers, live, { seed })) {
+        const any = [...day.morning, ...day.afternoon, ...day.evening].some((se) => {
+          const card = resolveSlotEntry(se, live, tags);
+          return card ? bookableTier(card, tags) !== null : false;
+        });
+        if (any) out.push(day.day);
+      }
+      return out;
+    };
+    for (let seed = 0; seed < 2; seed += 1) {
+      expect(bookedOn(seasick, seed)).toEqual([]);
+      expect(bookedOn({ ...seasick, flags: [] }, seed).length).toBeGreaterThan(0);
+    }
+  });
 });
+
+// C1 (final whole-branch review, 2026-08-18). Every density test above runs at
+// TEN days, which is why nothing caught this: on a 4-day balanced trip the
+// template places two bookables by construction — `antilla-wreck-dive` on day 2
+// morning and `natural-pool-jeep` on day 4 morning — and
+// `bookingDays(4, [2, 4])` returns `[2]` alone, because the window is `[2, 3]`
+// and `k = ceil(width / 2) = 1`. Day 4 (the DEPARTURE day) therefore left the
+// schedule while its booking stayed put: 2 bookings against a cap of 1, one of
+// them a $75 jeep safari on the morning the traveller flies home. Measured on
+// the live catalog, seed 0, Mid-range + adventure 50, all three group types.
+//
+// R13's second pass reverted only entries recorded in `templateAltFallback` —
+// template ALTERNATIVES. `natural-pool-jeep` is a template DEFAULT, and the
+// comment there asserted that case was unreachable. It was reached.
+//
+// These lengths are the coverage that was missing, not a spot check: 4 is the
+// failing case, but 1 and 2 exercise `bookingDays`' short-trip carve-outs
+// (day 1 and the departure day are legal there and nowhere else), and 5-8 walk
+// the window widening one day at a time.
+describe('bookable density — every balanced trip length, 1 to 8 days', () => {
+  const BALANCED: Record<string, Answers> = {
+    couple: COUPLE,
+    'young kids': BALANCED_YOUNG_KIDS,
+    teens: BALANCED_TEENS,
+  };
+  for (const [name, base] of Object.entries(BALANCED)) {
+    for (let n = 1; n <= 8; n += 1) {
+      it(`${name}, ${n} day${n === 1 ? '' : 's'}`, () => {
+        const answers = { ...base, days: n };
+        const perDay = bookablesByDay(answers);
+        const days = [...perDay.keys()].sort((a, b) => a - b);
+        // The trip-wide COUNT cap.
+        expect(days.length).toBeLessThanOrEqual(bookingDays(n).length);
+        // One booking per day.
+        for (const d of days) expect(perDay.get(d)).toBe(1);
+        // Never two days running.
+        for (let i = 1; i < days.length; i += 1) expect(days[i] - days[i - 1]).toBeGreaterThan(1);
+        // Never the arrival or the departure day — dropped by `bookingDays`
+        // itself for trips of 1 and 2 days, where the traveller has no other
+        // day to move the booking to.
+        if (n >= 3) {
+          expect(days).not.toContain(1);
+          expect(days).not.toContain(n);
+        }
+        // Every booked day is one the schedule legalises. Balanced travellers
+        // get the template's own days pinned into it, so the legal set is
+        // `bookingDays(n, templateDays)` rather than the plain pattern — and
+        // the template's bookable days are a subset of {2, 4}.
+        const allowed = new Set(bookingDays(n, [2, 4]));
+        for (const d of days) expect(allowed.has(d)).toBe(true);
+      });
+    }
+  }
+});
+

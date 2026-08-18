@@ -9,7 +9,7 @@ import type { MatchTag, ViatorGroup, ViatorItem, SlotEntry, CardEntry, Slot, Sec
 import { type Coord } from './coords';
 import { pinFor } from './itemCoords';
 import { distanceKm } from './enRoute';
-import { isWaterBased, isAutoFillExcluded, activityKind, isEveningItem } from './itemFit';
+import { isWaterBased, isAutoFillExcluded, activityKind, isEveningItem, refaceForAnswers } from './itemFit';
 import { isLunchspot } from './lunchspots';
 import { pickAlternative } from './balancedTemplate';
 import { answersToTags } from './answerTags';
@@ -1440,6 +1440,24 @@ describe('generatePlan — one sail per trip, daytime or evening', () => {
       if (days < 8) expect(countOf(ids, 'sail-') + countOf(ids, 'eve-')).toBeLessThanOrEqual(1);
       expect(ids).not.toContain('dive-night');
     }
+  });
+
+  // M6 (final whole-branch review, 2026-08-18): the POSITIVE half of the same
+  // requirement, which was missing. The design spec asks for both, and says
+  // why the second is the one that matters: diving "is never auto-placed but
+  // IS still returned by `refaceForAnswers` for an adventurous traveller ...
+  // moving the whitelist one call site further out would silently delete
+  // diving from the site" (2026-08-18-bookable-density-design.md, section 6).
+  //
+  // `refaceForAnswers` builds the Swap this shelf and filters by time of day
+  // and fit alone. Asserted with and without a slot, because the swap pass
+  // calls it both ways.
+  it('still OFFERS the dive on the Swap shelf — the whitelist must not reach refaceForAnswers', () => {
+    const diveItem = boats.find((b) => b.id === 'dive-night')!;
+    const dive: CardEntry = { kind: 'group', group: mkGroup('g-dive-night'), bestSeller: diveItem, others: [] };
+    const adventurous = new Set<MatchTag>(['couple', 'mid-range', 'high-adventure', 'watersports']);
+    expect(refaceForAnswers([dive], adventurous)).toHaveLength(1);
+    expect(refaceForAnswers([dive], adventurous, 'evening')).toHaveLength(1);
   });
 
   // RULING R12 (2026-08-18): superseded. This test used to require the

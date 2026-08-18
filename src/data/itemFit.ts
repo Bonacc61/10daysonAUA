@@ -480,6 +480,20 @@ export function isRetailProduct(item: ViatorItem): boolean {
 // "Private Dive + videographer/Photographer" is a dive, not a photo service.
 const PHOTO_SERVICE_RE = /\b(photoshoot|photography)\b|\bphoto shoot\b/i;
 
+/**
+ * A product whose proposition IS the shoot — the conservative, word-anchored
+ * half of the pair below.
+ *
+ * Exported for `bookableTier` (bookables.ts), whose influencer row needs
+ * exactly this question and not `isContentProduct`'s broader one. The two are
+ * then the same set on both sides of one traveller's plan:
+ * `isAutoFillExcluded` lifts the photo-service block for an influencer, and the
+ * whitelist admits precisely what that lift makes reachable.
+ */
+export function isPhotoService(item: ViatorItem): boolean {
+  return PHOTO_SERVICE_RE.test(item.title);
+}
+
 // Products that hand the traveller usable photo/video content — a sunset
 // photoshoot, a turtle snorkel with "Professional video footage", a clear-kayak
 // drone shoot. What most travellers treat as an upsell is the whole point of the

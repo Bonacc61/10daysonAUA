@@ -15,9 +15,24 @@ import type { Catalog } from '../data/activitySource';
 
 type Props = { setPage: (p: PageId) => void; answers: Answers };
 
+// `book` carries the affiliate flag, not just the URL (M7, 2026-08-18). The
+// type used to keep `bookUrl: string | null`, which dropped the half of
+// `bookUrlForActivity`'s answer that decides the button's wording — so a card
+// with a DIRECT operator link (flamingo-renaissance is the only one today) read
+// "Book now" here while the itinerary card and Explore correctly read "Book
+// direct". Same shape the helper returns, so nothing has to be reassembled.
+type Book = { url: string; affiliate: boolean } | null;
+// A Viator product's own link is always the affiliate one; only a curated
+// activity can carry a direct operator link, which is why this is a constant
+// here and a lookup for the activity branch.
+const itemBook = (i: ViatorItem): Book => {
+  const url = i.viator_item_url && i.price_usd > 0 ? productUrlFor(i) : null;
+  return url ? { url, affiliate: true } : null;
+};
+
 type Suggestion =
-  | { kind: 'activity'; id: string; activity: Activity; bookUrl: string | null }
-  | { kind: 'item';     id: string; item: ViatorItem; group: ViatorGroup; bookUrl: string | null };
+  | { kind: 'activity'; id: string; activity: Activity; book: Book }
+  | { kind: 'item';     id: string; item: ViatorItem; group: ViatorGroup; book: Book };
 
 function currentSlot(): 'morning' | 'afternoon' | 'evening' {
   const h = new Date().getHours();
@@ -43,7 +58,7 @@ function resolvePool(shortlist: Set<string>, catalog: Catalog): Suggestion[] {
       if (item && group) {
         pool.push({
           kind: 'item', id: sid, item, group,
-          bookUrl: item.viator_item_url && item.price_usd > 0 ? productUrlFor(item) : null,
+          book: itemBook(item),
         });
       }
     } else {
@@ -51,7 +66,7 @@ function resolvePool(shortlist: Set<string>, catalog: Catalog): Suggestion[] {
       if (activity) {
         pool.push({
           kind: 'activity', id: sid, activity,
-          bookUrl: bookUrlForActivity(activity)?.url ?? null,
+          book: bookUrlForActivity(activity),
         });
       }
     }
@@ -75,10 +90,10 @@ function resolveMatchedPool(answers: Answers, catalog: Catalog, exclude: Set<str
       seen.add(id);
       if (e.kind === 'activity') {
         result.push({ kind: 'activity', id, activity: e.activity,
-          bookUrl: bookUrlForActivity(e.activity)?.url ?? null });
+          book: bookUrlForActivity(e.activity) });
       } else {
         result.push({ kind: 'item', id, item: e.bestSeller, group: e.group,
-          bookUrl: e.bestSeller.viator_item_url && e.bestSeller.price_usd > 0 ? productUrlFor(e.bestSeller) : null });
+          book: itemBook(e.bestSeller) });
       }
     }
   }
@@ -280,10 +295,10 @@ export default function SurpriseMe({ setPage, answers }: Props) {
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: 10 }}>
-                    {pick.bookUrl && (
-                      <a href={pick.bookUrl} target="_blank" rel="noopener noreferrer"
+                    {pick.book && (
+                      <a href={pick.book.url} target="_blank" rel="noopener noreferrer"
                          style={{ flex: 1, padding: '11px 14px', fontSize: 14, fontWeight: 700, textDecoration: 'none', textAlign: 'center', borderRadius: 12, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '3px 3px 0 var(--ink)' }}>
-                        Book now
+                        {pick.book.affiliate ? 'Book now' : 'Book direct'}
                       </a>
                     )}
                     <AddButton added={shortlist.has(pick.id)} onAdd={() => toggleAdd(pick.id)} />

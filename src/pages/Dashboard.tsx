@@ -86,9 +86,22 @@ function Slider({ label, value, onChange, lo, hi, hint }: {
 
 // ─────────────────────────────────────────── Surprise Me logic ───────────── //
 
+// `book` carries the affiliate flag, not just the URL (M7, 2026-08-18) — see
+// the identical note in SurpriseMe.tsx. Dropping it made this tile say "Book
+// now" over a direct operator link while every other surface said "Book
+// direct".
+type Book = { url: string; affiliate: boolean } | null;
+// A Viator product's own link is always the affiliate one; only a curated
+// activity can carry a direct operator link, which is why this is a constant
+// here and a lookup for the activity branch.
+const itemBook = (i: ViatorItem): Book => {
+  const url = i.viator_item_url && i.price_usd > 0 ? productUrlFor(i) : null;
+  return url ? { url, affiliate: true } : null;
+};
+
 type Suggestion =
-  | { kind: 'activity'; id: string; activity: Activity; bookUrl: string | null }
-  | { kind: 'item';     id: string; item: ViatorItem; group: ViatorGroup; bookUrl: string | null };
+  | { kind: 'activity'; id: string; activity: Activity; book: Book }
+  | { kind: 'item';     id: string; item: ViatorItem; group: ViatorGroup; book: Book };
 
 function currentSlot(): 'morning' | 'afternoon' | 'evening' {
   const h = new Date().getHours();
@@ -109,12 +122,12 @@ function resolveStarredPool(starred: Set<string>, catalog: Catalog): Suggestion[
       const item   = catalog.items.find((i) => i.id === itemId);
       const group  = item && catalog.groups.find((g) => g.id === item.group_id);
       if (item && group) {
-        pool.push({ kind: 'item', id: sid, item, group, bookUrl: item.viator_item_url && item.price_usd > 0 ? productUrlFor(item) : null });
+        pool.push({ kind: 'item', id: sid, item, group, book: itemBook(item) });
       }
     } else {
       const activity = catalog.activities.find((a) => a.id === sid);
       if (activity) {
-        pool.push({ kind: 'activity', id: sid, activity, bookUrl: bookUrlForActivity(activity)?.url ?? null });
+        pool.push({ kind: 'activity', id: sid, activity, book: bookUrlForActivity(activity) });
       }
     }
   }
@@ -134,10 +147,10 @@ function resolveMatchedPool(tags: Set<MatchTag>, catalog: Catalog, exclude: Set<
       seen.add(id);
       if (e.kind === 'activity') {
         result.push({ kind: 'activity', id, activity: e.activity,
-          bookUrl: bookUrlForActivity(e.activity)?.url ?? null });
+          book: bookUrlForActivity(e.activity) });
       } else {
         result.push({ kind: 'item', id, item: e.bestSeller, group: e.group,
-          bookUrl: e.bestSeller.viator_item_url && e.bestSeller.price_usd > 0 ? productUrlFor(e.bestSeller) : null });
+          book: itemBook(e.bestSeller) });
       }
     }
   }
@@ -335,10 +348,10 @@ function SurprisePanel({ setPage, trip, answers }: { setPage: (p: PageId) => voi
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
-                {pick.bookUrl && (
-                  <a href={pick.bookUrl} target="_blank" rel="noopener noreferrer"
+                {pick.book && (
+                  <a href={pick.book.url} target="_blank" rel="noopener noreferrer"
                      style={{ flex: 1, padding: '10px 14px', fontSize: 13, fontWeight: 700, textDecoration: 'none', textAlign: 'center', borderRadius: 12, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '3px 3px 0 var(--ink)' }}>
-                    Book now
+                    {pick.book.affiliate ? 'Book now' : 'Book direct'}
                   </a>
                 )}
                 <AddButton added={shortlist.has(pick.id)} onAdd={() => toggleAdd(pick.id)} />

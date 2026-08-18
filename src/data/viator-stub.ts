@@ -50,9 +50,32 @@ export const VIATOR_GROUPS: ViatorGroup[] = [
   },
 ];
 
+// Viator tag ids on every item that has a kind in `KIND_BY_TAG` (itemFit.ts).
+//
+// I2 (final whole-branch review, 2026-08-18): the sailing five were retagged
+// earlier in this branch; the other fifteen were left bare, so `activityKind`
+// fell back to `sec:<section>` for all of them, `bookableTier` returned null,
+// and `isExcludedPaidProduct` refused every one. This stub is not a test
+// fixture — `loadCatalog()` returns it whenever the `viator-cards` edge
+// function errors (activitySource.ts), so it is the catalog a real traveller
+// sees during an outage. Measured, 10-day plans, seed 0: an adventurous family
+// with young kids got ONE Viator card, a solo adventurer with `no-boats` got
+// zero, and a money-no-object couple got one.
+//
+// Tags are the ones matching what each product actually represents, not the
+// ones that would make it a bookable. Four items are deliberately NOT on a
+// whitelist family even with a correct tag — the horseback ride ('horseback'),
+// the zipline ('zipline'), the paddleboard tour ('sup') and the Discover Scuba
+// session ('dive', which the design spec rules out by name) — and one is left
+// UNTAGGED: `KIND_BY_TAG` has no kitesurf kind, and 'surf' (13202) would be a
+// different sport. The live catalog agrees — the spec measured zero kitesurfing
+// products in it, which is why the site's only kitesurfing is a curated local.
+//
+// The three named-id bookables and De Palm Island have no counterpart here;
+// this stub predates them and inventing products is out of scope for a fix.
 export const VIATOR_ITEMS: ViatorItem[] = [
   // Adventure Tours
-  { id: 'utv-cave-pool', group_id: 'adventure-tours', sections: ['adventures-outdoor'], adventure: 90,
+  { id: 'utv-cave-pool', group_id: 'adventure-tours', sections: ['adventures-outdoor'], adventure: 90, tags: [12035],
     title: 'Aruba UTV Tour with Natural Cave Pool and Cliff Jumping',
     image_url: 'https://images.pexels.com/photos/1125883/pexels-photo-1125883.jpeg?auto=compress&cs=tinysrgb&w=800',
     price_usd: 129, duration: '5 hrs', rating: 4.8, review_count: 1247,
@@ -60,7 +83,7 @@ export const VIATOR_ITEMS: ViatorItem[] = [
     is_best_seller: true, display_order: 1,
     fitReason: 'Off-road thrill + cave swim',
     description: 'A half-day off-road run in 2- or 4-seater UTVs through the rugged north side, with stops at a natural cave pool and the cliff-jumping spots above Andicuri. Includes guide, water shoes, and a hotel pickup along the high-rise strip.' },
-  { id: 'jeep-arikok', group_id: 'adventure-tours', sections: ['adventures-outdoor'], adventure: 68,
+  { id: 'jeep-arikok', group_id: 'adventure-tours', sections: ['adventures-outdoor'], adventure: 68, tags: [12035],
     title: 'Arikok National Park 4x4 Jeep Safari',
     image_url: 'https://images.pexels.com/photos/618833/pexels-photo-618833.jpeg?auto=compress&cs=tinysrgb&w=800',
     price_usd: 89, duration: '4 hrs', rating: 4.6, review_count: 932,
@@ -68,7 +91,7 @@ export const VIATOR_ITEMS: ViatorItem[] = [
     is_best_seller: false, display_order: 2,
     fitReason: 'Rugged park highlights',
     description: 'Guided 4×4 safari through Arikok National Park hitting Conchi natural pool, the Indian Cave petroglyphs, and the windswept north coast. Bumpy ride; bring something to secure sunglasses.' },
-  { id: 'horseback-beach', group_id: 'adventure-tours', sections: ['adventures-outdoor'], adventure: 45,
+  { id: 'horseback-beach', group_id: 'adventure-tours', sections: ['adventures-outdoor'], adventure: 45, tags: [11973],
     title: 'Horseback Ride to the Wild Northern Coast',
     image_url: 'https://images.pexels.com/photos/1996337/pexels-photo-1996337.jpeg?auto=compress&cs=tinysrgb&w=800',
     price_usd: 105, duration: '3 hrs', rating: 4.7, review_count: 411,
@@ -76,7 +99,7 @@ export const VIATOR_ITEMS: ViatorItem[] = [
     is_best_seller: false, display_order: 3,
     fitReason: 'Wild-coast ride',
     description: 'Three-hour guided ride from Rancho Notorious through cunucu landscape to the secluded north-coast beaches. Calm, well-trained horses; beginner-friendly with a short safety briefing first.' },
-  { id: 'atv-quad', group_id: 'adventure-tours', sections: ['adventures-outdoor'], adventure: 85,
+  { id: 'atv-quad', group_id: 'adventure-tours', sections: ['adventures-outdoor'], adventure: 85, tags: [12035],
     title: 'ATV Quad Bike Adventure Tour',
     image_url: 'https://images.pexels.com/photos/2868853/pexels-photo-2868853.jpeg?auto=compress&cs=tinysrgb&w=800',
     price_usd: 75, duration: '3 hrs', rating: 4.5, review_count: 622,
@@ -84,7 +107,7 @@ export const VIATOR_ITEMS: ViatorItem[] = [
     is_best_seller: false, display_order: 4,
     fitReason: 'Self-drive backroads',
     description: 'Solo or tandem quad bikes through the dusty trails north of Noord, including a stop at the California Lighthouse lookout. Helmets, goggles, and a guide-led convoy provided.' },
-  { id: 'ziplining', group_id: 'adventure-tours', sections: ['adventures-outdoor'], adventure: 88,
+  { id: 'ziplining', group_id: 'adventure-tours', sections: ['adventures-outdoor'], adventure: 88, tags: [13143],
     title: 'Ziplining at De Palm Island',
     image_url: 'https://images.pexels.com/photos/2422259/pexels-photo-2422259.jpeg?auto=compress&cs=tinysrgb&w=800',
     price_usd: 99, duration: '2 hrs', rating: 4.4, review_count: 287,
@@ -94,7 +117,7 @@ export const VIATOR_ITEMS: ViatorItem[] = [
     description: 'A short series of zip lines spanning De Palm Island\'s lagoons, with the tallest tower around 35 m. Includes the round-trip ferry; pairs well with a snorkel stop on the same ticket.' },
 
   // Watersports
-  { id: 'snorkel-catamaran', group_id: 'watersports', sections: ['cruises-water'], adventure: 28,
+  { id: 'snorkel-catamaran', group_id: 'watersports', sections: ['cruises-water'], adventure: 28, tags: [11888],
     title: 'Catamaran Snorkel Cruise to Antilla Shipwreck',
     image_url: 'https://images.pexels.com/photos/1645028/pexels-photo-1645028.jpeg?auto=compress&cs=tinysrgb&w=800',
     price_usd: 79, duration: '3.5 hrs', rating: 4.8, review_count: 2103,
@@ -110,7 +133,7 @@ export const VIATOR_ITEMS: ViatorItem[] = [
     is_best_seller: false, display_order: 2,
     fitReason: 'World-class wind',
     description: 'Beginner private lesson with an IKO-certified instructor at Aruba\'s most reliable trade-wind beach. Gear and radio helmet included; the goal of the first session is body-dragging upwind.' },
-  { id: 'jetski-rental', group_id: 'watersports', sections: ['cruises-water'], adventure: 75,
+  { id: 'jetski-rental', group_id: 'watersports', sections: ['cruises-water'], adventure: 75, tags: [12062],
     title: 'Jet Ski Rental — Palm Beach',
     image_url: 'https://images.pexels.com/photos/1271619/pexels-photo-1271619.jpeg?auto=compress&cs=tinysrgb&w=800',
     price_usd: 95, duration: '1 hr', rating: 4.3, review_count: 521,
@@ -118,7 +141,7 @@ export const VIATOR_ITEMS: ViatorItem[] = [
     is_best_seller: false, display_order: 3,
     fitReason: 'Fast water fun',
     description: 'Single or double jet ski rental along the calm Palm Beach corridor. No license required; a quick briefing, life jackets, and a fixed boundary keep beginners safe.' },
-  { id: 'paddleboard-tour', group_id: 'watersports', sections: ['cruises-water'], adventure: 32,
+  { id: 'paddleboard-tour', group_id: 'watersports', sections: ['cruises-water'], adventure: 32, tags: [11974],
     title: 'Stand-Up Paddleboard Mangrove Tour',
     image_url: 'https://images.pexels.com/photos/1430676/pexels-photo-1430676.jpeg?auto=compress&cs=tinysrgb&w=800',
     price_usd: 55, duration: '2 hrs', rating: 4.5, review_count: 234,
@@ -126,7 +149,7 @@ export const VIATOR_ITEMS: ViatorItem[] = [
     is_best_seller: false, display_order: 4,
     fitReason: 'Calm mangrove paddle',
     description: 'A guided paddle through Spanish Lagoon\'s mangrove channels with stops to spot herons, baby barracuda, and the occasional turtle. Calm flat water; suitable for first-timers.' },
-  { id: 'scuba-discovery', group_id: 'watersports', sections: ['cruises-water'], adventure: 58,
+  { id: 'scuba-discovery', group_id: 'watersports', sections: ['cruises-water'], adventure: 58, tags: [12021],
     title: 'Discover Scuba — No Certification Needed',
     image_url: 'https://images.pexels.com/photos/1671325/pexels-photo-1671325.jpeg?auto=compress&cs=tinysrgb&w=800',
     price_usd: 135, duration: '3 hrs', rating: 4.7, review_count: 412,

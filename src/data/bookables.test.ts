@@ -115,6 +115,29 @@ describe('bookableTier — content products (ruling R8)', () => {
   it('a genuine snorkel tour that merely mentions video stays tier 1 for a traveller with NO influencer tag', () => {
     expect(bookableTier(turtleSnorkelWithVideo, tags('couple', 'mid-range'))).toBe(1);
   });
+
+  // I4 (final whole-branch review, 2026-08-18). The row used to ask
+  // `isContentProduct` (`/photo|video/i`, unanchored), which admitted 24 live
+  // products the design spec excludes by name. All four titles below are real
+  // ones from the live catalog; the kayak was measured landing on day 7 of the
+  // influencer persona's plan on both seeds. None carries a whitelist kind, so
+  // the ONLY thing deciding them is this row.
+  const clearKayak = group({ id: 'kayak-1', title: "50%OFF Aruba's #1Clear Kayak Experience@arubaphotoshootexperience" });
+  const horseback = group({ id: 'horse-1', title: 'Horseback Riding Tour with Photos in Aruba', price_usd: 95 });
+  const diveWithVideographer = group({ id: 'dive-1', title: 'Private Dive + videographer/Photographer', price_usd: 120 });
+
+  it('is NOT tier 1 for an influencer when the product is a tour that merely throws in photos', () => {
+    expect(bookableTier(clearKayak, tags('influencer'))).toBe(null);
+    expect(bookableTier(horseback, tags('influencer'))).toBe(null);
+    // The spec has a section titled "Diving is deliberately out".
+    expect(bookableTier(diveWithVideographer, tags('influencer'))).toBe(null);
+  });
+
+  it('is still tier 1 for an influencer when the product IS the shoot', () => {
+    expect(bookableTier(photoshoot, tags('influencer'))).toBe(1);
+    expect(bookableTier(group({ id: 'photo-2', title: 'Aruba Vacation Photography Session at Sunset' }), tags('influencer'))).toBe(1);
+    expect(bookableTier(group({ id: 'photo-3', title: 'Private Beach Photo Shoot in Aruba' }), tags('influencer'))).toBe(1);
+  });
 });
 
 describe('bookableTier — curated locals', () => {

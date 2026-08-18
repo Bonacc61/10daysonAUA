@@ -1767,10 +1767,13 @@ export function generatePlan(
         entry = fallback;
       }
 
-      // R13 rule 2: this day already has a template bookable — only an
-      // alternative can be reverted to make room for it.
-      if (altResolved && bookableTier(entry, tags) !== null && templateBookableDays.has(day)) {
-        entry = fallback;
+      // R13 rule 2: this day already has a template bookable. An ALTERNATIVE
+      // reverts to its curated default; a bookable that is itself the curated
+      // DEFAULT has nothing to revert to, so its slot is dropped and goes to
+      // normal fill instead (C1, 2026-08-18 — see rule 1's second pass).
+      if (bookableTier(entry, tags) !== null && templateBookableDays.has(day)) {
+        if (altResolved && bookableTier(fallback, tags) === null) entry = fallback;
+        else continue;
       }
       if (bookableTier(entry, tags) !== null) templateBookableDays.add(day);
       // Recorded whenever the alternative won, whether or not it turned out
@@ -1805,23 +1808,65 @@ export function generatePlan(
     .map(([day]) => day);
   for (const d of bookingDays(nDays, templateBookingDays)) ctx.bookingDaySet.add(d);
 
+  // Giving a route family back. A template placement that leaves the plan below
+  // must release the family it claimed at placement time, or the family is
+  // stranded for the whole trip and no later pass can use it (M8, 2026-08-18).
+  // Released only when nothing still holds it: two template slots can name the
+  // same family, and the pin pre-pass above writes into the same set.
+  //
+  // Latent until now — De Palm Island and the submarine carry no route family
+  // (`isFullDayProduct` returns none) and the reverted-to defaults are free
+  // curated cards — so this is a rail for the day a released entry has one, not
+  // a fix for an observed plan.
+  const releaseRouteFamily = (entry: CardEntry): void => {
+    const rf = tripRouteFamily(entry, nDays);
+    if (!rf) return;
+    const heldBy = (slots: Map<Slot, PinPlacement>): boolean =>
+      [...slots.values()].some((p) => tripRouteFamily(p.cardEntry, nDays) === rf);
+    for (const slots of pinnedSlots.values()) if (heldBy(slots)) return;
+    for (const slots of templateSlots.values()) if (heldBy(slots)) return;
+    ctx.usedRouteFamilies.delete(rf);
+  };
+
   // R13 rule 1, second pass: any template bookable whose day did not survive
-  // the schedule above (dropped for the trip cap, or for sitting adjacent to
-  // a day the schedule kept) reverts to its curated default. Only entries
-  // recorded in `templateAltFallback` — i.e. ones that came from an
-  // alternative — have anywhere to revert to; a bookable DEFAULT outside the
-  // schedule is left as placed (unreached by today's table: every default
-  // bookable's day is early enough in `bookingDays`' ascending mustInclude
-  // pass to always survive).
+  // the schedule above (dropped for the trip cap, or for sitting adjacent to a
+  // day the schedule kept) leaves that day. An entry recorded in
+  // `templateAltFallback` — one that came from an alternative — reverts to its
+  // curated default, so the day keeps a card and loses only the booking.
+  // Anything else, a bookable that IS the curated default among it, has nowhere
+  // to revert to: its slot is released entirely and normal fill claims it.
+  //
+  // C1 (2026-08-18): the default case used to be skipped, on a comment claiming
+  // it was unreachable. It is reached. `bookingDays(4, [2, 4])` returns `[2]`
+  // alone — the window is `[2, 3]` and `k = ceil(width / 2) = 1` — so a 4-day
+  // balanced trip kept `natural-pool-jeep` on day 4 while day 4 left the
+  // schedule: two bookings against a cap of one, the second a $75 jeep safari
+  // on the departure morning. Measured on the live catalog, seed 0, Mid-range +
+  // adventure 50, all three group types.
+  //
+  // A fallback that is itself a bookable is dropped rather than reverted onto
+  // an illegal day. Unreachable on today's table — the two bookable defaults'
+  // alternatives are `highBudget` ones, and `isBalancedTraveller` requires
+  // `mid-range`, which `altTypesFor`'s highBudget branch excludes — but it is
+  // what makes the invariant asserted below structural rather than argued.
   for (const [day, slots] of templateSlots) {
     if (ctx.bookingDaySet.has(day)) continue;
     for (const [slot, placement] of slots) {
       if (bookableTier(placement.cardEntry, tags) === null) continue;
-      const revertTo = templateAltFallback.get(`${day}:${slot}`);
-      if (!revertTo) continue;
+      const fb = templateAltFallback.get(`${day}:${slot}`);
+      const revertTo = fb && bookableTier(fb, tags) === null ? fb : undefined;
+      if (revertTo) {
+        slots.set(slot, { cardEntry: revertTo, slotEntry: { ...toSlotEntry(revertTo), staple: true } });
+      } else {
+        slots.delete(slot);
+        pinClaimed.get(day)?.delete(slot);
+      }
       if (ctx.lastUsedDay.get(entryId(placement.cardEntry)) === day) ctx.lastUsedDay.delete(entryId(placement.cardEntry));
-      ctx.lastUsedDay.set(entryId(revertTo), day);
-      slots.set(slot, { cardEntry: revertTo, slotEntry: { ...toSlotEntry(revertTo), staple: true } });
+      releaseRouteFamily(placement.cardEntry);
+      if (revertTo) {
+        ctx.lastUsedDay.set(entryId(revertTo), day);
+        const rf = tripRouteFamily(revertTo, nDays); if (rf) ctx.usedRouteFamilies.add(rf);
+      }
     }
   }
   // Recomputed post-revert: a day that lost its only bookable to rule 1 must
@@ -1829,6 +1874,10 @@ export function generatePlan(
   templateBookingDays = [...templateSlots.entries()]
     .filter(([, slots]) => [...slots.values()].some((p) => bookableTier(p.cardEntry, tags) !== null))
     .map(([day]) => day);
+  // The invariant the two passes exist to establish, enforced rather than
+  // assumed (C1): no template bookable survives on a day the schedule does not
+  // legalise. Reachable only from a future change to the passes above.
+  if (templateBookingDays.some((d) => !ctx.bookingDaySet.has(d))) throw new Error(`template bookable outside the booking schedule: day ${templateBookingDays.filter((d) => !ctx.bookingDaySet.has(d)).join(',')}`);
   for (const d of templateBookingDays) if (ctx.bookingDaySet.has(d)) ctx.bookedDays.add(d);
 
   // A pin is exempt from the schedule — the traveller chose it explicitly — but

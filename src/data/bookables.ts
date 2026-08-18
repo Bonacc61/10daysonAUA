@@ -1,5 +1,5 @@
 import type { CardEntry, MatchTag } from '../types';
-import { activityKind, isContentProduct } from './itemFit';
+import { activityKind, isPhotoService } from './itemFit';
 import { parseActivityCost } from './matcher';
 
 // === What a traveller must BOOK, as opposed to merely pay for ==============
@@ -150,21 +150,31 @@ export function bookableTier(e: CardEntry, tags: Set<MatchTag>): BookableTier | 
   if (kind === 'sail') return 1;
   if (kind === 'snorkel') return WATER_TITLE.test(item.title) ? 1 : null;
   if (kind === 'offroad') return JEEP_TITLE.test(item.title) ? 1 : null;
-  // Content products LAST (ruling R10, 2026-08-18 — moved below the kind
-  // rows). `isContentProduct` is deliberately broad (`/photo|video/i`), and
-  // sitting ahead of the kind checks made it a false-positive trap: measured
-  // on the live 328-product catalog, it matches 26 products, two of which are
-  // genuine top-reviewed turtle snorkel tours that merely mention video in the
-  // title —
+  // Photo services LAST (ruling R10, 2026-08-18 — moved below the kind rows).
+  //
+  // I4 (final whole-branch review, 2026-08-18): this row asked
+  // `isContentProduct`, which is deliberately broad (`/photo|video/i`, an
+  // unanchored substring test) because it exists for SCORING, where a miss
+  // costs an influencer the thing they came for. As an eligibility rule it
+  // admitted 24 live products the design spec deliberately excludes — five
+  // clear-kayak tours, a $95 horseback ride with 1,292 reviews and a $120
+  // "Private Dive + videographer", the last against a spec section titled
+  // "Diving is deliberately out". Measured: the influencer persona placed
+  // "50%OFF Aruba's #1Clear Kayak Experience@arubaphotoshootexperience" on
+  // day 7 on both seeds. The row now asks `isPhotoService` — word-anchored on
+  // the SHOOT — so a photoshoot is eligible and a kayak tour that throws in
+  // photos is not. `isContentProduct` is unchanged: its breadth is right where
+  // it is used (`contentCreatorBonus`), and this is a second question, not a
+  // correction of the first.
+  //
+  // Below the kind rows regardless, because either predicate sitting first is
+  // a false-positive trap: two genuine top-reviewed turtle snorkel tours merely
+  // mention video in the title —
   //   "Private Turtle Snorkel Tour in Aruba +Professional video footage" ($95,
   //   733 reviews) and "Award-Winning Private Turtle Snorkeling Aruba | Video
-  //   Included" ($89, 211 reviews). Sitting first, this row would have
-  //   excluded both for every non-influencer traveller — a serious regression
-  //   in a top-reviewed part of the catalog. Below the kind rows, a genuine
-  //   sail/snorkel/offroad tour keeps that classification (WATER_TITLE
-  //   matches "snorkel" itself, so both turtle tours clear row 3 before ever
-  //   reaching here) and only a product that is NOTHING but a photoshoot
-  //   reaches this row.
+  //   Included" ($89, 211 reviews) — and would have been excluded for every
+  //   non-influencer traveller. Below the kind rows they clear row 3 first
+  //   (WATER_TITLE matches "snorkel" itself) and never reach here.
   //
   // Tier 1 for a traveller who ticked "I'm an influencer" and null for
   // everyone else. `influencer` is one of only two Q8 pills that survived a
@@ -179,7 +189,7 @@ export function bookableTier(e: CardEntry, tags: Set<MatchTag>): BookableTier | 
   // an existing, sanctioned carve-out — `isAutoFillExcluded(item, influencer)`
   // already exempts photo services from auto-fill exclusion for exactly this
   // traveller — rather than inventing a new idea.
-  if (isContentProduct(item)) return tags.has('influencer') ? 1 : null;
+  if (isPhotoService(item)) return tags.has('influencer') ? 1 : null;
   return null;
 }
 

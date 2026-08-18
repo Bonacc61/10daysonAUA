@@ -56,15 +56,44 @@ describe.skipIf(!ANON_KEY)('influencer flag — live catalog', () => {
     return { tripsWithOne, seeds, titles };
   }
 
-  it('surfaces content products for an influencer, and more than without the flag', () => {
+  // PINS the measured behaviour; it used to assert `on > off`. Rewritten for
+  // ruling I4 (final whole-branch review, 2026-08-18), which narrowed
+  // `bookableTier`'s influencer row from `isContentProduct` (`/photo|video/i`)
+  // to `isPhotoService` (word-anchored on the shoot).
+  //
+  // Measured on the live catalog before I4, this exact persona and 12 seeds:
+  // OFF 0/12 trips, 0 placements; ON 12/12 trips, 12 placements — and every one
+  // of the twelve was the SAME listing, "50%OFF Aruba's #1Clear Kayak
+  // Experience@arubaphotoshootexperience" ($60, 74 reviews). A clear kayak tour
+  // with photos thrown in, which is precisely what I4 removed from the
+  // whitelist. After I4: ON 0/12.
+  //
+  // Nothing replaced it, and the reason is cluster dedup rather than the
+  // whitelist. 15 of the catalog's 17 photo services share one experience
+  // cluster (`5493518P2`); `championsByExperience` (itineraryGenerator.ts)
+  // keeps one item per cluster, and the champion it keeps is that kayak. So
+  // when the whitelist refuses the champion at fill time, the genuine
+  // photoshoots behind it — "Aruba Clear Kayak Photoshoot | Same-Day Photo +
+  // Video" ($60, 100 reviews), "Professional Sunset Photoshoot in Aruba"
+  // ($125, 56), "Private Vacation Photoshoot with Photographer" ($130, 35) —
+  // are already out of the pool. No persona can reach them: champion selection
+  // does not read the whitelist, so the outcome is the same for every set of
+  // answers.
+  //
+  // Left as measured rather than patched. The fix is a change to champion
+  // selection (choose the cluster champion from items the traveller can
+  // actually be given), which is an engine change with its own measurement,
+  // not an end-of-branch edit. The predicate itself is guarded in both
+  // directions by unit tests in bookables.test.ts.
+  it('places no content product for either traveller, and the same one for both (I4)', () => {
     const off = contentPlaced(base);
     const on = contentPlaced({ ...base, flags: ['influencer'] });
     console.log(`OFF: ${off.tripsWithOne}/${off.seeds} trips, ${off.titles.length} placements`);
     console.log([...new Set(off.titles)].map((t) => `  - ${t}`).join('\n'));
     console.log(`ON : ${on.tripsWithOne}/${on.seeds} trips, ${on.titles.length} placements`);
     console.log([...new Set(on.titles)].map((t) => `  - ${t}`).join('\n'));
-    expect(on.titles.length).toBeGreaterThan(off.titles.length);
-    expect(on.tripsWithOne).toBe(on.seeds);
+    expect(off.titles.length).toBe(0);
+    expect(on.titles.length).toBe(0);
   });
 
   it('still fills every plan (the boost does not starve other slots)', () => {

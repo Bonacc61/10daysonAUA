@@ -100,10 +100,16 @@ describe.skipIf(skip)('matching engine — live catalog', () => {
     // from personas it was never meant for, but it also removes a
     // geographically convenient NW-coast filler for some of them, which is
     // what raised this measurement. Re-measured 2026-08-18 straight after
-    // R15: 12.03 km (was 10.29 km before R15, guard was 12). Still 36% above
-    // the file's watch-the-value-not-the-pass warning above, so read this as
-    // history, not as license to stop checking the printed number.
-    expect(spreads((d) => [...d.morning, ...d.afternoon, ...d.evening])).toBeLessThan(12.5);
+    // R15: 12.03 km (was 10.29 km before R15, guard was 12).
+    //
+    // 13, not 12.5 (R16, final whole-branch review 2026-08-18, re-measured at
+    // 12.03 km on the same day): 12.5 against 12.03 is 3.9% of headroom, and
+    // an earlier note here called that "36% above", which was simply the wrong
+    // number. This file's prior practice was ~17% (a guard of 12 against a
+    // 10.29 measurement), and 3.9% is thin enough that the next legitimate
+    // catalog change flakes it with nothing actually wrong. 13 restores ~8%.
+    // Read this as history, not as licence to stop checking the printed value.
+    expect(spreads((d) => [...d.morning, ...d.afternoon, ...d.evening])).toBeLessThan(13);
   });
 
   const personas: Array<{ name: string; answers: Answers }> = [
