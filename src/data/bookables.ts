@@ -133,26 +133,41 @@ export function bookableTier(e: CardEntry, tags: Set<MatchTag>): BookableTier | 
   if (item.id === SUBMARINE_ID) return youngKids ? 2 : null;
   if (item.id === ANIMAL_SANCTUARY_ID) return youngKids ? 1 : null;
   if (item.id === JET_SKI_ID) return teensAdventurous ? 1 : null;
-  // Content products (a photoshoot, a drone shoot, "professional video
-  // footage") are tier 1 for a traveller who ticked "I'm an influencer" and
-  // null for everyone else. `influencer` is one of only two Q8 pills that
-  // survived a deliberate cull (docs/ROADMAP.md item 7) precisely because it
-  // DOES change what the plan contains — `birthday` and `work-trip` were
-  // deleted for doing nothing, on the principle that "a pill that reseeds is
-  // worse than one that does nothing, because it fakes a response". Without
-  // this row, R6's whitelist-only auto-fill rule would silently recreate that
-  // exact defect: `contentCreatorBonus` (itemFit.ts) could keep scoring a
+
+  const kind = activityKind(item);
+  if (kind === 'sail') return 1;
+  if (kind === 'snorkel') return WATER_TITLE.test(item.title) ? 1 : null;
+  if (kind === 'offroad') return JEEP_TITLE.test(item.title) ? 1 : null;
+  // Content products LAST (ruling R10, 2026-08-18 — moved below the kind
+  // rows). `isContentProduct` is deliberately broad (`/photo|video/i`), and
+  // sitting ahead of the kind checks made it a false-positive trap: measured
+  // on the live 328-product catalog, it matches 26 products, two of which are
+  // genuine top-reviewed turtle snorkel tours that merely mention video in the
+  // title —
+  //   "Private Turtle Snorkel Tour in Aruba +Professional video footage" ($95,
+  //   733 reviews) and "Award-Winning Private Turtle Snorkeling Aruba | Video
+  //   Included" ($89, 211 reviews). Sitting first, this row would have
+  //   excluded both for every non-influencer traveller — a serious regression
+  //   in a top-reviewed part of the catalog. Below the kind rows, a genuine
+  //   sail/snorkel/offroad tour keeps that classification (WATER_TITLE
+  //   matches "snorkel" itself, so both turtle tours clear row 3 before ever
+  //   reaching here) and only a product that is NOTHING but a photoshoot
+  //   reaches this row.
+  //
+  // Tier 1 for a traveller who ticked "I'm an influencer" and null for
+  // everyone else. `influencer` is one of only two Q8 pills that survived a
+  // deliberate cull (docs/ROADMAP.md item 7) precisely because it DOES change
+  // what the plan contains — `birthday` and `work-trip` were deleted for
+  // doing nothing, on the principle that "a pill that reseeds is worse than
+  // one that does nothing, because it fakes a response". Without this row,
+  // R6's whitelist-only auto-fill rule would silently recreate that exact
+  // defect: `contentCreatorBonus` (itemFit.ts) could keep scoring a
   // photoshoot for an influencer, but `isExcludedPaidProduct` would exclude it
   // before that score is ever consulted, same as sip-and-paint. This mirrors
   // an existing, sanctioned carve-out — `isAutoFillExcluded(item, influencer)`
   // already exempts photo services from auto-fill exclusion for exactly this
   // traveller — rather than inventing a new idea.
   if (isContentProduct(item)) return tags.has('influencer') ? 1 : null;
-
-  const kind = activityKind(item);
-  if (kind === 'sail') return 1;
-  if (kind === 'snorkel') return WATER_TITLE.test(item.title) ? 1 : null;
-  if (kind === 'offroad') return JEEP_TITLE.test(item.title) ? 1 : null;
   return null;
 }
 

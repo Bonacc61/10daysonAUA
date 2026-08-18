@@ -815,12 +815,12 @@ const FAMILY_MIN_DAY_GAP = 2;
 // sails in one day is excessive however different they are, so a daytime
 // catamaran and an evening dinner cruise cannot share a day either. Similarity
 // is irrelevant here — it is a count, not a comparison.
-function dayCapFamilyOf(e: CardEntry): string | undefined {
+export function dayCapFamilyOf(e: CardEntry): string | undefined {
   if (e.kind !== 'group') return undefined;
   return isBoatOuting(e.bestSeller) ? 'boat' : undefined;
 }
 
-function gapFamilyOf(e: CardEntry): string | undefined {
+export function gapFamilyOf(e: CardEntry): string | undefined {
   // Local shore picks are deliberately excluded — a beach snorkel the day after
   // a catamaran was explicitly called fine. This is about repeat BOAT trips.
   if (e.kind !== 'group') return undefined;

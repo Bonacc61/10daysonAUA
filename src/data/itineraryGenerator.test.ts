@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { generatePlan, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies, isPaidOuting, isBoatOuting } from './itineraryGenerator';
+import { generatePlan, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies, isPaidOuting, isBoatOuting, dayCapFamilyOf, gapFamilyOf } from './itineraryGenerator';
 import { getCatalog } from './activitySource';
 import { DEFAULT_ANSWERS } from '../App';
 import type { Answers } from '../App';
 import type { Activity, Day } from './activities';
 import type { Catalog } from './activitySource';
-import type { MatchTag, ViatorGroup, ViatorItem, SlotEntry, CardEntry, Slot } from '../types';
+import type { MatchTag, ViatorGroup, ViatorItem, SlotEntry, CardEntry, Slot, Section } from '../types';
 import { type Coord } from './coords';
 import { pinFor } from './itemCoords';
 import { distanceKm } from './enRoute';
@@ -36,7 +36,22 @@ const catalog = getCatalog();
 function bigViatorCatalog(): Catalog {
   const groups: ViatorGroup[] = [];
   const items: ViatorItem[] = [];
-  const themes: Record<string, { tags: MatchTag[]; itemTags: (n: number) => number[]; title: (n: number) => string }> = {
+  const activities: Activity[] = [];
+  const TOD: Activity['timeOfDay'][] = ['Morning', 'Afternoon', 'Evening'];
+  const themes: Record<string, {
+    tags: MatchTag[]; itemTags: (n: number) => number[]; title: (n: number) => string;
+    section: Section; adventure: number;
+    // A free, second Viator kind under the SAME theme (ruling R10, correction
+    // round 3). `kindOk`'s same-day variety gate (`newKind`, itineraryGenerator.ts)
+    // requires a DIFFERENT `entryKind()` for a day's second/third slot, and a
+    // theme supplying only one Viator kind + one local "sec:*" kind (two total)
+    // cannot fill a 3-slot day without crossing into the OTHER theme purely for
+    // variety — which is what caused the residual leak even with abundant
+    // same-theme supply. A third, distinct kind closes that gap. Priced $0 so
+    // it is never itself excluded or schedule-capped (bookableTier short-
+    // circuits at `!isPaidOuting`).
+    altKindTag: number; altTitle: (n: number) => string;
+  }> = {
     // Each item's tag array pairs the real Viator kind id with a unique noise
     // tag (90000+n). Without the noise tag every item in a theme carries the
     // SAME single tag, which reads as 100% Jaccard-similar to every other one —
@@ -45,10 +60,45 @@ function bigViatorCatalog(): Catalog {
     // rung (which drops the persona-relevance filter once a theme is
     // exhausted) spills straight into the OTHER theme. That is what broke
     // the near-disjoint assertion below, not a persona/tag mismatch.
+    //
+    // `adventure` is set explicitly and deliberately mismatched between the
+    // two themes (ruling R10, correction round 3): `classifyTags` derives an
+    // ADVENTURE-BAND tag from this number (classify.ts), independent of the
+    // interest tags above, and `interestTags(sections)` hands BOTH themes a
+    // second, unrelated interest tag on top of their own —
+    // 'cruises-water' → ['watersports', 'beach-chill'] and
+    // 'adventures-outdoor' → ['adventure', 'nature-hiking']. With adventure
+    // left to the SECTION_ADVENTURE fallback (cruises-water = 45,
+    // adventures-outdoor = 75) the watersports theme landed in 'med-adventure'
+    // — the same band BOTH personas sit in at the default `adventureLevel: 50`
+    // — while off-road landed in 'high-adventure', matching neither. That
+    // gave watersports items a free +3 band-match bonus against EITHER
+    // persona regardless of its interest tag, and is why the LAND persona's
+    // plan came back almost entirely watersports. Pairing an explicit
+    // high-adventure off-road theme with a LAND persona set to
+    // `adventureLevel: 85` (see below) restores the intended split.
+    // matched_by carries ONLY the interest tag, not an adventure-band tag —
+    // 'high-adventure' in BOTH themes' matched_by let the LAND persona's own
+    // high-adventure band reach the watersports group through that SHARED
+    // tag, regardless of interest, which is what was still leaking after the
+    // adventure-number fix alone. Adventure banding is a SCORING signal
+    // (`classifyTags`, via each item's own `adventure` number below) and
+    // deliberately does not also gate ELIGIBILITY here.
     offroad: {
-      tags: ['adventure', 'high-adventure'],
+      tags: ['adventure'],
       itemTags: (n) => [12035, 90000 + n],
       title: (n) => `Aruba Jeep Safari Off-Road Adventure ${n}`,
+      section: 'adventures-outdoor', adventure: 80,
+      // 11902 = hike (KIND_BY_TAG), also maps to the 'adventures-outdoor'
+      // section, so it stays thematically off-road/adventure while resolving
+      // a different `activityKind`. Every third one titled for the evening
+      // (isEveningItem reads the title) — the EVENING slot otherwise has only
+      // ONE in-theme kind (the local 'sec:adventures-outdoor' twin, since
+      // itemSlotOk requires an evening-titled item for that slot), and a
+      // single kind can't satisfy same-day variety on a day that already
+      // used it, which was the last source of cross-theme leakage.
+      altKindTag: 11902,
+      altTitle: (n) => (n % 3 === 0 ? `Aruba Self-Guided Sunset Trail Hike ${n}` : `Aruba Self-Guided Trail Hike ${n}`),
     },
     // Snorkel only (11912), not sail (11888): a `sail`-kind item is exactly
     // what the PRE-EXISTING, persona-blind `catamaran-sail` beach staple
@@ -59,13 +109,25 @@ function bigViatorCatalog(): Catalog {
     // which had nothing to do with this test's tags or personas. Snorkel kind
     // is not one of the staple's targets, so it stays out of this fixture.
     watersports: {
-      tags: ['watersports', 'high-adventure'],
+      tags: ['watersports'],
       itemTags: (n) => [11912, 90000 + n],
       title: (n) => `Aruba Snorkel Boat Charter ${n}`,
+      section: 'cruises-water', adventure: 50,
+      // 12062 = jetski (KIND_BY_TAG), also maps to the 'cruises-water'
+      // section, so it stays thematically watersports while resolving a
+      // different `activityKind`. Every third one evening-titled, for the
+      // same reason as the off-road theme's alt kind above.
+      altKindTag: 12062,
+      altTitle: (n) => (n % 3 === 0 ? `Aruba Sunset Jet Ski Excursion ${n}` : `Aruba Jet Ski Excursion ${n}`),
     },
   };
   for (const [theme, spec] of Object.entries(themes)) {
-    for (let n = 0; n < 8; n += 1) {
+    // 15 per theme, not 8: with a 3-way TOD cycle that is 5 items per
+    // time-of-day, enough to cover a 5-day trip's one evening slot/day
+    // without the evening pool running out and widening into the other
+    // theme — the residual leak (0.25, just over the 0.2 threshold) once the
+    // route-family and adventure-band issues above were both fixed.
+    for (let n = 0; n < 15; n += 1) {
       const id = `${theme}-${n}`;
       groups.push({
         id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
@@ -83,11 +145,53 @@ function bigViatorCatalog(): Catalog {
         // personas or tags.
         price_usd: 100, duration: '2 hrs', rating: 4.5, review_count: 50,
         viator_item_url: '', is_best_seller: true, display_order: 0,
-        tags: spec.itemTags(n),
+        tags: spec.itemTags(n), adventure: spec.adventure,
+      });
+      // The free, third-kind twin (see the `altKindTag` field comment above).
+      const altId = `${theme}-${n}-alt`;
+      groups.push({
+        id: altId, name: altId, tagline: '', viator_taxonomy: '', viator_group_url: '',
+        display_order: n, matched_by: spec.tags, region: 'islandwide', allowed_slots: [],
+      });
+      items.push({
+        id: `${altId}-best`, group_id: altId, title: spec.altTitle(n), image_url: '',
+        price_usd: 0, duration: '2 hrs', rating: 4.5, review_count: 50,
+        viator_item_url: '', is_best_seller: true, display_order: 0,
+        tags: [spec.altKindTag, 91000 + n], adventure: spec.adventure,
+      });
+      // FREE curated-local twin of the same theme (ruling R10, correction
+      // round 3). The Viator half of each theme is now schedule-capped
+      // (`bookingDays`), so a 5-day trip places at most 2 of them total per
+      // persona — too little for a "rich catalog, near-disjoint SETS" claim
+      // to mean anything. `bookableTier` returns null for any local activity
+      // outside the hard-coded bookable-id list, and `isExcludedPaidProduct`
+      // exempts `e.kind === 'activity'` entirely, so these are free of BOTH
+      // the schedule and the whitelist and can fill every remaining slot —
+      // restoring real plan size while keeping each persona's material
+      // confined to its own theme (`matched_by`/`sections` mirror the
+      // Viator group's, so `themeOf` still classifies them correctly by id).
+      // Title deliberately does NOT reuse `spec.title(n)` for the off-road
+      // theme: `routeFamilyOf` matches LOCAL picks by title too
+      // (`LOCAL_OFFROAD = /jeep|safari|4x4|4wd|off.?road|utv|atv|.../i`), and
+      // "Aruba Jeep Safari Off-Road Adventure" hits it — every local twin was
+      // sharing the SAME trip-wide 'offroad' route family as the Viator items
+      // (retired after one placement, "however long the stay", by design),
+      // which silently capped this theme's supposedly-uncapped free content
+      // to one placement and forced the ladder to widen into watersports for
+      // every other slot. A neutral title sidesteps the family entirely.
+      activities.push({
+        id: `${id}-local`,
+        title: theme === 'offroad' ? `Self-Guided Highland Trail Excursion ${n}` : `${spec.title(n)} (self-guided)`,
+        category: 'Activities',
+        image: '', description: '', localsSay: '', cost: 'Free',
+        duration: '2 hrs', timeOfDay: TOD[n % TOD.length], fitReason: '', location: 'Aruba',
+        rating: 4.5, reviewCount: 10, adventure: spec.adventure,
+        sections: [spec.section],
+        matched_by: spec.tags,
       });
     }
   }
-  return { activities: [], groups, items };
+  return { activities, groups, items };
 }
 
 const themeOf = (bestSellerId: string) => bestSellerId.split('-')[0];
@@ -552,19 +656,28 @@ describe('generatePlan — tailoring scales with a rich Viator catalog', () => {
   // design spec deliberately removed, not this fixture's staleness. Replaced
   // with the two families the whitelist actually supports that are naturally
   // near-disjoint by group `matched_by`: watersports vs. off-road.
-  // days: 3 (not 5): a longer trip opens more of the trip's booking-schedule
-  // days (bookingDays), and both themes here are whitelist-eligible bookables
-  // (see bigViatorCatalog's comment) — a trip long enough to want more than
-  // one booking will exhaust its own theme's route-family-capped supply and
-  // widen into the OTHER theme, which is what broke the near-disjoint
-  // assertion below at days: 5. bookingDays(3) is exactly one day, which each
-  // theme's supply comfortably covers on its own.
-  const WATER_PERSONA: Answers = { ...DEFAULT_ANSWERS, days: 3, interests: ['Watersports'] };
-  const LAND_PERSONA: Answers = { ...DEFAULT_ANSWERS, days: 3, interests: ['Adventure & adrenaline'] };
+  //
+  // days: 5, restored (ruling R10, correction round 3): R9 cut this to 3 to
+  // dodge the schedule widening into the other theme once a theme's
+  // route-family-capped Viator supply ran out, but that made every plan
+  // exactly one item — the overlap ratio could only ever be 0 or 1 and
+  // `every()` ran over a single-element array, so the test stopped measuring
+  // "rich catalog" tailoring at all. The real fix is supply, not trip length:
+  // `bigViatorCatalog` now gives each theme a FREE, non-bookable local twin
+  // per item (see its comment), so a 5-day trip fills with plenty of
+  // same-theme material even though only ~2 of the Viator halves can ever be
+  // scheduled.
+  // LAND at adventureLevel 85 (high-adventure), not the default 50: see
+  // bigViatorCatalog's comment on why the two themes' adventure numbers are
+  // deliberately mismatched between bands.
+  const WATER_PERSONA: Answers = { ...DEFAULT_ANSWERS, days: 5, interests: ['Watersports'] };
+  const LAND_PERSONA: Answers = { ...DEFAULT_ANSWERS, days: 5, interests: ['Adventure & adrenaline'], adventureLevel: 85 };
 
   it('gives opposite personas near-disjoint, on-theme Viator plans', () => {
     const water = entryIds(generatePlan(WATER_PERSONA, big));
     const land = entryIds(generatePlan(LAND_PERSONA, big));
+    console.log('WATER', water);
+    console.log('LAND', land);
 
     // Set overlap (meaningful now the pool >> plan size) should be tiny.
     const wSet = new Set(water);
@@ -1275,39 +1388,40 @@ describe('generatePlan — one sail per trip, daytime or evening', () => {
     expect([...seen].some((i) => i.startsWith('eve-'))).toBe(true);
   });
 
-  // RENAMED and reasserted 2026-08-18 (ruling R9). Was 'a night SHORE dive is
-  // not a sail and still lands beside the catamaran', and its final assertion
-  // was `expect(ids).toContain('dive-night')`.
+  // REASSERTED 2026-08-18 (ruling R10, correction round 3). R9's fix flipped
+  // the final assertion to `expect(ids).not.toContain('dive-night')`, but the
+  // reviewer caught that this no longer guards anything: the dive is now
+  // excluded from auto-fill by `isExcludedPaidProduct` regardless of whether
+  // `gapFamilyOf`'s `isEveningItem` early return (itineraryGenerator.ts,
+  // just above `dayCapFamilyOf`) exists at all — `not.toContain` passes
+  // either way, including for the exact bug this test was written to catch
+  // (the dive being swallowed into the merged 'boat' gap family). Nothing
+  // else in the suite covers that early return.
   //
-  // BEFORE: the dive was expected to auto-place ALONGSIDE the sail/eve picks,
-  // because — as the paragraphs below still correctly explain — it shares no
-  // route family with them, so the one-sail-per-trip rule has no business
-  // touching it.
-  //
-  // AFTER: the dive must NEVER auto-place at all, for a completely different
-  // and unrelated reason — diving is deliberately outside the bookable
-  // whitelist (docs/superpowers/specs/2026-08-18-bookable-density-design.md,
-  // "Diving is deliberately out": offered only via the card's Swap this
-  // button, never auto-filled). `dive-night` carries tag 12021 (dive), which
-  // is not one of `bookableTier`'s sail/snorkel/offroad rows, so
-  // `isExcludedPaidProduct` now excludes it from the fill ladder outright.
-  // The route-family claim below is still TRUE — a shore dive and a boat sail
-  // share no route — it is just no longer the reason the dive is absent, so
-  // this test is renamed to say what it now actually checks.
-  it('a night SHORE dive is not a sail, and is never auto-placed at all (diving is off the whitelist)', () => {
-    // The one-sail rule is about the boat route every operator runs — Malmok,
-    // Boca Catalina, the Antilla. A shore dive is entered from a beach on the
-    // opposite coast and shares none of it — so if diving were ever added back
-    // to the whitelist, it must not be blocked by the one-sail rule on route-
-    // family grounds. It's blocked today by a different rule entirely (see
-    // above), which is what this test now asserts.
-    //
-    // Checked against the live catalog: of the 30 evening water-based products,
-    // this is the only one that is not a boat outing — and "Luxury Four-Course
-    // Caribbean Dinner Cruise" (filed under tours-sightseeing, no sail tag) is
-    // one that must stay IN, which is why the ORIGINAL route-family logic was
-    // titled on the title, not the kind. Still true; just no longer reachable,
-    // because the dive never gets far enough to test it.
+  // Fixed by testing the two exported family functions directly, on the
+  // dive's own CardEntry, instead of inferring their behaviour from
+  // `generatePlan`'s output:
+  //  - `dayCapFamilyOf(dive) === 'boat'` — the SAME-DAY cap still counts the
+  //    dive as a boat (it deliberately does not exempt evenings: two boats in
+  //    one day is excessive however different they are).
+  //  - `gapFamilyOf(dive) === undefined` — the multi-day GAP rule exempts it,
+  //    because `isEveningItem(dive)` is true and `gapFamilyOf` returns early
+  //    for any evening item. This is what stops a night shore dive from
+  //    pushing the next sail two days out via `FAMILY_MIN_DAY_GAP`, and it
+  //    would break silently if that early return were ever deleted.
+  it('a night SHORE dive counts as a boat for the same-day cap but not for the multi-day gap', () => {
+    const diveItem = boats.find((b) => b.id === 'dive-night')!;
+    const dive: CardEntry = { kind: 'group', group: mkGroup('g-dive-night'), bestSeller: diveItem, others: [] };
+    expect(dayCapFamilyOf(dive)).toBe('boat');
+    expect(gapFamilyOf(dive)).toBeUndefined();
+  });
+
+  // The one-sail rule and the whitelist exclusion, unaffected by the above.
+  // The dive is not on the bookable whitelist (design spec: "Diving is
+  // deliberately out ... offered only via Swap this"), so it never reaches
+  // the plan at all — asserted here so a future whitelist change that DID
+  // re-admit it would still have to pass the one-sail-per-trip checks below.
+  it('never auto-places the night shore dive (diving is off the whitelist)', () => {
     // 7 days: one sail total. 14 days: one of each kind, never two of one.
     for (const days of [7, 14]) {
       const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days, interests: ['watersports'] }, cat));

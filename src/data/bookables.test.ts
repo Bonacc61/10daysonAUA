@@ -101,6 +101,20 @@ describe('bookableTier — content products (ruling R8)', () => {
   it('is null for a traveller who did not — both directions matter, or the tag is decorative', () => {
     expect(bookableTier(photoshoot, tags('couple', 'mid-range'))).toBe(null);
   });
+
+  // Regression guard (ruling R10, 2026-08-18). The content-product row sat
+  // ABOVE the kind rows until this ruling and, measured against the live
+  // catalog, that order excluded two genuine, top-reviewed turtle snorkel
+  // tours for every non-influencer traveller — both merely mention video in
+  // the title. The row must sit below `snorkel`/`sail`/`offroad` so a real
+  // tour keeps its kind classification regardless of influencer status.
+  const turtleSnorkelWithVideo = group({
+    id: 'turtle-1', title: 'Private Turtle Snorkel Tour in Aruba +Professional video footage', tags: [11912],
+  });
+
+  it('a genuine snorkel tour that merely mentions video stays tier 1 for a traveller with NO influencer tag', () => {
+    expect(bookableTier(turtleSnorkelWithVideo, tags('couple', 'mid-range'))).toBe(1);
+  });
 });
 
 describe('bookableTier — curated locals', () => {
