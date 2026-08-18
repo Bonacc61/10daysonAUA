@@ -459,6 +459,24 @@ export function bookingUrl(entry: ExploreEntry): string | null {
   return url && priceOf(entry) > 0 ? viatorLink(url) : null;
 }
 
+/**
+ * The book link for a curated activity, and whether it earns us anything.
+ *
+ * One helper rather than a sixth copy: this expression was duplicated at five
+ * call sites, each some form of `viator_item_url && cost > 0 ? viatorLink(...)`.
+ * Adding a second source of truth to five near-identical expressions is how they
+ * drift, and this repo already carries scar tissue from exactly that.
+ *
+ * The `affiliate` flag lets the button be honest: a Viator link reads "Book now",
+ * a direct one reads "Book direct".
+ */
+export function bookUrlForActivity(a: Activity): { url: string; affiliate: boolean } | null {
+  if (parseActivityCost(a.cost) <= 0) return null;
+  if (a.viator_item_url) return { url: viatorLink(a.viator_item_url), affiliate: true };
+  if (a.bookingUrl) return { url: a.bookingUrl, affiliate: false };
+  return null;
+}
+
 // An item inherits its group's matched_by as the adventure-tag fallback (used
 // only when the item has no curated `adventure`).
 function groupTagsFor(item: ViatorItem, groups: ViatorGroup[]): MatchTag[] {

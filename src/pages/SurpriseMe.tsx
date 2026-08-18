@@ -5,8 +5,8 @@ import Footer from '../components/Footer';
 import { useCatalog } from '../data/useCatalog';
 import { useShortlist } from '../lib/shortlist';
 import AddButton from '../components/AddButton';
-import { viatorLink, productUrlFor, sectionLabel, primarySection } from '../data/exploreItems';
-import { matchPool, blendPools, parseActivityCost } from '../data/matcher';
+import { productUrlFor, sectionLabel, primarySection, bookUrlForActivity } from '../data/exploreItems';
+import { matchPool, blendPools } from '../data/matcher';
 import { answersToTags } from '../data/answerTags';
 import type { PageId, Answers } from '../App';
 import type { Activity } from '../data/activities';
@@ -51,8 +51,7 @@ function resolvePool(shortlist: Set<string>, catalog: Catalog): Suggestion[] {
       if (activity) {
         pool.push({
           kind: 'activity', id: sid, activity,
-          bookUrl: activity.viator_item_url && parseActivityCost(activity.cost) > 0
-            ? viatorLink(activity.viator_item_url) : null,
+          bookUrl: bookUrlForActivity(activity)?.url ?? null,
         });
       }
     }
@@ -76,7 +75,7 @@ function resolveMatchedPool(answers: Answers, catalog: Catalog, exclude: Set<str
       seen.add(id);
       if (e.kind === 'activity') {
         result.push({ kind: 'activity', id, activity: e.activity,
-          bookUrl: e.activity.viator_item_url && parseActivityCost(e.activity.cost) > 0 ? viatorLink(e.activity.viator_item_url) : null });
+          bookUrl: bookUrlForActivity(e.activity)?.url ?? null });
       } else {
         result.push({ kind: 'item', id, item: e.bestSeller, group: e.group,
           bookUrl: e.bestSeller.viator_item_url && e.bestSeller.price_usd > 0 ? productUrlFor(e.bestSeller) : null });

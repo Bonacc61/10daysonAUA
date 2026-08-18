@@ -9,7 +9,7 @@ import Footer from '../components/Footer';
 import { useShortlist } from '../lib/shortlist';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
-import { filterExploreEntries, sortEntries, bookingUrl, viatorLink, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, starsHint, reviewsHint } from '../data/exploreItems';
+import { filterExploreEntries, sortEntries, bookingUrl, viatorLink, bookUrlForActivity, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, starsHint, reviewsHint } from '../data/exploreItems';
 import type { DurationBand, ExploreEntry, Provenance, SortKey } from '../data/exploreItems';
 import { searchEntries } from '../lib/entrySearch';
 import { splitByFacet } from '../lib/searchPool';
@@ -449,7 +449,7 @@ function ItemTile({ item, section, sectionUrl: _sectionUrl, region, adventure, b
 }
 
 function ActivityTile({ a, section, sectionUrl: _sectionUrl, adventure, bookNow, added, onAdd }: { a: Activity; section: string; sectionUrl: string | null; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
-  const url = a.viator_item_url ? viatorLink(a.viator_item_url) : null;
+  const url = bookUrlForActivity(a)?.url ?? null;
   const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><HeaderVibePill adventure={adventure} /><LocalMark /></>;
   return (
     <div className="a-card fade-in" style={{ cursor: url ? 'pointer' : 'default' }} onClick={url ? (e) => openItem(url, e) : undefined}>

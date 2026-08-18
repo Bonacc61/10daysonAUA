@@ -24,7 +24,7 @@ import { readActiveTripId, writeActiveTripId } from '../lib/activeTrip';
 import { createShare } from '../lib/shares';
 import { capture } from '../lib/analytics';
 import { matchPool, blendPools, parseActivityCost } from '../data/matcher';
-import { viatorLink, productUrlFor, sectionLabel, primarySection } from '../data/exploreItems';
+import { productUrlFor, sectionLabel, primarySection, bookUrlForActivity } from '../data/exploreItems';
 import type { PageId, Answers } from '../App';
 import type { Activity } from '../data/activities';
 import type { ViatorGroup, ViatorItem } from '../types';
@@ -114,7 +114,7 @@ function resolveStarredPool(starred: Set<string>, catalog: Catalog): Suggestion[
     } else {
       const activity = catalog.activities.find((a) => a.id === sid);
       if (activity) {
-        pool.push({ kind: 'activity', id: sid, activity, bookUrl: activity.viator_item_url && parseActivityCost(activity.cost) > 0 ? viatorLink(activity.viator_item_url) : null });
+        pool.push({ kind: 'activity', id: sid, activity, bookUrl: bookUrlForActivity(activity)?.url ?? null });
       }
     }
   }
@@ -134,7 +134,7 @@ function resolveMatchedPool(tags: Set<MatchTag>, catalog: Catalog, exclude: Set<
       seen.add(id);
       if (e.kind === 'activity') {
         result.push({ kind: 'activity', id, activity: e.activity,
-          bookUrl: e.activity.viator_item_url && parseActivityCost(e.activity.cost) > 0 ? viatorLink(e.activity.viator_item_url) : null });
+          bookUrl: bookUrlForActivity(e.activity)?.url ?? null });
       } else {
         result.push({ kind: 'item', id, item: e.bestSeller, group: e.group,
           bookUrl: e.bestSeller.viator_item_url && e.bestSeller.price_usd > 0 ? productUrlFor(e.bestSeller) : null });

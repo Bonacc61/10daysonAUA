@@ -6,7 +6,7 @@ import { Star, MapPin, Clock, Dollar, Swap } from './Icons';
 import GroupCard from './GroupCard';
 import CardBack from './CardBack';
 import SwapReasons, { type SwapTextProps } from './SwapReasons';
-import { productUrlFor, viatorLink, primarySection } from '../data/exploreItems';
+import { productUrlFor, primarySection, bookUrlForActivity } from '../data/exploreItems';
 import { parseActivityCost } from '../data/matcher';
 
 type Props = {
@@ -42,11 +42,14 @@ export default function ItineraryCard({
   // required by the flip-animation CSS — can grow when the list opens.
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 
-  // A "Book now" target for any bookable card (paid + has a Viator link). Lunch
-  // spots and free editorial picks have no link, so they get no button.
+  // A "Book now"/"Book direct" target for any bookable card (paid + has a
+  // link). Lunch spots and free editorial picks have no link, so they get no
+  // button. Groups are always Viator (a matched best-seller product), so only
+  // the activity branch can produce a non-affiliate link.
+  const activityBook = entry.kind === 'activity' ? bookUrlForActivity(entry.activity) : null;
   const bookUrl: string | null = entry.kind === 'group'
     ? (entry.bestSeller.viator_item_url && entry.bestSeller.price_usd > 0 ? productUrlFor(entry.bestSeller) : null)
-    : (entry.activity.viator_item_url && parseActivityCost(entry.activity.cost) > 0 ? viatorLink(entry.activity.viator_item_url) : null);
+    : (activityBook?.url ?? null);
 
   const otherCount = entry.kind === 'group' ? entry.others.length : 0;
 
@@ -59,7 +62,7 @@ export default function ItineraryCard({
     : <CardBack kind="group"    bestSeller={entry.bestSeller}  onFlip={onFlip} />;
 
   const front = entry.kind === 'activity'
-    ? <ActivityCardFront a={entry.activity} bookUrl={bookUrl} pinned={pinned} staple={staple} dupeFamily={dupeFamily}
+    ? <ActivityCardFront a={entry.activity} bookUrl={bookUrl} affiliate={activityBook?.affiliate ?? true} pinned={pinned} staple={staple} dupeFamily={dupeFamily}
                          onFlip={onFlip} onSwap={onSwap}
                          showReasons={showReasons} onPickReason={onPickReason}
                          onSubmitReasonText={onSubmitReasonText} reasonPending={reasonPending}
@@ -87,11 +90,13 @@ export default function ItineraryCard({
 // Local activity (non-Viator) card front face — preserved from the original
 // inline CardFront in Itinerary.tsx, with the same look and behavior.
 function ActivityCardFront({
-  a, bookUrl, pinned, staple, dupeFamily, onFlip, onSwap, showReasons, onPickReason, onNavigateToSection,
+  a, bookUrl, affiliate, pinned, staple, dupeFamily, onFlip, onSwap, showReasons, onPickReason, onNavigateToSection,
   onSubmitReasonText, reasonPending, reasonFailed, echo,
 }: {
   a: Activity;
   bookUrl: string | null;
+  /** True for a Viator (affiliate) link, false for a direct operator link — decides the button label. */
+  affiliate: boolean;
   pinned?: boolean;
   staple?: boolean;
   dupeFamily?: string;
@@ -192,7 +197,7 @@ function ActivityCardFront({
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {bookUrl ? (
                 <a href={bookUrl} target="_blank" rel="noopener noreferrer" className="itin-book-btn">
-                  Book now ↗
+                  {affiliate ? 'Book now ↗' : 'Book direct ↗'}
                 </a>
               ) : parseActivityCost(a.cost) === 0 ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '8px 13px', fontSize: 13, fontWeight: 700, borderRadius: 10, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)' }}>✓ Free</span>
