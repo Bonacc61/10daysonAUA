@@ -157,21 +157,11 @@ describe('bookable density — the trip-wide cap', () => {
 });
 
 describe('bookable density — the whitelist excludes what it must', () => {
-  // KNOWN GAP, not a regression from this task. `bookableTier` returning null
-  // for these four ids (verified directly in bookables.test.ts) only keeps
-  // them out of the trip-wide COUNT this task enforces — it says nothing about
-  // whether the ordinary fill ladder can still pick them as an un-scheduled
-  // paid outing, which is pre-existing behaviour this task does not touch.
-  // No task in this plan adds a hard "paid but not bookable" candidate filter;
-  // the design's claim that these become "ineligible for auto-placement" is an
-  // emergent property of the REAL catalog's abundant supply (see
-  // docs/superpowers/specs/2026-08-18-bookable-density-design.md, "What this
-  // excludes"), not a rule any single task encodes — and it doesn't hold on
-  // this deliberately small fixture, where the ladder can run out of good
-  // matches. Task 6 ("Plan-level invariants across personas") re-asserts this
-  // exact invariant once Tasks 4 and 5 are also in; promote this back to a
-  // plain `it` there if it holds.
-  it.fails('never places the e-scooter, the shuttle, the walking tour or the sip-and-paint, for any persona', () => {
+  // Promoted from `it.fails` (ruling R6/R7, 2026-08-18): a Viator product that
+  // is a paid outing and not on the whitelist is now excluded from auto-fill
+  // entirely (`isExcludedPaidProduct` in itineraryGenerator.ts, applied in the
+  // ladder's `withinDayShape`), not merely kept out of the trip-wide COUNT.
+  it('never places the e-scooter, the shuttle, the walking tour or the sip-and-paint, for any persona', () => {
     const personas: Answers[] = [
       COUPLE,
       { ...DEFAULT_ANSWERS, days: 10, groupType: 'Family with young kids', budget: 'Mid-range', interests: ['Adventure & adrenaline'], adventureLevel: 80 },

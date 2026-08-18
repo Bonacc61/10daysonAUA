@@ -753,6 +753,22 @@ function mayBook(ctx: Ctx, day: number): boolean {
   return ctx.bookingDaySet.has(day);
 }
 
+// A Viator product that costs money and is not on the whitelist is not something
+// we auto-place at all — not on a booking day, not on any other day. This is the
+// rule that removes the $65 sip-and-paint and the $39 walking tour from an
+// adventurous family's plan, and it is separate from the booking SCHEDULE, which
+// only governs the whitelisted things we do recommend.
+//
+// `e.kind === 'group'` is load-bearing. The 26 curated locals are hand-picked
+// editorial, and three of them cost money without being advance bookings: the $11
+// Arikok park gate, the $25 optional Oranjestad guide and the $125 Flamingo pass.
+// Those must stay placeable — the Arikok gate is the most adventurous near-free
+// item in the whole curated set at adventure 55, and the point of keeping it off
+// the whitelist was to stop it SPENDING a booking slot, not to delete it.
+function isExcludedPaidProduct(e: CardEntry, tags: Set<MatchTag>): boolean {
+  return e.kind === 'group' && isPaidOuting(e) && bookableTier(e, tags) === null;
+}
+
 // Boat outings, treated as ONE family for the minimum-gap rule below. Two
 // catamaran trips read as different `activityKind`s — the reported pair was
 // 'sail' and 'snorkel' — so a kind-level rule could never have separated them.
@@ -2181,6 +2197,11 @@ export function generatePlan(
       // which still governs everything that merely costs money — a day may still
       // read "jeep safari + a free beach + a sunset".
       if (bookableTier(e, ctx.tags) !== null && !mayBook(ctx, d)) return false;
+      // A paid Viator product that never made the whitelist is not auto-placed at
+      // all — see isExcludedPaidProduct. Curated locals (kind 'activity') are
+      // exempt: Arikok's gate, the Oranjestad guide and the Flamingo pass stay
+      // placeable, they just never spend a booking slot.
+      if (isExcludedPaidProduct(e, ctx.tags)) return false;
       return outingsToday < MAX_ACTIVITIES_PER_DAY;
     };
     const feasible = (e: CardEntry) => withinDayShape(e) && (slot === 'evening'
