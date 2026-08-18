@@ -492,8 +492,8 @@ become ineligible — that last one being the reported symptom.
 The balanced couple goes from 5 bookings on 5 consecutive front-loaded days to 4
 on days 2, 4, 7 and 9.
 
-Trip spend should fall from ~$972 toward roughly $400–500, well under the
-mid-range pool, which means the four that remain can be better rather than
-cheaper. **That figure is a projection, not a measurement** — which four
-bookings survive depends on ranking, which this change does not touch. Measure
-it on the live catalog once implemented rather than quoting it.
+Measured on the live 328-product catalog, 10-day trips, seeds 0-3 (see
+`docs/matching-engine/development-log.md`, 2026-08-18 entry): trip spend for
+the adventurous family fell from ~$972 to **$443-475** (young kids) and
+~$984 to **$546-578** (teens), well under the mid-range pool, which means the
+four that remain are better rather than cheaper.

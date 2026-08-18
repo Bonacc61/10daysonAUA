@@ -1654,6 +1654,79 @@ of one paid activity.
 
 ---
 
+### 2026-08-18 — Bookable density: a cap, a whitelist and a fixed schedule
+
+**Symptom.** An adventurous family with kids got nine paid activities on nine
+consecutive days, ending with a $120 dive on the departure morning, with the
+fill ladder reaching far enough down the catalog to suggest a sip-and-paint
+class. Design: `docs/superpowers/specs/2026-08-18-bookable-density-design.md`.
+The fix is a persona-conditional whitelist (`src/data/bookables.ts`,
+`bookableTier`) capping a trip at 4-5 advance bookings on a fixed
+non-consecutive schedule (`bookingDays`) that never touches the arrival or
+departure day, enforced across all five placement paths (fill ladder,
+premium-splurge and staple pre-passes via `fitsDayShape`, the balanced
+template via `mustInclude`, and pins).
+
+**Measured before → after, live 328-product catalog, 10-day trips, seeds 0-3**
+(`generatePlan` run directly against `loadCatalog()`; before-figures are from
+the design spec and mid-branch discovery, not re-run):
+
+| persona | before | after |
+|---|---|---|
+| adventurous family, young kids (Mid-range, adventure 80) | 9 bookings, days 2-10, $972 | 4 bookings, days 3/5/7/9, **$443-475** (varies by seed — which sail/snorkel item wins a tied slot) |
+| adventurous family, teens (Mid-range, adventure 85) | 9 bookings, days 2-10, $984 | 4 bookings, days 3/5/7/9, **$546-578** |
+| balanced couple (Mid-range, adventure 50) | 5 bookings, days 2-6, $475 | **3** bookings, days 2/4/7, $350 (all 4 seeds identical) |
+| balanced family, young kids (Mid-range, adventure 50) | 6 bookings against a cap of 4, two stacked on day 2 (R13 bug, see below) | 4 bookings, days 2/4/7/9, $462 |
+| balanced family, teens (Mid-range, adventure 50) | 4 bookings on days {2,4,5,9} — 4 and 5 consecutive (same R13 bug) | **3** bookings, days 2/4/7, $350 |
+
+Every persona above holds the schedule (no arrival/departure day, no two
+booked days consecutive, never more bookings than `bookingDays(10)` allows —
+4 for a 10-day trip). `npm run plan-diff` (its own 5-persona sweep, not the
+table above): **0 rules broken by enrichment, 0 total violations**, open slots
+unchanged at 180 before/after.
+
+**Two personas book fewer times than the schedule allows, and that is not a
+bug.** Balanced couple and balanced family with teens both stop at 3 of the 4
+available days, deterministically across all 4 seeds. Both personas draw from
+a narrower tier-1 set than the family personas above (no named-id bookables —
+those need `family-young-kids` or `family-teens` + `high-adventure` — and no
+adventure interest to widen the route-family pool), so once the day-sail,
+evening-cruise and one off-road family are placed there is no fourth
+whitelist-eligible route family left to fill the last scheduled day. A reader
+who does not know this will file it as a regression; it is the ladder
+correctly running out of eligible supply (spec section 2b).
+
+**The two mid-branch bugs above (R13) are the more serious finds.** The
+balanced template (`balancedTemplate.ts`) placed unconditionally — through
+neither `fitsDayShape` nor `withinDayShape`, unlike the premium/staple
+pre-passes and the fill ladder — so its own bookable swaps could break the
+trip cap, the one-per-day rule and the no-consecutive-days rule all at once.
+Fixed by routing the template through the same schedule gate as everything
+else; both personas now hold every rule (see table).
+
+**Costs, not just wins:**
+
+- **Whole-day geographic spread rose 10.29 km → 12.03 km**, and the guard in
+  `e2e-engine.test.ts` was raised from `< 12` to `< 12.5` to match (measured
+  and committed earlier in this branch; the daytime guard, `< 6 km`, is
+  unchanged). Cause: ruling R15 removed `kitesurfing-lesson` — a
+  geographically convenient north-west-coast filler — from every traveller
+  the whitelist does not entitle to it (tier 1 only for family-teens +
+  high-adventure), so those travellers now draw a filler further afield more
+  often.
+- **184 of 328 Viator products are now ineligible for auto-placement** — they
+  no longer have a `bookableTier` for any traveller. They stay reachable
+  through Explore and the manual Swap / add-from-shortlist paths; nothing
+  hides them, they just no longer compete for a booking day.
+
+**What this deliberately does not fix**, filed to the roadmap rather than
+built here: recommending a free alternative over a paid one where it is
+genuinely better (Baby Beach vs. a shuttle tour to it), and the fact that six
+non-booking days for an adventure-85 family read much like a beach-and-chill
+family's, because the free non-boat curated content tops out at adventure 50.
+
+---
+
 ## Current state — embedding clustering
 
 Present-tense. The dated entries above are records of what was built on the day;
