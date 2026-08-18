@@ -6,7 +6,7 @@ import { Calendar, Check, Chev, Clock, Dice, Doc, Dollar, Download, Info, IOSSha
 import GoodToKnowTimeline from '../components/GoodToKnowTimeline';
 import { ChillEnd, AdrenalineEnd, FreeEnd, SplurgeEnd } from '../components/SliderEnds';
 import { useCatalog } from '../data/useCatalog';
-import { filterExploreEntries, bookingUrl, vibeHint, priceHint } from '../data/exploreItems';
+import { filterExploreEntries, bookUrlForEntry, vibeHint, priceHint } from '../data/exploreItems';
 import { INFO_TOPICS } from '../data/activities';
 import { answersToTags, activityTags } from '../data/answerTags';
 import { resolveSlotEntry } from '../data/activitySource';
@@ -367,7 +367,7 @@ function SurprisePanel({ setPage, trip, answers }: { setPage: (p: PageId) => voi
 
 function StarredActivityCard({ entry, added, onAdd }: { entry: ExploreEntry & { kind: 'activity' }; added: boolean; onAdd: () => void }) {
   const a = entry.activity;
-  const bUrl = bookingUrl(entry);
+  const book = bookUrlForEntry(entry);
   return (
     <div className="a-card fade-in">
       <div className="a-img">
@@ -388,15 +388,15 @@ function StarredActivityCard({ entry, added, onAdd }: { entry: ExploreEntry & { 
           <span className="chip-outline" style={{ fontSize: 10, padding: '2px 8px' }}><Dollar size={10} /> {a.cost}</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {bUrl ? (
-            <a href={bUrl} target="_blank" rel="noopener noreferrer"
+          {book ? (
+            <a href={book.url} target="_blank" rel="noopener noreferrer"
                style={{ flex: 1, padding: '8px 12px', fontSize: 12, fontWeight: 700, textDecoration: 'none', textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '2px 2px 0 var(--ink)' }}>
-              Book now
+              {book.affiliate ? 'Book now' : 'Book direct'}
             </a>
           ) : parseActivityCost(a.cost) === 0 ? (
             <span style={{ flex: 1, padding: '8px 12px', fontSize: 12, fontWeight: 700, textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)' }}>✓ Free</span>
           ) : null}
-          <AddButton added={added} onAdd={onAdd} fill={!bUrl && parseActivityCost(a.cost) !== 0} />
+          <AddButton added={added} onAdd={onAdd} fill={!book && parseActivityCost(a.cost) !== 0} />
         </div>
       </div>
     </div>
@@ -405,7 +405,7 @@ function StarredActivityCard({ entry, added, onAdd }: { entry: ExploreEntry & { 
 
 function StarredItemCard({ entry, added, onAdd }: { entry: ExploreEntry & { kind: 'item' }; added: boolean; onAdd: () => void }) {
   const { item } = entry;
-  const bUrl = bookingUrl(entry);
+  const book = bookUrlForEntry(entry);
   const sec  = sectionLabel(primarySection(entry.sections));
   return (
     <div className="a-card fade-in">
@@ -424,15 +424,15 @@ function StarredItemCard({ entry, added, onAdd }: { entry: ExploreEntry & { kind
           <span className="chip-outline" style={{ fontSize: 10, padding: '2px 8px' }}><Dollar size={10} /> ${item.price_usd}</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {bUrl ? (
-            <a href={bUrl} target="_blank" rel="noopener noreferrer"
+          {book ? (
+            <a href={book.url} target="_blank" rel="noopener noreferrer"
                style={{ flex: 1, padding: '8px 12px', fontSize: 12, fontWeight: 700, textDecoration: 'none', textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '2px 2px 0 var(--ink)' }}>
-              Book now
+              {book.affiliate ? 'Book now' : 'Book direct'}
             </a>
           ) : item.price_usd === 0 ? (
             <span style={{ flex: 1, padding: '8px 12px', fontSize: 12, fontWeight: 700, textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)' }}>✓ Free</span>
           ) : null}
-          <AddButton added={added} onAdd={onAdd} fill={!bUrl && item.price_usd !== 0} />
+          <AddButton added={added} onAdd={onAdd} fill={!book && item.price_usd !== 0} />
         </div>
       </div>
     </div>

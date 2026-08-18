@@ -7,7 +7,7 @@ import {
   priceValue,
   pricePass,
   priceOf,
-  bookingUrl,
+  bookUrlForEntry,
   sectionsForTags,
   primarySection,
   filterExploreEntries,
@@ -198,32 +198,51 @@ describe('priceOf', () => {
   });
 });
 
-// --- bookingUrl (drives the "Book now" button) -----------------------------
-describe('bookingUrl', () => {
+// --- bookUrlForEntry (drives the "Book now"/"Book direct" button; renamed
+// from `bookingUrl` in fix round 1 of task 8 to stop colliding with the
+// Activity.bookingUrl field) -------------------------------------------------
+describe('bookUrlForEntry', () => {
   const item = (over: Partial<ViatorItem>): ExploreEntry =>
     ({ kind: 'item', item: { price_usd: 100, viator_item_url: 'https://viator/x', ...over } as ViatorItem, category: 'Tours', adventure: 50, sections: [] });
-  const act = (cost: string, url?: string): ExploreEntry =>
-    ({ kind: 'activity', activity: { cost, viator_item_url: url } as never, category: 'Food', adventure: 20, sections: [] });
+  const act = (cost: string, url?: string, bookingUrlOverride?: string): ExploreEntry =>
+    ({ kind: 'activity', activity: { cost, viator_item_url: url, bookingUrl: bookingUrlOverride } as never, category: 'Food', adventure: 20, sections: [] });
 
-  test('a paid Viator item is bookable', () => {
-    expect(bookingUrl(item({}))).toBe('https://viator/x?medium=link');
+  test('a paid Viator item is bookable, and affiliate', () => {
+    const r = bookUrlForEntry(item({}));
+    expect(r).toEqual({ url: 'https://viator/x?medium=link', affiliate: true });
   });
 
   test('a free item (price 0) is not bookable', () => {
-    expect(bookingUrl(item({ price_usd: 0 }))).toBeNull();
+    expect(bookUrlForEntry(item({ price_usd: 0 }))).toBeNull();
   });
 
-  test('a paid local pick with a booking link is bookable', () => {
-    expect(bookingUrl(act('$65 guided', 'https://viator/y'))).toBe('https://viator/y?medium=link');
+  test('a paid local pick with a Viator booking link is bookable, and affiliate', () => {
+    const r = bookUrlForEntry(act('$65 guided', 'https://viator/y'));
+    expect(r).toEqual({ url: 'https://viator/y?medium=link', affiliate: true });
   });
 
   test('a free local pick is never bookable, even with a link', () => {
-    expect(bookingUrl(act('Free', 'https://viator/z'))).toBeNull();
-    expect(bookingUrl(act('Free + $10 rental', 'https://viator/z'))).toBeNull();
+    expect(bookUrlForEntry(act('Free', 'https://viator/z'))).toBeNull();
+    expect(bookUrlForEntry(act('Free + $10 rental', 'https://viator/z'))).toBeNull();
   });
 
   test('a paid local pick without a link is not bookable', () => {
-    expect(bookingUrl(act('$35 pp'))).toBeNull();
+    expect(bookUrlForEntry(act('$35 pp'))).toBeNull();
+  });
+
+  // R17: this is the sixth call site — the Explore "Book now" button was
+  // going through this function, which never consulted `Activity.bookingUrl`,
+  // so Flamingo got a working link on the itinerary card and the Explore
+  // tile click-through but no button in Explore at all.
+  test('a paid local pick with a direct (non-Viator) booking link is bookable, and NOT affiliate', () => {
+    const r = bookUrlForEntry(act('$125 day pass', undefined, 'https://renaissancearuba.idaypass.com/'));
+    expect(r).toEqual({ url: 'https://renaissancearuba.idaypass.com/', affiliate: false });
+    expect(r!.url).not.toContain('medium=link');
+  });
+
+  test('a Viator link wins over a direct link when an activity somehow has both', () => {
+    const r = bookUrlForEntry(act('$65 guided', 'https://viator/y', 'https://direct.example/'));
+    expect(r).toEqual({ url: 'https://viator/y?medium=link', affiliate: true });
   });
 });
 

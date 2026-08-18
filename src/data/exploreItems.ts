@@ -452,11 +452,18 @@ export function viatorLink(url: string): string {
   return url + (url.includes('?') ? '&' : '?') + 'medium=link';
 }
 
-// The "Book now" target for a card, or null when it isn't bookable: needs a
-// Viator booking link AND a non-zero price (free activities aren't booked/paid).
-export function bookingUrl(entry: ExploreEntry): string | null {
-  const url = entry.kind === 'item' ? entry.item.viator_item_url : entry.activity.viator_item_url;
-  return url && priceOf(entry) > 0 ? viatorLink(url) : null;
+// The "Book now"/"Book direct" target for an Explore card, or null when it
+// isn't bookable: needs a booking link AND a non-zero price (free activities
+// aren't booked/paid). Renamed from `bookingUrl` (2026-08-18, fix round 1 of
+// task 8) to stop colliding with `Activity.bookingUrl` — two things named
+// identically at either end of one data flow is exactly the kind of confusion
+// that causes a bug later. An item has no `bookingUrl` field and is always
+// affiliate; an activity defers to `bookUrlForActivity` so this stays the only
+// place that assembles the expression.
+export function bookUrlForEntry(entry: ExploreEntry): { url: string; affiliate: boolean } | null {
+  if (entry.kind === 'activity') return bookUrlForActivity(entry.activity);
+  const url = entry.item.viator_item_url;
+  return url && priceOf(entry) > 0 ? { url: viatorLink(url), affiliate: true } : null;
 }
 
 /**

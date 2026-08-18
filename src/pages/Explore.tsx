@@ -9,7 +9,7 @@ import Footer from '../components/Footer';
 import { useShortlist } from '../lib/shortlist';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
-import { filterExploreEntries, sortEntries, bookingUrl, viatorLink, bookUrlForActivity, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, starsHint, reviewsHint } from '../data/exploreItems';
+import { filterExploreEntries, sortEntries, bookUrlForEntry, viatorLink, bookUrlForActivity, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, starsHint, reviewsHint } from '../data/exploreItems';
 import type { DurationBand, ExploreEntry, Provenance, SortKey } from '../data/exploreItems';
 import { searchEntries } from '../lib/entrySearch';
 import { splitByFacet } from '../lib/searchPool';
@@ -356,8 +356,8 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
                   ? Array.from({ length: 12 }, (_, i) => <SkeletonCard key={i} />)
                   : entries.map((e) => (
                     e.kind === 'item'
-                      ? <ItemTile key={`item:${e.item.id}`} item={e.item} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} region={regionOf(e.item)} adventure={e.adventure} bookNow={bookingUrl(e)} added={shortlist.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />
-                      : <ActivityTile key={e.activity.id} a={e.activity} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} adventure={e.adventure} bookNow={bookingUrl(e)} added={shortlist.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} />
+                      ? <ItemTile key={`item:${e.item.id}`} item={e.item} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} region={regionOf(e.item)} adventure={e.adventure} bookNow={bookUrlForEntry(e)} added={shortlist.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />
+                      : <ActivityTile key={e.activity.id} a={e.activity} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} adventure={e.adventure} bookNow={bookUrlForEntry(e)} added={shortlist.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} />
                   ))}
               </div>
               {!loading && totalCount === 0 && (
@@ -389,14 +389,15 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   );
 }
 
-// Card action row: "Book now" (paid + Viator link), "✓ Free" (free entry), or
-// just the Add button (no booking URL and not explicitly free).
-function CardActions({ bookNow, free, added, onAdd }: { bookNow: string | null; free?: boolean; added: boolean; onAdd: () => void }) {
+// Card action row: "Book now"/"Book direct" (paid + a link, worded by whether
+// it's affiliate), "✓ Free" (free entry), or just the Add button (no booking
+// URL and not explicitly free).
+function CardActions({ bookNow, free, added, onAdd }: { bookNow: { url: string; affiliate: boolean } | null; free?: boolean; added: boolean; onAdd: () => void }) {
   return (
     <div style={{ display: 'flex', gap: 8 }}>
       {bookNow ? (
-        <a href={bookNow} target="_blank" rel="noopener noreferrer"
-           style={{ flex: 1, padding: '9px 12px', fontSize: 13, fontWeight: 700, textDecoration: 'none', textAlign: 'center', display: 'inline-block', borderRadius: 12, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '3px 3px 0 var(--ink)' }}>Book now</a>
+        <a href={bookNow.url} target="_blank" rel="noopener noreferrer"
+           style={{ flex: 1, padding: '9px 12px', fontSize: 13, fontWeight: 700, textDecoration: 'none', textAlign: 'center', display: 'inline-block', borderRadius: 12, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '3px 3px 0 var(--ink)' }}>{bookNow.affiliate ? 'Book now' : 'Book direct'}</a>
       ) : free ? (
         <span style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '9px 12px', fontSize: 13, fontWeight: 700, borderRadius: 12, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '3px 3px 0 var(--ink)' }}>✓ Free</span>
       ) : null}
@@ -410,7 +411,7 @@ function openItem(url: string, e: MouseEvent) {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-function ItemTile({ item, section, sectionUrl: _sectionUrl, region, adventure, bookNow, added, onAdd }: { item: ViatorItem; section: string; sectionUrl: string | null; region: string; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
+function ItemTile({ item, section, sectionUrl: _sectionUrl, region, adventure, bookNow, added, onAdd }: { item: ViatorItem; section: string; sectionUrl: string | null; region: string; adventure: number; bookNow: { url: string; affiliate: boolean } | null; added: boolean; onAdd: () => void }) {
   const url = item.viator_item_url ? viatorLink(item.viator_item_url) : null;
   const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><HeaderVibePill adventure={adventure} /></>;
   return (
@@ -448,7 +449,7 @@ function ItemTile({ item, section, sectionUrl: _sectionUrl, region, adventure, b
   );
 }
 
-function ActivityTile({ a, section, sectionUrl: _sectionUrl, adventure, bookNow, added, onAdd }: { a: Activity; section: string; sectionUrl: string | null; adventure: number; bookNow: string | null; added: boolean; onAdd: () => void }) {
+function ActivityTile({ a, section, sectionUrl: _sectionUrl, adventure, bookNow, added, onAdd }: { a: Activity; section: string; sectionUrl: string | null; adventure: number; bookNow: { url: string; affiliate: boolean } | null; added: boolean; onAdd: () => void }) {
   const url = bookUrlForActivity(a)?.url ?? null;
   const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><HeaderVibePill adventure={adventure} /><LocalMark /></>;
   return (
