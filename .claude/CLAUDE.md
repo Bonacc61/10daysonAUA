@@ -96,8 +96,10 @@ Our key is **Basic access**. Verified, not assumed:
 
 ## Tests
 
-- ~950 tests (`vitest run`, excluding any untracked `.claude/worktrees/` copy — that double-counts `src/data` and inflates the figure to ~1420). `npm test` is offline and free; anything needing a network or an
-  API key is a `tools/` script run by hand, never a vitest file.
+- ~1,050 tests (`vitest run`, excluding any untracked `.claude/worktrees/` copy — that double-counts `src/data` and inflates the figure). `npm test` is offline and free EXCEPT for three
+  live-catalog suites — `e2e-engine`, `influencer-e2e` and `bookableDensity` — which read
+  `VITE_SUPABASE_ANON_KEY` from `.env.production` and skip loudly without it. Everything
+  else needing a network or an API key is a `tools/` script run by hand, never a vitest file.
 - **Component tests render.** jsdom + testing-library, opted in PER FILE with a
   `// @vitest-environment jsdom` docblock so the pure-logic tests stay in node.
   Prefer a render test over asserting on component source text.

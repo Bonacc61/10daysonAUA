@@ -676,8 +676,6 @@ describe('generatePlan — tailoring scales with a rich Viator catalog', () => {
   it('gives opposite personas near-disjoint, on-theme Viator plans', () => {
     const water = entryIds(generatePlan(WATER_PERSONA, big));
     const land = entryIds(generatePlan(LAND_PERSONA, big));
-    console.log('WATER', water);
-    console.log('LAND', land);
 
     // Set overlap (meaningful now the pool >> plan size) should be tiny.
     const wSet = new Set(water);
