@@ -26,6 +26,9 @@ import { loadCatalog } from '../src/data/activitySource';
 import { activityKind, isFullDayProduct, isEveningItem } from '../src/data/itemFit';
 import { parseActivityCost } from '../src/data/matcher';
 import { LUNCHSPOTS } from '../src/data/lunchspots';
+import { bookableTier, bookingDays } from '../src/data/bookables';
+import { answersToTags } from '../src/data/answerTags';
+import type { MatchTag } from '../src/types';
 
 // routeFamilyOf retires kayaks and day passes into their own families BEFORE the
 // sail test runs, so the trip-wide sail count has to exclude them the same way.
@@ -106,7 +109,7 @@ const MAX_CARDS_PER_DAY = 3;    // itineraryGenerator.ts — meals included sinc
 // the ladder relaxes it when nothing of a new kind is available
 // (itineraryGenerator.ts:917-923), so a repeat kind is a documented outcome, not
 // a broken rule, and asserting on it would drown the real signal.
-function checkInvariants(plan: Day[], catalog: Catalog): Violation[] {
+function checkInvariants(plan: Day[], catalog: Catalog, tags: Set<MatchTag>): Violation[] {
   const out: Violation[] = [];
   const itemById = new Map(catalog.items.map((i) => [i.id, i]));
 
@@ -208,6 +211,41 @@ function checkInvariants(plan: Day[], catalog: Catalog): Violation[] {
     if (where.length > 1) out.push({ rule: 'one experience cluster per trip', detail: `${cid} → ${where.join(', ')}` });
   }
 
+  // Booking-day cap (2026-08-18). `bookingDays(nDays)` is the schedule the
+  // engine itself is built around — one booking per ~2.5 days, never
+  // consecutive, never on the arrival or departure day. Both `bookableTier`
+  // and `bookingDays` are IMPORTED from `../src/data/bookables`, not
+  // mirrored, for the reason this file's header already gives for the boat
+  // and sail tests: a hand-copied version of "is this a bookable" would drift
+  // the moment the whitelist changes and manufacture alarms that are not
+  // violations.
+  const bookableDays = plan
+    .filter((d) => SLOTS.flatMap((s) => d[s]).some((e) => {
+      if (e.kind === 'group') {
+        const item = itemById.get(e.bestSellerId);
+        const group = catalog.groups.find((g) => g.id === e.groupId);
+        return !!item && !!group && bookableTier({ kind: 'group', group, bestSeller: item, others: [] }, tags) !== null;
+      }
+      const activity = catalog.activities.find((a) => a.id === e.id);
+      return !!activity && bookableTier({ kind: 'activity', activity }, tags) !== null;
+    }))
+    .map((d) => d.day);
+
+  const allowedBookingDays = bookingDays(plan.length).length;
+  if (bookableDays.length > allowedBookingDays) {
+    out.push({ rule: 'booking days within schedule', detail: `${bookableDays.length} days carry a bookable (max ${allowedBookingDays} on a ${plan.length}-day trip): ${bookableDays.join(', ')}` });
+  }
+  for (let i = 1; i < bookableDays.length; i++) {
+    if (bookableDays[i] - bookableDays[i - 1] === 1) {
+      out.push({ rule: 'no two consecutive booking days', detail: `days ${bookableDays[i - 1]} and ${bookableDays[i]}` });
+    }
+  }
+  const finalDay = plan[plan.length - 1]?.day;
+  if (bookableDays.includes(1)) out.push({ rule: 'no bookable on day 1', detail: `day 1 carries a bookable` });
+  if (finalDay !== undefined && finalDay !== 1 && bookableDays.includes(finalDay)) {
+    out.push({ rule: 'no bookable on the final day', detail: `day ${finalDay} carries a bookable` });
+  }
+
   for (const d of plan) {
     // Day shape: at most three CARDS, meals and curated locals included
     // (2026-08-12 — the meal used to be exempt). Counted over every slot entry,
@@ -299,11 +337,12 @@ const fingerprint = (plan: Day[]) =>
     for (let seed = 0; seed < seeds; seed++) {
       total++;
       const a = { ...answers, days };
+      const tags = answersToTags(a);
       const planBefore = generatePlan(a, before, { seed });
       const planAfter = generatePlan(a, after, { seed });
 
-      const vBefore = checkInvariants(planBefore, before);
-      const vAfter = checkInvariants(planAfter, after);
+      const vBefore = checkInvariants(planBefore, before, tags);
+      const vAfter = checkInvariants(planAfter, after, tags);
       openBefore += openSlots(planBefore);
       openAfter += openSlots(planAfter);
 
