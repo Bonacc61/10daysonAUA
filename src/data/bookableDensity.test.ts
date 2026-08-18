@@ -269,6 +269,89 @@ describe('bookable density — the whitelist excludes what it must', () => {
   });
 });
 
+// Ruling R15 (2026-08-18, task 6b): `isExcludedPaidProduct` used to exempt
+// every curated local (`e.kind === 'group'` gated it to Viator products only)
+// on the theory that locals are hand-picked editorial that just happen to
+// cost money — true for the Arikok gate, the Oranjestad guide and the
+// Flamingo pass, but NOT for `kitesurfing-lesson`, which the whitelist DOES
+// name (tier 1 for family-teens + high-adventure only, bookables.ts). The old
+// blanket exemption let it reach a family with young kids, who should never
+// be offered a $120, adventure-85 kitesurfing lesson at all. The fix narrows
+// the exemption to locals `CONDITIONALLY_BOOKABLE_LOCAL_IDS` does not name.
+//
+// `Treat yourself` budget (not Mid-range) on purpose: kitesurfing-lesson is
+// one of only two curated locals over the $110 mid-range price ceiling
+// (`fitItem`'s own gate, itemFit.ts — approved 2026-08-17, see the comment on
+// `candidatesFor`), so a mid-range persona can never place it regardless of
+// R15 and would make both directions of this test pass vacuously.
+const KITESURF_YOUNG_KIDS: Answers = {
+  ...DEFAULT_ANSWERS, days: 10, groupType: 'Family with young kids',
+  budget: 'Treat yourself', interests: ['Watersports'], adventureLevel: 85,
+};
+const KITESURF_TEENS_HIGH_ADVENTURE: Answers = {
+  ...DEFAULT_ANSWERS, days: 10, groupType: 'Family with teens',
+  budget: 'Treat yourself', interests: ['Watersports'], adventureLevel: 85,
+};
+
+// This block uses a LOCALS-ONLY catalog (no Viator groups/items) rather than
+// the module-level `CATALOG` fixture above. `CATALOG`'s synthetic sail/jeep
+// items exist to test the whitelist/booking-day interaction and, as a side
+// effect, out-compete some curated locals for a slot regardless of R15 —
+// confirmed directly: on `CATALOG`, `arikok-hiking` does not survive fill for
+// the CARVE_OUT persona below on any of seeds 0-3, even though
+// `isExcludedPaidProduct` never touches it (it is not on the whitelist at
+// all, before or after this ruling). Isolating R15 from that unrelated
+// competition is the point of this catalog, not a weaker test — every
+// assertion below is about whether the RULE let something through, not about
+// which candidate wins a crowded slot.
+const LOCALS_ONLY_CATALOG: Catalog = { activities: ACTIVITIES, groups: [], items: [] };
+function placedLocalIdsOn(catalog: Catalog, answers: Answers, seed = 0): string[] {
+  const ids: string[] = [];
+  for (const day of generatePlan(answers, catalog, { seed })) {
+    for (const se of [...day.morning, ...day.afternoon, ...day.evening]) {
+      if (se.kind === 'activity') ids.push(se.id);
+    }
+  }
+  return ids;
+}
+
+describe('bookable density — a curated local named conditionally is excluded when its condition fails (R15)', () => {
+  it('never offers kitesurfing-lesson to a family with young kids', () => {
+    for (let seed = 0; seed < 4; seed += 1) {
+      expect(placedLocalIdsOn(LOCALS_ONLY_CATALOG, KITESURF_YOUNG_KIDS, seed)).not.toContain('kitesurfing-lesson');
+    }
+  });
+
+  it('still offers kitesurfing-lesson to a family with teens at high adventure', () => {
+    for (let seed = 0; seed < 4; seed += 1) {
+      expect(placedLocalIdsOn(LOCALS_ONLY_CATALOG, KITESURF_TEENS_HIGH_ADVENTURE, seed)).toContain('kitesurfing-lesson');
+    }
+  });
+
+  // The carve-out R15 must not break: curated locals the whitelist never
+  // named (fees and advice cards, not bookings) must stay placeable exactly
+  // as before. NOT `mid-range`: 'Mid-range' + `med-adventure` is
+  // `isBalancedTraveller` (balancedTemplate.ts), whose curated template names
+  // neither Arikok nor Oranjestad and, on a 10-day trip, leaves only two
+  // slots (day 8 morning, day 10 afternoon) for the fill ladder to reach
+  // either one — confirmed directly: on that combination `arikok-hiking`
+  // fails to survive fill on every seed 0-3, for reasons unrelated to R15
+  // (ordinary slot competition, same with or without this ruling).
+  // 'Budget-conscious' routes the whole trip through the ordinary fill
+  // ladder instead, where both are reliably chosen for this interest pair.
+  const CARVE_OUT: Answers = {
+    ...DEFAULT_ANSWERS, days: 10, groupType: 'Solo', budget: 'Budget-conscious',
+    interests: ['Nature & hiking', 'Culture & history'], adventureLevel: 55,
+  };
+  it('still places the Arikok park gate and the Oranjestad guide', () => {
+    for (let seed = 0; seed < 4; seed += 1) {
+      const placed = placedLocalIdsOn(LOCALS_ONLY_CATALOG, CARVE_OUT, seed);
+      expect(placed).toContain('arikok-hiking');
+      expect(placed).toContain('oranjestad-walking');
+    }
+  });
+});
+
 // Task 5: tier 1 (the curated must-do set) has first claim on the trip's
 // booking days; tier 2 (Atlantis Submarine, De Palm Island) may only take a
 // day tier 1 could not use. Family with young kids sees both tiers in this
@@ -397,9 +480,9 @@ const PERSONAS: Record<string, Answers> = {
   'balanced, teens': BALANCED_TEENS,
 };
 
-// KNOWN FAILURE, reported rather than fixed here (task-6 is tests-only): the
-// four 'balanced, teens' cases below are red on this branch. Root cause is in
-// balancedTemplate.ts, not in anything this task touches.
+// FIXED by ruling R14 (2026-08-18, task 6b). The four 'balanced, teens' cases
+// below were red on the branch this test was written on. Root cause was in
+// balancedTemplate.ts, not in the task that added this describe block.
 //
 // `altTypesFor` (balancedTemplate.ts:93-99) files BOTH `family-young-kids` and
 // `family-teens` under one `AltType: 'kids'`. Two of the template's three
@@ -409,8 +492,8 @@ const PERSONAS: Record<string, Answers> = {
 // morning, balancedTemplate.ts:151) — see bookables.ts's
 // `if (item.id === SUBMARINE_ID) return youngKids ? 2 : null;` and the
 // `ANIMAL_SANCTUARY_ID` row right above it. A 'Family with teens' traveller
-// (youngKids === false) gets both swapped in anyway, because the template
-// places by construction and never consults `bookableTier`/
+// (youngKids === false) got both swapped in anyway, because the template
+// placed by construction and never consulted `bookableTier`/
 // `isExcludedPaidProduct` the way the fill ladder and the pre-passes do.
 //
 // The design spec anticipated exactly this failure mode for these two
@@ -419,14 +502,19 @@ const PERSONAS: Record<string, Answers> = {
 // Reusing the word 'kids' for both meanings is how this gets broken later."
 // (docs/superpowers/specs/2026-08-18-bookable-density-design.md, "Tier 2 —
 // contingent extras"). De Palm Island (`2455P18`, day 5), the template's third
-// 'kids' alternative, is unaffected — `bookableTier` allows it for teens too
-// (`anyKids`) — which is why only two of the three swaps are wrong and only
-// this one persona among the five fails.
+// 'kids' alternative, was unaffected — `bookableTier` allows it for teens too
+// (`anyKids`) — which is why only two of the three swaps were wrong and only
+// this one persona among the five failed.
 //
-// Confirmed with a direct trace (BALANCED_TEENS, seed 0): day 2 places
-// `7389P10` at `bookableTier === null` and day 7 places `2455SUB` at
-// `bookableTier === null`, both reproducible on every seed 0-3. Per this
-// task's brief, this is a production bug to report, not to fix here.
+// R14 closes it at the template's own gate, not by re-cutting `altTypesFor`:
+// itineraryGenerator.ts's template-placement loop now reverts a 'kids'
+// alternative `isExcludedPaidProduct` rejects back to its curated default
+// (`alto-vista-chapel` for day 2, `san-nicolas-murals` for day 7), the same
+// fallback shape R13 already used for the schedule/cap rules. De Palm Island
+// keeps reaching both age groups because it is never excluded in the first
+// place. Confirmed with a direct trace (BALANCED_TEENS, seed 0): day 2 and
+// day 7 both now carry their free curated default instead of the young-kids-
+// only product, reproducible on every seed 0-3.
 describe('bookable density — every persona, every seed', () => {
   for (const [name, answers] of Object.entries(PERSONAS)) {
     for (const seed of [0, 1, 2, 3]) {

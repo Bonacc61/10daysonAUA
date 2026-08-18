@@ -89,11 +89,21 @@ describe.skipIf(skip)('matching engine — live catalog', () => {
     // stretching days. The rise was never the daytime leg — that stayed under
     // 2.5 km throughout.
     //
-    // 12, not 14: a guard set 36% above the current measurement gives up the
-    // headroom it exists to protect. This comment claimed ~7.9 while the live
-    // catalog had quietly drifted to 10.1, so watch the printed value rather
-    // than trusting the pass.
-    expect(spreads((d) => [...d.morning, ...d.afternoon, ...d.evening])).toBeLessThan(12);
+    // 12.5, not 12 (task 6b, ruling R15, 2026-08-18): `kitesurfing-lesson`
+    // (Malmok, the island's NW tip) used to be placeable for any traveller —
+    // never counted as a booking, but not excluded from auto-fill either,
+    // because the exclusion rule was scoped to Viator products only. R15
+    // narrowed that: a curated local the whitelist names CONDITIONALLY
+    // (kitesurfing-lesson is tier 1 for family-teens + high-adventure only)
+    // is now excluded from every OTHER traveller too, same as an unlisted
+    // Viator product. That correctly removes a $120, adventure-85 activity
+    // from personas it was never meant for, but it also removes a
+    // geographically convenient NW-coast filler for some of them, which is
+    // what raised this measurement. Re-measured 2026-08-18 straight after
+    // R15: 12.03 km (was 10.29 km before R15, guard was 12). Still 36% above
+    // the file's watch-the-value-not-the-pass warning above, so read this as
+    // history, not as license to stop checking the printed number.
+    expect(spreads((d) => [...d.morning, ...d.afternoon, ...d.evening])).toBeLessThan(12.5);
   });
 
   const personas: Array<{ name: string; answers: Answers }> = [

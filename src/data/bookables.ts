@@ -97,6 +97,18 @@ export const DE_PALM_ISLAND_ID = '2455P18';
 // adventure 55 it is the most adventurous near-free item in the curated set.
 const BOOKABLE_LOCAL_IDS = new Set(['antilla-wreck-dive', 'boca-catalina-snorkel', 'natural-pool-jeep']);
 
+// Curated locals the whitelist names CONDITIONALLY — bookable for some
+// travellers, tier null for others — as opposed to the three above (always
+// tier 1) or the locals the whitelist never names at all (arikok-hiking,
+// oranjestad-walking, flamingo-renaissance), which must stay placeable for
+// everyone regardless of tags. `isExcludedPaidProduct` in
+// itineraryGenerator.ts reads this set to draw exactly that line: a local
+// listed here is refused when its condition fails, one absent from both this
+// set and BOOKABLE_LOCAL_IDS is never refused. `kitesurfing-lesson` is the
+// only one today (tier 1 for family-teens + high-adventure, null otherwise) —
+// a second conditional local is added here, not inferred from bookableTier.
+export const CONDITIONALLY_BOOKABLE_LOCAL_IDS = new Set(['kitesurfing-lesson']);
+
 export type BookableTier = 1 | 2;
 
 /**

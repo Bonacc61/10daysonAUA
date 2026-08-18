@@ -29,7 +29,7 @@ import { pickEnRouteStop, foodPlaceKey, distanceKm } from './enRoute';
 import { budgetTag, adventureBandTag } from './classify';
 import { resolveStaples } from './staples';
 import { isBalancedTraveller, resolveBalancedTemplate, pickAlternative, type Alternative } from './balancedTemplate';
-import { isMealEntry, isPaidOuting, bookableTier, bookingDays } from './bookables';
+import { isMealEntry, isPaidOuting, bookableTier, bookingDays, CONDITIONALLY_BOOKABLE_LOCAL_IDS } from './bookables';
 
 export const DAY_COLORS = ['#FF6B47', '#3B82F6', '#22C55E', '#EAB308', '#E63946', '#8B5CF6', '#0EA5E9'];
 
@@ -759,14 +759,26 @@ function mayBook(ctx: Ctx, day: number): boolean {
 // adventurous family's plan, and it is separate from the booking SCHEDULE, which
 // only governs the whitelisted things we do recommend.
 //
-// `e.kind === 'group'` is load-bearing. The 26 curated locals are hand-picked
-// editorial, and three of them cost money without being advance bookings: the $11
-// Arikok park gate, the $25 optional Oranjestad guide and the $125 Flamingo pass.
-// Those must stay placeable — the Arikok gate is the most adventurous near-free
-// item in the whole curated set at adventure 55, and the point of keeping it off
-// the whitelist was to stop it SPENDING a booking slot, not to delete it.
+// `e.kind === 'group'` used to be the whole gate. The 26 curated locals are
+// hand-picked editorial, and three of them cost money without being advance
+// bookings: the $11 Arikok park gate, the $25 optional Oranjestad guide and the
+// $125 Flamingo pass. Those must stay placeable — the Arikok gate is the most
+// adventurous near-free item in the whole curated set at adventure 55, and the
+// point of keeping it off the whitelist was to stop it SPENDING a booking
+// slot, not to delete it.
+//
+// R15 (2026-08-18): that blanket local exemption was too wide. `kitesurfing-
+// lesson` IS on the whitelist — tier 1 for family-teens + high-adventure — but
+// for anyone else `bookableTier` returns null, same as an unlisted local, and
+// the old `e.kind === 'group'` gate let it through anyway: a $120, adventure-85
+// kitesurfing lesson was reaching a balanced family with young kids. The fix
+// is not "curated locals are exempt", it is "curated locals the whitelist
+// never named are exempt" — `CONDITIONALLY_BOOKABLE_LOCAL_IDS` (bookables.ts)
+// lists the ones it names conditionally, so a local's exemption now depends on
+// whether the whitelist has an opinion about it at all, not on its `kind`.
 function isExcludedPaidProduct(e: CardEntry, tags: Set<MatchTag>): boolean {
-  return e.kind === 'group' && isPaidOuting(e) && bookableTier(e, tags) === null;
+  const whitelistNamesIt = e.kind === 'group' || CONDITIONALLY_BOOKABLE_LOCAL_IDS.has(e.activity.id);
+  return whitelistNamesIt && isPaidOuting(e) && bookableTier(e, tags) === null;
 }
 
 // Boat outings, treated as ONE family for the minimum-gap rule below. Two
@@ -1742,6 +1754,18 @@ export function generatePlan(
       const alt = alternatives ? pickAlternative({ day, slot, id: activity.id, alternatives }, tags) : undefined;
       const altResolved = alt ? resolveAlternative(alt, fallback) : undefined;
       let entry: CardEntry = altResolved ?? fallback;
+
+      // R14 (2026-08-18): the template's 'kids' AltType lumps family-teens and
+      // family-young-kids into one swap, but the whitelist itself is more
+      // particular — the animal sanctuary and the submarine are young-kids-only.
+      // A family with teens was getting both anyway because this loop places
+      // unconditionally and never consulted the exclusion rule the ladder
+      // already applies (isExcludedPaidProduct). Same fallback shape as rule 2
+      // below: revert to the curated default, which is always a free local, so
+      // the day keeps a card and loses only the paid product.
+      if (altResolved && isExcludedPaidProduct(entry, tags)) {
+        entry = fallback;
+      }
 
       // R13 rule 2: this day already has a template bookable — only an
       // alternative can be reverted to make room for it.
