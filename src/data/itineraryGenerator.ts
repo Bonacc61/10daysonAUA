@@ -29,6 +29,7 @@ import { pickEnRouteStop, foodPlaceKey, distanceKm } from './enRoute';
 import { budgetTag, adventureBandTag } from './classify';
 import { resolveStaples } from './staples';
 import { isBalancedTraveller, resolveBalancedTemplate, pickAlternative, type Alternative } from './balancedTemplate';
+import { isMealEntry, isPaidOuting } from './bookables';
 
 export const DAY_COLORS = ['#FF6B47', '#3B82F6', '#22C55E', '#EAB308', '#E63946', '#8B5CF6', '#0EA5E9'];
 
@@ -616,10 +617,6 @@ function isFullDayEntry(e: CardEntry): boolean {
   return e.kind === 'group' && isFullDayProduct(e.bestSeller);
 }
 
-function isMealEntry(e: CardEntry): boolean {
-  return e.kind === 'activity' && e.activity.category === 'Food';
-}
-
 // How many PAID outings a day may carry — the traveller's "one Viator activity
 // a day", asked for on 2026-08-15. Strictly tighter than MAX_ACTIVITIES_PER_DAY,
 // which still governs everything else: a day may still read "jeep safari + a
@@ -629,47 +626,11 @@ function isMealEntry(e: CardEntry): boolean {
 // rule and watching the copy go stale.
 export const MAX_PAID_OUTINGS_PER_DAY = 1;
 
-// A card that spends the day's one paid slot: it costs money, and is not a
-// restaurant. Exported for its own unit tests and for `tools/plan-diff.ts`,
-// which imports it alongside `isBoatOuting` and `isSailOuting` rather than
-// keeping a copy that can drift.
-//
-// The test is PRICE, not the affiliate link, and that was a deliberate call.
-// "Has a Book now button" (`viator_item_url` && paid) is what the card renders
-// (ItineraryCard.tsx:47-49) and on the live catalog it agrees with price on all
-// 328 Viator products — measured, zero divergence. The two differ on exactly
-// three curated locals, which the owner ruled IN: the $11 Arikok gate, the $125
-// Flamingo day pass and the $120 kitesurfing lesson are strenuous 2.5-3h
-// outings whoever takes the payment, so a day should carry one of them and
-// nothing else.
-//
-// Price also happens to be the only testable half. Every ViatorItem fixture in
-// the suite — and all 20 items in the offline stub — carries
-// `viator_item_url: ''`, so a link-based rule would be inert under `npm test`
-// and every test written for it would pass against a rule that never fired.
-//
-// Both call sites guard the CANDIDATE only after their own meal and free-beach
-// early-returns, so the meal exemption here
-// is load-bearing on the COUNTING side alone — `today.filter(isPaidOuting)`,
-// where a $35-60 Gasparito dinner already sitting on the day would otherwise
-// spend its outing slot. Instrumented 2026-08-15: no live ordering reaches that
-// today, which is why it is asserted on the predicate directly rather than
-// through a generated plan. It is one staple-ordering change away from mattering.
-//
-// There is NO beach clause, and that is deliberate rather than an omission. An
-// `isRevisitableBeach` test here would be strictly dead: it requires cost 0, and
-// the price test below already rejects anything free. Every curated beach is
-// free today (13 of 13 — the "Free + $16 gear" ones parse to 0), and no Viator
-// product carries the `beaches` section at all (0 of 328, measured), so "beaches
-// don't count" holds by construction. The one case that would separate them is a
-// PAID beach, which does not exist in either catalog; if one is ever added it
-// counts as the day's outing, and that is the line to revisit.
-export function isPaidOuting(e: CardEntry): boolean {
-  if (isMealEntry(e)) return false;
-  return e.kind === 'group'
-    ? e.bestSeller.price_usd > 0
-    : parseActivityCost(e.activity.cost) > 0;
-}
+// Re-exported rather than moved outright: `tools/plan-diff.ts` and several
+// tests import it from here, and a module that only forwards a symbol is
+// cheaper than a rename across six files.
+export { isPaidOuting } from './bookables';
+
 // Same trap the kayak family hit: `activityKind` falls back to the Explore
 // section when the feed gives an item no defining tag, so a dozen real snorkel
 // sails land in the generic 'sec:cruises-water' bucket — including the
