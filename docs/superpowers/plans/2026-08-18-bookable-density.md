@@ -412,7 +412,12 @@ describe('bookingDays', () => {
   it('ignores a pinned day that is illegal or adjacent to another', () => {
     expect(bookingDays(10, [1])).toEqual([3, 5, 7, 9]);   // arrival day
     expect(bookingDays(10, [10])).toEqual([3, 5, 7, 9]);  // departure day
-    expect(bookingDays(10, [4, 5])).toEqual([4, 7, 9]);   // 5 is adjacent to 4
+    // 5 is adjacent to 4, so it is dropped — and the schedule still fills to its
+    // full count of 4, exactly as it does when a pinned day is illegal rather than
+    // adjacent. Corrected 2026-08-18: this line asserted [4, 7, 9], which contradicted
+    // the reference implementation in Step 3 and would have let a template collision
+    // silently cost the traveller a booking.
+    expect(bookingDays(10, [4, 5])).toEqual([2, 4, 7, 9]);
   });
 });
 ```
