@@ -135,8 +135,16 @@ export const VIATOR_ITEMS: ViatorItem[] = [
     fitReason: 'First-timer dive',
     description: 'PADI Discover Scuba session — confined-water drills first, then a shallow shore dive over the leeward reef. No certification or prior experience required.' },
 
-  // Sailing & Cruises
-  { id: 'sunset-sail', group_id: 'sailing-cruises', sections: ['cruises-water'], adventure: 12,
+  // Sailing & Cruises. `tags: [11888]` (the live Viator sail/catamaran tag,
+  // see KIND_BY_TAG in itemFit.ts) on every item here — added 2026-08-18 so
+  // `activityKind` classifies these as 'sail' the way the real catalog does.
+  // Before this the stub carried NO Viator tag ids at all (R2 ruling), so
+  // every boat here fell back to `sec:cruises-water` and never cleared
+  // `bookableTier`'s whitelist — invisible while the pre-passes placed
+  // unconditionally, and only surfaced once Task 4 gated them through
+  // `isExcludedPaidProduct`. On live data these five products already carry a
+  // sail tag; this brings the fixture in line with the catalog it stands in for.
+  { id: 'sunset-sail', group_id: 'sailing-cruises', sections: ['cruises-water'], adventure: 12, tags: [11888],
     title: 'Champagne Sunset Sail with Open Bar',
     image_url: 'https://images.pexels.com/photos/1252500/pexels-photo-1252500.jpeg?auto=compress&cs=tinysrgb&w=800',
     price_usd: 89, duration: '2.5 hrs', rating: 4.9, review_count: 3201,
@@ -144,7 +152,7 @@ export const VIATOR_ITEMS: ViatorItem[] = [
     is_best_seller: true, display_order: 1,
     fitReason: 'Golden-hour sail',
     description: 'A 2.5-hour catamaran cruise along the leeward coast that times its loop around the California Lighthouse for golden hour. Open bar, light snacks, and live music; book the front of the boat if you can.' },
-  { id: 'pirate-cruise', group_id: 'sailing-cruises', sections: ['cruises-water'], adventure: 48,
+  { id: 'pirate-cruise', group_id: 'sailing-cruises', sections: ['cruises-water'], adventure: 48, tags: [11888],
     title: 'Jolly Pirates Snorkel & Rope Swing Cruise',
     image_url: 'https://images.pexels.com/photos/2387873/pexels-photo-2387873.jpeg?auto=compress&cs=tinysrgb&w=800',
     price_usd: 65, duration: '5 hrs', rating: 4.6, review_count: 1822,
@@ -152,7 +160,7 @@ export const VIATOR_ITEMS: ViatorItem[] = [
     is_best_seller: false, display_order: 2,
     fitReason: 'Lively group cruise',
     description: 'Five-hour party cruise with three snorkel stops, the famous rope swing off the mainmast, and an onboard barbecue lunch. Loud, lively, and best for groups in the mood for a good time.' },
-  { id: 'private-charter', group_id: 'sailing-cruises', sections: ['cruises-water'], adventure: 18,
+  { id: 'private-charter', group_id: 'sailing-cruises', sections: ['cruises-water'], adventure: 18, tags: [11888],
     title: 'Private Catamaran Charter (up to 12 guests)',
     image_url: 'https://images.pexels.com/photos/1430676/pexels-photo-1430676.jpeg?auto=compress&cs=tinysrgb&w=800',
     price_usd: 1450, duration: '4 hrs', rating: 4.9, review_count: 87,
@@ -160,7 +168,7 @@ export const VIATOR_ITEMS: ViatorItem[] = [
     is_best_seller: false, display_order: 3,
     fitReason: 'Your own catamaran',
     description: 'Half-day private catamaran charter with captain and crew, customized to your route — Antilla wreck, Boca Catalina, or a quiet anchorage. Bring your own group of up to 12; drinks and snacks included.' },
-  { id: 'dolphin-watch', group_id: 'sailing-cruises', sections: ['cruises-water'], adventure: 22,
+  { id: 'dolphin-watch', group_id: 'sailing-cruises', sections: ['cruises-water'], adventure: 22, tags: [11888],
     title: 'Morning Dolphin & Snorkel Cruise',
     image_url: 'https://images.pexels.com/photos/1564403/pexels-photo-1564403.jpeg?auto=compress&cs=tinysrgb&w=800',
     price_usd: 72, duration: '4 hrs', rating: 4.5, review_count: 654,
@@ -168,7 +176,7 @@ export const VIATOR_ITEMS: ViatorItem[] = [
     is_best_seller: false, display_order: 4,
     fitReason: 'Morning dolphin spotting',
     description: 'Early-morning cruise out to deeper water where wild dolphin pods regularly feed, followed by a snorkel stop on the way back. Sightings aren\'t guaranteed but happen often.' },
-  { id: 'lunch-cruise', group_id: 'sailing-cruises', sections: ['cruises-water'], adventure: 15,
+  { id: 'lunch-cruise', group_id: 'sailing-cruises', sections: ['cruises-water'], adventure: 15, tags: [11888],
     title: 'Caribbean Lunch & Snorkel Cruise',
     image_url: 'https://images.pexels.com/photos/1267320/pexels-photo-1267320.jpeg?auto=compress&cs=tinysrgb&w=800',
     price_usd: 95, duration: '5 hrs', rating: 4.7, review_count: 1334,

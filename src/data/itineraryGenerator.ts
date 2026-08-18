@@ -1793,6 +1793,15 @@ export function generatePlan(
     // pre-pass places unconditionally and never reaches this function. That
     // asymmetry is the "template wins" decision, and it needs no special case.
     if (isPaidOuting(entry) && claimed.filter(isPaidOuting).length >= MAX_PAID_OUTINGS_PER_DAY) return false;
+    // Same trip-wide booking cap the ladder applies. The pre-passes place
+    // UNCONDITIONALLY once they get here, so a rule enforced only in the ladder
+    // is a rule the premium charter and the catamaran staple walk straight past.
+    if (bookableTier(entry, tags) !== null && !mayBook(ctx, day)) return false;
+    // Same whitelist exclusion the ladder applies (see isExcludedPaidProduct):
+    // a paid Viator product that never made the whitelist is not auto-placed by
+    // a pre-pass either, or the staple pass could place a non-whitelist paid
+    // product the ladder would have refused.
+    if (isExcludedPaidProduct(entry, tags)) return false;
     const outings = claimed.filter((e) => !isMealEntry(e) && !isRevisitableBeach(e)).length;
     return outings < MAX_ACTIVITIES_PER_DAY;
   };
@@ -1910,6 +1919,7 @@ export function generatePlan(
       // `splurge: true` (not `pinned`) — auto-suggested aspirational pick, shown
       // with a "Signature splurge" badge rather than the "★ Your pick" pin badge.
       if (!premiumSlots.has(day)) premiumSlots.set(day, new Map());
+      if (bookableTier(cardEntry, tags) !== null) ctx.bookedDays.add(day);
       premiumSlots.get(day)!.set(slot, { cardEntry, slotEntry: { ...toSlotEntry(cardEntry), splurge: true } });
       premCursor = (day % nDays) + 1;
     }
@@ -2012,6 +2022,7 @@ export function generatePlan(
     // own badge rather than the "★ Your pick" pin badge. The flag also stops
     // resolveSlotEntry re-facing the card to another item in the group, which
     // on live data could quietly turn the sunset sail into a UTV tour.
+    if (bookableTier(entry, tags) !== null) ctx.bookedDays.add(day);
     stapleSlots.get(day)!.set(slot, { cardEntry: entry, slotEntry: { ...toSlotEntry(entry), staple: true } });
     // Only PAID staples advance the cursor. The free pair (sunrise beach,
     // sunset) are two halves of one day and should share it — spreading them

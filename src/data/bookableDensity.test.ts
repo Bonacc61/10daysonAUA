@@ -22,6 +22,8 @@ function fixture(): Catalog {
   const groups: ViatorGroup[] = [
     { id: 'sailing', name: 'Sailing & Cruises', tagline: '', viator_taxonomy: '', viator_group_url: '',
       display_order: 0, matched_by: [], region: 'islandwide', allowed_slots: [] },
+    { id: 'premium-sailing', name: 'Private Charters', tagline: '', viator_taxonomy: '', viator_group_url: '',
+      display_order: 0, matched_by: [], region: 'islandwide', allowed_slots: [] },
     { id: 'offroad-tours', name: 'Off-Road Tours', tagline: '', viator_taxonomy: '', viator_group_url: '',
       display_order: 1, matched_by: [], region: 'islandwide', allowed_slots: [] },
     { id: 'misc-tours', name: 'Other Tours', tagline: '', viator_taxonomy: '', viator_group_url: '',
@@ -39,6 +41,14 @@ function fixture(): Catalog {
   });
 
   const items: ViatorItem[] = [
+    // Money-no-object tier and on the whitelist (kind 'sail' returns tier 1
+    // unconditionally): the one candidate the premium-splurge pre-pass can
+    // actually place for SPLURGE below, since every other item in this fixture
+    // prices under the $300 money-no-object floor. Its own group, so it does
+    // not shadow `sail-day`/`sail-eve` in `bestPerGroup` (one splurge per
+    // GROUP) — it claims the trip's 'sail' route family instead, same as a
+    // real private charter would.
+    mk('private-charter', 'premium-sailing', 'Private Luxury Catamaran Charter for Two', [11888], 650),
     // Tier 1, everyone: two DIFFERENT sail families (day / evening).
     mk('sail-day', 'sailing', 'Premium Catamaran Afternoon Sail: Snorkeling and Lunch', [11888], 75),
     mk('sail-eve', 'sailing', 'Aruba Sunset Sail Dinner Cruise with Open Bar', [11888], 137),
@@ -67,6 +77,14 @@ function fixture(): Catalog {
     mk('walking', 'misc-tours', 'Aruba Downtown Historic and Cultural Walking Tour', [], 39),
     // Excluded: the originally reported bug.
     mk('sip-paint', 'misc-tours', 'Sip and Paint Aruba Sunset Creative Experience', [], 65),
+    // Excluded, and the ONLY money-no-object-tier item in this fixture: a $650
+    // paid product that names none of the twelve kinds and holds no named-id
+    // exemption, so it is not on the whitelist. Being the sole premium-tier
+    // candidate, it is what the premium-splurge pre-pass would place for a
+    // money-no-object traveller if `fitsDayShape` did not also apply
+    // `isExcludedPaidProduct` (R6 extension, task-4-addendum.md) — every other
+    // check the splurge pass runs (fit, route family, boat clash) it clears.
+    mk('luxury-cabana', 'misc-tours', 'Private Butler Beach Cabana Experience', [], 650),
   ];
 
   return { activities: ACTIVITIES, groups, items };
@@ -137,22 +155,63 @@ describe('bookable density — the trip-wide cap', () => {
     expect(booked).not.toContain(10);
   });
 
-  // KNOWN GAP, not a regression from this task. Task 3 wires the schedule into
-  // the PIN pre-pass (exempt but debited), the TEMPLATE pre-pass (its two
-  // bookables are pinned into the schedule) and the FILL LADDER (gated by
-  // `mayBook`). It deliberately does NOT touch the premium-splurge or
-  // beach-staple pre-passes — see task-4-brief.md ("Task 3 already handled the
-  // template ... and pins ... This task closes the remaining two"). The
-  // 'catamaran-sail' staple (src/data/staples.ts) places a sail on ANY trip of
-  // 2+ days UNCONDITIONALLY, with no schedule awareness at all, so it can and
-  // does land next to a legally-scheduled ladder booking. Measured on this
-  // fixture: COUPLE (a balanced traveller) gets antilla-wreck-dive on day 2
-  // (template) and sail-eve on day 3 (the beach-dinner staple) — consecutive.
-  // This is expected to go green once Task 4 gates the two remaining
-  // pre-passes; at that point promote this back to a plain `it`.
-  it.fails('never books two days running (blocked on Task 4 — pre-passes not yet gated)', () => {
+  // Task 4 gates the premium-splurge and beach-staple pre-passes through
+  // `fitsDayShape`, so the 'catamaran-sail'/'beach-dinner' staples (and the
+  // splurge charter) can no longer land next to a legally-scheduled ladder
+  // booking with nothing checking the schedule. Promoted from `it.fails`
+  // (ruling R7, 2026-08-18) now that the pre-passes are gated.
+  it('never books two days running', () => {
     const booked = bookedDaysOf(COUPLE);
     for (let i = 1; i < booked.length; i += 1) expect(booked[i] - booked[i - 1]).toBeGreaterThan(1);
+  });
+});
+
+const SPLURGE: Answers = {
+  ...DEFAULT_ANSWERS, days: 10, groupType: 'Couple',
+  budget: 'Money no object', interests: ['Watersports'], adventureLevel: 60,
+};
+
+describe('bookable density — the pre-passes obey the schedule', () => {
+  it('holds for a money-no-object traveller, whose splurge pre-pass places directly', () => {
+    const booked = bookedDaysOf(SPLURGE);
+    expect(booked.length).toBeLessThanOrEqual(bookingDays(10).length);
+    expect(booked).not.toContain(1);
+    expect(booked).not.toContain(10);
+    for (let i = 1; i < booked.length; i += 1) expect(booked[i] - booked[i - 1]).toBeGreaterThan(1);
+  });
+
+  // R11 (carried over from Task 3's review): `ctx.bookedDays.add(d)` in the
+  // fill ladder was provably uncovered until this task gated the pre-passes —
+  // every whitelist family carries a trip-wide route family, so the ladder can
+  // supply at most ~4 distinct bookables, and the ungated staple pre-passes
+  // used to overshoot the cap on their own, masking the ladder's own
+  // accounting completely. Pinning a bookable onto a day OUTSIDE
+  // `bookingDays(nDays)` and letting the ladder fill the legal days exercises
+  // both the pin's debit and the ladder's own debit: the total booked days must
+  // never exceed the schedule's length.
+  it('counts a pin outside the schedule against the trip-wide cap, alongside the ladder', () => {
+    const legalDays = new Set(bookingDays(10));
+    const tags = answersToTags(OFFROAD_NO_BOATS);
+    // Verified by running generatePlan directly: pinning 'jeep-conchi' with
+    // dayCursor starting at 1 lands it on day 1 — the arrival day, which
+    // `bookingDays` always excludes — so this pin is guaranteed to fall
+    // outside the schedule without needing to hand-pick a day.
+    const pinnedId = 'item:jeep-conchi';
+    const plan = generatePlan(OFFROAD_NO_BOATS, CATALOG, { seed: 0, pinned: [pinnedId] });
+    const pinDay = plan.find((day) => [...day.morning, ...day.afternoon, ...day.evening]
+      .some((se) => se.kind === 'group' && se.bestSellerId === 'jeep-conchi'))?.day;
+    expect(pinDay).toBeDefined();
+    expect(legalDays.has(pinDay!)).toBe(false); // confirms the pin is off-schedule
+    const booked: number[] = [];
+    for (const day of plan) {
+      const entries = [...day.morning, ...day.afternoon, ...day.evening];
+      const any = entries.some((se) => {
+        const card = resolveSlotEntry(se, CATALOG, tags);
+        return card ? bookableTier(card, tags) !== null : false;
+      });
+      if (any) booked.push(day.day);
+    }
+    expect(booked.length).toBeLessThanOrEqual(bookingDays(10).length);
   });
 });
 
@@ -171,5 +230,19 @@ describe('bookable density — the whitelist excludes what it must', () => {
     const placed = personas.flatMap((a) => allPlacedIds(a));
     expect(placed.length).toBeGreaterThan(0);
     for (const id of EXCLUDED_IDS) expect(placed).not.toContain(id);
+  });
+
+  // Task 4's own hole (R6 extension, task-4-addendum.md): the ladder's
+  // `withinDayShape` already refused a non-whitelist paid product, but the
+  // premium-splurge pre-pass placed unconditionally and never asked. Sourced
+  // straight from `filteredCatalog` (not the champion-narrowed fill pool, see
+  // the pass's own comment), `luxury-cabana` is the ONLY money-no-object-tier
+  // item in this fixture, so it is exactly what the splurge pass would place
+  // for SPLURGE across every seed if `fitsDayShape` did not also apply
+  // `isExcludedPaidProduct`.
+  it('never places the premium splurge pre-pass\'s own non-whitelist pick', () => {
+    for (let seed = 0; seed < 5; seed += 1) {
+      expect(allPlacedIds(SPLURGE, seed)).not.toContain('luxury-cabana');
+    }
   });
 });
