@@ -1328,8 +1328,18 @@ describe('generatePlan — one sail per trip, daytime or evening', () => {
       image_url: '', price_usd: 0, duration: '2 hrs', rating: 4.0, review_count: 50,
       viator_item_url: '', is_best_seller: true, display_order: 0, tags: [90000 + n], experience_cluster_id: `pad-c-${n}` });
   }
+  // R12 (2026-08-18): a curated Food-category local for the compensating half
+  // of the shore-dinner-fallback test below — a meal is never a paid outing
+  // (isMealEntry short-circuits isPaidOuting), so it isn't touched by the
+  // whitelist and stays available regardless of what the sail family claims.
+  const dinnerLocal: Activity = {
+    id: 'local-dinner', title: 'Dinner at a Local Spot', category: 'Food',
+    image: '', description: '', localsSay: '', cost: '$35-60 pp', duration: '2 hrs',
+    timeOfDay: 'Evening', fitReason: '', location: '', rating: 4.5, reviewCount: 100,
+    matched_by: [],
+  };
   const cat: Catalog = {
-    activities: [],
+    activities: [dinnerLocal],
     groups: [...boats.map((b) => mkGroup(b.group_id)), ...pad.g],
     items: [...boats, ...pad.i],
   };
@@ -1432,24 +1442,38 @@ describe('generatePlan — one sail per trip, daytime or evening', () => {
     }
   });
 
-  it('the water-dinner staple falls back to a shore dinner, not nothing', () => {
-    // The staple candidate loop used to `break` on the first candidate whose
-    // route family was claimed, reasoning that "the whole category is spoken
-    // for". That held while each staple's pool sat in one family. Merging the
-    // sail families broke it: `catamaran-sail` claims 'sail' one spec BEFORE
-    // `beach-dinner`, whose matcher admits BOTH sunset dinner cruises (family
-    // 'sail', now claimed) and land-side shore dinners (no family at all). A
-    // `break` on the first cruise threw the shore dinner away with it, and
-    // beach-dinner has `localIds: []` — no fallback — so the staple silently
-    // stopped existing on the seeds where the shuffle led with a cruise.
+  // RULING R12 (2026-08-18): superseded. This test used to require the
+  // beach-dinner staple to fall back to `dinner-shore`, a non-sail shore
+  // dinner, once catamaran-sail claimed the trip's one 'sail' family. Measured
+  // against the live 328-product catalog before deciding: `beach-dinner`'s own
+  // matcher (`/\bdinner\b/i` AND `/sunset|cruise|sail|catamaran|beach|seaside|shore/i`)
+  // matches exactly FOUR products, and all four are `activityKind === 'sail'` —
+  // "Aruba Sunset Cruise plus Seaside Dinner" ($122, 1,029 reviews), "Aruba
+  // Sunset Sail Dinner Cruise with Open Bar by Catamaran" ($137, 438 reviews),
+  // "Aruba Sunset Sail with Caribbean Dinner and Live Music" ($109, 270
+  // reviews) and "Coral Sunset Sail with 3 Course Dinner in Aruba" ($859, 13
+  // reviews). ZERO are non-sail shore dinners. `dinner-shore` in this fixture
+  // — and the fallback path it exercises — has no live counterpart: the
+  // whitelist exclusion this task added (R6 extension) correctly refuses it,
+  // and there was never a real non-sail candidate for beach-dinner to fall
+  // back to. Do not re-add a carve-out for this; see task-4-report.md.
+  it('when the sail family is already claimed, the water-dinner staple places nothing — and the curated evening dinner still lands', () => {
     const dinners = ['eve-a', 'eve-b', 'dinner-shore'];
     for (let seed = 0; seed < 6; seed += 1) {
       const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 7, interests: ['watersports'] }, cat, { seed });
-      const staples = plan
-        .flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening])
-        .filter((e) => e.staple)
-        .map((e) => (e.kind === 'activity' ? e.id : e.bestSellerId));
-      expect(staples.some((id) => dinners.includes(id))).toBe(true);
+      const allEntries = plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening]);
+      // catamaran-sail (which runs first) always finds a daytime sail-family
+      // candidate in this fixture, so beach-dinner's only remaining candidate
+      // is always dinner-shore — now excluded, not merely never chosen.
+      const staples = allEntries.filter((e) => e.staple).map((e) => (e.kind === 'activity' ? e.id : e.bestSellerId));
+      expect(staples.some((id) => dinners.includes(id))).toBe(false);
+      // The compensating half: nothing is silently lost. A curated Food local
+      // is a meal, not a paid outing (isMealEntry short-circuits isPaidOuting,
+      // so the whitelist never sees it), and normal fill still reaches for one
+      // on some evening of a 7-day trip even though the paid dinner staple
+      // stood down.
+      const hasLocalDinner = allEntries.some((e) => e.kind === 'activity' && e.id === 'local-dinner');
+      expect(hasLocalDinner).toBe(true);
     }
   });
 });

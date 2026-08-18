@@ -48,7 +48,7 @@ function fixture(): Catalog {
     // not shadow `sail-day`/`sail-eve` in `bestPerGroup` (one splurge per
     // GROUP) — it claims the trip's 'sail' route family instead, same as a
     // real private charter would.
-    mk('private-charter', 'premium-sailing', 'Private Luxury Catamaran Charter for Two', [11888], 650),
+    mk('private-charter', 'premium-sailing', 'Private Luxury Catamaran Charter (up to 12 guests)', [11888], 650),
     // Tier 1, everyone: two DIFFERENT sail families (day / evening).
     mk('sail-day', 'sailing', 'Premium Catamaran Afternoon Sail: Snorkeling and Lunch', [11888], 75),
     mk('sail-eve', 'sailing', 'Aruba Sunset Sail Dinner Cruise with Open Bar', [11888], 137),
@@ -181,23 +181,42 @@ describe('bookable density — the pre-passes obey the schedule', () => {
   });
 
   // R11 (carried over from Task 3's review): `ctx.bookedDays.add(d)` in the
-  // fill ladder was provably uncovered until this task gated the pre-passes —
-  // every whitelist family carries a trip-wide route family, so the ladder can
-  // supply at most ~4 distinct bookables, and the ungated staple pre-passes
-  // used to overshoot the cap on their own, masking the ladder's own
-  // accounting completely. Pinning a bookable onto a day OUTSIDE
-  // `bookingDays(nDays)` and letting the ladder fill the legal days exercises
-  // both the pin's debit and the ladder's own debit: the total booked days must
-  // never exceed the schedule's length.
-  it('counts a pin outside the schedule against the trip-wide cap, alongside the ladder', () => {
+  // fill ladder was provably uncovered until this task gated the pre-passes.
+  // R12 (2026-08-18, fix round 1): the FIRST attempt at this test used
+  // `OFFROAD_NO_BOATS`, whose `no-boats` flag strips every whitelisted family
+  // down to two (`natural-pool`, generic `offroad`) — never enough candidates
+  // to exceed a 4-day schedule regardless of whether any debit line works.
+  // This persona keeps boats AND unlocks the two named-id bookables
+  // (`137607P22` needs `teensAdventurous`, `2455P18` needs `anyKids`, both
+  // true for 'Family with teens'), so six distinct bookable "demand units"
+  // compete for a cap of four: day-sail (private-charter/sail-day/snorkel-boat,
+  // one wins), evening-cruise (sail-eve), natural-pool (jeep-conchi, pinned
+  // off-schedule below), generic offroad (jeep-utv), and the two family-less
+  // named ids. That surplus is what makes overshoot observable at all.
+  //
+  // Mutation-verified individually against this exact scenario (seed 0,
+  // `if (false && ...)` in place of each line in turn, everything else left
+  // correct): disabling the PREMIUM pass's debit (~line 1922) let
+  // `private-charter` place without counting, and `137607P22` then joined it
+  // on day 9 (total 5). Disabling the STAPLE pass's debit (~line 2025) did
+  // the same via `sail-eve`. Disabling the LADDER's own debit (~line 2227)
+  // did the same via `2455P18`/`137607P22`. All three restored: total holds
+  // at exactly 4. This is the first time in this project any of the three
+  // has been proven load-bearing by a black-box test rather than by reading
+  // the diff.
+  const RICH_TEENS_SPLURGE: Answers = {
+    ...DEFAULT_ANSWERS, days: 10, groupType: 'Family with teens', budget: 'Money no object',
+    interests: ['Adventure & adrenaline', 'Watersports'], adventureLevel: 85,
+  };
+  it('counts a pin outside the schedule against the trip-wide cap, alongside every debiting pass', () => {
     const legalDays = new Set(bookingDays(10));
-    const tags = answersToTags(OFFROAD_NO_BOATS);
+    const tags = answersToTags(RICH_TEENS_SPLURGE);
     // Verified by running generatePlan directly: pinning 'jeep-conchi' with
     // dayCursor starting at 1 lands it on day 1 — the arrival day, which
     // `bookingDays` always excludes — so this pin is guaranteed to fall
     // outside the schedule without needing to hand-pick a day.
     const pinnedId = 'item:jeep-conchi';
-    const plan = generatePlan(OFFROAD_NO_BOATS, CATALOG, { seed: 0, pinned: [pinnedId] });
+    const plan = generatePlan(RICH_TEENS_SPLURGE, CATALOG, { seed: 0, pinned: [pinnedId] });
     const pinDay = plan.find((day) => [...day.morning, ...day.afternoon, ...day.evening]
       .some((se) => se.kind === 'group' && se.bestSellerId === 'jeep-conchi'))?.day;
     expect(pinDay).toBeDefined();
