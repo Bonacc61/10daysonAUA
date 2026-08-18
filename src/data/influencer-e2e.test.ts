@@ -69,8 +69,12 @@ describe.skipIf(!ANON_KEY)('influencer flag — live catalog', () => {
   // whitelist. After I4: ON 0/12.
   //
   // Nothing replaced it, and the reason is cluster dedup rather than the
-  // whitelist. 15 of the catalog's 17 photo services share one experience
-  // cluster (`5493518P2`); `championsByExperience` (itineraryGenerator.ts)
+  // whitelist. Re-measured at the ship gate 2026-08-18: 13 of the catalog's 17
+  // photo services share one experience cluster (`5493518P2`), and the other 4
+  // ARE champions of their own clusters but fail `MIN_CHAMPION_REVIEWS` with 3,
+  // 2 and 1 reviews — two independent gates, not one, which makes the
+  // conclusion firmer than a single mechanism would.
+  // `championsByExperience` (itineraryGenerator.ts)
   // keeps one item per cluster, and the champion it keeps is that kayak. So
   // when the whitelist refuses the champion at fill time, the genuine
   // photoshoots behind it — "Aruba Clear Kayak Photoshoot | Same-Day Photo +
