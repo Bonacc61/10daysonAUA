@@ -1093,6 +1093,13 @@ function privateUpgradeCatalog(shareCluster: boolean): Catalog {
 const CLUSTERED = privateUpgradeCatalog(true);    // private variant hidden by the champion pass
 const UNCLUSTERED = privateUpgradeCatalog(false); // private variant is its own champion
 
+// The same catalog with the private variant renamed — the two gate tests below
+// need a private off-road tour that the auto-fill rules or the slot rules
+// refuse, and no such product exists on the live catalog today.
+function withPrivateTitle(catalog: Catalog, title: string): Catalog {
+  return { ...catalog, items: catalog.items.map((i) => (i.id === 'jeep-private' ? { ...i, title } : i)) };
+}
+
 function placedIdsOn(catalog: Catalog, answers: Answers, seed: number): string[] {
   const ids: string[] = [];
   for (const day of generatePlan(answers, catalog, { seed })) {
@@ -1142,6 +1149,46 @@ describe('the private upgrade — money-no-object gets the private variant', () 
     for (const seed of [0, 1, 2]) {
       expect(placedIdsOn(CLUSTERED, RICH, seed)).toContain('jeep-private');
       expect(placedIdsOn(UNCLUSTERED, RICH, seed)).toContain('jeep-private');
+    }
+  });
+
+  // Two gates the substitution has to honour that `feasible` does not cover,
+  // both added after review on 2026-08-19. Neither has a live reproduction —
+  // 360 live plans across all six group types place no auto-fill-excluded
+  // private, and today's top-ranked off-road private happens to be
+  // afternoon-legal — so both are pinned here on the synthetic catalog, where
+  // the offending product can be made to exist.
+  it('refuses a private variant the auto-fill rules exclude', () => {
+    // RICH is a Couple, so `withChildren` is false and a kids product is out.
+    // The upgrade path sources from filteredCatalog, which skips the champion
+    // narrowing deliberately — it must not also skip this.
+    const kidsPrivate = withPrivateTitle(CLUSTERED, 'Private Kids Jeep Safari to Arikok');
+    for (const seed of [0, 1, 2]) {
+      const placed = placedIdsOn(kidsPrivate, RICH, seed);
+      expect(placed).not.toContain('jeep-private');
+      // ...and the standard pick still stands. An upgrade refused is never a
+      // reason to leave the slot empty.
+      expect(placed).toContain('jeep-conchi');
+    }
+  });
+
+  it('refuses a private variant the slot cannot legally hold', () => {
+    // `itemSlotOkForFill` reads the time of day a product states in its own
+    // name, and refuses an evening product in a daytime slot. Substituting one
+    // in anyway would make `resolveSlotEntry` reface the card at display time,
+    // and the traveller would be shown a product the generator never chose.
+    //
+    // The fixture names the EVENING, not the morning. A morning-only private
+    // was the obvious fixture and it made a test that could not fail: the
+    // standard off-road pick in this catalog is `jeep-conchi`, which
+    // `itemSlotOk` already pins to a morning because Arikok shuts at 16:00, so
+    // there was no afternoon substitution for the guard to refuse. Confirmed by
+    // removing the guard and watching the test stay green.
+    const eveningPrivate = withPrivateTitle(CLUSTERED, 'Private Sunset Jeep Safari at Arikok');
+    for (const seed of [0, 1, 2]) {
+      const placed = placedIdsOn(eveningPrivate, RICH, seed);
+      expect(placed).not.toContain('jeep-private');
+      expect(placed).toContain('jeep-conchi');
     }
   });
 

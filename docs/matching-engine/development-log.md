@@ -1910,9 +1910,51 @@ which requires `mid-range`. A traveller carries exactly one budget tag, so the
 two conditions can never both hold. Noted at both sites. Deleting them is a
 separate decision and was not taken here.
 
-**Verification.** `npx vitest run` green — 1,101 passing, the only failing suite
-being `contact-notify/messages.test.ts`, a Deno-syntax file vitest cannot load
-that predates this work by six weeks. `npm run typecheck` clean. `npm run
+**Three things the ship-gate review caught**, all fixed in the same push.
+
+*A quad bike is not a two-wheeler.* `TWO_WHEELER_TITLE` above matched bare
+`\bbikes?\b`, and "quad bike" and "dirt bike" are both standard ATV marketing.
+Demonstrated, not theorised: the offline stub's own `atv-quad` ("ATV Quad Bike
+Adventure Tour", $75, 622 reviews) went tier 1 → **null** on the e-bike rule
+alone, and that stub IS the catalog whenever `loadCatalog()` fails. The live
+feed is refetched at runtime with no deploy, so a relisted "Quad Bike" would
+have delisted a genuine ATV tour silently. `FOUR_WHEELER_TITLE` now carves it
+back: a title that NAMES a four-wheeler is a four-wheeler whatever else it
+says — the same "require positive evidence" principle as the natural-pool fix
+above it. On today's live catalog the guard still drops exactly one item.
+
+*The private upgrade skipped `autoFillOk`.* The premium splurge pass one screen
+up states the hazard and closes it — "sourcing from filteredCatalog deliberately
+skips the champion narrowing, but must NOT skip the retail/service or
+kids-product rules; this is an auto-suggestion path like any other". The new
+upgrade is the same kind of path and did not. Measured 0 violations over 360
+live plans across all six group types, because the one auto-fill-excluded
+private has no route family — but the kids/couples half had no backstop
+anywhere, and an adults-only private tour landing in a young family's plan is
+precisely what that flag exists to stop.
+
+*And it skipped `itemSlotOkForFill`.* `feasible` is day shape plus duration; it
+does not carry the slot legality `pickForSlot` applies when it builds
+candidates. Off-road has no day/evening split to protect it, and the catalog
+holds three morning-only private off-road tours over the review floor — all
+Conchi runs, pinned to a morning because Arikok shuts at 16:00. Also 0 today,
+and only because the top-ranked off-road private happens to be afternoon-legal.
+The cost if it fired is worse than a mis-slotted card: `resolveSlotEntry` would
+reface the card at display time, so the traveller would be shown a product the
+generator never chose.
+
+**One of those tests could not fail, and that is worth recording.** The obvious
+fixture for the slot guard was a MORNING-only private — and it passed with the
+guard removed, because the standard off-road pick in that catalog is
+`jeep-conchi`, which `itemSlotOk` already pins to a morning. There was no
+afternoon substitution left for the guard to refuse. Renaming the fixture to an
+EVENING product gives the substitution a daytime slot to be wrong in, and the
+test now goes red without the guard. All three fixes were mutation-checked in
+both directions.
+
+**Verification.** `npx vitest run` green — **1,104 passing**, the only failing
+suite being `contact-notify/messages.test.ts`, a Deno-syntax file vitest cannot
+load that predates this work by six weeks. `npm run typecheck` clean. `npm run
 plan-diff` **0 → 0 violations**, open slots 176 → 180.
 
 ---

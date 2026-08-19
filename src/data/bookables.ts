@@ -94,6 +94,16 @@ const JEEP_TITLE = /\b(jeeps?|4x4|4wd|off.?road|utv|atv|buggy|safari|natural poo
 // Off-Road Adventure to Cave Pool and Tres Trapi", "Aruba Off Road Safari Tour
 // to Natural Pool", "Aruba Off-Road ATV Tour" — none names a bike).
 const TWO_WHEELER_TITLE = /\b(e[\s-]?bikes?|bikes?|biking|bicycles?|cycling|mopeds?|scooters?)\b/i;
+// A title that NAMES a four-wheeler is a four-wheeler, whatever else it says.
+// "Quad bike" and "dirt bike" are both standard ATV marketing, so bare `bike`
+// above is not evidence of two wheels on its own — the offline stub's "ATV Quad
+// Bike Adventure Tour" ($75, 622 reviews) went tier 1 → null on the e-bike rule
+// alone, and that stub IS the catalog when `loadCatalog()` fails. The live feed
+// is refetched at runtime with no deploy, so a relisted "Quad Bike" would delist
+// a genuine ATV tour silently. Same principle as the natural-pool fix in the
+// same commit: require POSITIVE evidence, and do not let one word in a title
+// decide what a tour is.
+const FOUR_WHEELER_TITLE = /\b(utv|atv|quads?|buggy|buggies|jeeps?|4x4|4wd)\b/i;
 const WATER_TITLE = /\b(snorkel(?:l?ing)?|catamaran|sail|cruise|boat|charter|seabob|reef|wreck|sea scooter|island|day pass)\b/i;
 
 // Products named individually because no kind rule can reach them: the sanctuary
@@ -167,7 +177,8 @@ export function bookableTier(e: CardEntry, tags: Set<MatchTag>): BookableTier | 
   if (kind === 'sail') return 1;
   if (kind === 'snorkel') return WATER_TITLE.test(item.title) ? 1 : null;
   if (kind === 'offroad') {
-    return JEEP_TITLE.test(item.title) && !TWO_WHEELER_TITLE.test(item.title) ? 1 : null;
+    const twoWheeled = TWO_WHEELER_TITLE.test(item.title) && !FOUR_WHEELER_TITLE.test(item.title);
+    return JEEP_TITLE.test(item.title) && !twoWheeled ? 1 : null;
   }
   // Photo services LAST (ruling R10, 2026-08-18 — moved below the kind rows).
   //

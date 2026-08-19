@@ -2547,13 +2547,38 @@ export function generatePlan(
     // never a reason to leave the slot worse or empty. A candidate the trip has
     // already placed, or whose experience it already carries, is no upgrade at
     // all and is refused on those grounds first.
+    //
+    // Two gates `feasible` does NOT cover, both added 2026-08-19 after review:
+    //
+    // - `autoFillOk`, for the same reason the premium splurge pass states one
+    //   screen up: sourcing from `filteredCatalog` skips the champion narrowing
+    //   deliberately, but must not skip the retail/service, kids-product or
+    //   couples-product rules. This is an auto-suggestion path like any other.
+    //   Latent today — measured 0 violations over 360 live plans across all six
+    //   group types, because the one auto-fill-excluded private has no route
+    //   family — but the kids/couples half has no backstop anywhere else, and
+    //   an adults-only private tour landing in a young family's plan is the
+    //   kind of miss the whole flag exists to prevent.
+    //
+    // - `itemSlotOkForFill`, which `pickForSlot` applies when it builds
+    //   candidates and `feasible` (day shape + duration) does not. Off-road has
+    //   no day/evening split to protect it, and the catalog holds three
+    //   morning-only private off-road tours over the review floor — every one a
+    //   Conchi run, which `itemSlotOk` pins to a morning because Arikok shuts at
+    //   16:00. Also 0 today, and only because the top-ranked off-road private
+    //   happens to be afternoon-legal. Substituting one into an afternoon would
+    //   make `resolveSlotEntry` reface the card at display time, so the
+    //   traveller would be shown a different product than the generator chose.
     if (ctx.tags.has('money-no-object') && bookableTier(pick, ctx.tags) !== null) {
       const upgrade = privateUpgradeFor(pick, filteredCatalog, ctx.tags);
       const cid = upgrade?.bestSeller.experience_cluster_id;
       const fresh = !!upgrade
         && !ctx.lastUsedDay.has(entryId(upgrade))
         && !(cid && ctx.usedClusterIds.has(cid));
-      if (upgrade && fresh && feasible(upgrade)) pick = upgrade;
+      const allowed = !!upgrade
+        && autoFillOk(upgrade.bestSeller)
+        && itemSlotOkForFill(upgrade.bestSeller, slot);
+      if (upgrade && fresh && allowed && feasible(upgrade)) pick = upgrade;
     }
     budgetLeft -= entryPrice(pick);
     if (bookableTier(pick, ctx.tags) !== null) ctx.bookedDays.add(d);

@@ -71,6 +71,22 @@ describe('bookableTier — kind families', () => {
     }
   });
 
+  // ...and a title that NAMES a four-wheeler keeps its place, however it
+  // advertises itself. "Quad bike" and "dirt bike" are standard ATV marketing,
+  // so bare `bike` is not evidence of two wheels on its own. The first title
+  // below is the offline stub's own `atv-quad` ($75, 622 reviews), which the
+  // e-bike rule alone took from tier 1 to null — and the stub IS the catalog
+  // whenever `loadCatalog()` fails.
+  it('keeps a quad bike, which is an ATV however it is advertised', () => {
+    for (const title of [
+      'ATV Quad Bike Adventure Tour',
+      'Aruba Dirt Bike and Buggy Safari',
+      'UTV Off-Road Bike Tour to Natural Pool',
+    ]) {
+      expect(bookableTier(group({ title, tags: [12035] }), tags('couple'))).toBe(1);
+    }
+  });
+
   // The exclusion is scoped to the OFF-ROAD row and must stay there: "scooter"
   // is not a disqualifier in the water, where a sea scooter is the outing.
   it('leaves the seabob scooter reef tour on the snorkel row', () => {
