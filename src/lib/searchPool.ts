@@ -152,7 +152,33 @@ const PREDICATES: Record<Concept, (f: Facets) => Verdict> = {
   },
   // 8 is the band the enrichment prompt's `min_age` is written against — the
   // youngest age the activity sensibly suits — not a claim about any child.
-  kids: (f) => (f.kids ? (f.kids.min_age <= 8 ? 'pass' : 'fail') : 'unknown'),
+  //
+  // The same two questions as `toddler` above, and for a year this answered only
+  // the first. Reported 2026-08-17: the Explore checkbox returned activities a
+  // child is ALLOWED at but would be bored senseless by. Measured on the live
+  // catalog — of the 141 entries it returned, 22 (16%) scored zero appeal for a
+  // toddler AND zero for a teenager: eight photoshoot products (an "Editorial
+  // Couples Session"), three private bus tours, a romantic sunset picnic for two,
+  // a four-course dinner cruise, and a private transfer from the cruise port.
+  // The fix that landed on `toddler` on 2026-08-16 was simply never carried
+  // across to its sibling.
+  //
+  // The rule here is deliberately the WEAKER one, and the reason is that neither
+  // score measures this band: `kid_appeal` judges a 1-3 year old, `teen_appeal` a
+  // 13-17 year old, and "good for kids" targets roughly 4-8. So zero-on-both —
+  // nobody under eighteen would enjoy this — is the strongest honest claim
+  // available. Requiring a POSITIVE score (max >= 2 would cut the 141 to 81)
+  // would assert something about six-year-olds that nothing in the catalog
+  // knows. Closing that properly needs a `child_appeal` facet of its own; until
+  // then this removes what is provably wrong and keeps what is merely unproven.
+  kids: (f) => {
+    // Admissibility still leads, exactly as `toddler_ok === false` does above: an
+    // age limit past the band disqualifies however appealing the listing is.
+    if (f.kids && f.kids.min_age > 8) return 'fail';
+    const scored = f.kidAppeal !== undefined || f.teenAppeal !== undefined;
+    if (scored && Math.max(f.kidAppeal ?? 0, f.teenAppeal ?? 0) === 0) return 'fail';
+    return f.kids ? 'pass' : 'unknown';
+  },
   accessible: (f) => (f.physical ? (f.physical.mobility_ok ? 'pass' : 'fail') : 'unknown'),
   // A number is always present, but it is only a VERDICT when it is grounded.
   // Ungrounded it came from the generic "tour"/"transfer" catch-all or from the

@@ -490,3 +490,66 @@ describe('splitByFacet', () => {
     expect(splitByFacet([], 'kids')).toEqual({ kept: [], unjudged: 0 });
   });
 });
+
+/**
+ * "Good for kids" asks TWO questions, and the filter answered only the first.
+ *
+ * Reported 2026-08-17: the Explore checkbox returned activities that are
+ * suitable for a child without being interesting to one. The `kids` predicate
+ * tested `min_age <= 8` and nothing else — pure admissibility. Measured on the
+ * live catalog: of the 141 entries it returned, 22 (16%) scored ZERO appeal for
+ * a toddler AND zero for a teenager, including eight photoshoot products, three
+ * private bus tours, a romantic sunset picnic for two, a four-course dinner
+ * cruise and a private transfer from the cruise port.
+ *
+ * This is the same failure the `toddler` predicate above was fixed for on
+ * 2026-08-16 — its comment already says "SAFE AND GOOD ARE TWO QUESTIONS" — and
+ * the fix simply was not carried across to its sibling.
+ *
+ * The rule is deliberately the WEAK one. `kid_appeal` scores a 1-3 year old and
+ * `teen_appeal` a 13-17 year old; the ~4-8 band this filter targets is scored by
+ * neither, so "both are zero" is the strongest honest claim available: nobody
+ * under 18 would enjoy it. Requiring a POSITIVE score would be asserting
+ * something about six-year-olds that no facet in the catalog measures.
+ */
+describe('the kids facet — suitable is not the same as interesting', () => {
+  const entry = (
+    id: string,
+    kids: { min_age: number; baby_ok: boolean } | undefined,
+    kid_appeal?: number,
+    teen_appeal?: number,
+  ): ExploreEntry => ({
+    kind: 'item',
+    item: { id, title: id, kids, kid_appeal, teen_appeal, price_usd: 50 } as ViatorItem,
+    category: 'Tours', adventure: 30, sections: [],
+  });
+  const kept = (list: ExploreEntry[]) =>
+    splitByFacet(list, 'kids').kept.map((e) => (e as { item: ViatorItem }).item.id);
+
+  it('drops a card no child and no teenager would enjoy, however admissible', () => {
+    // The real shape of the reported bug: min_age 0, so the old rule passed it.
+    expect(kept([entry('couples-photoshoot', { min_age: 0, baby_ok: true }, 0, 0)])).toEqual([]);
+    expect(kept([entry('port-transfer', { min_age: 0, baby_ok: true }, 0, 0)])).toEqual([]);
+  });
+
+  it('keeps a card a teenager would enjoy even when a toddler would not', () => {
+    // A UTV through the dunes is kid_appeal 0 and teen_appeal 3 — the enrichment
+    // prompt's own example of the two scores disagreeing. Still good for kids.
+    expect(kept([entry('utv-dunes', { min_age: 8, baby_ok: false }, 0, 3)])).toEqual(['utv-dunes']);
+  });
+
+  it('keeps a card a small child would enjoy even when a teenager would not', () => {
+    expect(kept([entry('shallow-lagoon', { min_age: 0, baby_ok: true }, 3, 0)])).toEqual(['shallow-lagoon']);
+  });
+
+  it('still fails an age limit above the band, however appealing', () => {
+    // Admissibility leads, exactly as `toddler_ok === false` does for toddlers.
+    expect(kept([entry('adults-only-party', { min_age: 18, baby_ok: false }, 3, 3)])).toEqual([]);
+  });
+
+  it('leaves an unscored card judged on age alone, as before', () => {
+    // 128 of the 350 entries carry no verdict; this rule must not turn absence
+    // into a failure, or the checkbox silently deletes a third of the page.
+    expect(kept([entry('unscored', { min_age: 4, baby_ok: true })])).toEqual(['unscored']);
+  });
+});
