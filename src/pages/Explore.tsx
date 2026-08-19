@@ -389,15 +389,15 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   );
 }
 
-// Card action row: "Book now"/"Book direct" (paid + a link, worded by whether
-// it's affiliate), "✓ Free" (free entry), or just the Add button (no booking
-// URL and not explicitly free).
+// Card action row: "Book now" (paid + a link, affiliate or direct alike),
+// "✓ Free" (free entry), or just the Add button (no booking URL and not
+// explicitly free).
 function CardActions({ bookNow, free, added, onAdd }: { bookNow: { url: string; affiliate: boolean } | null; free?: boolean; added: boolean; onAdd: () => void }) {
   return (
     <div style={{ display: 'flex', gap: 8 }}>
       {bookNow ? (
         <a href={bookNow.url} target="_blank" rel="noopener noreferrer"
-           style={{ flex: 1, padding: '9px 12px', fontSize: 13, fontWeight: 700, textDecoration: 'none', textAlign: 'center', display: 'inline-block', borderRadius: 12, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '3px 3px 0 var(--ink)' }}>{bookNow.affiliate ? 'Book now' : 'Book direct'}</a>
+           style={{ flex: 1, padding: '9px 12px', fontSize: 13, fontWeight: 700, textDecoration: 'none', textAlign: 'center', display: 'inline-block', borderRadius: 12, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '3px 3px 0 var(--ink)' }}>Book now</a>
       ) : free ? (
         <span style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '9px 12px', fontSize: 13, fontWeight: 700, borderRadius: 12, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '3px 3px 0 var(--ink)' }}>✓ Free</span>
       ) : null}

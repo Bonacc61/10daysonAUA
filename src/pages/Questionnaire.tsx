@@ -285,26 +285,89 @@ function Adventure({ value, onChange }: { value: number; onChange: (v: number) =
   );
 }
 
+// How far ahead Q6 will let anyone book. A year covers the two cases the slider
+// alone could not — an arrival next October, or next February.
+const WHEN_MAX_DAYS = 365;
+const MS_PER_DAY = 86400000;
+
+// Local YYYY-MM-DD for a date input. Deliberately not toISOString(), which
+// renders the UTC day and so hands back yesterday for anyone west of Greenwich.
+const isoDay = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// Q6 answers with a single number — `startOffset`, days from today — through two
+// controls over the same value. The slider stays the quick way to say "in a
+// couple of weeks"; the date field is how someone arriving in October or
+// February picks their day without dragging past the slider's end. The slider's
+// max stretches to whatever the field chose, so its thumb never sits pinned at a
+// ceiling that isn't where the traveller actually is.
 function When({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const target = new Date(today);
-  target.setDate(target.getDate() + value);
+  const dayAfter = (n: number) => { const d = new Date(today); d.setDate(d.getDate() + n); return d; };
+  const target = dayAfter(value);
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const pct = (value / 30) * 100;
+  // The track's range is HELD, not derived from `value`. Deriving it
+  // (`Math.max(30, value)`) fed the control its own output: dragging the thumb
+  // from day 179 to mid-track reports 90, the track re-renders as 0-90, the thumb
+  // snaps back under the cursor at 100%, and the next mousemove reports ~45 — one
+  // leftward drag collapsed a February arrival to the 30-day floor.
+  //
+  // Only the date field writes it, and a picked date carries no track geometry,
+  // so re-setting it here closes no loop. It re-tightens as well as widens:
+  // widening monotonically left anyone who picked February and then changed to
+  // September squeezed into the leftmost 7% of a 179-day track, under tick
+  // labels naming two dates nowhere near their trip.
+  const [sliderMax, setSliderMax] = useState(() => Math.max(30, value));
+  const pct = (Math.min(value, sliderMax) / sliderMax) * 100;
   const sliderStyle = { ['--pct' as string]: pct + '%' } as CSSProperties;
+
+  const pickDate = (v: string) => {
+    // An empty or half-typed value arrives here while the traveller is still
+    // keying one in; leave the answer alone until the field holds a real date.
+    // `y < 1000` catches a part-typed year too — new Date(2, 1, 14) is 1902, and
+    // clamping that to today would silently answer a question nobody asked.
+    const [y, m, d] = v.split('-').map(Number);
+    if (!y || y < 1000 || !m || !d) return;
+    // new Date(y, m-1, d) is already local midnight.
+    const picked = new Date(y, m - 1, d);
+    const offset = Math.round((picked.getTime() - today.getTime()) / MS_PER_DAY);
+    const next = Math.min(WHEN_MAX_DAYS, Math.max(0, offset));
+    setSliderMax(Math.max(30, next));
+    onChange(next);
+  };
+
   return (
     <div className="chunky" style={{ padding: '28px 32px', width: '100%', maxWidth: 520 }}>
       <div style={{ textAlign: 'center', marginBottom: 8 }}>
         <span className="font-display" style={{ fontSize: 52, color: 'var(--red)', lineHeight: 0.9 }}>{fmt(target)}</span>
         <div style={{ fontSize: 13, color: 'var(--sand-500)', marginTop: 6 }}>
-          {dayNames[target.getDay()]} · {value === 0 ? 'Today' : value === 1 ? 'Tomorrow' : `${value} days from now`}
+          {dayNames[target.getDay()]}
+          {target.getFullYear() !== today.getFullYear() ? ` ${target.getFullYear()}` : ''}
+          {' · '}
+          {value === 0 ? 'Today' : value === 1 ? 'Tomorrow' : `${value} days from now`}
         </div>
       </div>
-      <input type="range" min={0} max={30} value={value} className="trip-slider" style={sliderStyle} onChange={(e) => onChange(Number(e.target.value))} aria-label="When you start" />
+      <input type="range" min={0} max={sliderMax} value={value} className="trip-slider" style={sliderStyle} onChange={(e) => onChange(Number(e.target.value))} aria-label="When you start" />
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, color: 'var(--sand-500)' }}>
-        <span>Today</span><span>+15 days</span><span>+30 days</span>
+        <span>Today</span>
+        <span>{fmt(dayAfter(Math.round(sliderMax / 2)))}</span>
+        <span>{fmt(dayAfter(sliderMax))}</span>
+      </div>
+      <div style={{ marginTop: 18, background: 'var(--sand-50)', border: '2px solid var(--ink)', borderRadius: 12, padding: '12px 14px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <label htmlFor="q6-arrival" style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
+          Coming later in the year?
+        </label>
+        <input
+          id="q6-arrival"
+          type="date"
+          value={isoDay(target)}
+          min={isoDay(today)}
+          max={isoDay(dayAfter(WHEN_MAX_DAYS))}
+          onChange={(e) => pickDate(e.target.value)}
+          style={{ padding: '8px 10px', border: '2px solid var(--ink)', borderRadius: 10, background: 'var(--cream)', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, color: 'var(--ink)', outline: 'none' }}
+        />
       </div>
     </div>
   );
@@ -385,6 +448,10 @@ function FlagGroup({ label, items, flags, exclusive = false, groupType, onToggle
   // the same rule when the engine reads flags, so a hidden pill is inert even if an
   // older saved answer still has it ticked.
   const visible = items.filter((i) => flagAppliesTo(i.flag, groupType));
+  // A group whose every pill was filtered out drops its heading too. "Celebrating
+  // something?" holds only `honeymoon`, which is couples-only, so every other
+  // group type was reading a label with nothing under it.
+  if (visible.length === 0) return null;
   return (
     <div>
       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--sand-600)', marginBottom: 10 }}>{label}</div>

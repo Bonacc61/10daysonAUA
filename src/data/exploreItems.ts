@@ -452,7 +452,7 @@ export function viatorLink(url: string): string {
   return url + (url.includes('?') ? '&' : '?') + 'medium=link';
 }
 
-// The "Book now"/"Book direct" target for an Explore card, or null when it
+// The "Book now" target for an Explore card, or null when it
 // isn't bookable: needs a booking link AND a non-zero price (free activities
 // aren't booked/paid). Renamed from `bookingUrl` (2026-08-18, fix round 1 of
 // task 8) to stop colliding with `Activity.bookingUrl` — two things named
@@ -474,8 +474,10 @@ export function bookUrlForEntry(entry: ExploreEntry): { url: string; affiliate: 
  * Adding a second source of truth to five near-identical expressions is how they
  * drift, and this repo already carries scar tissue from exactly that.
  *
- * The `affiliate` flag lets the button be honest: a Viator link reads "Book now",
- * a direct one reads "Book direct".
+ * The `affiliate` flag says whether the link earns a commission (Viator) or goes
+ * straight to the operator. It no longer changes the wording — every bookable
+ * card reads "Book now" (2026-08-19) — but callers still get the distinction, and
+ * the site-wide affiliate disclosure lives in the footer and Terms.
  */
 export function bookUrlForActivity(a: Activity): { url: string; affiliate: boolean } | null {
   if (parseActivityCost(a.cost) <= 0) return null;

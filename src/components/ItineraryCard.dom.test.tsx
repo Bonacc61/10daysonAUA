@@ -10,19 +10,20 @@ const byId = (id: string) => ACTIVITIES.find((a) => a.id === id)!;
 const noop = () => {};
 
 /**
- * Renders the card rather than asserting on the source expression that
- * builds its book link — the "Book now" vs "Book direct" label is the
- * traveller-visible signal that this one isn't a commission-bearing link,
- * and only a render can show whether the right label landed on the right
- * href.
+ * Renders the card rather than asserting on the source expression that builds
+ * its book link. Every bookable card now reads "Book now" whether the link is
+ * affiliate or direct (2026-08-19) — the label stopped carrying that
+ * distinction, so the href is the only thing left that can be wrong, and only a
+ * render shows which href the one button actually got.
  */
-describe('ItineraryCard — book link label', () => {
-  it('gives Flamingo a direct link to the operator, labelled "Book direct"', () => {
+describe('ItineraryCard — book link', () => {
+  it('sends Flamingo straight to the operator, under the same "Book now"', () => {
     const entry: CardEntry = { kind: 'activity', activity: byId('flamingo-renaissance') };
     render(<ItineraryCard entry={entry} flipped={false} swapping={false} onFlip={noop} />);
-    const link = screen.getByText('Book direct ↗').closest('a')!;
+    const link = screen.getByText('Book now ↗').closest('a')!;
     expect(link).toHaveAttribute('href', 'https://renaissancearuba.idaypass.com/');
-    expect(screen.queryByText('Book now ↗')).not.toBeInTheDocument();
+    // The old wording must not come back on either kind of link.
+    expect(screen.queryByText(/Book direct/)).not.toBeInTheDocument();
   });
 
   it('gives a Viator-linked activity "Book now", with the affiliate parameter intact', () => {
@@ -35,6 +36,6 @@ describe('ItineraryCard — book link label', () => {
     const link = screen.getByText('Book now ↗').closest('a')!;
     expect(link.getAttribute('href')).toContain('medium=link');
     expect(link.getAttribute('href')).toContain('pid=P00302487');
-    expect(screen.queryByText('Book direct ↗')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Book direct/)).not.toBeInTheDocument();
   });
 });

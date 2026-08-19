@@ -87,9 +87,11 @@ function Slider({ label, value, onChange, lo, hi, hint }: {
 // ─────────────────────────────────────────── Surprise Me logic ───────────── //
 
 // `book` carries the affiliate flag, not just the URL (M7, 2026-08-18) — see
-// the identical note in SurpriseMe.tsx. Dropping it made this tile say "Book
-// now" over a direct operator link while every other surface said "Book
-// direct".
+// the identical note in SurpriseMe.tsx. The flag no longer picks the wording:
+// every bookable card reads "Book now" whether the link earns a commission or
+// goes straight to the operator (2026-08-19). It is kept because it is the
+// tested shape `bookUrlForActivity` returns and it still says which kind of link
+// this is; the affiliate disclosure lives in the footer and Terms.
 type Book = { url: string; affiliate: boolean } | null;
 // A Viator product's own link is always the affiliate one; only a curated
 // activity can carry a direct operator link, which is why this is a constant
@@ -351,7 +353,7 @@ function SurprisePanel({ setPage, trip, answers }: { setPage: (p: PageId) => voi
                 {pick.book && (
                   <a href={pick.book.url} target="_blank" rel="noopener noreferrer"
                      style={{ flex: 1, padding: '10px 14px', fontSize: 13, fontWeight: 700, textDecoration: 'none', textAlign: 'center', borderRadius: 12, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '3px 3px 0 var(--ink)' }}>
-                    {pick.book.affiliate ? 'Book now' : 'Book direct'}
+                    Book now
                   </a>
                 )}
                 <AddButton added={shortlist.has(pick.id)} onAdd={() => toggleAdd(pick.id)} />
@@ -404,7 +406,7 @@ function StarredActivityCard({ entry, added, onAdd }: { entry: ExploreEntry & { 
           {book ? (
             <a href={book.url} target="_blank" rel="noopener noreferrer"
                style={{ flex: 1, padding: '8px 12px', fontSize: 12, fontWeight: 700, textDecoration: 'none', textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '2px 2px 0 var(--ink)' }}>
-              {book.affiliate ? 'Book now' : 'Book direct'}
+              Book now
             </a>
           ) : parseActivityCost(a.cost) === 0 ? (
             <span style={{ flex: 1, padding: '8px 12px', fontSize: 12, fontWeight: 700, textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)' }}>✓ Free</span>
@@ -440,7 +442,7 @@ function StarredItemCard({ entry, added, onAdd }: { entry: ExploreEntry & { kind
           {book ? (
             <a href={book.url} target="_blank" rel="noopener noreferrer"
                style={{ flex: 1, padding: '8px 12px', fontSize: 12, fontWeight: 700, textDecoration: 'none', textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '2px 2px 0 var(--ink)' }}>
-              {book.affiliate ? 'Book now' : 'Book direct'}
+              Book now
             </a>
           ) : item.price_usd === 0 ? (
             <span style={{ flex: 1, padding: '8px 12px', fontSize: 12, fontWeight: 700, textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)' }}>✓ Free</span>

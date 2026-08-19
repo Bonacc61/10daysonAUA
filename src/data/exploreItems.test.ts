@@ -198,7 +198,7 @@ describe('priceOf', () => {
   });
 });
 
-// --- bookUrlForEntry (drives the "Book now"/"Book direct" button; renamed
+// --- bookUrlForEntry (drives the "Book now" button; renamed
 // from `bookingUrl` in fix round 1 of task 8 to stop colliding with the
 // Activity.bookingUrl field) -------------------------------------------------
 describe('bookUrlForEntry', () => {

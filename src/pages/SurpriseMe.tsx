@@ -15,12 +15,11 @@ import type { Catalog } from '../data/activitySource';
 
 type Props = { setPage: (p: PageId) => void; answers: Answers };
 
-// `book` carries the affiliate flag, not just the URL (M7, 2026-08-18). The
-// type used to keep `bookUrl: string | null`, which dropped the half of
-// `bookUrlForActivity`'s answer that decides the button's wording — so a card
-// with a DIRECT operator link (flamingo-renaissance is the only one today) read
-// "Book now" here while the itinerary card and Explore correctly read "Book
-// direct". Same shape the helper returns, so nothing has to be reassembled.
+// `book` carries the affiliate flag, not just the URL (M7, 2026-08-18). Same
+// shape `bookUrlForActivity` returns, so nothing has to be reassembled. The flag
+// no longer picks the wording — every bookable card reads "Book now" whether the
+// link earns a commission or goes straight to the operator (2026-08-19) — but it
+// still says which kind of link this is, and it is the shape the tests pin.
 type Book = { url: string; affiliate: boolean } | null;
 // A Viator product's own link is always the affiliate one; only a curated
 // activity can carry a direct operator link, which is why this is a constant
@@ -298,7 +297,7 @@ export default function SurpriseMe({ setPage, answers }: Props) {
                     {pick.book && (
                       <a href={pick.book.url} target="_blank" rel="noopener noreferrer"
                          style={{ flex: 1, padding: '11px 14px', fontSize: 14, fontWeight: 700, textDecoration: 'none', textAlign: 'center', borderRadius: 12, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '3px 3px 0 var(--ink)' }}>
-                        {pick.book.affiliate ? 'Book now' : 'Book direct'}
+                        Book now
                       </a>
                     )}
                     <AddButton added={shortlist.has(pick.id)} onAdd={() => toggleAdd(pick.id)} />
