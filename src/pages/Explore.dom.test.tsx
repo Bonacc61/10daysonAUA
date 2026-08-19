@@ -104,9 +104,10 @@ describe('Explore — search after the shared-component refactor', () => {
  * these add is that the controls are wired to them at all.
  *
  * The fixture is three tiles: two Viator products (4.7★, 100 reviews) and one
- * hand-written local pick with an editorial 4.9 and no `ratingSource`. That
- * shape is the point — it is what makes "the rating bar keeps local picks but
- * the review bar drops them" a test that can fail.
+ * hand-written local pick with an editorial 4.9 and no `ratingSource`. The
+ * rating and review BARS were removed on 2026-08-19 (owner's call), so what
+ * that shape now separates is the two SORTS below, which are untouched — a
+ * sort can reorder the page but cannot hide anything from it.
  */
 describe('Explore — the sidebar filters', () => {
   const pill = (name: string) => screen.getByRole('button', { name });
@@ -119,18 +120,26 @@ describe('Explore — the sidebar filters', () => {
     expect(screen.getByLabelText('Duration')).toBeInTheDocument();
   });
 
-  it('a rating bar drops the products under it and keeps the local pick', () => {
-    fireEvent.click(pill('4.8★+'));
-    expect(screen.queryByText('Catamaran Sunset Sail')).not.toBeInTheDocument();
-    expect(screen.queryByText('Submarine Dive')).not.toBeInTheDocument();
-    expect(screen.getByText('Eagle Beach Morning Session')).toBeInTheDocument();
+  // The Rating and Reviews bars were REMOVED 2026-08-19, owner's call. Pinned
+  // here rather than left as an absence: a page that silently regrows a filter
+  // is exactly the sort of drift these dom tests exist to catch.
+  it('offers no rating or review bar', () => {
+    expect(screen.queryByLabelText('Rating')).not.toBeInTheDocument();
+    openMore();
+    expect(screen.queryByLabelText('Reviews')).not.toBeInTheDocument();
+    expect(screen.queryByText(/★\+/)).not.toBeInTheDocument();
   });
 
-  it('a review bar drops the local pick, which has no crowd behind it', () => {
-    openMore();
-    fireEvent.click(pill('10+'));
-    expect(screen.queryByText('Eagle Beach Morning Session')).not.toBeInTheDocument();
-    expect(screen.getByText('Catamaran Sunset Sail')).toBeInTheDocument();
+  // The Adrenaline/Balanced/Chill pill was removed from the CARDS on 2026-08-19
+  // (owner's call — the band was wrong too often to be worth showing). Scoped to
+  // `.card-header-band` on purpose: the Vibe SLIDER still says "Chill" and
+  // "Adrenaline" at its ends, and it is meant to.
+  it('shows no vibe pill on any card header', () => {
+    const bands = [...document.querySelectorAll('.card-header-band')];
+    expect(bands).toHaveLength(3);
+    for (const b of bands) expect(b.textContent).not.toMatch(/Adrenaline|Balanced|Chill/);
+    // ...and the slider that legitimately uses those words is still there.
+    expect(screen.getByText('Adrenaline')).toBeInTheDocument();
   });
 
   it('a duration band narrows to what runs that long', () => {
@@ -176,7 +185,9 @@ describe('Explore — the sidebar filters', () => {
 
   it('a collapsed filter that empties the page says where it is hiding', () => {
     openMore();
-    fireEvent.click(pill('500+'));
+    // Nothing in the fixture runs under 2h — the catamaran and the local pick
+    // are both '2 hrs' and the submarine is '8 hrs'.
+    fireEvent.click(pill('Under 2h'));
     expect(screen.getByText('No results found')).toBeInTheDocument();
     // Panel still open — the control is on screen, so claiming it is "hidden"
     // would be false. Only once it is collapsed does the note earn its place.
@@ -198,7 +209,8 @@ describe('Explore — the sidebar filters', () => {
   });
 
   it('"Clear all filters" puts the whole catalog back', () => {
-    fireEvent.click(pill('4.8★+'));
+    openMore();
+    fireEvent.click(pill('Full day'));
     expect(titles()).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
     expect(titles()).toHaveLength(3);
@@ -249,52 +261,16 @@ describe('Explore — Recommended reads the questionnaire', () => {
 });
 
 /**
- * "Good for kids" runs on searchPool's `kids` verdict, the same one the search
- * box uses. The fixture is deliberately one of each state the filter can meet:
- * the catamaran suits a 4-year-old (pass), the submarine is 16+ (fail), and the
- * local pick carries no kids judgement at all (unjudged) — which is the case
- * 128 of the 350 live entries are in.
+ * The "Good for kids" checkbox was REMOVED 2026-08-19 and deferred to v2 —
+ * the underlying verdict is not good enough to filter on. Its five tests went
+ * with it, along with `Explore.semantic.dom.test.tsx`, which existed only to
+ * prove the filter reached the semantic pool. This is the one assertion worth
+ * keeping: that the control is gone and has not quietly returned.
  */
-describe('Explore — the Good for kids filter', () => {
-  const titles = () => [...document.querySelectorAll('.a-card h3')].map((n) => n.textContent);
-  const openMore = () => fireEvent.click(screen.getByRole('button', { name: /More filters/ }));
-
-  it('keeps what suits a child and drops what does not', () => {
-    openMore();
-    fireEvent.click(screen.getByLabelText('Good for kids'));
-    expect(titles()).toEqual(['Catamaran Sunset Sail']);
-  });
-
-  it('says how many were hidden for lack of a judgement, not for failing one', () => {
-    openMore();
-    fireEvent.click(screen.getByLabelText('Good for kids'));
-    // One unjudged entry (the local pick), and it must read as ONE. The 16+
-    // submarine FAILED and is not counted — conflating the two would overstate
-    // how little we know about the catalog.
-    expect(screen.getByText(/1 activity we haven’t checked is hidden/)).toBeInTheDocument();
-    expect(screen.queryByText(/1 activities/)).not.toBeInTheDocument();
-  });
-
-  // The predicate is `min_age <= 8` — the youngest age the activity TAKES, not a
-  // promise that any child of 8 will be fine. The copy must not invert that.
-  it('states the minimum age rather than promising the activity suits a child', () => {
-    openMore();
-    fireEvent.click(screen.getByLabelText('Good for kids'));
-    expect(screen.getByText(/Minimum age 8 or under/)).toBeInTheDocument();
-    expect(screen.queryByText(/Suits a child of 8 or under/)).not.toBeInTheDocument();
-  });
-
-  it('counts toward the More filters badge and clears with the rest', () => {
-    openMore();
-    fireEvent.click(screen.getByLabelText('Good for kids'));
-    expect(screen.getByRole('button', { name: /Fewer filters/ })).toHaveTextContent('1 on');
-    fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
-    expect(titles()).toHaveLength(3);
-  });
-
-  it('is off by default, so the page is unchanged until it is ticked', () => {
-    openMore();
-    expect(screen.getByLabelText('Good for kids')).not.toBeChecked();
-    expect(titles()).toHaveLength(3);
+describe('Explore — the Good for kids filter is gone', () => {
+  it('offers no kids checkbox, open or closed', () => {
+    expect(screen.queryByLabelText('Good for kids')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /More filters/ }));
+    expect(screen.queryByLabelText('Good for kids')).not.toBeInTheDocument();
   });
 });

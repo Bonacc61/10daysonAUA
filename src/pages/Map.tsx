@@ -5,14 +5,14 @@ import { useCatalog } from '../data/useCatalog';
 import { generatePlan } from '../data/itineraryGenerator';
 import { pinFor, type Pin } from '../data/itemCoords';
 import { layoutMarkers, tetherLines } from '../data/markerLayout';
-import { LUNCHSPOTS } from '../data/lunchspots';
-import { viatorLink } from '../data/exploreItems';
+import { dayCamera } from '../data/mapCamera';
+import { localActivity, faceOf, bookLinkFor } from '../data/entryLinks';
 import type { Answers, PageId } from '../App';
 import { dayHues } from '../data/dayHues';
 import { planLegs, splitLeg } from '../data/routeLegs';
 import { distanceKm } from '../data/coordValidate';
-import type { SlotEntry, MatchTag, Slot, ViatorItem } from '../types';
-import { resolveSlotEntry, type Catalog } from '../data/activitySource';
+import type { SlotEntry, MatchTag, Slot } from '../types';
+import { type Catalog } from '../data/activitySource';
 import { answersToTags } from '../data/answerTags';
 import { unseedPlan } from '../data/itineraryPlan';
 import { useAuth } from '../lib/auth';
@@ -26,40 +26,16 @@ const ARUBA_CENTER = { longitude: -70.0164, latitude: 12.5211, zoom: 11.5 };
 
 
 type Coord = { lng: number; lat: number };
-type DayEntry = { key: string; slot: string; title: string; image: string | null; coord: Coord | null; pin: Pin | null; price: string | null; duration: string | null; url: string | null };
-
-// Local ('activity'-kind) entries are usually catalog activities, but curated
-// lunch spots (added by the "Suggest lunch spot" button or the en-route
-// suggestion) live outside the catalog in LUNCHSPOTS — check both so their cards
-// (image/title/cost) resolve instead of falling back to the raw id.
-function localActivity(id: string, catalog: Catalog) {
-  return catalog.activities.find(a => a.id === id) ?? LUNCHSPOTS.find(l => l.id === id);
-}
+type DayEntry = { key: string; slot: string; title: string; image: string | null; coord: Coord | null; pin: Pin | null; price: string | null; duration: string | null; url: string | null; affiliate: boolean };
 
 // Where an activity happens, from the pin registry (src/data/itemCoords.ts).
 // Returns null — never a fallback — for an item with no researched coordinate.
 // Such an activity draws no marker; it owns a stretch of the day's route instead,
 // so it stays visible without the map claiming a point nobody verified.
-// The item a stored card ACTUALLY renders as. The plan stores only ids, and the
-// live catalog moves under them — product codes churn, and we drop whole classes
-// of product (transfers, party buses, retail) at ingest. `resolveSlotEntry` is
-// the display chokepoint that heals that: a stored id no longer in the catalog
-// re-faces to the best-fitting item in the same group, which is why a card whose
-// product has gone still shows something sensible in the itinerary.
 //
-// The map used to look the stored id up in `catalog.items` directly, so it saw
-// none of that. A saved plan holding a since-removed product rendered on the
-// itinerary as (say) "Luxury Four-Course Caribbean Dinner Cruise Experience"
-// with its photo, and on the map as a photo-less, price-less pin whose title had
-// quietly fallen back to the GROUP name. Same plan, same catalog, two answers.
-//
-// Resolving through the same function means the two surfaces agree by
-// construction rather than by both being kept in step by hand.
-function faceOf(entry: SlotEntry, catalog: Catalog, tags: Set<MatchTag>, slot?: Slot): ViatorItem | null {
-  if (entry.kind === 'activity') return null;
-  const resolved = resolveSlotEntry(entry, catalog, tags, slot);
-  return resolved?.kind === 'group' ? resolved.bestSeller : null;
-}
+// `localActivity`, `faceOf` and the book link moved to src/data/entryLinks.ts on
+// 2026-08-19 — see that file for why resolving through `resolveSlotEntry`
+// matters, and for the Flamingo bug that made the link rule worth testing.
 
 // Coordinates follow the RESOLVED item too — a pin for a product that is no
 // longer in the plan is worse than no pin.
@@ -92,13 +68,6 @@ function titleFor(entry: SlotEntry, catalog: Catalog, tags: Set<MatchTag>, slot?
     ?? entry.groupId;
 }
 
-function urlFor(entry: SlotEntry, catalog: Catalog, tags: Set<MatchTag>, slot?: Slot): string | null {
-  const raw = entry.kind === 'activity'
-    ? localActivity(entry.id, catalog)?.viator_item_url
-    : faceOf(entry, catalog, tags, slot)?.viator_item_url;
-  return raw ? viatorLink(raw) : null;
-}
-
 // The base style still renders highway route shields (1, 2, 1A, 8A) as
 // numbered badges that read almost identically to our numbered stop markers.
 // After style load we hide every shield / road-number / exit / junction layer,
@@ -117,7 +86,7 @@ function hideRoadShields(map: StyleMap): void {
   }
 }
 
-type AnyPopup = { lng: number; lat: number; title: string; sub: string; price?: string | null; duration?: string | null; image?: string | null; url?: string | null; pin?: Pin | null; place?: string };
+type AnyPopup = { lng: number; lat: number; title: string; sub: string; price?: string | null; duration?: string | null; image?: string | null; url?: string | null; affiliate?: boolean; pin?: Pin | null; place?: string };
 // Display labels only — the underlying variant order/indices (activePlanIdx) are
 // unchanged. Three parallel adjectives; "Your trip"/"-leaning" dropped.
 //
@@ -264,17 +233,21 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
       ['Evening', 'evening', planDay.evening],
     ];
     return slots.flatMap(([slot, slotId, entries]) =>
-      entries.map((entry, i) => ({
-        key: `${slot}-${i}`,
-        slot,
-        title: titleFor(entry, catalog, tags, slotId),
-        image: imageFor(entry, catalog, tags, slotId),
-        coord: pinForEntry(entry, catalog, tags, slotId)?.coord ?? null,
-        pin: pinForEntry(entry, catalog, tags, slotId),
-        price: priceFor(entry, catalog, tags, slotId),
-        duration: durationFor(entry, catalog, tags, slotId),
-        url: urlFor(entry, catalog, tags, slotId),
-      }))
+      entries.map((entry, i) => {
+        const book = bookLinkFor(entry, catalog, tags, slotId);
+        return {
+          key: `${slot}-${i}`,
+          slot,
+          title: titleFor(entry, catalog, tags, slotId),
+          image: imageFor(entry, catalog, tags, slotId),
+          coord: pinForEntry(entry, catalog, tags, slotId)?.coord ?? null,
+          pin: pinForEntry(entry, catalog, tags, slotId),
+          price: priceFor(entry, catalog, tags, slotId),
+          duration: durationFor(entry, catalog, tags, slotId),
+          url: book?.url ?? null,
+          affiliate: book?.affiliate ?? false,
+        };
+      })
     );
   }, [planDay, catalog, tags]);
 
@@ -384,22 +357,24 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   }, [safeDay]);
 
   // Frame all of the active day's located stops — on load (once mapReady flips)
-  // and on every day change (locatedEntries changes). fitBounds on a single point
-  // collapses to an empty box, so a lone stop uses setCenter + a fixed zoom.
+  // and on every day change (locatedEntries changes).
+  //
+  // The geometry lives in `dayCamera` (src/data/mapCamera.ts) and is tested
+  // there. What used to be here was a flat `padding: 80` on all four sides,
+  // which pads the COORDINATE and not the marker: `PhotoPin` is anchored bottom
+  // and hangs 59px above its point, and Mapbox's own zoom control occupies the
+  // top-right, so a pin at the north edge of a day could be clipped or sit
+  // under the buttons — reported 2026-08-19 as pins missing while scrolling
+  // through the days. The padding is asymmetric now because the marker is.
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
-    const valid = locatedEntries.map(e => e.coord);
-    if (valid.length === 0) return;
-    if (valid.length === 1) {
-      mapRef.current.flyTo({ center: [valid[0].lng, valid[0].lat], zoom: 13, duration: 800 });
+    const cam = dayCamera(locatedEntries.map(e => e.coord));
+    if (!cam) return;
+    if (cam.kind === 'center') {
+      mapRef.current.flyTo({ center: cam.center, zoom: cam.zoom, duration: 800 });
       return;
     }
-    const lngs = valid.map(c => c.lng);
-    const lats = valid.map(c => c.lat);
-    mapRef.current.fitBounds(
-      [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
-      { padding: 80, maxZoom: 14, duration: 800 },
-    );
+    mapRef.current.fitBounds(cam.bounds, { padding: cam.padding, maxZoom: cam.maxZoom, duration: 800 });
   }, [locatedEntries, mapReady]);
 
   if (!TOKEN) {
@@ -498,7 +473,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
               match the card order, de-stacked so shared coordinates stay visible */}
           {planDay && locatedEntries.map((e, i) => (
             <Marker key={e.key} longitude={e.coord.lng} latitude={e.coord.lat} anchor="bottom"
-              onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url, pin: e.pin, place: e.place }); }}>
+              onClick={ev => { ev.originalEvent.stopPropagation(); setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url, affiliate: e.affiliate, pin: e.pin, place: e.place }); }}>
               <PhotoPin image={e.image} color={hueFor(e.idx)} label={String(e.num)} secondary={!e.primary} />
             </Marker>
           ))}
@@ -529,7 +504,12 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
                   )}
                   <PickupBlock pin={popup.pin ?? null} />
                   {popup.url && (
-                    <div style={{ fontSize: 11, color: '#888', fontStyle: 'italic' }}>Tap to book on Viator →</div>
+                    // Only an AFFILIATE link goes to Viator. The Flamingo day
+                    // pass books direct with the operator, and saying otherwise
+                    // is both wrong and a disclosure problem.
+                    <div style={{ fontSize: 11, color: '#888', fontStyle: 'italic' }}>
+                      {popup.affiliate ? 'Tap to book on Viator →' : 'Tap to book →'}
+                    </div>
                   )}
                 </div>
               </a>
@@ -645,7 +625,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
               <div
                 key={e.key}
                 style={{ flexShrink: 0, width: 120, cursor: 'pointer' }}
-                onClick={() => e.coord && setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url, pin: e.pin })}
+                onClick={() => e.coord && setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url, affiliate: e.affiliate, pin: e.pin })}
               >
                 <div style={{ width: 120, height: 72, borderRadius: 10, overflow: 'hidden', background: '#e8e2d6', border: `2px solid ${dayColor}`, flexShrink: 0 }}>
                   {e.image

@@ -9,10 +9,9 @@ import Footer from '../components/Footer';
 import { useShortlist } from '../lib/shortlist';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
-import { filterExploreEntries, sortEntries, bookUrlForEntry, viatorLink, bookUrlForActivity, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, starsHint, reviewsHint } from '../data/exploreItems';
-import type { DurationBand, ExploreEntry, Provenance, SortKey } from '../data/exploreItems';
+import { filterExploreEntries, sortEntries, bookUrlForEntry, viatorLink, bookUrlForActivity, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint } from '../data/exploreItems';
+import type { DurationBand, Provenance, SortKey } from '../data/exploreItems';
 import { searchEntries } from '../lib/entrySearch';
-import { splitByFacet } from '../lib/searchPool';
 import { answersToTags } from '../data/answerTags';
 import { useSearchBox } from '../lib/useSearchBox';
 import { parseActivityCost } from '../data/matcher';
@@ -23,24 +22,17 @@ import type { PageId } from '../App';
 
 type Props = { setPage: (p: PageId) => void; answers: Answers; canSeeItinerary: boolean; initialSection?: Section; };
 
-// Vibe pill copy/colour from an adventure value (mirrors vibePass thresholds).
-function vibePill(adventure: number): { label: string; bg: string } {
-  if (adventure >= 67) return { label: '🪂 Adrenaline', bg: 'var(--coral, #ff7a5c)' };
-  if (adventure <= 33) return { label: '🌴 Chill', bg: 'var(--sand-50)' };
-  return { label: '⚖ Balanced', bg: 'var(--sand-50)' };
-}
-
 // Header tags (sit inline in the card-header-band flex row): a "Local pick" tag
-// for editorial picks and the vibe pill. Viator items carry no provenance mark.
+// for editorial picks. Viator items carry no provenance mark.
+//
+// The Adrenaline/Balanced/Chill pill that used to sit here was REMOVED
+// 2026-08-19, owner's call: the band it showed came from `entry.adventure`,
+// which is a coarse per-entry guess, and it was wrong often enough on real
+// cards to be worth nothing. The Vibe SLIDER is unaffected — it filters, and
+// filtering wrong is recoverable in a way a wrong label on a card is not.
 function LocalMark() {
   return (
     <span style={{ flexShrink: 0, background: 'var(--yellow)', color: 'var(--ink)', border: '2px solid var(--ink)', borderRadius: 999, fontSize: 9, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '2px 7px', whiteSpace: 'nowrap' }}>Local pick</span>
-  );
-}
-function HeaderVibePill({ adventure }: { adventure: number }) {
-  const p = vibePill(adventure);
-  return (
-    <span style={{ flexShrink: 0, background: p.bg, color: 'var(--ink)', border: '2px solid var(--ink)', borderRadius: 999, fontSize: 10, fontWeight: 800, padding: '2px 8px', whiteSpace: 'nowrap' }}>{p.label}</span>
   );
 }
 
@@ -90,12 +82,6 @@ function PillRow<T extends string | number>({ label, value, options, onChange }:
   );
 }
 
-const STARS_OPTIONS = [
-  { v: 0, label: 'Any' }, { v: 4.0, label: '4.0★+' }, { v: 4.5, label: '4.5★+' }, { v: 4.8, label: '4.8★+' },
-];
-const REVIEWS_OPTIONS = [
-  { v: 0, label: 'Any' }, { v: 10, label: '10+' }, { v: 50, label: '50+' }, { v: 100, label: '100+' }, { v: 500, label: '500+' },
-];
 const DURATION_OPTIONS: { v: DurationBand; label: string }[] = [
   { v: 'any', label: 'Any' }, { v: 'short', label: 'Under 2h' }, { v: 'half', label: '2–4h' }, { v: 'long', label: '4–6h' }, { v: 'full', label: 'Full day' },
 ];
@@ -166,25 +152,17 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   // 'recommended' is now a ranking rather than a passthrough (see rankRecommended)
   // — but the keyword-then-meaning boundary search relies on is preserved below.
   const [sort, setSort] = useState<SortKey>('recommended');
-  const [minStars, setMinStars] = useState<number>(0);
-  const [minReviews, setMinReviews] = useState<number>(0);
   const [duration, setDuration] = useState<DurationBand>('any');
   const [privateOnly, setPrivateOnly] = useState(false);
-  // Runs on the same `verdictFor` the search box uses, so the two cannot come to
-  // disagree about what "good for kids" MEANS. They still return different sets:
-  // buildPool keeps unknowns and demotes them, this removes them — see the note
-  // on splitByFacet for why a checkbox is the narrower promise.
-  const [kidsOnly, setKidsOnly] = useState(false);
   const [provenance, setProvenance] = useState<Provenance>('all');
   const [moreOpen, setMoreOpen] = useState(false);
   // Only the filters hidden behind "More filters" are counted — the badge exists
-  // to say what is narrowing the page out of sight, and stars is in plain view.
-  const hiddenActive = [minReviews > 0, duration !== 'any', privateOnly, provenance !== 'all', kidsOnly].filter(Boolean).length;
-  const anyActive = hiddenActive > 0 || minStars > 0 || sort !== 'recommended' || vibe !== 50 || price !== 50;
+  // to say what is narrowing the page out of sight.
+  const hiddenActive = [duration !== 'any', privateOnly, provenance !== 'all'].filter(Boolean).length;
+  const anyActive = hiddenActive > 0 || sort !== 'recommended' || vibe !== 50 || price !== 50;
   const clearAll = () => {
-    setVibe(50); setPrice(50); setSort('recommended'); setMinStars(0);
-    setMinReviews(0); setDuration('any'); setPrivateOnly(false); setProvenance('all');
-    setKidsOnly(false);
+    setVibe(50); setPrice(50); setSort('recommended');
+    setDuration('any'); setPrivateOnly(false); setProvenance('all');
   };
   // No ♥ on Explore's cards since 2026-08-05 — "+ Add" is the one way to keep an
   // activity here, so a card offers one action instead of two that read alike.
@@ -199,19 +177,19 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
     return slug ? REGION_LABEL[slug] ?? slug : '';
   };
   // Every individual Viator item URL + local pick, as its own filterable tile.
-  const extra = { minStars, minReviews, duration, privateOnly, provenance };
-  // The facet filter sits OUTSIDE filterExploreEntries rather than inside it with
-  // the others: searchPool imports values from exploreItems, so calling back the
-  // other way would close a real import cycle. It wraps instead.
-  //
-  // `unjudged` is carried out so the sidebar can say how many activities were
-  // removed for want of a judgement rather than for failing one — 128 of the 350
-  // entries carry no kids verdict, and dropping a third of the page in silence
-  // would read as the island having less for families than it does.
-  const byKids = (list: ExploreEntry[]) => (kidsOnly ? splitByFacet(list, 'kids') : { kept: list, unjudged: 0 });
-  const filtered = byKids(filterExploreEntries(catalog, { section, search, vibe, price, ...extra }));
-  const substringHits = filtered.kept;
-  const kidsUnjudged = filtered.unjudged;
+  // `minStars`/`minReviews` are deliberately not passed: their controls were
+  // removed 2026-08-19 (owner's call — the bars hid local picks in ways that
+  // read as the island being emptier than it is). `starsPass`/`reviewsPass`
+  // stay in exploreItems and pass everything when the option is absent, so the
+  // filter is dormant rather than deleted. Sorting by rating or reviews is
+  // untouched — a sort cannot hide anything.
+  const extra = { duration, privateOnly, provenance };
+  // The "Good for kids" checkbox that wrapped this in `splitByFacet` was removed
+  // 2026-08-19 and deferred to v2, owner's call: the underlying kids verdict is
+  // not good enough to filter on. `splitByFacet` and the verdict itself stay —
+  // the search box still reads them to DEMOTE unknowns, which is the softer
+  // promise a checkbox could not make.
+  const substringHits = filterExploreEntries(catalog, { section, search, vibe, price, ...extra });
 
   // Semantic blending + typed contraindications, shared with the Personalized
   // panel. The unsearched pool is a thunk so it is built ONLY when there is
@@ -220,7 +198,7 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   const { entries: found, addedByMeaning } = searchEntries(
     search,
     substringHits,
-    () => byKids(filterExploreEntries(catalog, { section, search: '', vibe, price, ...extra })).kept,
+    () => filterExploreEntries(catalog, { section, search: '', vibe, price, ...extra }),
     box.semantic,
   );
 
@@ -252,7 +230,7 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
         <div className="container-1280 explore-head" style={{ padding: '36px 36px 24px' }}>
           <h1 className="font-display" style={{ fontSize: 44, margin: '0 0 6px', color: 'var(--ink)', lineHeight: 1 }}>Explore Aruba.</h1>
           <p style={{ fontStyle: 'italic', fontSize: 15, color: 'rgba(0,0,0,0.75)', margin: 0 }}>
-            {catalog.items.length} activities + {catalog.activities.length} local picks — filter by vibe, price, rating, reviews, and duration.
+            {catalog.items.length} activities + {catalog.activities.length} local picks — filter by vibe, price, and duration.
           </p>
 
           <SearchBar box={box} addedByMeaning={addedByMeaning} placeholder="Search beaches, activities, food…" style={{ marginTop: 22 }} />
@@ -281,9 +259,6 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
                   {SORT_OPTIONS.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
                 </select>
 
-                <PillRow label="Rating" value={minStars} options={STARS_OPTIONS} onChange={setMinStars} />
-                <div style={{ fontSize: 12, color: 'var(--sand-700)', marginTop: -6, marginBottom: 14, fontStyle: 'italic' }}>{starsHint(minStars)}</div>
-
                 {/* The button comes BEFORE what it reveals. Put it after and
                     opening the panel inserts four control groups above the
                     focused element, so tabbing onward walks straight past
@@ -296,32 +271,12 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
 
                 {moreOpen && (
                   <div id="explore-more-filters" style={{ marginTop: 16 }}>
-                    <PillRow label="Reviews" value={minReviews} options={REVIEWS_OPTIONS} onChange={setMinReviews} />
-                    <div style={{ fontSize: 12, color: 'var(--sand-700)', marginTop: -6, marginBottom: 14, fontStyle: 'italic' }}>{reviewsHint(minReviews)}</div>
                     <PillRow label="Duration" value={duration} options={DURATION_OPTIONS} onChange={setDuration} />
                     <PillRow label="Show" value={provenance} options={PROVENANCE_OPTIONS} onChange={setProvenance} />
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                       <input type="checkbox" checked={privateOnly} onChange={(e) => setPrivateOnly(e.target.checked)} />
                       Private tours only
                     </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, marginTop: 10, cursor: 'pointer' }}>
-                      <input type="checkbox" checked={kidsOnly} aria-describedby={kidsOnly ? 'explore-kids-hint' : undefined}
-                        onChange={(e) => setKidsOnly(e.target.checked)} />
-                      Good for kids
-                    </label>
-                    {kidsOnly && (
-                      // The copy states the MINIMUM AGE, not a promise about any
-                      // child. `min_age` is the youngest age an activity sensibly
-                      // takes, and 88 of the 141 that pass sit above 0 — 45 of
-                      // them at 6 or 8. "Suits a child of 8 or under" would tell
-                      // a parent of a 3-year-old the opposite of what the data
-                      // says. A wrong filter is invisible; a wrong promise
-                      // strands someone at a jetty.
-                      <div id="explore-kids-hint" style={{ fontSize: 12, color: 'var(--sand-700)', marginTop: 6, fontStyle: 'italic' }}>
-                        Minimum age 8 or under — check each listing for the youngest age it takes.
-                        {kidsUnjudged > 0 && ` ${kidsUnjudged === 1 ? '1 activity we have' : `${kidsUnjudged} activities we have`}n’t checked ${kidsUnjudged === 1 ? 'is' : 'are'} hidden from these results.`}
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -356,8 +311,8 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
                   ? Array.from({ length: 12 }, (_, i) => <SkeletonCard key={i} />)
                   : entries.map((e) => (
                     e.kind === 'item'
-                      ? <ItemTile key={`item:${e.item.id}`} item={e.item} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} region={regionOf(e.item)} adventure={e.adventure} bookNow={bookUrlForEntry(e)} added={shortlist.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />
-                      : <ActivityTile key={e.activity.id} a={e.activity} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} adventure={e.adventure} bookNow={bookUrlForEntry(e)} added={shortlist.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} />
+                      ? <ItemTile key={`item:${e.item.id}`} item={e.item} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} region={regionOf(e.item)} bookNow={bookUrlForEntry(e)} added={shortlist.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />
+                      : <ActivityTile key={e.activity.id} a={e.activity} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} bookNow={bookUrlForEntry(e)} added={shortlist.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} />
                   ))}
               </div>
               {!loading && totalCount === 0 && (
@@ -411,9 +366,9 @@ function openItem(url: string, e: MouseEvent) {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-function ItemTile({ item, section, sectionUrl: _sectionUrl, region, adventure, bookNow, added, onAdd }: { item: ViatorItem; section: string; sectionUrl: string | null; region: string; adventure: number; bookNow: { url: string; affiliate: boolean } | null; added: boolean; onAdd: () => void }) {
+function ItemTile({ item, section, sectionUrl: _sectionUrl, region, bookNow, added, onAdd }: { item: ViatorItem; section: string; sectionUrl: string | null; region: string; bookNow: { url: string; affiliate: boolean } | null; added: boolean; onAdd: () => void }) {
   const url = item.viator_item_url ? viatorLink(item.viator_item_url) : null;
-  const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><HeaderVibePill adventure={adventure} /></>;
+  const headerInner = <span className="chb-title" style={{ flex: 1 }}>{section}</span>;
   return (
     <div className="a-card fade-in" style={{ cursor: url ? 'pointer' : 'default' }} onClick={url ? (e) => openItem(url, e) : undefined}>
       <div className="card-header-band">{headerInner}</div>
@@ -449,9 +404,9 @@ function ItemTile({ item, section, sectionUrl: _sectionUrl, region, adventure, b
   );
 }
 
-function ActivityTile({ a, section, sectionUrl: _sectionUrl, adventure, bookNow, added, onAdd }: { a: Activity; section: string; sectionUrl: string | null; adventure: number; bookNow: { url: string; affiliate: boolean } | null; added: boolean; onAdd: () => void }) {
+function ActivityTile({ a, section, sectionUrl: _sectionUrl, bookNow, added, onAdd }: { a: Activity; section: string; sectionUrl: string | null; bookNow: { url: string; affiliate: boolean } | null; added: boolean; onAdd: () => void }) {
   const url = bookUrlForActivity(a)?.url ?? null;
-  const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><HeaderVibePill adventure={adventure} /><LocalMark /></>;
+  const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><LocalMark /></>;
   return (
     <div className="a-card fade-in" style={{ cursor: url ? 'pointer' : 'default' }} onClick={url ? (e) => openItem(url, e) : undefined}>
       <div className="card-header-band">{headerInner}</div>
