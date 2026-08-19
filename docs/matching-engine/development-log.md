@@ -1727,6 +1727,96 @@ family's, because the free non-boat curated content tops out at adventure 50.
 
 ---
 
+### 2026-08-19 — A pin was free: it spent no booking, and an invariant could blank the page
+
+**Symptom 1.** A traveller who shortlists a tour got it *in addition to* a full
+allocation, not out of it. `ctx.bookedDays` gained the pinned days only AFTER
+the balanced template had committed and after R13 rule 1's trim had run, and
+`bookingDays(nDays, templateBookingDays)` never saw the pins at all — so the
+trim spent the whole cap on the template and the pin arrived on top of it.
+
+**Measured, live catalog, 11,340 pinned cases** (every persona × trip length ×
+seed × whitelisted pin): **1,224 over the cap (10.8%) on `main`, 0 after.**
+Every failure was an `isBalancedTraveller` persona (`med-adventure` 34-66 AND
+`mid-range`) — the only kind with a template to overspend; a persona with no
+template had zero. The two named reproductions:
+
+| case | before | after |
+|---|---|---|
+| balanced couple, 4 days, jeep safari pinned | 2 bookings against a cap of 1 (pin day 1, `antilla-wreck-dive` day 2) | 1 |
+| balanced family young kids, 10 days, sail pinned | 5 against a cap of 4 — the pin STACKED onto day 2 beside `antilla-wreck-dive` | 4, one per day |
+
+**The fix is an ordering, and one predicate.** The pinned-bookable debit now
+runs immediately after the schedule is computed rather than after the trim, and
+rule 1's guard — which was `ctx.bookingDaySet.has(day)` — is now `mayBook`, the
+same predicate the fill ladder and the premium/staple pre-passes already go
+through. It refuses three things at once: a day the schedule dropped, a day a
+pin has already booked, and a trip whose cap the pins have already spent. That
+is the intended semantics stated plainly: **a pin is exempt from the SCHEDULE
+and not from the COUNT**, exactly as it is budget-exempt while still debiting
+the budget pool.
+
+The schedule's size `k` is deliberately NOT reduced to make room. A pin that
+cannot be honoured does not shrink the trip's entitlement — the earlier ruling
+that makes `bookingDays` drop an illegal or adjacent `mustInclude` day and still
+fill to `k`. It spends from the entitlement; it does not shrink it.
+
+**No over-correction**, which was the thing worth checking: 210 no-pin plans
+came back byte-identical, and no plan lost two bookings where it should have
+lost one.
+
+**Production impact today is nil, and that is the honest framing.** Nothing in
+`src/` passes `opts.pinned` — the shortlist was unwired on 2026-08-05 and
+`Itinerary.tsx` calls `generatePlan(answers, catalog)` with no options at all.
+This is a correct latent fix landed ahead of the rewiring, not a live bug closed.
+It is worth having now precisely because the rewiring will not think to re-test
+the cap.
+
+**A second-order choice worth recording.** When the pins leave room for only
+some of the template's bookables, the trim keeps the EARLIEST. That is not
+arbitrary: the template's two tier-1 bookables sit early (`antilla-wreck-dive`
+day 2, `natural-pool-jeep` day 4) and its tier-2 swap sits late (the submarine,
+day 7), so keeping the earliest is keeping tier 1 — "tier 1 has first claim",
+bookable-density design section 3. Measured on balanced young kids, 9 days, one
+pin: ascending keeps days 2 and 4 and drops the submarine, descending keeps day
+4 and the submarine and drops the wreck snorkel. The cost is that it front-loads
+the trip, against the late bias `bookingDays` is built on. Tier won. The
+ordering had no test until a reviewer flipped the sort and all 86 tests stayed
+green; it has one now.
+
+**Symptom 2 — the invariant that closes rule 1 was a `throw`.** It exists so a
+future change to those two passes cannot silently reintroduce the C1
+departure-day bug, which is worth keeping. But `generatePlan` runs inside a
+`useState` initialiser (`src/pages/Itinerary.tsx:77`) and three more times
+inside a `useMemo` on the Map (`src/pages/Map.tsx:176-178`), and there is still
+no ErrorBoundary anywhere in `src/` — so firing it hands the traveller a blank
+application instead of an itinerary with one booking too many. Same house rule
+as `flagAppliesTo`'s Object.prototype case (`src/data/notesFlags.test.ts`).
+
+It now degrades: the offending slots are taken back out through the same path
+rule 1 uses (an alternative reverts to its curated default, a default releases
+its slot), a single `console.warn` names the days, the catalog product ids and
+the schedule they violated, and generation continues. The warning carries
+derived data only — no answers, no notes, nothing the traveller typed.
+
+**Its live value is real even though its path is unreachable.** No combination
+of answers, catalog, seed or pins can reach it today — the trim removes exactly
+what the check looks for, and both read the same `ctx.bookingDaySet`. That is
+what makes it an invariant rather than a branch. The value is that the day
+someone breaks the trim, the failure mode is a warning in the console and a
+slightly-too-generous plan, not a white screen on the page the whole site funnels
+into. The test proves the degradation by injecting the fault into a collaborator
+(`bookableTier` made to lie once, after the schedule is fixed) rather than by
+bending the source; a reviewer independently confirmed it reaches the real crash
+condition on `main`.
+
+**Verification.** `npx vitest run` green (the only failing suite is
+`contact-notify/messages.test.ts`, a pre-existing Deno import error);
+`npm run typecheck` clean; `npm run plan-diff` **0 → 0 violations**, open slots
+unchanged at 180.
+
+---
+
 ## Current state — embedding clustering
 
 Present-tense. The dated entries above are records of what was built on the day;

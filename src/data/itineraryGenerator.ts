@@ -1828,11 +1828,13 @@ export function generatePlan(
   // be honoured does not shrink the trip's entitlement (the ruling that made
   // `bookingDays` drop an illegal or adjacent `mustInclude` day and still fill
   // to `k`); it spends from it.
+  const pinnedBookedDays = new Set<number>();
   for (const [day, slots] of pinnedSlots) {
     for (const p of slots.values()) {
-      if (bookableTier(p.cardEntry, tags) !== null) ctx.bookedDays.add(day);
+      if (bookableTier(p.cardEntry, tags) !== null) pinnedBookedDays.add(day);
     }
   }
+  for (const d of pinnedBookedDays) ctx.bookedDays.add(d);
 
   // Giving a route family back. A template placement that leaves the plan below
   // must release the family it claimed at placement time, or the family is
@@ -1902,6 +1904,21 @@ export function generatePlan(
   // Ascending day order, so when the pins have left room for only some of the
   // template's bookables the EARLIER ones survive. Rule 2 above already
   // guarantees at most one bookable per template day, so a day is decided once.
+  //
+  // Ascending and not descending BECAUSE of what the template puts where: its
+  // two tier-1 curated bookables sit early (`antilla-wreck-dive` day 2,
+  // `natural-pool-jeep` day 4) and its tier-2 swaps sit late (the submarine,
+  // day 7). Keeping the earliest is therefore keeping tier 1, which is the
+  // spec's "tier 1 has first claim" (bookable-density design, section 3).
+  // Measured: balanced young kids, 9 days, one pin — ascending keeps days
+  // 2 and 4 and drops the submarine; descending keeps day 4 and the submarine
+  // and drops the wreck snorkel.
+  //
+  // The cost, stated rather than hidden: it front-loads the trip, against the
+  // schedule's own late bias ("people book more readily once they have been on
+  // the island a few days", `bookingDays`). That tension is real. Tier won,
+  // because a dropped tier-1 booking is a worse plan than an early one; a
+  // future reader should see this was chosen and not stumbled into.
   for (const day of [...templateSlots.keys()].sort((a, b) => a - b)) {
     for (const [slot, placement] of templateSlots.get(day)!) {
       if (bookableTier(placement.cardEntry, tags) === null) continue;
@@ -1935,7 +1952,12 @@ export function generatePlan(
         if (bookableTier(placement.cardEntry, tags) === null) continue;
         dropped.push(`day ${day}: ${entryId(placement.cardEntry)}`);
         dropTemplateBookable(day, slot, placement);
-        ctx.bookedDays.delete(day);
+        // Only the TEMPLATE's debit comes back. A pin can share a day with a
+        // template slot (different sections), and its debit is not this pass's
+        // to erase — the traveller still has that booking. Unreachable today,
+        // because a day a pin has booked is one `mayBook` already refused the
+        // template above, but it is a line that would be wrong the moment it ran.
+        if (!pinnedBookedDays.has(day)) ctx.bookedDays.delete(day);
       }
     }
     console.warn(

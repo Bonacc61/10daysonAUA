@@ -779,6 +779,51 @@ describe('bookable density — a pin spends a booking (C2)', () => {
     for (const n of perDay.values()) expect(n).toBe(1);
   });
 
+  // The trim iterates templateSlots in ASCENDING day order, and when the pins
+  // have spent part of the cap that choice is OBSERVABLE — it decides which of
+  // the template's bookables survives. Pinned here because the reviewer flipped
+  // the sort to descending and all 86 tests stayed green: exactly the test that
+  // cannot fail this project keeps warning about.
+  //
+  // 9 days, young kids, one pin is the case that separates them. The template
+  // wants days 2 (`antilla-wreck-dive`, tier 1), 4 (`natural-pool-jeep`, tier 1)
+  // and 7 (`2455SUB`, the Atlantis submarine, tier 2), so
+  // `bookingDays(9, [2, 4, 7])` is `[2, 4, 7]` — a cap of three — and the pin on
+  // day 1 spends one of them. Ascending keeps 2 and 4 and drops the submarine;
+  // descending keeps 4 and the submarine and drops the wreck snorkel.
+  //
+  // Ascending is right because of what those tiers mean: tier 1 has first claim
+  // (bookable-density design, section 3), and the template's tier-1 bookables
+  // are its early ones. The cost is real and worth a reader knowing it was
+  // weighed — keeping the earliest front-loads the trip, against the late bias
+  // `bookingDays` is built on ("people book more readily once they have been on
+  // the island a few days"). A dropped tier-1 booking was judged the worse plan.
+  it('keeps the EARLIEST template bookables when a pin has spent part of the cap', () => {
+    const answers = { ...BALANCED_YOUNG_KIDS, days: 9 };
+    const tags = answersToTags(answers);
+    const plan = generatePlan(answers, CATALOG, { seed: 0, pinned: ['item:jeep-conchi'] });
+    const bookedIds = new Map<number, string[]>();
+    for (const day of plan) {
+      const ids = [...day.morning, ...day.afternoon, ...day.evening]
+        .map((se) => resolveSlotEntry(se, CATALOG, tags))
+        .filter((c): c is NonNullable<typeof c> => !!c && bookableTier(c, tags) !== null)
+        .map((c) => (c.kind === 'group' ? c.bestSeller.id : c.activity.id));
+      if (ids.length) bookedIds.set(day.day, ids);
+    }
+    // The cap: three, and the pin has one of them.
+    expect(bookingDays(9, [2, 4, 7])).toEqual([2, 4, 7]);
+    expect([...bookedIds.keys()].sort((a, b) => a - b)).toEqual([1, 2, 4]);
+    expect(bookedIds.get(1)).toEqual(['jeep-conchi']);
+    // The two tier-1 curated bookables survived...
+    expect(bookedIds.get(2)).toEqual(['antilla-wreck-dive']);
+    expect(bookedIds.get(4)).toEqual(['natural-pool-jeep']);
+    // ...and the tier-2 submarine is the one that went, from anywhere in the
+    // plan — not merely moved to a later day.
+    const everything = plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening])
+      .map((se) => (se.kind === 'group' ? se.bestSellerId : ''));
+    expect(everything).not.toContain('2455SUB');
+  });
+
   // Breadth, so the fix is not two hand-picked cases: every balanced persona,
   // every trip length the template covers, every whitelisted pin this fixture
   // can resolve.
