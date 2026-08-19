@@ -1808,6 +1808,32 @@ export function generatePlan(
     .map(([day]) => day);
   for (const d of bookingDays(nDays, templateBookingDays)) ctx.bookingDaySet.add(d);
 
+  // A pin is exempt from the SCHEDULE — the traveller chose it explicitly, so it
+  // lands wherever it lands — but it still SPENDS one of the trip's bookings,
+  // exactly as it is budget-exempt while still debiting the budget pool.
+  //
+  // C2 (2026-08-19): this debit used to run AFTER rule 1's trim below, so the
+  // trim spent the whole cap on the template and the pin was added on top of a
+  // full allocation. Measured on the live catalog across 2,400 pinned cases,
+  // 328 (13.7%) came back over the cap — every one of them an
+  // `isBalancedTraveller` persona, the only kind that has a template to
+  // overspend. Two of them: a balanced couple on a 4-day trip got 2 bookings
+  // against a cap of 1, and a balanced family with young kids on a 10-day trip
+  // got 5 against a cap of 4 (the pinned sail sharing day 2 with the template's
+  // wreck snorkel). Seeding `bookedDays` here, before the trim, is the fix: the
+  // trim then sees the pins as already-spent budget and gives way.
+  //
+  // The SCHEDULE is deliberately not shrunk to compensate — `bookingDays` above
+  // is called with the template's days alone, never the pins'. A pin that cannot
+  // be honoured does not shrink the trip's entitlement (the ruling that made
+  // `bookingDays` drop an illegal or adjacent `mustInclude` day and still fill
+  // to `k`); it spends from it.
+  for (const [day, slots] of pinnedSlots) {
+    for (const p of slots.values()) {
+      if (bookableTier(p.cardEntry, tags) !== null) ctx.bookedDays.add(day);
+    }
+  }
+
   // Giving a route family back. A template placement that leaves the plan below
   // must release the family it claimed at placement time, or the family is
   // stranded for the whole trip and no later pass can use it (M8, 2026-08-18).
@@ -1828,13 +1854,42 @@ export function generatePlan(
     ctx.usedRouteFamilies.delete(rf);
   };
 
-  // R13 rule 1, second pass: any template bookable whose day did not survive
-  // the schedule above (dropped for the trip cap, or for sitting adjacent to a
-  // day the schedule kept) leaves that day. An entry recorded in
+  // Taking one template bookable back out of the plan. An entry recorded in
   // `templateAltFallback` — one that came from an alternative — reverts to its
   // curated default, so the day keeps a card and loses only the booking.
-  // Anything else, a bookable that IS the curated default among it, has nowhere
-  // to revert to: its slot is released entirely and normal fill claims it.
+  // Anything else, a bookable that IS the curated default, has nowhere to revert
+  // to: its slot is released entirely and normal fill claims it.
+  //
+  // A fallback that is itself a bookable is dropped rather than reverted onto an
+  // illegal day. Unreachable on today's table — the two bookable defaults'
+  // alternatives are `highBudget` ones, and `isBalancedTraveller` requires
+  // `mid-range`, which `altTypesFor`'s highBudget branch excludes — but it is
+  // what makes the invariant asserted below structural rather than argued.
+  const dropTemplateBookable = (day: number, slot: Slot, placement: PinPlacement): void => {
+    const slots = templateSlots.get(day);
+    if (!slots) return;
+    const fb = templateAltFallback.get(`${day}:${slot}`);
+    const revertTo = fb && bookableTier(fb, tags) === null ? fb : undefined;
+    if (revertTo) {
+      slots.set(slot, { cardEntry: revertTo, slotEntry: { ...toSlotEntry(revertTo), staple: true } });
+    } else {
+      slots.delete(slot);
+      pinClaimed.get(day)?.delete(slot);
+    }
+    if (ctx.lastUsedDay.get(entryId(placement.cardEntry)) === day) ctx.lastUsedDay.delete(entryId(placement.cardEntry));
+    releaseRouteFamily(placement.cardEntry);
+    if (revertTo) {
+      ctx.lastUsedDay.set(entryId(revertTo), day);
+      const rf = tripRouteFamily(revertTo, nDays); if (rf) ctx.usedRouteFamilies.add(rf);
+    }
+  };
+
+  // R13 rule 1, second pass: a template bookable keeps its day only if `mayBook`
+  // would have allowed a bookable there — the same predicate the fill ladder and
+  // the premium/staple pre-passes go through, applied here for the one pass that
+  // places by construction. It rejects a day the schedule dropped (for the trip
+  // cap, or for sitting adjacent to a day the schedule kept), a day a pin has
+  // already booked, and a trip whose cap the pins above have already spent.
   //
   // C1 (2026-08-18): the default case used to be skipped, on a comment claiming
   // it was unreachable. It is reached. `bookingDays(4, [2, 4])` returns `[2]`
@@ -1844,49 +1899,49 @@ export function generatePlan(
   // on the departure morning. Measured on the live catalog, seed 0, Mid-range +
   // adventure 50, all three group types.
   //
-  // A fallback that is itself a bookable is dropped rather than reverted onto
-  // an illegal day. Unreachable on today's table — the two bookable defaults'
-  // alternatives are `highBudget` ones, and `isBalancedTraveller` requires
-  // `mid-range`, which `altTypesFor`'s highBudget branch excludes — but it is
-  // what makes the invariant asserted below structural rather than argued.
-  for (const [day, slots] of templateSlots) {
-    if (ctx.bookingDaySet.has(day)) continue;
-    for (const [slot, placement] of slots) {
+  // Ascending day order, so when the pins have left room for only some of the
+  // template's bookables the EARLIER ones survive. Rule 2 above already
+  // guarantees at most one bookable per template day, so a day is decided once.
+  for (const day of [...templateSlots.keys()].sort((a, b) => a - b)) {
+    for (const [slot, placement] of templateSlots.get(day)!) {
       if (bookableTier(placement.cardEntry, tags) === null) continue;
-      const fb = templateAltFallback.get(`${day}:${slot}`);
-      const revertTo = fb && bookableTier(fb, tags) === null ? fb : undefined;
-      if (revertTo) {
-        slots.set(slot, { cardEntry: revertTo, slotEntry: { ...toSlotEntry(revertTo), staple: true } });
-      } else {
-        slots.delete(slot);
-        pinClaimed.get(day)?.delete(slot);
-      }
-      if (ctx.lastUsedDay.get(entryId(placement.cardEntry)) === day) ctx.lastUsedDay.delete(entryId(placement.cardEntry));
-      releaseRouteFamily(placement.cardEntry);
-      if (revertTo) {
-        ctx.lastUsedDay.set(entryId(revertTo), day);
-        const rf = tripRouteFamily(revertTo, nDays); if (rf) ctx.usedRouteFamilies.add(rf);
-      }
+      if (mayBook(ctx, day)) { ctx.bookedDays.add(day); continue; }
+      dropTemplateBookable(day, slot, placement);
     }
   }
-  // Recomputed post-revert: a day that lost its only bookable to rule 1 must
-  // not still count toward `bookedDays` below.
+  // Recomputed post-revert: a day that lost its only bookable to rule 1 is no
+  // longer a template booking day.
   templateBookingDays = [...templateSlots.entries()]
     .filter(([, slots]) => [...slots.values()].some((p) => bookableTier(p.cardEntry, tags) !== null))
     .map(([day]) => day);
   // The invariant the two passes exist to establish, enforced rather than
   // assumed (C1): no template bookable survives on a day the schedule does not
   // legalise. Reachable only from a future change to the passes above.
-  if (templateBookingDays.some((d) => !ctx.bookingDaySet.has(d))) throw new Error(`template bookable outside the booking schedule: day ${templateBookingDays.filter((d) => !ctx.bookingDaySet.has(d)).join(',')}`);
-  for (const d of templateBookingDays) if (ctx.bookingDaySet.has(d)) ctx.bookedDays.add(d);
-
-  // A pin is exempt from the schedule — the traveller chose it explicitly — but
-  // it still spends one of the trip's bookings, exactly as it is budget-exempt
-  // while still debiting the budget pool.
-  for (const [day, slots] of pinnedSlots) {
-    for (const p of slots.values()) {
-      if (bookableTier(p.cardEntry, tags) !== null) ctx.bookedDays.add(day);
+  //
+  // C3 (2026-08-19): this was a `throw`, and `generatePlan` is called from a
+  // `useState` initialiser (`src/pages/Itinerary.tsx`) with no ErrorBoundary
+  // anywhere in `src/` — so a throw here unwinds React during render and hands
+  // the traveller a blank page instead of a slightly-too-generous itinerary.
+  // Same house rule as `flagAppliesTo`'s prototype-key case
+  // (`src/data/notesFlags.test.ts`). It degrades instead: the offending slots
+  // are taken back out by the same path rule 1 uses, a warning names the days
+  // and the catalog product ids (derived data — never anything the traveller
+  // typed, per the project's logging rule), and the plan comes back valid.
+  const unscheduled = templateBookingDays.filter((d) => !ctx.bookingDaySet.has(d));
+  if (unscheduled.length) {
+    const dropped: string[] = [];
+    for (const day of unscheduled) {
+      for (const [slot, placement] of templateSlots.get(day) ?? []) {
+        if (bookableTier(placement.cardEntry, tags) === null) continue;
+        dropped.push(`day ${day}: ${entryId(placement.cardEntry)}`);
+        dropTemplateBookable(day, slot, placement);
+        ctx.bookedDays.delete(day);
+      }
     }
+    console.warn(
+      `[itinerary] template bookable outside the booking schedule — dropped ${dropped.join('; ')}. `
+      + `Schedule: ${[...ctx.bookingDaySet].sort((a, b) => a - b).join(',')}.`,
+    );
   }
   // ---------------------------------------------------------------------------
 

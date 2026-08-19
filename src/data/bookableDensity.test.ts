@@ -1,10 +1,14 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { readFileSync } from 'fs';
 import { generatePlan } from './itineraryGenerator';
 import {
   bookableTier, bookingDays, isPaidOuting,
   ANIMAL_SANCTUARY_ID, JET_SKI_ID, SUBMARINE_ID, DE_PALM_ISLAND_ID,
 } from './bookables';
+// The same module again as a namespace, so the C3 test at the bottom of this
+// file can inject a fault into it. Every other test here uses the named
+// imports above, which are the same live bindings.
+import * as bookablesModule from './bookables';
 import { resolveSlotEntry, type Catalog } from './activitySource';
 import { answersToTags } from './answerTags';
 import { ACTIVITIES } from './activities';
@@ -419,10 +423,10 @@ describe('bookable density — tier 1 has first claim', () => {
 // reach the template path with no changes needed; confirmed directly by
 // inspecting the generated plan's per-day bookable counts before writing
 // these assertions.
-function bookablesByDay(answers: Answers, seed = 0): Map<number, number> {
+function bookablesByDay(answers: Answers, seed = 0, pinned: string[] = []): Map<number, number> {
   const tags = answersToTags(answers);
   const perDay = new Map<number, number>();
-  for (const day of generatePlan(answers, CATALOG, { seed })) {
+  for (const day of generatePlan(answers, CATALOG, { seed, pinned })) {
     let n = 0;
     for (const se of [...day.morning, ...day.afternoon, ...day.evening]) {
       const card = resolveSlotEntry(se, CATALOG, tags);
@@ -730,3 +734,138 @@ describe('bookable density — every balanced trip length, 1 to 8 days', () => {
   }
 });
 
+
+// C2 (2026-08-19). A pin is exempt from the SCHEDULE but not from the COUNT:
+// the traveller's own choice lands wherever it lands, and then it has spent one
+// of the trip's bookings. `ctx.bookedDays` used to gain the pinned days only
+// AFTER the balanced template had committed and after R13 rule 1's trim had
+// run, so the pin arrived on top of a full template allocation. Measured on the
+// live catalog across 2,400 pinned cases: 328 (13.7%) over the cap, every one
+// of them an `isBalancedTraveller` persona — the only kind with a template to
+// overspend. The two below are the concrete ones, measured on THIS fixture
+// before the fix:
+//   4-day balanced couple, `item:jeep-conchi` pinned  → 2 bookings, cap 1
+//     (the pin on day 1, `antilla-wreck-dive` on day 2)
+//   10-day balanced young kids, `item:sail-day` pinned → 5 bookings, cap 4
+//     (the pin joined `antilla-wreck-dive` on day 2, and days 4, 7 and 9 all
+//     kept theirs)
+//
+// Counted as BOOKINGS and not booked DAYS on purpose: the 10-day case put two
+// on one day, so a day count alone reads 4 and passes.
+describe('bookable density — a pin spends a booking (C2)', () => {
+  const total = (perDay: Map<number, number>): number => [...perDay.values()].reduce((a, b) => a + b, 0);
+
+  it('a 4-day balanced couple who pins a jeep safari gets ONE booking, not two', () => {
+    const answers = { ...COUPLE, days: 4 };
+    const perDay = bookablesByDay(answers, 0, ['item:jeep-conchi']);
+    // `bookingDays(4, [2, 4])` is `[2]` — a cap of one for the whole trip.
+    expect(bookingDays(4, [2, 4]).length).toBe(1);
+    expect(total(perDay)).toBeLessThanOrEqual(bookingDays(4, [2, 4]).length);
+    // Not vacuous: the cap held by dropping the TEMPLATE's booking, not by
+    // dropping the traveller's own pick — the pin is still in the plan.
+    expect(total(perDay)).toBe(1);
+    const plan = generatePlan(answers, CATALOG, { seed: 0, pinned: ['item:jeep-conchi'] });
+    const placed = plan.flatMap((d) => [...d.morning, ...d.afternoon, ...d.evening])
+      .some((se) => se.kind === 'group' && se.bestSellerId === 'jeep-conchi');
+    expect(placed).toBe(true);
+  });
+
+  it('a 10-day balanced family with young kids who pins a sail stays at four bookings', () => {
+    const perDay = bookablesByDay(BALANCED_YOUNG_KIDS, 0, ['item:sail-day']);
+    expect(total(perDay)).toBeLessThanOrEqual(bookingDays(10, [2, 4]).length);
+    expect(total(perDay)).toBeGreaterThan(0);
+    // One booking per day still holds — the pin and the template's wreck
+    // snorkel both wanted day 2, and only one of them may have it.
+    for (const n of perDay.values()) expect(n).toBe(1);
+  });
+
+  // Breadth, so the fix is not two hand-picked cases: every balanced persona,
+  // every trip length the template covers, every whitelisted pin this fixture
+  // can resolve.
+  const PINS = ['item:jeep-conchi', 'item:sail-day', 'item:sail-eve', 'item:snorkel-boat', 'item:jeep-utv'];
+  for (const [name, base] of Object.entries({ couple: COUPLE, 'young kids': BALANCED_YOUNG_KIDS, teens: BALANCED_TEENS })) {
+    for (let n = 3; n <= 10; n += 1) {
+      it(`${name}, ${n} days, every pin`, () => {
+        for (const pin of PINS) {
+          const perDay = bookablesByDay({ ...base, days: n }, 0, [pin]);
+          expect(total(perDay)).toBeLessThanOrEqual(bookingDays(n, [2, 4]).length);
+          for (const c of perDay.values()) expect(c).toBe(1);
+        }
+      });
+    }
+  }
+});
+
+// C3 (2026-08-19). The invariant that closes R13 rule 1 — "no template bookable
+// survives on a day the schedule does not legalise" — used to be a `throw`.
+// `generatePlan` runs inside a `useState` initialiser (src/pages/Itinerary.tsx)
+// and there is no ErrorBoundary anywhere in `src/`, so that throw would unwind
+// React during render and hand the traveller a blank page instead of an
+// itinerary with one booking too many. Same house rule as `flagAppliesTo`'s
+// Object.prototype case (src/data/notesFlags.test.ts): degrade, do not crash.
+//
+// The path is unreachable from `generatePlan`'s own inputs by construction —
+// rule 1's trim removes exactly the entries the check looks for, and both read
+// the same `ctx.bookingDaySet`, so no combination of answers, catalog, seed or
+// pins can separate them. That is what makes it an invariant. To prove the
+// degradation works rather than merely reading it, this test injects the fault
+// the invariant exists to catch: `bookableTier` is made to lie ONCE, and only
+// after the schedule has been computed, so the trim skips `natural-pool-jeep`
+// on day 4 exactly as a future broken trim would. Nothing in the source is
+// bent for the test — the lie is in a collaborator, and the code under test
+// runs unmodified.
+//
+// 4 days and a balanced couple because that is the C1 geometry: the template
+// puts `antilla-wreck-dive` on day 2 and `natural-pool-jeep` on day 4, and
+// `bookingDays(4, [2, 4])` legalises day 2 alone.
+describe('bookable density — a template bookable outside the schedule degrades, it does not throw (C3)', () => {
+  it('drops the slot, warns with the day and the product id, and still returns a plan', () => {
+    const answers = { ...COUPLE, days: 4 };
+    const tags = answersToTags(answers);
+    const realTier = bookablesModule.bookableTier;
+    const realDays = bookablesModule.bookingDays;
+    let armed = false;
+    let lied = false;
+    vi.spyOn(bookablesModule, 'bookingDays').mockImplementation((n, must) => {
+      armed = true; // the schedule is now fixed; everything after this is the trim
+      return realDays(n, must);
+    });
+    vi.spyOn(bookablesModule, 'bookableTier').mockImplementation((e, t) => {
+      const real = realTier(e, t);
+      if (armed && !lied && real !== null && e.kind === 'activity' && e.activity.id === 'natural-pool-jeep') {
+        lied = true;
+        return null; // the trim now believes day 4 carries nothing bookable
+      }
+      return real;
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      const plan = generatePlan(answers, CATALOG, { seed: 0 });
+
+      // The fault actually landed — without this the rest could pass vacuously
+      // against an engine the injection never reached.
+      expect(lied).toBe(true);
+      expect(warn).toHaveBeenCalled();
+      const said = warn.mock.calls.map((c) => c.map(String).join(' ')).join('\n');
+      expect(said).toContain('day 4');
+      expect(said).toContain('natural-pool-jeep');
+
+      // A plan, not a crash, and not a hollow one: four days, every day carrying
+      // at least one card.
+      expect(plan).toHaveLength(4);
+      for (const day of plan) {
+        expect([...day.morning, ...day.afternoon, ...day.evening].length).toBeGreaterThan(0);
+      }
+      // And the degradation left the plan LEGAL: day 4 no longer books.
+      const bookedOn = (n: number): number => (plan.find((d) => d.day === n)
+        ? [...plan.find((d) => d.day === n)!.morning, ...plan.find((d) => d.day === n)!.afternoon,
+          ...plan.find((d) => d.day === n)!.evening]
+          .filter((se) => { const c = resolveSlotEntry(se, CATALOG, tags); return c ? realTier(c, tags) !== null : false; }).length
+        : 0);
+      expect(bookedOn(4)).toBe(0);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+});
