@@ -1509,15 +1509,25 @@ with a different mix found 25 (worst $61.40). Do not quote either as the rate.
 The durable claim is the qualitative one — it holds to within about a dollar, and
 the synthetic fixture in the test holds at ≤$60 exactly.
 
-**Known and accepted — the reported inversion is NOT closed.** Budget-conscious
-still totals more than mid-range: $393 vs $330 at 7 days on one persona, $392 vs
-$365 on an independent three-persona sweep; $564 vs $502 and $576 vs $555 at 10
-days. Every measurement agrees on the direction. The cause is that MID-RANGE
-under-books — 4 paid outings to budget's 5 — so it is a mid-range defect, not a
-budget one, and closing it means RAISING mid-range spend, which nobody asked for.
-The owner's stated target (~$60/day for budget) is met; the comparison they used
-to describe the problem is not. Whoever files the next report on this should be
-pointed here first.
+**~~Known and accepted — the reported inversion is NOT closed.~~ WITHDRAWN
+2026-08-17, same day: there is no inversion and no mid-range defect.** The claim
+above rested on ONE persona (Couple / Culture & history / adventure 50), where
+mid-range happened to draw 4 paid outings to budget's 5. A three-persona sweep
+narrowed the gap ($392 vs $365) without contradicting it, which made it look
+robust. Swept properly — 6 interest sets × 3 group types × 3 adventure levels × 3
+seeds = **162 trips per tier, at each of 5/7/10/14 days** — the tiers are cleanly
+monotonic in both spend and outings at every length:
+
+| 7-day | paid outings | total | USD/day |
+|---|---|---|---|
+| Budget-conscious | 5.2 | $386 | $55.1 |
+| Mid-range | 5.5 | $508 | $72.6 |
+| Treat yourself | 6.0 | $660 | $94.3 |
+| Money no object | 6.0 | $2377 | $339.6 |
+
+The lesson is the one this log keeps re-learning: a persona is not a measurement.
+Three personas was not enough either — what settled it was sweeping the answer
+space. Do not quote a tier comparison from fewer than ~100 trips per tier.
 
 **Symptom 2 — the Renaissance/Flamingo day pass reached budget-conscious**, and
 its card read $99 when the gate charges $125.
