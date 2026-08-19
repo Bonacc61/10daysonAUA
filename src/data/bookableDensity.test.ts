@@ -740,7 +740,9 @@ describe('bookable density — every balanced trip length, 1 to 8 days', () => {
 // of the trip's bookings. `ctx.bookedDays` used to gain the pinned days only
 // AFTER the balanced template had committed and after R13 rule 1's trim had
 // run, so the pin arrived on top of a full template allocation. Measured on the
-// live catalog across 2,400 pinned cases: 328 (13.7%) over the cap, every one
+// live catalog: an initial narrow sweep of 2,400 pinned cases found 328 (13.7%)
+// over the cap, and the full 11,340-case sweep that verified the fix measured
+// 1,224 (10.8%) before against 0 after. Every failing case was one
 // of them an `isBalancedTraveller` persona — the only kind with a template to
 // overspend. The two below are the concrete ones, measured on THIS fixture
 // before the fix:

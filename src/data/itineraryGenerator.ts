@@ -1814,8 +1814,11 @@ export function generatePlan(
   //
   // C2 (2026-08-19): this debit used to run AFTER rule 1's trim below, so the
   // trim spent the whole cap on the template and the pin was added on top of a
-  // full allocation. Measured on the live catalog across 2,400 pinned cases,
-  // 328 (13.7%) came back over the cap — every one of them an
+  // full allocation. An initial narrow sweep of 2,400 pinned cases put this at
+  // 328 (13.7%); the full sweep that verified the fix ran 11,340 and measured
+  // 1,224 (10.8%) before against 0 after. Quote the 11,340 figure — the smaller
+  // one is kept only because it is what the defect was first reported with.
+  // Every failing case was an
   // `isBalancedTraveller` persona, the only kind that has a template to
   // overspend. Two of them: a balanced couple on a 4-day trip got 2 bookings
   // against a cap of 1, and a balanced family with young kids on a 10-day trip
