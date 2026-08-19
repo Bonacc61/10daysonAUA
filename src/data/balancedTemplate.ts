@@ -67,6 +67,14 @@ export type Alternative = {
    * same route family, DEAREST-first among products that clear the champion
    * floor, capped by what `fitItem` accepts. The floor matters — the priciest private sails on the live catalog
    * have 4, 0 and 2 reviews, so "most expensive" alone picks junk.
+   *
+   * NOTE (2026-08-19): every `privateUpgrade` alternative in `BALANCED_TEMPLATE`
+   * below is UNREACHABLE — they are all typed `highBudget`, which `altTypesFor`
+   * offers only to `treat-yourself`/`money-no-object`, while the template is
+   * reached only via `isBalancedTraveller`, which requires `mid-range`; a
+   * traveller carries exactly one budget tag. Kept deliberately: removing them
+   * is a separate decision. The RULE itself is live — `privateUpgradeFor` in
+   * itineraryGenerator.ts implements it for the money-no-object upgrade.
    */
   privateUpgrade?: boolean;
   /**

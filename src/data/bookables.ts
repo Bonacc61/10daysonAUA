@@ -68,8 +68,9 @@ export function isPaidOuting(e: CardEntry): boolean {
 // Viator tags say what a product TOUCHES, not what it IS. An air-conditioned
 // bus that stops at a snorkelling beach is tagged for snorkelling; a Harley
 // rental is tagged off-road. So two of the kind-based families need a title
-// guard on top of the kind. Measured on the live catalog 2026-08-18: the guards
-// drop 16 of 88 `offroad` items and 8 of 44 `snorkel` items, including three
+// guard on top of the kind. Measured on the live catalog 2026-08-19: the guards
+// drop 17 of 88 `offroad` items (16 until the e-bike rule below) and 8 of 44
+// `snorkel` items, including three
 // with enough reviews to actually be placed — two Baby Beach shuttles ($55/111
 // reviews and $40/51 reviews, to a beach the plan already carries as a free
 // card) and a sightseeing bus.
@@ -77,6 +78,22 @@ export function isPaidOuting(e: CardEntry): boolean {
 // `activityKind` is a good dedup key and a poor eligibility filter. Any family
 // added here later must be audited by title before it is trusted.
 const JEEP_TITLE = /\b(jeeps?|4x4|4wd|off.?road|utv|atv|buggy|safari|natural pool|conchi)\b/i;
+// ...and the vehicles that are NOT the jeep/UTV family however they are
+// advertised. "Epic Off-Road Surron Electric Bike Tour in Aruba" ($160, 42
+// reviews) reached the whitelist purely because "Off-Road" is in its name; it
+// is an e-bike tour, the same class as the e-scooters that were already out —
+// they are out only because no word in JEEP_TITLE happens to appear in their
+// titles, which is luck rather than a rule.
+//
+// Applied to the OFF-ROAD row alone, deliberately. "scooter" is not a
+// disqualifier everywhere: "Aruba Seabob Scooter Reef Tour" ($97, 231 reviews)
+// is a sea scooter and clears the snorkel row on its own merits. Checked
+// against the live catalog — of the 16 titles naming a bike, a moped or a
+// scooter, the Surron tour is the only one JEEP_TITLE matches at all, and the
+// three genuine off-road tours the owner named stay eligible ("Private
+// Off-Road Adventure to Cave Pool and Tres Trapi", "Aruba Off Road Safari Tour
+// to Natural Pool", "Aruba Off-Road ATV Tour" — none names a bike).
+const TWO_WHEELER_TITLE = /\b(e[\s-]?bikes?|bikes?|biking|bicycles?|cycling|mopeds?|scooters?)\b/i;
 const WATER_TITLE = /\b(snorkel(?:l?ing)?|catamaran|sail|cruise|boat|charter|seabob|reef|wreck|sea scooter|island|day pass)\b/i;
 
 // Products named individually because no kind rule can reach them: the sanctuary
@@ -149,7 +166,9 @@ export function bookableTier(e: CardEntry, tags: Set<MatchTag>): BookableTier | 
   const kind = activityKind(item);
   if (kind === 'sail') return 1;
   if (kind === 'snorkel') return WATER_TITLE.test(item.title) ? 1 : null;
-  if (kind === 'offroad') return JEEP_TITLE.test(item.title) ? 1 : null;
+  if (kind === 'offroad') {
+    return JEEP_TITLE.test(item.title) && !TWO_WHEELER_TITLE.test(item.title) ? 1 : null;
+  }
   // Photo services LAST (ruling R10, 2026-08-18 — moved below the kind rows).
   //
   // I4 (final whole-branch review, 2026-08-18): this row asked

@@ -10,6 +10,7 @@ import {
 // imports above, which are the same live bindings.
 import * as bookablesModule from './bookables';
 import { resolveSlotEntry, type Catalog } from './activitySource';
+import { activityKind, isNaturalPool } from './itemFit';
 import { answersToTags } from './answerTags';
 import { ACTIVITIES } from './activities';
 import { DEFAULT_ANSWERS, type Answers } from '../App';
@@ -62,9 +63,12 @@ function fixture(): Catalog {
     mk('sail-eve', 'sailing', 'Aruba Sunset Sail Dinner Cruise with Open Bar', [11888], 137),
     // Tier 1, everyone: snorkel family, title passes the water guard.
     mk('snorkel-boat', 'sailing', 'Antilla Shipwreck and Catalina Bay Snorkel Sail', [11912], 79),
-    // Tier 1, everyone: off-road family, TWO different route families —
-    // natural-pool (title names it) vs generic offroad (does not) — which is
-    // what lets a 10-day trip reach four distinct bookings.
+    // Tier 1, everyone: the off-road family. These were TWO route families
+    // until 2026-08-19 — 'natural-pool' when the title named the pool and
+    // 'offroad' when it did not — which is how a 10-day trip reached four
+    // distinct bookings here. They are ONE family now (they are one excursion),
+    // so this fixture supplies three, not four; every count assertion below is
+    // an upper bound and none of them moved.
     mk('jeep-conchi', 'offroad-tours', 'Aruba Natural Pool and Indian Cave Rugged Jeep Safari', [12035], 99),
     mk('jeep-utv', 'offroad-tours', 'Aruba UTV & ATV Adventure', [12035], 162),
     // Excluded: wears the off-road tag but fails the JEEP_TITLE guard.
@@ -192,15 +196,17 @@ describe('bookable density — the pre-passes obey the schedule', () => {
   // fill ladder was provably uncovered until this task gated the pre-passes.
   // R12 (2026-08-18, fix round 1): the FIRST attempt at this test used
   // `OFFROAD_NO_BOATS`, whose `no-boats` flag strips every whitelisted family
-  // down to two (`natural-pool`, generic `offroad`) — never enough candidates
-  // to exceed a 4-day schedule regardless of whether any debit line works.
+  // down to two (`natural-pool` and generic `offroad`, one family since
+  // 2026-08-19) — never enough candidates to exceed a 4-day schedule
+  // regardless of whether any debit line works.
   // This persona keeps boats AND unlocks the two named-id bookables
   // (`137607P22` needs `teensAdventurous`, `2455P18` needs `anyKids`, both
   // true for 'Family with teens'), so six distinct bookable "demand units"
   // compete for a cap of four: day-sail (private-charter/sail-day/snorkel-boat,
-  // one wins), evening-cruise (sail-eve), natural-pool (jeep-conchi, pinned
-  // off-schedule below), generic offroad (jeep-utv), and the two family-less
-  // named ids. That surplus is what makes overshoot observable at all.
+  // one wins), evening-cruise (sail-eve), off-road (jeep-conchi, pinned
+  // off-schedule below, and jeep-utv — two demand units when this was written,
+  // one route family since 2026-08-19), and the two family-less named ids.
+  // That surplus is what makes overshoot observable at all.
   //
   // Mutation-verified individually against this exact scenario (seed 0,
   // `if (false && ...)` in place of each line in turn, everything else left
@@ -914,5 +920,249 @@ describe('bookable density — a template bookable outside the schedule degrades
     } finally {
       vi.restoreAllMocks();
     }
+  });
+});
+
+// === 2026-08-19: one route family for every off-road excursion ==============
+//
+// `routeFamilyOf` used to answer 'natural-pool' when the title named the pool
+// and 'offroad' when it did not. Each retired independently, so a trip got one
+// of each. Measured over the LIVE catalog — 576 plans, 6 group types × 4
+// budgets × 3 adventure levels × 4 interest sets × 2 seeds, 10-day trips — 188
+// (32.6%) carried more than one off-road excursion, and every offending plan
+// was that exact pair. The clearest case among the four products involved:
+// "Island Jeep Safari with Natural Pool Baby Beach and Lunch" and "Elite Jeep
+// Safari with lunch and beer and open bar" are the same excursion, the same
+// vehicle, the same place — one names the pool and the other does not.
+//
+// The catalog below is the module fixture and NOT `getCatalog()`, for the
+// reason R2 records at the top of this file: the offline stub carries no Viator
+// tag ids, so nothing in it classifies as off-road and every assertion here
+// would pass against any engine at all.
+//
+// It does need two changes to the fixture, and both are it becoming MORE like
+// the live catalog rather than less. On the fixture as it stands the bug
+// cannot reproduce, for two reasons that have nothing to do with route
+// families: `jeep-conchi` and `jeep-utv` share a Viator GROUP (which the
+// generator retires after one placement) and carry IDENTICAL tag arrays (so the
+// Jaccard similarity rule reads the second as a duplicate of the first). The
+// route family exists precisely because neither of those nets catches the real
+// pair — it "spans groups on purpose", and the live products' tag sets differ.
+// So the two are split into separate groups and given the two distinct
+// off-road tags Viator actually uses, 12035 (4WD/Jeep) and 21421 (ATV).
+// Measured with those two changes and the fix reverted: 355 of the 576 cases
+// below carry two off-road excursions. With the fix: 0.
+function offroadCatalog(): Catalog {
+  const base = fixture();
+  return {
+    ...base,
+    groups: [...base.groups, { id: 'utv-tours', name: 'UTV & ATV Tours', tagline: '',
+      viator_taxonomy: '', viator_group_url: '', display_order: 3, matched_by: [],
+      region: 'islandwide', allowed_slots: [] }],
+    items: base.items.map((i) => {
+      if (i.id === 'jeep-conchi') return { ...i, tags: [12035, 903, 904] };
+      if (i.id === 'jeep-utv') return { ...i, group_id: 'utv-tours', tags: [21421, 901, 902] };
+      return i;
+    }),
+  };
+}
+const OFFROAD_CATALOG = offroadCatalog();
+
+// An off-road excursion as a TRAVELLER would recognise one, deliberately
+// independent of the family names the engine uses: a Viator product Viator's
+// own tags call off-road, or one whose title names the natural pool. Asserting
+// on `routeFamilyOf` would only prove the function agrees with itself.
+function offroadCardsIn(answers: Answers, seed: number): string[] {
+  const tags = answersToTags(answers);
+  const out: string[] = [];
+  for (const day of generatePlan(answers, OFFROAD_CATALOG, { seed })) {
+    for (const se of [...day.morning, ...day.afternoon, ...day.evening]) {
+      const card = resolveSlotEntry(se, OFFROAD_CATALOG, tags);
+      if (!card || card.kind !== 'group') continue;
+      if (activityKind(card.bestSeller) === 'offroad' || isNaturalPool(card.bestSeller)) {
+        out.push(card.bestSeller.id);
+      }
+    }
+  }
+  return out;
+}
+
+describe('route families — one off-road excursion per trip', () => {
+  const GROUP_TYPES = ['Solo', 'Couple', 'Friends', 'Family with young kids', 'Family with teens', 'Multi-gen'];
+  const BUDGETS = ['Budget-conscious', 'Mid-range', 'Treat yourself', 'Money no object'];
+  const ADVENTURE = [20, 50, 85];
+  const INTEREST_SETS = [
+    ['Beach & chill'],
+    ['Adventure & adrenaline'],
+    ['Watersports', 'Adventure & adrenaline'],
+    ['Nature & hiking', 'Culture & history'],
+  ];
+
+  it('places at most one, across all 576 persona/seed combinations', () => {
+    let plans = 0;
+    let withOne = 0;
+    const offenders: string[] = [];
+    const distinct = new Set<string>();
+    for (const groupType of GROUP_TYPES) {
+      for (const budget of BUDGETS) {
+        for (const adventureLevel of ADVENTURE) {
+          for (const interests of INTEREST_SETS) {
+            for (const seed of [0, 1]) {
+              const answers: Answers = { ...DEFAULT_ANSWERS, days: 10, groupType, budget, adventureLevel, interests };
+              const found = offroadCardsIn(answers, seed);
+              plans += 1;
+              if (found.length > 0) withOne += 1;
+              for (const id of found) distinct.add(id);
+              if (found.length > 1) {
+                offenders.push(`${groupType}/${budget}/adv${adventureLevel}/${interests.join('+')}/seed${seed}: ${found.join(' + ')}`);
+              }
+            }
+          }
+        }
+      }
+    }
+    expect(plans).toBe(576);
+    expect(offenders).toEqual([]);
+    // ...and not vacuously. Every assertion above is an upper bound, so an
+    // engine placing no off-road tour at all would satisfy all of them — which
+    // is exactly what the offline stub does, and why this fixture exists.
+    expect(withOne).toBeGreaterThan(400);
+    // Both off-road products stay REACHABLE. The bug was that they were
+    // reachable at the same time, not that one of them was unreachable, and a
+    // fix that simply deleted one from the catalog would be no fix.
+    expect(distinct).toEqual(new Set(['jeep-conchi', 'jeep-utv']));
+  });
+});
+
+// === 2026-08-19: the private upgrade for a money-no-object traveller ========
+//
+// When a booking is placed for a traveller carrying `money-no-object`, the
+// standard pick is REPLACED by the private version of the same route family.
+// It replaces rather than adds, so the trip's booking cap is untouched.
+//
+// The candidate is sourced from the flag-filtered catalog and NOT from the
+// champion-narrowed fill pool, and that is the whole feature: a private tour
+// and its group version very likely share an `experience_cluster_id`, and
+// `championsByExperience` keeps one item per cluster — the well-reviewed group
+// one, every time. Sourced from the fill pool this would find nothing and look
+// implemented while doing nothing, which is exactly how the influencer feature
+// died. The two catalogs below exist to prove it did not happen again.
+//
+// The fixture needs 60+ items for any of this to be observable at all:
+// `MIN_CATALOG_TO_FLOOR` is 60, so below that the generator skips
+// `championsByExperience` entirely and the private variant would stay in the
+// fill pool whatever the sourcing. The 50 padding items are paid products the
+// whitelist does not name, so `isExcludedPaidProduct` keeps them out of the
+// plan — they change the pool's SIZE and nothing else.
+function privateUpgradeCatalog(shareCluster: boolean): Catalog {
+  const base = fixture();
+  const mkFiller = (n: number): ViatorItem => ({
+    id: `filler-${n}`, group_id: 'misc-tours', title: `Aruba Sightseeing Coach Tour ${n}`,
+    image_url: '', price_usd: 50, duration: '', rating: 4.5, review_count: 500,
+    viator_item_url: '', is_best_seller: false, display_order: 0, tags: [],
+    experience_cluster_id: `filler-cluster-${n}`,
+  });
+  const items: ViatorItem[] = base.items.map((i) => (i.id === 'jeep-conchi'
+    ? { ...i, experience_cluster_id: 'offroad-cluster' }
+    : { ...i, experience_cluster_id: `own-cluster-${i.id}` }));
+  items.push({
+    id: 'jeep-private', group_id: 'offroad-tours',
+    title: 'Private Jeep Safari to Arikok with Your Own Guide',
+    image_url: '', price_usd: 250, duration: '', rating: 4.8,
+    // Clears MIN_CHAMPION_REVIEWS (25), which the upgrade rule requires — the
+    // priciest private sails on the live catalog have 4, 0 and 2 reviews, so
+    // "dearest" without a floor picks junk. It still loses its cluster to
+    // `jeep-conchi`, which has 500 reviews AND is a crowd-pleaser.
+    review_count: 40,
+    viator_item_url: '', is_best_seller: false, display_order: 0, tags: [12035],
+    experience_cluster_id: shareCluster ? 'offroad-cluster' : 'private-own-cluster',
+  });
+  // The dearest private off-road tour in this catalog, and worthless: 3
+  // reviews. The rule takes the DEAREST that clears the champion floor, not the
+  // dearest, and this is what makes that half of the rule testable — drop the
+  // floor and this wins every assertion below.
+  items.push({
+    id: 'jeep-private-junk', group_id: 'offroad-tours',
+    title: 'Private Luxury Jeep Safari Experience', image_url: '', price_usd: 400,
+    duration: '', rating: 5, review_count: 3, viator_item_url: '', is_best_seller: false,
+    display_order: 0, tags: [12035], experience_cluster_id: 'junk-cluster',
+  });
+  for (let n = 0; n < 50; n += 1) items.push(mkFiller(n));
+  return { ...base, items };
+}
+const CLUSTERED = privateUpgradeCatalog(true);    // private variant hidden by the champion pass
+const UNCLUSTERED = privateUpgradeCatalog(false); // private variant is its own champion
+
+function placedIdsOn(catalog: Catalog, answers: Answers, seed: number): string[] {
+  const ids: string[] = [];
+  for (const day of generatePlan(answers, catalog, { seed })) {
+    for (const se of [...day.morning, ...day.afternoon, ...day.evening]) {
+      if (se.kind === 'group') ids.push(se.bestSellerId);
+    }
+  }
+  return ids;
+}
+
+const RICH: Answers = {
+  ...DEFAULT_ANSWERS, days: 10, groupType: 'Couple', budget: 'Money no object',
+  interests: ['Adventure & adrenaline'], adventureLevel: 60,
+};
+// The SAME traveller one budget tier down. $250 is under this tier's $400
+// per-item ceiling, so if the private jeep never appears it is because of the
+// tag and not because they could not afford it.
+const NEARLY_RICH: Answers = { ...RICH, budget: 'Treat yourself' };
+
+describe('the private upgrade — money-no-object gets the private variant', () => {
+  it('replaces the standard off-road booking with the private one', () => {
+    for (const seed of [0, 1, 2]) {
+      const placed = placedIdsOn(CLUSTERED, RICH, seed);
+      expect(placed).toContain('jeep-private');
+      // REPLACES, never adds: the standard version is not in the plan as well.
+      expect(placed).not.toContain('jeep-conchi');
+    }
+  });
+
+  it('leaves a treat-yourself traveller on the standard one, though they could afford it', () => {
+    for (const seed of [0, 1, 2]) {
+      const placed = placedIdsOn(CLUSTERED, NEARLY_RICH, seed);
+      expect(placed).toContain('jeep-conchi');
+      expect(placed).not.toContain('jeep-private');
+    }
+  });
+
+  // The assertion that stops this feature dying quietly. In CLUSTERED the
+  // private jeep shares its experience cluster with the 500-review, crowd-
+  // pleasing `jeep-conchi` and so is NOT in the champion-narrowed fill pool —
+  // proven by the treat-yourself case above, which searches the same catalog
+  // through the ordinary ladder and never reaches it. In UNCLUSTERED it has a
+  // cluster to itself and IS a champion. The upgrade must fire identically in
+  // both: sourced from the fill pool it would fire only in UNCLUSTERED, and
+  // this test is what turns that into a red build rather than a silent no-op.
+  it('fires whether or not the champion pass would have kept the private variant', () => {
+    for (const seed of [0, 1, 2]) {
+      expect(placedIdsOn(CLUSTERED, RICH, seed)).toContain('jeep-private');
+      expect(placedIdsOn(UNCLUSTERED, RICH, seed)).toContain('jeep-private');
+    }
+  });
+
+  // Replacing rather than adding means the trip books exactly as often as it
+  // did before, on exactly the same days.
+  it('leaves the booking count and the booking days untouched', () => {
+    const tags = answersToTags(RICH);
+    const bookedOn = (answers: Answers): number[] => {
+      const out: number[] = [];
+      for (const day of generatePlan(answers, CLUSTERED, { seed: 0 })) {
+        const any = [...day.morning, ...day.afternoon, ...day.evening].some((se) => {
+          const card = resolveSlotEntry(se, CLUSTERED, tags);
+          return card ? bookableTier(card, answersToTags(answers)) !== null : false;
+        });
+        if (any) out.push(day.day);
+      }
+      return out;
+    };
+    const rich = bookedOn(RICH);
+    expect(rich.length).toBeGreaterThan(0);
+    expect(rich.length).toBeLessThanOrEqual(bookingDays(10).length);
+    expect(rich).toEqual(bookedOn(NEARLY_RICH));
   });
 });

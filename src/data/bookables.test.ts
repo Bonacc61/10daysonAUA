@@ -47,6 +47,38 @@ describe('bookableTier — kind families', () => {
     expect(bookableTier(ESCOOTER, tags('couple'))).toBe(null);
   });
 
+  // 2026-08-19. "Epic Off-Road Surron Electric Bike Tour in Aruba" ($160, 42
+  // reviews) was a bookable for one reason only: "Off-Road" is in its name. It
+  // is an e-bike tour — the same class as the e-scooters above, which are out
+  // only because no JEEP_TITLE word happens to appear in their titles.
+  //
+  // Both directions, because a rule that simply narrowed the off-road row would
+  // pass the first assertion and quietly delete the family. The three tours
+  // below are live products the owner named as ones that MUST stay eligible.
+  it('rejects an off-road e-bike tour', () => {
+    expect(bookableTier(
+      group({ title: 'Epic Off-Road Surron Electric Bike Tour in Aruba', tags: [12035] }), tags('couple'),
+    )).toBe(null);
+  });
+
+  it('still accepts genuine off-road tours that name no bike', () => {
+    for (const title of [
+      'Private Off-Road Adventure to Cave Pool and Tres Trapi',
+      'Aruba Off Road Safari Tour to Natural Pool',
+      'Aruba Off-Road ATV Tour',
+    ]) {
+      expect(bookableTier(group({ title, tags: [12035] }), tags('couple'))).toBe(1);
+    }
+  });
+
+  // The exclusion is scoped to the OFF-ROAD row and must stay there: "scooter"
+  // is not a disqualifier in the water, where a sea scooter is the outing.
+  it('leaves the seabob scooter reef tour on the snorkel row', () => {
+    expect(bookableTier(
+      group({ title: 'Aruba Seabob Scooter Reef Tour', tags: [11912] }), tags('couple'),
+    )).toBe(1);
+  });
+
   it('rejects anything free, because a booking costs money', () => {
     expect(bookableTier(group({ title: 'Free Sail', tags: [11888], price_usd: 0 }), tags('couple'))).toBe(null);
   });

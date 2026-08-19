@@ -498,8 +498,9 @@ type Ctx = {
 
 // The shared "route family" of an entry: tours that are the same real-world
 // experience and so shouldn't both be recommended, retired trip-wide after one
-// placement. Four families today, each defined below where it is matched:
-// 'natural-pool', 'offroad', 'kayak' and 'sail'.
+// placement. Three families today, each defined below where it is matched:
+// 'offroad' (which since 2026-08-19 covers the Natural Pool runs too — they are
+// the same excursion), 'kayak' and 'sail'.
 // undefined = no family (dedup by cluster/tag only).
 // A free, unbookable local beach. These are the only things a traveller
 // genuinely returns to — you go back to Eagle Beach on Thursday, you do not do
@@ -672,12 +673,25 @@ export function isSailOuting(item: ViatorItem): boolean {
 // groups on purpose — that is the bug it was written for.
 export function routeFamilyOf(e: CardEntry): string | undefined {
   const title = e.kind === 'group' ? e.bestSeller.title : e.activity.title;
-  // Conchi gets its OWN family, retired after one visit however it is reached.
-  // The generic off-road family only catches items whose tags classify them as
+  // The natural-pool test STAYS, and it still earns its keep: the generic
+  // off-road family below only catches items whose TAGS classify them as
   // off-road, and on the live catalog the 21 Natural Pool products split three
-  // ways — 17 off-road, 3 hike, 1 cruise — so a Natural Pool hike and a Natural
-  // Pool jeep safari were free to appear in the same trip. It is one place.
-  if (isNaturalPool({ title })) return 'natural-pool';
+  // ways — 17 off-road, 3 hike, 1 cruise — so without this a Natural Pool HIKE
+  // and a Natural Pool jeep safari were free to appear in the same trip. It is
+  // one place.
+  //
+  // What changed (2026-08-19) is the ANSWER, not the test. This used to return
+  // its own 'natural-pool' family, which retired independently of 'offroad' —
+  // so a trip got one of each. Measured over 576 live plans (6 group types × 4
+  // budgets × 3 adventure levels × 4 interest sets × 2 seeds, 10 days): 188
+  // (32.6%) carried two off-road excursions, and every single one was the pair
+  // `natural-pool + offroad`. The clearest case is that "Elite Jeep Safari with
+  // lunch and beer and open bar" and "Island Jeep Safari with Natural Pool Baby
+  // Beach and Lunch" are the same excursion in the same vehicle to the same
+  // place — one names the pool in its title and the other does not. The title
+  // does not reliably say where a tour goes, so it must not decide which family
+  // a tour retires. Both branches now return the SAME family name.
+  if (isNaturalPool({ title })) return 'offroad';
   if (e.kind === 'group') {
     const kind = activityKind(e.bestSeller);
     // An island day pass is a destination, not a boat trip, even though Viator
@@ -742,6 +756,59 @@ export function routeFamilyOf(e: CardEntry): string | undefined {
   if (CRUISE_PLACE_RE.test(title)) return undefined;
   if (!LOCAL_SAIL_RE.test(title)) return undefined;
   return isEveningItem({ title } as ViatorItem) ? 'evening-cruise' : 'day-sail';
+}
+
+// --- The private upgrade ---------------------------------------------------
+//
+// The rule is not new and is not written here: it is the one already stated in
+// the `Alternative.privateUpgrade` docstring (balancedTemplate.ts) — "the
+// private/luxury version of whatever the default is, same route family,
+// DEAREST-first among products that clear the champion floor, capped by what
+// `fitItem` accepts". This is that rule EXTRACTED, so its second caller (the
+// money-no-object upgrade in the fill ladder, 2026-08-19) shares it rather than
+// mirroring it. `tools/plan-diff.ts`'s header records what mirroring costs.
+//
+// The champion floor is load-bearing rather than decorative: on the live
+// catalog the three priciest private sails have 4, 0 and 2 reviews, so
+// "dearest" on its own picks junk.
+const PRIVATE_TITLE_RE = /private|luxury|yacht|charter/i;
+
+/**
+ * The private/luxury version of `standard`, or undefined when the catalog holds
+ * none that fits.
+ *
+ * `catalog` MUST be the flag-filtered catalog and NOT the champion-narrowed
+ * fill pool, and that is the whole reason this feature works at all. A private
+ * tour and its group version are very likely in the same experience cluster,
+ * and `championsByExperience` keeps ONE item per cluster — the well-reviewed
+ * group one, every time, because a private charter can never out-review the
+ * $65 cruise it shares a cluster with. Sourced from the fill pool this would
+ * silently find nothing and the feature would look implemented and do nothing.
+ * That is not hypothetical: it is exactly how the influencer feature died
+ * (champion selection ran before the whitelist was consulted, kept a clear-kayak
+ * tour, and put every genuine photoshoot behind it out of reach). The premium
+ * splurge pre-pass sources from `filteredCatalog` for the same reason.
+ */
+function privateUpgradeFor(
+  standard: CardEntry, catalog: Catalog, tags: Set<MatchTag>,
+): Extract<CardEntry, { kind: 'group' }> | undefined {
+  const want = routeFamilyOf(standard);
+  if (!want) return undefined;
+  const standardId = standard.kind === 'group' ? standard.bestSeller.id : undefined;
+  const best = catalog.items
+    .filter((i) => i.id !== standardId
+      && PRIVATE_TITLE_RE.test(i.title)
+      && (i.review_count ?? 0) >= MIN_CHAMPION_REVIEWS
+      && !fitItem(i, tags).rejected
+      && routeFamilyOf({ kind: 'group', group: { id: i.group_id } as ViatorGroup, bestSeller: i, others: [] }) === want)
+    // Tiebreak on id after price, so two equally-dear privates resolve the same
+    // way whatever order the catalog arrives in — the same stability rule the
+    // champion and splurge selections already follow.
+    .sort((a, b) => b.price_usd - a.price_usd || (a.id < b.id ? -1 : 1))[0];
+  if (!best) return undefined;
+  const group = catalog.groups.find((g) => g.id === best.group_id);
+  if (!group) return undefined;
+  return { kind: 'group', group, bestSeller: best, others: otherItemsInGroup(group.id, best.id, catalog) };
 }
 
 // Whether a bookable may be placed on this day. Pins bypass the SCHEDULE half
@@ -1694,23 +1761,18 @@ export function generatePlan(
         return group ? { kind: 'group', group, bestSeller: item, others: otherItemsInGroup(group.id, item.id, filteredCatalog) } : undefined;
       }
       if (!alt.privateUpgrade) return undefined;
-      // The rule: the private/luxury version of whatever the default is. Same
-      // route family, so a snorkel-sail slot cannot upgrade into a jeep tour;
-      // must clear the champion floor, because the priciest private sails on
-      // the live catalog have 4, 0 and 2 reviews; then the dearest that
-      // `fitItem` will still accept, which is what makes the traveller's cap
-      // decide how far the upgrade goes.
-      const want = routeFamilyOf(fallback);
-      if (!want) return undefined;
-      const best = filteredCatalog.items
-        .filter((i) => /private|luxury|yacht|charter/i.test(i.title)
-          && (i.review_count ?? 0) >= MIN_CHAMPION_REVIEWS
-          && !fitItem(i, tags).rejected
-          && routeFamilyOf({ kind: 'group', group: { id: i.group_id } as ViatorGroup, bestSeller: i, others: [] }) === want)
-        .sort((a, b) => b.price_usd - a.price_usd)[0];
-      if (!best) return undefined;
-      const group = filteredCatalog.groups.find((g) => g.id === best.group_id);
-      return group ? { kind: 'group', group, bestSeller: best, others: otherItemsInGroup(group.id, best.id, filteredCatalog) } : undefined;
+      // The rule lives in `privateUpgradeFor` (above), shared with the
+      // money-no-object upgrade in the fill ladder rather than restated here.
+      //
+      // UNREACHABLE on today's table, recorded rather than deleted (2026-08-19).
+      // Every `privateUpgrade` alternative in `BALANCED_TEMPLATE` is typed
+      // `highBudget`, and `altTypesFor` only offers that type to a
+      // `treat-yourself` or `money-no-object` traveller — while the template is
+      // reached only through `isBalancedTraveller`, which requires `mid-range`.
+      // A traveller carries exactly one budget tag, so the two conditions can
+      // never both hold. Deleting the alternatives is a separate decision and
+      // deliberately not taken here.
+      return privateUpgradeFor(fallback, filteredCatalog, tags);
     };
 
     // R13 (2026-08-18): the template places unconditionally and never passes
@@ -2464,8 +2526,35 @@ export function generatePlan(
     // Theme-first: the day's anchor (first placed) slot is biased toward the
     // day theme; later slots fill freely (variety).
     const themeId = picks.length === 0 ? dayTheme?.id : undefined;
-    const pick = pickForSlot(ctx, slot, anchor, anchorCoord, maxP, usedKinds, feasible, themeId, lastResort);
+    let pick = pickForSlot(ctx, slot, anchor, anchorCoord, maxP, usedKinds, feasible, themeId, lastResort);
     if (!pick) return;
+    // --- Private upgrade for a money-no-object traveller (2026-08-19) --------
+    // When this slot's pick is one of the trip's BOOKINGS, swap it for the
+    // private version of the same route family. It REPLACES the standard pick
+    // rather than adding a card, so the trip's booking cap is untouched — the
+    // day books once either way, just better.
+    //
+    // Sourced from `filteredCatalog`, never from `fillCatalog`: see
+    // `privateUpgradeFor`, where the reason is written down. A private tour
+    // usually shares its experience cluster with the group version and so is
+    // not in the champion-narrowed pool at all.
+    //
+    // Re-checked through `feasible` and not merely substituted. A private tour
+    // is a different product with a different duration, a different price and
+    // its own whitelist standing, so it has to clear the same day shape, time
+    // budget, per-day paid-outing rule and whitelist gate the standard pick
+    // did. If it cannot, the standard pick stands — an upgrade is a preference,
+    // never a reason to leave the slot worse or empty. A candidate the trip has
+    // already placed, or whose experience it already carries, is no upgrade at
+    // all and is refused on those grounds first.
+    if (ctx.tags.has('money-no-object') && bookableTier(pick, ctx.tags) !== null) {
+      const upgrade = privateUpgradeFor(pick, filteredCatalog, ctx.tags);
+      const cid = upgrade?.bestSeller.experience_cluster_id;
+      const fresh = !!upgrade
+        && !ctx.lastUsedDay.has(entryId(upgrade))
+        && !(cid && ctx.usedClusterIds.has(cid));
+      if (upgrade && fresh && feasible(upgrade)) pick = upgrade;
+    }
     budgetLeft -= entryPrice(pick);
     if (bookableTier(pick, ctx.tags) !== null) ctx.bookedDays.add(d);
     ctx.lastUsedDay.set(entryId(pick), d);

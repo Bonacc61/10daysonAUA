@@ -55,7 +55,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   const tags    = useMemo(() => answersToTags(answers), [answers]);
 
   // Human words for the route families, for the duplicate note below. A family
-  // id is an internal token ('natural-pool'); the badge has to read like English.
+  // id is an internal token ('day-sail'); the badge has to read like English.
   // Every value tripRouteFamily can return must appear here — the badge renders
   // `⚠ 2nd {label} this trip`, so a miss puts a raw internal token in front of a
   // traveller. 'day-sail'/'evening-cruise' were missed when the sail family
@@ -63,7 +63,11 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   // DEFAULT 10-day plan.
   const FAMILY_LABEL: Record<string, string> = {
     sail: 'sail', 'day-sail': 'daytime sail', 'evening-cruise': 'evening cruise',
-    offroad: 'off-road tour', kayak: 'kayak trip', 'natural-pool': 'Natural Pool visit',
+    // 'natural-pool' was a family of its own until 2026-08-19 and is now folded
+    // into 'offroad' (routeFamilyOf) — the same excursion under two names. Its
+    // label is dropped with it: an entry for a family nothing can return would
+    // read as a contract this map does not have.
+    offroad: 'off-road tour', kayak: 'kayak trip',
   };
 
   // Build the initial itinerary from the answers + the live catalog (Viator

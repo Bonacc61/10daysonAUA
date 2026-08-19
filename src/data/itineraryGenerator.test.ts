@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generatePlan, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies, isPaidOuting, isBoatOuting, dayCapFamilyOf, gapFamilyOf } from './itineraryGenerator';
+import { generatePlan, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies, isPaidOuting, isBoatOuting, dayCapFamilyOf, gapFamilyOf, routeFamilyOf } from './itineraryGenerator';
 import { getCatalog } from './activitySource';
 import { DEFAULT_ANSWERS } from '../App';
 import type { Answers } from '../App';
@@ -2502,17 +2502,72 @@ describe('route families outside the generator (swap / add paths)', () => {
   const sailA = mkItem('sail-a', 'Premium Catamaran Afternoon Sail', [SAIL, 1]);
   const sailB = mkItem('sail-b', 'Aruba Sunset Sail with Open Bar', [SAIL, 2]);
   const jeep = mkItem('jeep', 'Arikok Jeep Safari', [OFFROAD, 3]);
+  // The pair the 2026-08-19 collapse is about: the SAME excursion, in the same
+  // vehicle, to the same place — one names the pool in its title and the other
+  // does not. Both titles are live products, quoted verbatim.
+  const jeepPool = mkItem('jeep-pool', 'Island Jeep Safari with Natural Pool Baby Beach and Lunch', [OFFROAD, 4]);
+  const utv = mkItem('utv', 'Aruba UTV & ATV Adventure', [OFFROAD, 5]);
   const entry = (i: ViatorItem): CardEntry => ({ kind: 'group', group: mkGroup(i.group_id), bestSeller: i, others: [] });
   const slotEntryOf = (i: ViatorItem): SlotEntry => ({ kind: 'group', groupId: i.group_id, bestSellerId: i.id });
   const resolve = (c: { uid: string; entry: SlotEntry }): CardEntry | null => {
     if (c.entry.kind !== 'group') return null;
-    const i = [sailA, sailB, jeep].find((x) => x.id === (c.entry as { bestSellerId: string }).bestSellerId);
+    const i = [sailA, sailB, jeep, jeepPool, utv].find((x) => x.id === (c.entry as { bestSellerId: string }).bestSellerId);
     return i ? entry(i) : null;
   };
 
   it('reports the families a plan has already used', () => {
     const cards = [{ uid: 'u1', entry: slotEntryOf(sailA) }, { uid: 'u2', entry: slotEntryOf(jeep) }];
     expect(claimedRouteFamilies(cards, resolve, 5)).toEqual(new Set(['sail', 'offroad']));
+  });
+
+  // 2026-08-19: the reported bug. `routeFamilyOf` returned 'natural-pool' when
+  // the title named the pool and 'offroad' when it did not, so the two retired
+  // INDEPENDENTLY and a trip got one of each — measured at 188 of 576 live
+  // plans (32.6%), every one of them that exact pair. They are one experience.
+  it('gives a pool-naming jeep and a plain jeep the SAME family', () => {
+    expect(routeFamilyOf(entry(jeepPool))).toBe('offroad');
+    expect(routeFamilyOf(entry(jeep))).toBe('offroad');
+    expect(routeFamilyOf(entry(utv))).toBe('offroad');
+  });
+
+  // The natural-pool TEST still earns its keep even though both branches now
+  // answer the same. `activityKind` reads Viator's tags, and the 21 live
+  // Natural Pool products split 17 off-road / 3 hike / 1 cruise — so a pool
+  // HIKE reaches no kind rule and would claim nothing without it, leaving a
+  // pool hike and a pool jeep free to share a trip. This is the item that
+  // proves the branch is load-bearing: no off-road tag, pool in the title.
+  it('still catches a Natural Pool trip its Viator tags do NOT call off-road', () => {
+    const HIKING = 11902;
+    const poolHike = mkItem('pool-hike', 'Arikok Natural Pool Hiking Adventure', [HIKING, 6]);
+    expect(activityKind(poolHike)).not.toBe('offroad');
+    expect(routeFamilyOf(entry(poolHike))).toBe('offroad');
+  });
+
+  // The owner's explicit requirement: tapping "Swap this" on an off-road card
+  // must still offer the OTHER vehicle. `Itinerary.tsx` passes the swapped
+  // card's uid as `skipUid`, so the card being replaced does not claim its own
+  // family — and the collapse makes this strictly better, because a plan
+  // holding one of each family used to exclude BOTH from every swap.
+  it('still offers the other off-road vehicle when swapping an off-road card', () => {
+    const cards = [{ uid: 'u1', entry: slotEntryOf(sailA) }, { uid: 'u2', entry: slotEntryOf(jeepPool) }];
+    const claimed = claimedRouteFamilies(cards, resolve, 5, 'u2');   // swapping the pool jeep
+    expect(claimed).toEqual(new Set(['sail']));                       // off-road is NOT claimed
+    const pool = withoutClaimedFamilies([entry(utv), entry(jeep), entry(sailB)], claimed, 5);
+    expect(pool.map((c) => (c.kind === 'group' ? c.bestSeller.id : ''))).toEqual(['utv', 'jeep']);
+  });
+
+  // The other half of the same rule, and the half the split got wrong: a trip
+  // that already holds a pool-naming jeep must not be handed a plain jeep from
+  // a DIFFERENT card's swap shelf. Under the old two-family split the pool jeep
+  // claimed 'natural-pool' and left 'offroad' unclaimed, so a second off-road
+  // excursion was one tap away on every other card in the plan.
+  it('offers no second off-road tour on another card once the trip has one', () => {
+    const cards = [{ uid: 'u1', entry: slotEntryOf(jeepPool) }, { uid: 'u2', entry: slotEntryOf(sailA) }];
+    const claimed = claimedRouteFamilies(cards, resolve, 5, 'u2');   // swapping the SAIL
+    expect(claimed).toEqual(new Set(['offroad']));
+    expect(withoutClaimedFamilies([entry(jeep), entry(utv)], claimed, 5)).toHaveLength(0);
+    // ...and the swap the traveller actually asked for still works.
+    expect(withoutClaimedFamilies([entry(sailB)], claimed, 5)).toHaveLength(1);
   });
 
   it('ignores the card being swapped, so a sail can be swapped for another sail', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fitItem, bestItemForAnswers, itemTags, refaceForAnswers, isEveningItem, itemSlotOk, activityKind, isCrowdPleaser, isWaterBased, itemAdventure, matchingSection, isKidsOriented, isFullDayProduct, itemSlotOkForFill, isContentProduct, isAutoFillExcluded, contentCreatorBonus, departurePointFor } from './itemFit';
+import { fitItem, bestItemForAnswers, itemTags, refaceForAnswers, isEveningItem, itemSlotOk, activityKind, isCrowdPleaser, isWaterBased, itemAdventure, matchingSection, isKidsOriented, isFullDayProduct, itemSlotOkForFill, isContentProduct, isAutoFillExcluded, contentCreatorBonus, offroadVehicleBonus, departurePointFor } from './itemFit';
 import { ITEM_PINS, CHECKIN_QUOTES } from './itemCoords';
 import type { CardEntry, MatchTag, Section, ViatorItem } from '../types';
 
@@ -295,6 +295,73 @@ describe('contentCreatorBonus', () => {
     expect(bestItemForAnswers([tour, shoot], t)?.id).toBe('shoot');
     // …and without the flag the well-reviewed tour still wins.
     expect(bestItemForAnswers([tour, shoot], tags('treat-yourself', 'culture-history'))?.id).toBe('tour');
+  });
+});
+
+// 2026-08-19: which VEHICLE the traveller is nudged toward for the trip's one
+// off-road slot. A preference, not a filter — nothing is excluded either way.
+describe('offroadVehicleBonus — UTV at high adventure, Jeep otherwise', () => {
+  const OFFROAD = 12035;
+  const utv  = item({ id: 'utv',  title: 'Aruba UTV & ATV Adventure', tags: [OFFROAD] });
+  const jeep = item({ id: 'jeep', title: 'Aruba Jeep Safari to the Natural Pool', tags: [OFFROAD] });
+  const boat = item({ id: 'boat', title: 'Premium Catamaran Afternoon Sail', tags: [11888] });
+
+  it('prefers the UTV for a high-adventure traveller and not the jeep', () => {
+    expect(offroadVehicleBonus(utv, tags('high-adventure'))).toBeGreaterThan(0);
+    expect(offroadVehicleBonus(jeep, tags('high-adventure'))).toBe(0);
+  });
+
+  // The OTHER direction, which is the half a rule ignoring its `tags` argument
+  // would still pass: at every level below high adventure the jeep is the
+  // preferred vehicle and the UTV is not.
+  it('prefers the jeep for a low- or mid-adventure traveller and not the UTV', () => {
+    for (const band of ['low-adventure', 'med-adventure'] as const) {
+      expect(offroadVehicleBonus(jeep, tags(band))).toBeGreaterThan(0);
+      expect(offroadVehicleBonus(utv, tags(band))).toBe(0);
+    }
+  });
+
+  it('is zero for anything that is not an off-road tour', () => {
+    expect(offroadVehicleBonus(boat, tags('high-adventure'))).toBe(0);
+    expect(offroadVehicleBonus(boat, tags('low-adventure'))).toBe(0);
+  });
+
+  // It has to reach `fitItem` itself, not merely exist: `fitItem` is what
+  // orders the fill ladder's candidates and Explore, and a bonus nothing adds
+  // in is a bonus that does nothing.
+  // Matched on every OTHER scoring signal — same price, same sections, same
+  // popularity, and both crowd-pleasers (the destination word is in both
+  // titles) — so the vehicle preference is the only thing left to separate
+  // them, and the ordering it produces is the whole assertion.
+  it('reaches fitItem, and orders two otherwise identical tours by vehicle', () => {
+    const utvCP  = item({ id: 'u', title: 'Conchi Natural Pool UTV Adventure',
+      tags: [OFFROAD], sections: ['adventures-outdoor'] as Section[], popularity_score: 0.5 });
+    const jeepCP = item({ id: 'j', title: 'Conchi Natural Pool Jeep Safari',
+      tags: [OFFROAD], sections: ['adventures-outdoor'] as Section[], popularity_score: 0.5 });
+    expect(isCrowdPleaser(utvCP)).toBe(true);
+    expect(isCrowdPleaser(jeepCP)).toBe(true);
+    const high = tags('high-adventure', 'adventure', 'mid-range');
+    expect(fitItem(utvCP, high).score).toBeGreaterThan(fitItem(jeepCP, high).score);
+    const low = tags('low-adventure', 'adventure', 'mid-range');
+    expect(fitItem(jeepCP, low).score).toBeGreaterThan(fitItem(utvCP, low).score);
+  });
+
+  // A PREFERENCE, not a guarantee, and this is the test that PINS the
+  // magnitude. The two tours below differ by exactly one interest match — the
+  // jeep's section answers this traveller's `nature-hiking`, worth +3, and
+  // nothing else separates them (same price, same tag, same popularity). So a
+  // vehicle bonus below 3 leaves the better-matching jeep ahead even at high
+  // adventure, and one of 3 or more overturns a genuine fit signal. Verified in
+  // both directions: green at 2, red at 3.
+  it('does not override a product that fits the traveller better', () => {
+    const t = tags('high-adventure', 'nature-hiking', 'mid-range');
+    const offThemeUtv = item({ id: 'u2', title: 'Aruba UTV Adventure', tags: [OFFROAD],
+      sections: ['tours-sightseeing'] as Section[], popularity_score: 0.5 });
+    const onThemeJeep = item({ id: 'j2', title: 'Aruba Jeep Safari', tags: [OFFROAD],
+      sections: ['adventures-outdoor'] as Section[], popularity_score: 0.5 });
+    expect(itemTags(onThemeJeep)).toContain('nature-hiking');
+    expect(itemTags(offThemeUtv)).not.toContain('nature-hiking');
+    expect(fitItem(onThemeJeep, t).score).toBeGreaterThan(fitItem(offThemeUtv, t).score);
   });
 });
 

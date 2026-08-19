@@ -656,6 +656,37 @@ export function offroadAdrenalineBonus(item: ViatorItem, tags: Set<MatchTag>): n
   return 0;
 }
 
+// Which VEHICLE the traveller is nudged toward for the trip's one off-road
+// slot: a UTV/ATV at high adventure, a Jeep for everyone else. Requested
+// 2026-08-19.
+//
+// Both halves are POSITIVE title tests, and that is the difference from
+// `offroadAdrenalineBonus` above, which they sit alongside rather than replace.
+// That one asks "is this self-drive?" and rewards the ABSENCE of a self-drive
+// word for a low-adventure traveller — which pays a $59 sightseeing bus filed
+// under the off-road tag exactly as much as it pays a real jeep safari. This
+// one has to name the vehicle it wants, because the preference is about the
+// vehicle. It also covers the middle of the slider, which the adrenaline nudge
+// leaves alone (`low-adventure` only).
+const UTV_TITLE = /\b(utv|atv|quads?|buggy|buggies|dune ?buggy|side[\s-]?by[\s-]?side)\b/i;
+const JEEP_VEHICLE_TITLE = /\b(jeeps?|4x4|4wd|safari)\b/i;
+// A PREFERENCE, not a guarantee, and the magnitude says so. Two points sits
+// below every scoring signal that expresses genuine fit — an interest or
+// adventure-band match is +3 each, the crowd-pleaser boost is +3, popularity
+// runs 0-3 — so a clearly better product still wins its slot and this only
+// decides between off-road tours that were otherwise close. Supply is balanced
+// enough that it does not need to be stronger — measured over the 88 off-road
+// items in the live catalog: 31 UTV-family (24 clearing the 25-review champion
+// floor) against 39 Jeep-family (26 clearing it), so neither tier is scraping
+// the bottom of the catalog for a match. Two products name both and are paid
+// either way; 20 name neither and are simply not preferred by this rule.
+const VEHICLE_PREFERENCE_BONUS = 2;
+export function offroadVehicleBonus(item: ViatorItem, tags: Set<MatchTag>): number {
+  if (activityKind(item) !== 'offroad') return 0;
+  const want = tags.has('high-adventure') ? UTV_TITLE : JEEP_VEHICLE_TITLE;
+  return want.test(item.title) ? VEHICLE_PREFERENCE_BONUS : 0;
+}
+
 // Content boost for the `influencer` flag — the same weight as CROWD_PLEASER_BOOST,
 // because that is what it is: a content product is to someone shooting the trip
 // what a catamaran is to everyone else. Lifting the auto-fill block alone is not
@@ -754,6 +785,14 @@ export function fitItem(item: ViatorItem, tags: Set<MatchTag>): ItemFit {
   // reorders; it never removes.
   const pop = item.popularity_score ?? 0;
   score += (quiet ? 1 - pop : pop) * 3;
+  // Vehicle preference for the trip's one off-road slot. Read HERE rather than
+  // added on at the two call sites `offroadAdrenalineBonus` uses, for the same
+  // reason `avoid-crowds` is read here: the honest answer is a reordering, and
+  // a reordering has to reach every surface that ranks. That includes Explore,
+  // which scores with `fitItem` alone — a known and accepted side effect: the
+  // preference the traveller expressed on the slider is as true of a browse
+  // list as it is of the plan.
+  score += offroadVehicleBonus(item, tags);
   return { score, rejected: false };
 }
 
