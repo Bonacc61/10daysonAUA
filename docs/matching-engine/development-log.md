@@ -46,7 +46,7 @@ Accumulates trip-wide state across the day loop:
 | `usedClusterIds` | embedding clusters placed; a hit is conclusive, a miss falls through |
 | `usedTagSets` | tag arrays of placed items; trip-wide Jaccard at 0.35 |
 | `dayTagSets` | tag arrays placed TODAY, reset per day; stricter Jaccard at 0.08 |
-| `usedRouteFamilies` | route families retired trip-wide after one placement: `natural-pool`, `offroad`, `kayak`, and the sail families — which are LENGTH-DEPENDENT since 2026-08-12: collapsed to one `sail` below 8 days, split into `day-sail` + `evening-cruise` at 8+. See `tripRouteFamily`. |
+| `usedRouteFamilies` | route families retired trip-wide after one placement: `offroad` (which absorbed the separate `natural-pool` family on 2026-08-19 — they are the same excursion), `kayak`, and the sail families — which are LENGTH-DEPENDENT since 2026-08-12: collapsed to one `sail` below 8 days, split into `day-sail` + `evening-cruise` at 8+. See `tripRouteFamily`. |
 | `lastFamilyDay` | family → last day used; enforces FAMILY_MIN_DAY_GAP (boat outings) |
 | `usedGroupIds` | last-resort group dedup; only for items with neither tags nor a cluster |
 | `dayFamilies` | families placed TODAY; hard cap of one boat outing per day |
@@ -1824,6 +1824,96 @@ condition on `main`.
 `contact-notify/messages.test.ts`, a pre-existing Deno import error);
 `npm run typecheck` clean; `npm run plan-diff` **0 → 0 violations**, open slots
 unchanged at 180.
+
+### 2026-08-19 (later) — a jeep is a jeep whether or not its title says natural pool
+
+**Symptom.** A trip could carry two off-road excursions. Not two similar ones —
+the same one twice, in the same vehicle, to the same place: "Elite Jeep Safari
+with lunch and beer and open bar" and "Island Jeep Safari with Natural Pool Baby
+Beach and Lunch". One names the pool in its title and the other does not, and
+that was the whole difference.
+
+**Cause: the TITLE was deciding which family a tour retired.** `routeFamilyOf`
+tested `isNaturalPool(title)` first and answered `'natural-pool'`; anything else
+whose tags classified it off-road answered `'offroad'`. Two names, two
+retirements, so placing one did not stand the other down.
+
+**Measured over 576 live plans** (6 group types × 4 budgets × 3 adventure levels
+× 4 interest sets × 2 seeds, 10 days): **188 (32.6%) carried two off-road
+excursions before, 0 after** — and every one of the 188 was that exact
+`natural-pool + offroad` pair, not a spread of near-misses. The test that pins
+it is `bookableDensity.test.ts` → "places at most one, across all 576
+persona/seed combinations", which runs against the live catalog.
+
+**The fix is one word: both branches now return `'offroad'`.** The natural-pool
+TEST stays, and still earns its keep — the generic family only catches items
+whose TAGS say off-road, and the 21 Natural Pool products on the live catalog
+split three ways (17 off-road, 3 hike, 1 cruise), so without the title test a
+Natural Pool HIKE and a Natural Pool jeep safari are free to share a trip. What
+changed is the answer, not the question. The general rule worth keeping: a title
+does not reliably say where a tour goes, so it must not decide what a tour is.
+
+Three more changes in the same family, all 2026-08-19:
+
+**The Surron e-bike tour leaves the bookable whitelist.** "Epic Off-Road Surron
+Electric Bike Tour in Aruba" ($160, 42 reviews) was tier 1 purely because
+"Off-Road" appears in its name. It is an e-bike tour — the same class as the
+e-scooters, which were already out only because no word in `JEEP_TITLE` happens
+to appear in their titles. Luck, not a rule. `TWO_WHEELER_TITLE` is applied to
+the OFF-ROAD row alone and deliberately not globally: "Aruba Seabob Scooter Reef
+Tour" ($97, 231 reviews) is a sea scooter and clears the snorkel row on its own
+merits. Of the 16 live titles naming a bike, moped or scooter, the Surron tour
+is the only one `JEEP_TITLE` matches at all. The guards now drop 17 of 88
+`offroad` items, up from 16.
+
+**A vehicle preference for the trip's one off-road slot** — UTV/ATV at high
+adventure, Jeep otherwise (`offroadVehicleBonus`). It sits alongside
+`offroadAdrenalineBonus` rather than replacing it: that one asks "is this
+self-drive?" and rewards the ABSENCE of a self-drive word, which pays a $59
+sightseeing bus filed under the off-road tag exactly as much as it pays a real
+jeep safari. This one names the vehicle it wants, because the preference is
+about the vehicle, and it covers the middle of the slider that the adrenaline
+nudge leaves alone.
+
+Worth **2**, and the magnitude is the point: it sits below every signal that
+expresses genuine fit (interest and adventure-band matches are +3 each, the
+crowd-pleaser boost +3, popularity 0-3), so a clearly better product still wins
+its slot and this only separates off-road tours that were otherwise close. A
+test holds it there — green at 2, red at 3. Supply says it does not need to be
+stronger: of the 88 off-road items, 31 are UTV-family (24 clearing the 25-review
+champion floor) against 39 Jeep-family (26 clearing it). It is read inside
+`fitItem`, like `avoid-crowds`, because the honest answer is a REORDERING and a
+reordering has to reach every surface that ranks — including Explore, which
+scores with `fitItem` alone. Accepted side effect: the preference a traveller
+expressed on the slider is as true of a browse list as it is of a plan.
+
+**A money-no-object traveller's booking becomes the private version of the same
+route family.** The rule is not new — it is the one already written in
+`Alternative.privateUpgrade` — so it was EXTRACTED into `privateUpgradeFor`
+rather than restated at the second call site. `tools/plan-diff.ts`'s header
+records what mirroring a rule costs here.
+
+The one thing that makes it work is where it sources from: the flag-filtered
+catalog, never the champion-narrowed fill pool. A private tour and its group
+version are very likely in the same experience cluster, and
+`championsByExperience` keeps one item per cluster — always the well-reviewed
+group one, because a private charter cannot out-review the $65 cruise it shares
+a cluster with. Sourced from the fill pool this would silently find nothing and
+the feature would look implemented while doing nothing. That is not
+hypothetical: it is exactly how the influencer feature died.
+
+**And a dead branch, recorded rather than deleted.** Every `privateUpgrade`
+alternative in `BALANCED_TEMPLATE` is unreachable: they are all typed
+`highBudget`, which `altTypesFor` offers only to `treat-yourself` /
+`money-no-object`, while the template is reached only via `isBalancedTraveller`,
+which requires `mid-range`. A traveller carries exactly one budget tag, so the
+two conditions can never both hold. Noted at both sites. Deleting them is a
+separate decision and was not taken here.
+
+**Verification.** `npx vitest run` green — 1,101 passing, the only failing suite
+being `contact-notify/messages.test.ts`, a Deno-syntax file vitest cannot load
+that predates this work by six weeks. `npm run typecheck` clean. `npm run
+plan-diff` **0 → 0 violations**, open slots 176 → 180.
 
 ---
 
