@@ -371,7 +371,14 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
     const cam = dayCamera(locatedEntries.map(e => e.coord));
     if (!cam) return;
     if (cam.kind === 'center') {
-      mapRef.current.flyTo({ center: cam.center, zoom: cam.zoom, duration: 800 });
+      // Padding is RETAINED on the transform between camera moves in mapbox-gl
+      // v3, so a lone pin following a multi-pin day would inherit the
+      // asymmetric fit padding and sit off-centre. Reset it: there is nothing
+      // to keep clear of when a single pin is centred.
+      mapRef.current.flyTo({
+        center: cam.center, zoom: cam.zoom, duration: 800,
+        padding: { top: 0, bottom: 0, left: 0, right: 0 },
+      });
       return;
     }
     mapRef.current.fitBounds(cam.bounds, { padding: cam.padding, maxZoom: cam.maxZoom, duration: 800 });

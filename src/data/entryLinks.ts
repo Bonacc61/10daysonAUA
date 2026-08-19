@@ -39,11 +39,17 @@ export function faceOf(entry: SlotEntry, catalog: Catalog, tags: Set<MatchTag>, 
  * The activity branch goes through `bookUrlForActivity`, and that is the fix
  * this module was extracted for (reported 2026-08-19 against the Flamingo pin
  * on the Map). The map used to read `viator_item_url` off the activity
- * directly — and NO curated activity carries one, not a single record in
- * `activities.ts` and none in `lunchspots.ts`, so the expression returned null
- * for every local pick and the popup rendered an anchor with no href. The one
- * curated pick that sells a booking direct, `flamingo-renaissance`, holds the
- * operator's URL in `bookingUrl`, which nothing on that surface ever read.
+ * directly, and that field reaches a curated pick from exactly one place:
+ * `mergeLocalMatches` (activitySource.ts), which stamps it onto the FOUR ids in
+ * the edge function's `LOCAL_MATCHES` — boca-catalina-snorkel,
+ * antilla-wreck-dive, natural-pool-jeep, oranjestad-walking. Those four had a
+ * working link and still do. Every other curated pick had none, because no
+ * record in `activities.ts` or `lunchspots.ts` carries the field statically.
+ *
+ * `flamingo-renaissance` is the one that mattered: it is paid, it is the only
+ * curated pick in the repo with a `bookingUrl`, and it is not in LOCAL_MATCHES
+ * — so it is the single activity whose behaviour this change alters. The rest
+ * of the unlinked ones are free, and stay unlinked.
  *
  * A free activity still yields null: `bookUrlForActivity` refuses anything
  * costing nothing, and a "book" link to a public beach is worse than no link.

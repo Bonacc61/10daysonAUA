@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   dayCamera, DAY_FIT_PADDING, PIN_ABOVE_PX, PIN_SIDE_PX, SINGLE_PIN_ZOOM, DAY_MAX_ZOOM,
+  CONTROL_INSET_PX,
 } from './mapCamera';
 
 const c = (lng: number, lat: number) => ({ lng, lat });
@@ -62,9 +63,27 @@ describe('dayCamera', () => {
     expect(cam.padding.bottom).toBeLessThan(cam.padding.top);
   });
 
-  it('clears the top-right zoom control, which the pin extent alone does not', () => {
-    // 90px of control + margin. A north-coast day's last pin sat under the
-    // zoom buttons when the padding was a flat 80 on every side.
-    expect(DAY_FIT_PADDING.top).toBeGreaterThan(90);
+  /**
+   * The assertion this module exists for, and the one an earlier version of
+   * this test got wrong: it checked `top > 90` — the control's HEIGHT alone,
+   * ignoring the 59px of marker that also has to fit above the coordinate — so
+   * it passed while a pin in the top-right corner was still 39px under the zoom
+   * buttons. A test that cannot fail is worse than no test, because it is
+   * counted as cover.
+   *
+   * The real invariant is horizontal: the easternmost pin's RIGHT EDGE sits at
+   * `right - PIN_SIDE_PX` from the frame's right edge, and the control reaches
+   * CONTROL_INSET_PX in. The first must clear the second, whatever the day's
+   * shape, so no pin can ever be both northernmost and under the buttons.
+   */
+  it('keeps the easternmost pin clear of the zoom control', () => {
+    const pinRightEdgeFromFrame = DAY_FIT_PADDING.right - PIN_SIDE_PX;
+    expect(pinRightEdgeFromFrame).toBeGreaterThan(CONTROL_INSET_PX);
+  });
+
+  it('fits the whole marker below the top edge, not just its coordinate', () => {
+    // The graphic hangs upward from the point, so the slack above it is
+    // `top - PIN_ABOVE_PX` and it must be real, not zero.
+    expect(DAY_FIT_PADDING.top - PIN_ABOVE_PX).toBeGreaterThan(0);
   });
 });

@@ -186,9 +186,10 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   const extra = { duration, privateOnly, provenance };
   // The "Good for kids" checkbox that wrapped this in `splitByFacet` was removed
   // 2026-08-19 and deferred to v2, owner's call: the underlying kids verdict is
-  // not good enough to filter on. `splitByFacet` and the verdict itself stay —
-  // the search box still reads them to DEMOTE unknowns, which is the softer
-  // promise a checkbox could not make.
+  // not good enough to filter on. The VERDICT stays live — the search box reads
+  // it through `buildPool` to DEMOTE unknowns rather than drop them, which is
+  // the softer promise a checkbox could not make. `splitByFacet` itself now has
+  // no caller outside its own test; left in place for the v2 wiring.
   const substringHits = filterExploreEntries(catalog, { section, search, vibe, price, ...extra });
 
   // Semantic blending + typed contraindications, shared with the Personalized
@@ -260,7 +261,7 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
                 </select>
 
                 {/* The button comes BEFORE what it reveals. Put it after and
-                    opening the panel inserts four control groups above the
+                    opening the panel inserts three control groups above the
                     focused element, so tabbing onward walks straight past
                     everything the traveller just asked to see. */}
                 <button type="button" className="filter-more" aria-expanded={moreOpen}

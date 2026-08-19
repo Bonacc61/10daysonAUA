@@ -23,15 +23,30 @@ const act = (id: string): SlotEntry => ({ kind: 'activity', id });
  * directly. Reported 2026-08-19: the Flamingo Beach Day Pass pin was not
  * clickable.
  *
- * It was never only Flamingo. NOT ONE curated activity carries a
- * `viator_item_url` — the first test below is the measurement, not a fixture —
- * so that expression returned null for EVERY local pick on the map and the
- * popup rendered an anchor with no href. Flamingo is simply the one that also
- * has somewhere to send you.
+ * The blast radius is narrow, and worth stating precisely rather than
+ * dramatically. No record in `activities.ts` carries `viator_item_url`
+ * statically — asserted below — but the LIVE catalog is not the static array:
+ * `mergeLocalMatches` stamps the field onto the four `LOCAL_MATCHES` ids, and
+ * those four pins linked correctly before this change and still do. Flamingo is
+ * the ONE activity whose behaviour moves: paid, not in LOCAL_MATCHES, and the
+ * only curated pick in the repo holding an operator URL in `bookingUrl`.
  */
 describe('bookLinkFor — the Map pin book link', () => {
-  it('no curated activity carries a viator_item_url, which is why the old rule linked nothing', () => {
+  it('carries no viator_item_url statically — the live merge is the only source', () => {
     expect(ACTIVITIES.filter((a) => a.viator_item_url)).toHaveLength(0);
+    // ...and exactly one curated pick books direct with an operator.
+    expect(ACTIVITIES.filter((a) => a.bookingUrl).map((a) => a.id)).toEqual(['flamingo-renaissance']);
+  });
+
+  // The four LOCAL_MATCHES picks are the ones the old rule DID link. A live
+  // catalog gives them a Viator url and a live price; both must survive.
+  it('still gives a merged local pick its affiliate link, as it had before', () => {
+    const merged = { ...ACTIVITIES.find((a) => a.id === 'antilla-wreck-dive')!,
+      viator_item_url: 'https://www.viator.com/tours/Aruba/x/d28-2785AFTSNORKEL?pid=P00302487&mcid=42383' };
+    const link = bookLinkFor(act('antilla-wreck-dive'),
+      { ...CATALOG, activities: [merged] }, TAGS, 'morning');
+    expect(link!.affiliate).toBe(true);
+    expect(link!.url).toContain('pid=P00302487');
   });
 
   it('gives the Flamingo day pass the operator link, with no affiliate tag', () => {
