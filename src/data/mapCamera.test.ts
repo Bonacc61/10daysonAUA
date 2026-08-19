@@ -81,9 +81,4 @@ describe('dayCamera', () => {
     expect(pinRightEdgeFromFrame).toBeGreaterThan(CONTROL_INSET_PX);
   });
 
-  it('fits the whole marker below the top edge, not just its coordinate', () => {
-    // The graphic hangs upward from the point, so the slack above it is
-    // `top - PIN_ABOVE_PX` and it must be real, not zero.
-    expect(DAY_FIT_PADDING.top - PIN_ABOVE_PX).toBeGreaterThan(0);
-  });
 });

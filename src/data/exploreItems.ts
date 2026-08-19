@@ -914,19 +914,6 @@ export function priceHint(p: number): string {
   return p <= 6 ? 'Free only — no-cost activities.' : 'Leaning cheap — filtering out pricier picks.';
 }
 
-// The stars and reviews bars each remove a whole class of tile, and which class
-// is not guessable from the control. A traveller who sets 4.8★+ and never sees
-// the 43 unrated products has no way to know they existed; one who sets "50+
-// reviews" and loses every beach would read it as a bug. So each says so.
-export function starsHint(minStars: number): string {
-  if (!minStars) return 'Any rating — local picks and unrated tours included.';
-  return `${minStars}★ and up — unrated tours are hidden. Local picks stay, unless Viator rates them too.`;
-}
-export function reviewsHint(minReviews: number): string {
-  if (!minReviews) return 'Any number of reviews, including none.';
-  return `${minReviews}+ reviews — hides local picks, which have no crowd behind them.`;
-}
-
 /** The catalog id behind an entry, whichever shape it is. */
 export function entryId(e: ExploreEntry): string {
   return e.kind === 'item' ? e.item.id : e.activity.id;

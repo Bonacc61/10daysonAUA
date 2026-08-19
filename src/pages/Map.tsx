@@ -361,11 +361,16 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   //
   // The geometry lives in `dayCamera` (src/data/mapCamera.ts) and is tested
   // there. What used to be here was a flat `padding: 80` on all four sides,
-  // which pads the COORDINATE and not the marker: `PhotoPin` is anchored bottom
-  // and hangs 59px above its point, and Mapbox's own zoom control occupies the
-  // top-right, so a pin at the north edge of a day could be clipped or sit
-  // under the buttons — reported 2026-08-19 as pins missing while scrolling
-  // through the days. The padding is asymmetric now because the marker is.
+  // which pads the COORDINATE and not the marker — `PhotoPin` is anchored
+  // bottom, so it hangs 59px above its point and draws nothing at all below it.
+  // Reported 2026-08-19 as pins missing while scrolling through the days.
+  //
+  // Stated accurately, because the first draft of this change got it wrong: the
+  // old flat 80 did NOT put a pin under the zoom control — it left 13px of
+  // clearance on the right. Dropping the right side to 61 is what broke that,
+  // and the 79 here restores it. Versus the original the right axis is one
+  // pixel tighter; what actually changed is the 80px of padding wasted BELOW a
+  // marker that draws nothing there, which is now spent above it instead.
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
     const cam = dayCamera(locatedEntries.map(e => e.coord));
