@@ -371,9 +371,22 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   // and the 79 here restores it. Versus the original the right axis is one
   // pixel tighter; what actually changed is the 80px of padding wasted BELOW a
   // marker that draws nothing there, which is now spent above it instead.
+  //
+  // That change was correct and did not fix the report. Padding the marker
+  // rather than the coordinate stopped pins being CLIPPED; it did not stop the
+  // frame being tight, because the margin was still a flat 36px and the
+  // vertical axis is the one that binds. Measured on live production
+  // afterwards: 36-37px of slack above and below the outermost pins on every
+  // day at every viewport, and zero markers outside the canvas — a frame that
+  // was legal and cramped at the same time. The margin is a share of the canvas
+  // now; see BREATHING_FRACTION in src/data/mapCamera.ts.
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
-    const cam = dayCamera(locatedEntries.map(e => e.coord));
+    // The CANVAS, not the window: the bottom panel takes about a third of the
+    // window's height before the map sees any of it, and the padding is a share
+    // of what the map actually got.
+    const box = mapRef.current.getContainer().getBoundingClientRect();
+    const cam = dayCamera(locatedEntries.map(e => e.coord), { width: box.width, height: box.height });
     if (!cam) return;
     if (cam.kind === 'center') {
       // Padding is RETAINED on the transform between camera moves in mapbox-gl
