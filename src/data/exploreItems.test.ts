@@ -20,6 +20,7 @@ import {
   durationPass,
   privatePass,
   provenancePass,
+  poolPass,
   sortEntries,
   rankRecommended,
   shrunkRating,
@@ -546,6 +547,73 @@ describe('privatePass', () => {
     expect(privatePass(item(['FREE_CANCELLATION']), true)).toBe(false);
     expect(privatePass(item(undefined), true)).toBe(false);
     expect(privatePass(local, true)).toBe(false);
+  });
+});
+
+describe('poolPass', () => {
+  const item = (title: string, description = ''): ExploreEntry =>
+    ({ kind: 'item', item: { title, description } as ViatorItem, category: 'Tours', adventure: 50, sections: [] });
+  const local = (title: string, description = ''): ExploreEntry =>
+    ({ kind: 'activity', activity: { title, description } as Activity, category: 'Beaches', adventure: 8, sections: [] });
+
+  const conchiJeep = item('Aruba Jeep Tour: Natural Pool, Caves and Baby Beach Adventure');
+  const conchiHike = item('Arikok Sunrise Hiking Tour to Natural Pool + Transportation');
+  // The whole reason the filter reads descriptions: 6 of the 28 Conchi products
+  // on the live catalog never say so in their title.
+  const conchiByDesc = item('Private Jeep Tour to Arikok National Park', 'A 4x4 run through Arikok, stopping to swim at the Natural Pool.');
+  const caveAtv = item('Aruba North Coast ATV Desert Adventure', 'End the trip by taking a refreshing dip at the Cave Pool.');
+  const caveUtv = item('Aruba UTV Tour with Natural Cave Pool and Cliff Jumping');
+  const unrelated = item('Aruba Sunset Catamaran Sail', 'Open bar and snorkelling off Boca Catalina.');
+
+  test('off, it admits everything', () => {
+    expect(poolPass(conchiJeep, 'any', 'any')).toBe(true);
+    expect(poolPass(unrelated, undefined, undefined)).toBe(true);
+    // The mode alone must not filter — it is a SUB-filter, and a mode left set
+    // while the place is cleared would otherwise silently narrow the page.
+    expect(poolPass(unrelated, 'any', 'jeep')).toBe(true);
+  });
+
+  test('the two places are different places, and do not admit each other', () => {
+    expect(poolPass(conchiJeep, 'natural', 'any')).toBe(true);
+    expect(poolPass(caveAtv, 'natural', 'any')).toBe(false);
+    expect(poolPass(caveAtv, 'cave', 'any')).toBe(true);
+    expect(poolPass(conchiJeep, 'cave', 'any')).toBe(false);
+    expect(poolPass(unrelated, 'natural', 'any')).toBe(false);
+    expect(poolPass(unrelated, 'cave', 'any')).toBe(false);
+  });
+
+  // "Natural Cave Pool" contains "cave pool" but not "natural pool"; matching
+  // the place on the longer phrase first is what keeps it out of Conchi.
+  test('"Natural Cave Pool" is the cave, not Conchi', () => {
+    expect(poolPass(caveUtv, 'cave', 'any')).toBe(true);
+    expect(poolPass(caveUtv, 'natural', 'any')).toBe(false);
+  });
+
+  test('the description counts, not just the title', () => {
+    expect(poolPass(conchiByDesc, 'natural', 'any')).toBe(true);
+    expect(poolPass(conchiByDesc, 'natural', 'jeep')).toBe(true);
+  });
+
+  test('the mode narrows within the place', () => {
+    expect(poolPass(conchiJeep, 'natural', 'jeep')).toBe(true);
+    expect(poolPass(conchiJeep, 'natural', 'hike')).toBe(false);
+    expect(poolPass(conchiHike, 'natural', 'hike')).toBe(true);
+    expect(poolPass(caveAtv, 'cave', 'atv')).toBe(true);
+    expect(poolPass(caveAtv, 'cave', 'jeep')).toBe(false);
+  });
+
+  // UTV and ATV are separate buttons here, unlike itemFit's UTV_TITLE, which
+  // treats the whole family as one for the generator's vehicle preference.
+  test('UTV and ATV are separate buttons', () => {
+    const utv = item('Aruba UTV Adventure to Natural Pool Jeep Transfer');
+    expect(poolPass(utv, 'natural', 'utv')).toBe(true);
+    expect(poolPass(utv, 'natural', 'atv')).toBe(false);
+    expect(poolPass(caveAtv, 'cave', 'utv')).toBe(false);
+  });
+
+  test('a local pick is filtered on its own words, not skipped', () => {
+    expect(poolPass(local('Conchi Natural Pool', 'Reachable only by 4x4.'), 'natural', 'any')).toBe(true);
+    expect(poolPass(local('Eagle Beach', 'Wide white sand.'), 'natural', 'any')).toBe(false);
   });
 });
 

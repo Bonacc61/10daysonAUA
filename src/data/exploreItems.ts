@@ -123,7 +123,14 @@ export type ExploreFilters = {
   duration?: DurationBand;
   privateOnly?: boolean;
   provenance?: Provenance;
+  pool?: PoolPlace;         // 'any' = off
+  poolMode?: PoolMode;      // sub-filter of `pool`; inert while pool is 'any'
 };
+
+// Which swimming hole, and how you get there — see poolPass for why these are
+// two questions and not one.
+export type PoolPlace = 'any' | 'natural' | 'cave';
+export type PoolMode = 'any' | 'jeep' | 'utv' | 'atv' | 'horseback' | 'hike';
 
 // Map a Viator group id → existing UI category bucket. New groups: 1 line each.
 const GROUP_TAXONOMY_TO_CATEGORY: Record<string, Category> = {
@@ -438,6 +445,61 @@ export function provenancePass(entry: ExploreEntry, provenance?: Provenance): bo
   // of "Free + $16 gear" parses to 0, so Baby Beach lands here.
   if (provenance === 'free') return priceOf(entry) === 0;
   return provenance === 'local' ? entry.kind === 'activity' : entry.kind === 'item';
+}
+
+// === The north-coast swimming holes ========================================
+
+/**
+ * Two different places, and the filter says so rather than lumping them.
+ *
+ * The Natural Pool (Conchi) sits INSIDE Arikok National Park. The Cave Pool is
+ * on the north coast, outside it. That is not a nicety: Arikok bars ATVs and
+ * UTVs, which two products state in their own listing ("Entrance to Arikok Park
+ * with an atv/utv vehicle is not permitted"), and it is why measuring the live
+ * catalog on 2026-08-20 found 28 Conchi products of which ZERO are ATV, against
+ * 7 Cave Pool products of which 2 are. The 2 UTV tours that do reach Conchi get
+ * there by swapping vehicle at the gate — "Aruba UTV Adventure to Natural Pool
+ * Jeep Transfer". Sold as one "Natural Pool" filter, the ATV button would look
+ * broken when it is actually a park rule.
+ *
+ * The two sets do not overlap at all on the live catalog, so a product answers
+ * to one place or the other. "Natural Cave Pool" is the cave — it contains
+ * "cave pool" and not "natural pool", so the plain phrases separate them.
+ */
+const POOL_PLACE: Record<Exclude<PoolPlace, 'any'>, RegExp> = {
+  natural: /natural pool|conchi/i,
+  cave: /cave pool/i,
+};
+
+/**
+ * How you get there. Split UTV from ATV, unlike `itemFit`'s `UTV_TITLE`, which
+ * deliberately treats the whole quad family as one for the generator's vehicle
+ * preference — here they are two buttons because they are two answers.
+ */
+const POOL_MODE: Record<Exclude<PoolMode, 'any'>, RegExp> = {
+  jeep: /\b(jeeps?|4x4|4wd)\b/i,
+  utv: /\b(utv|side[\s-]?by[\s-]?side)\b/i,
+  atv: /\b(atv|quads?)\b/i,
+  horseback: /\bhorse ?back|\bhorse ?riding\b/i,
+  hike: /\bhik(e|ing)|\btrek/i,
+};
+
+/**
+ * Matched on title AND description, which is the difference between a filter
+ * that works and one that does not: 6 of the 28 Conchi products never name it
+ * in their title ("Private Jeep Tour to Arikok National Park" is one), and both
+ * ATV products reach the Cave Pool only in prose.
+ *
+ * The mode is a SUB-filter — with no place chosen it admits everything, so a
+ * mode left set while the place is cleared cannot narrow the page invisibly.
+ */
+export function poolPass(entry: ExploreEntry, place?: PoolPlace, mode?: PoolMode): boolean {
+  if (!place || place === 'any') return true;
+  const text = entry.kind === 'item'
+    ? `${entry.item.title} ${entry.item.description ?? ''}`
+    : `${entry.activity.title} ${entry.activity.description ?? ''}`;
+  if (!POOL_PLACE[place].test(text)) return false;
+  return !mode || mode === 'any' || POOL_MODE[mode].test(text);
 }
 
 // Ensure medium=link is present on a Viator product URL. The edge function
@@ -861,6 +923,7 @@ export function filterExploreEntries(catalog: Catalog, opts: ExploreFilters): Ex
       durationPass(e, opts.duration) &&
       privatePass(e, opts.privateOnly) &&
       provenancePass(e, opts.provenance) &&
+      poolPass(e, opts.pool, opts.poolMode) &&
       matchSearch(e),
     )
     .sort((a, b) => sortScore(b) - sortScore(a));

@@ -9,8 +9,8 @@ import Footer from '../components/Footer';
 import { useShortlist } from '../lib/shortlist';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
-import { filterExploreEntries, sortEntries, bookUrlForEntry, viatorLink, bookUrlForActivity, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint } from '../data/exploreItems';
-import type { DurationBand, Provenance, SortKey } from '../data/exploreItems';
+import { filterExploreEntries, sortEntries, bookUrlForEntry, viatorLink, bookUrlForActivity, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, poolPass } from '../data/exploreItems';
+import type { DurationBand, Provenance, SortKey, PoolPlace, PoolMode } from '../data/exploreItems';
 import { searchEntries } from '../lib/entrySearch';
 import { answersToTags } from '../data/answerTags';
 import { useSearchBox } from '../lib/useSearchBox';
@@ -66,14 +66,14 @@ function Slider({ label, value, onChange, lo, hi, hint }: {
 // row carries its own "Any", so there is no state in which a row filters
 // nothing yet looks unset.
 function PillRow<T extends string | number>({ label, value, options, onChange }: {
-  label: string; value: T; options: { v: T; label: string }[]; onChange: (v: T) => void;
+  label: string; value: T; options: { v: T; label: string; disabled?: boolean }[]; onChange: (v: T) => void;
 }) {
   return (
     <div style={{ marginBottom: 14 }}>
       <h4 style={{ fontWeight: 700, fontSize: 11, margin: '0 0 7px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-700)' }}>{label}</h4>
       <div role="group" aria-label={label} style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
         {options.map((o) => (
-          <button key={String(o.v)} type="button" aria-pressed={o.v === value}
+          <button key={String(o.v)} type="button" aria-pressed={o.v === value} disabled={o.disabled}
             className={`filter-pill${o.v === value ? ' active' : ''}`}
             onClick={() => onChange(o.v)}>{o.label}</button>
         ))}
@@ -88,6 +88,17 @@ const DURATION_OPTIONS: { v: DurationBand; label: string }[] = [
 const PROVENANCE_OPTIONS: { v: Provenance; label: string }[] = [
   { v: 'all', label: 'All' }, { v: 'local', label: 'Local picks' }, { v: 'bookable', label: 'Bookable' },
   { v: 'free', label: 'Free' },
+];
+// Two questions, not one: the Natural Pool (Conchi) is inside Arikok National
+// Park and the Cave Pool is not, and the park bars the quads — so which pool a
+// traveller means decides which vehicles can even appear. poolPass has the
+// measured counts.
+const POOL_OPTIONS: { v: PoolPlace; label: string }[] = [
+  { v: 'any', label: 'Any' }, { v: 'natural', label: 'Natural Pool' }, { v: 'cave', label: 'Cave Pool' },
+];
+const POOL_MODE_OPTIONS: { v: PoolMode; label: string }[] = [
+  { v: 'any', label: 'Any' }, { v: 'jeep', label: 'Jeep' }, { v: 'utv', label: 'UTV' },
+  { v: 'atv', label: 'ATV' }, { v: 'horseback', label: 'Horseback' }, { v: 'hike', label: 'Hike' },
 ];
 const SORT_OPTIONS: { v: SortKey; label: string }[] = [
   { v: 'recommended', label: 'Recommended' },
@@ -155,14 +166,19 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   const [duration, setDuration] = useState<DurationBand>('any');
   const [privateOnly, setPrivateOnly] = useState(false);
   const [provenance, setProvenance] = useState<Provenance>('all');
+  const [pool, setPool] = useState<PoolPlace>('any');
+  const [poolMode, setPoolMode] = useState<PoolMode>('any');
   const [moreOpen, setMoreOpen] = useState(false);
   // Only the filters hidden behind "More filters" are counted — the badge exists
   // to say what is narrowing the page out of sight.
-  const hiddenActive = [duration !== 'any', privateOnly, provenance !== 'all'].filter(Boolean).length;
+  // The pool and its vehicle row count as ONE narrowing, because that is what
+  // they are: the vehicle cannot narrow anything on its own.
+  const hiddenActive = [duration !== 'any', privateOnly, provenance !== 'all', pool !== 'any'].filter(Boolean).length;
   const anyActive = hiddenActive > 0 || sort !== 'recommended' || vibe !== 50 || price !== 50;
   const clearAll = () => {
     setVibe(50); setPrice(50); setSort('recommended');
     setDuration('any'); setPrivateOnly(false); setProvenance('all');
+    setPool('any'); setPoolMode('any');
   };
   // No ♥ on Explore's cards since 2026-08-05 — "+ Add" is the one way to keep an
   // activity here, so a card offers one action instead of two that read alike.
@@ -183,7 +199,17 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   // stay in exploreItems and pass everything when the option is absent, so the
   // filter is dormant rather than deleted. Sorting by rating or reviews is
   // untouched — a sort cannot hide anything.
-  const extra = { duration, privateOnly, provenance };
+  const extra = { duration, privateOnly, provenance, pool, poolMode };
+  // Which vehicles can actually reach the chosen pool, counted against the page
+  // as it is currently filtered so the row cannot disagree with the grid. Greyed
+  // rather than hidden: a dead ATV button under the Natural Pool is Arikok's
+  // rule made visible, where a missing one would read as an oversight.
+  const poolModeCounts = useMemo(() => {
+    if (pool === 'any') return null;
+    const atPool = filterExploreEntries(catalog, { section, search, vibe, price, duration, privateOnly, provenance, pool, poolMode: 'any' });
+    return Object.fromEntries(POOL_MODE_OPTIONS.map((o) => [o.v, atPool.filter((e) => poolPass(e, pool, o.v)).length])) as Record<PoolMode, number>;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalog, section, search, vibe, price, duration, privateOnly, provenance, pool]);
   // The "Good for kids" checkbox that wrapped this in `splitByFacet` was removed
   // 2026-08-19 and deferred to v2, owner's call: the underlying kids verdict is
   // not good enough to filter on. The VERDICT stays live — the search box reads
@@ -274,6 +300,13 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
                   <div id="explore-more-filters" style={{ marginTop: 16 }}>
                     <PillRow label="Duration" value={duration} options={DURATION_OPTIONS} onChange={setDuration} />
                     <PillRow label="Show" value={provenance} options={PROVENANCE_OPTIONS} onChange={setProvenance} />
+                    {/* Picking a pool resets the vehicle, because the vehicles
+                        that reach one are not the ones that reach the other. */}
+                    <PillRow label="Natural pool" value={pool} options={POOL_OPTIONS}
+                      onChange={(v) => { setPool(v); setPoolMode('any'); }} />
+                    <PillRow label="Getting there" value={poolMode}
+                      options={POOL_MODE_OPTIONS.map((o) => ({ ...o, disabled: pool === 'any' || (o.v !== 'any' && poolModeCounts?.[o.v] === 0) }))}
+                      onChange={setPoolMode} />
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                       <input type="checkbox" checked={privateOnly} onChange={(e) => setPrivateOnly(e.target.checked)} />
                       Private tours only
