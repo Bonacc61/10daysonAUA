@@ -747,6 +747,20 @@ describe('provenancePass', () => {
     expect(provenancePass(local, 'bookable')).toBe(false);
   });
 
+  // A vouched Viator product answers to "Local picks" as well as "Bookable" —
+  // the mark says who recommends it, not who sells it. 37387P3 is the Jolly
+  // Pirate afternoon sail, one of the three on the list.
+  test('a vouched Viator product counts as a local pick AND as bookable', () => {
+    const vouched: ExploreEntry =
+      { kind: 'item', item: { id: '37387P3' } as ViatorItem, category: 'Tours', adventure: 40, sections: [] };
+    const plain: ExploreEntry =
+      { kind: 'item', item: { id: '245504' } as ViatorItem, category: 'Tours', adventure: 40, sections: [] };
+    expect(provenancePass(vouched, 'local')).toBe(true);
+    expect(provenancePass(vouched, 'bookable')).toBe(true);
+    expect(provenancePass(plain, 'local')).toBe(false);
+    expect(provenancePass(plain, 'bookable')).toBe(true);
+  });
+
   // 'free' asks a price question in a row that otherwise asks who wrote the
   // tile, so these pin the one behaviour the row's shape does not imply.
   const priced = (cost: string): ExploreEntry =>

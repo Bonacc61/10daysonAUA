@@ -9,6 +9,7 @@ import Footer from '../components/Footer';
 import { useShortlist } from '../lib/shortlist';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
+import { isLocalPickItem } from '../data/localPickItems';
 import { filterExploreEntries, sortEntries, bookUrlForEntry, viatorLink, bookUrlForActivity, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, poolPass, sailPass } from '../data/exploreItems';
 import type { DurationBand, Provenance, SortKey, PoolMode, SailFacet } from '../data/exploreItems';
 import { searchEntries } from '../lib/entrySearch';
@@ -23,7 +24,10 @@ import type { PageId } from '../App';
 type Props = { setPage: (p: PageId) => void; answers: Answers; canSeeItinerary: boolean; initialSection?: Section; };
 
 // Header tags (sit inline in the card-header-band flex row): a "Local pick" tag
-// for editorial picks. Viator items carry no provenance mark.
+// for editorial picks — curated entries, and the Viator products the owner has
+// vouched for by hand (src/data/localPickItems.ts). The mark and the "Local
+// picks" filter read the same list, so a card cannot wear the tag and then
+// disappear under the filter that claims it.
 //
 // The Adrenaline/Balanced/Chill pill that used to sit here was REMOVED
 // 2026-08-19, owner's call: the band it showed came from `entry.adventure`,
@@ -473,7 +477,7 @@ function openItem(url: string, e: MouseEvent) {
 
 function ItemTile({ item, section, sectionUrl: _sectionUrl, region, bookNow, added, onAdd }: { item: ViatorItem; section: string; sectionUrl: string | null; region: string; bookNow: { url: string; affiliate: boolean } | null; added: boolean; onAdd: () => void }) {
   const url = item.viator_item_url ? viatorLink(item.viator_item_url) : null;
-  const headerInner = <span className="chb-title" style={{ flex: 1 }}>{section}</span>;
+  const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span>{isLocalPickItem(item.id) && <LocalMark />}</>;
   return (
     <div className="a-card fade-in" style={{ cursor: url ? 'pointer' : 'default' }} onClick={url ? (e) => openItem(url, e) : undefined}>
       <div className="card-header-band">{headerInner}</div>

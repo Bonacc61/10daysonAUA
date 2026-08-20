@@ -5,6 +5,7 @@ import { parseActivityCost } from './matcher';
 import { durationMinutes } from './itineraryGenerator';
 import { isWaterBased, adventureCapForFlags, fitItem, activityKind } from './itemFit';
 import { startTimesFor } from './startTimes';
+import { isLocalPickItem } from './localPickItems';
 import { activityTags } from './answerTags';
 
 // Content bucket for a tile — CATEGORIES without the 'All' filter sentinel.
@@ -442,13 +443,25 @@ export function privatePass(entry: ExploreEntry, privateOnly?: boolean): boolean
   return entry.kind === 'item' && (entry.item.flags ?? []).includes('PRIVATE_TOUR');
 }
 
+/**
+ * Is this tile a local's recommendation? Both a curated entry and a Viator
+ * product the owner has vouched for by hand (see localPickItems.ts) — the mark
+ * on the card and this predicate read the same list, so a card cannot show
+ * "Local pick" and then vanish under the filter that says it.
+ */
+export function isLocalPick(entry: ExploreEntry): boolean {
+  return entry.kind === 'activity' || isLocalPickItem(entry.item.id);
+}
+
 export function provenancePass(entry: ExploreEntry, provenance?: Provenance): boolean {
   if (!provenance || provenance === 'all') return true;
   // Same priceOf the Price slider reads, so the button and the slider cannot
   // disagree about what "free" means. That also inherits its one quirk: a cost
   // of "Free + $16 gear" parses to 0, so Baby Beach lands here.
   if (provenance === 'free') return priceOf(entry) === 0;
-  return provenance === 'local' ? entry.kind === 'activity' : entry.kind === 'item';
+  // A vouched product stays under "Bookable" too, because it still is one —
+  // the mark says who recommends it, not who sells it.
+  return provenance === 'local' ? isLocalPick(entry) : entry.kind === 'item';
 }
 
 // === Sailing =============================================================
