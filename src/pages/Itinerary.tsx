@@ -27,7 +27,7 @@ import { logEvent } from '../data/feedback';
 import { useAuth } from '../lib/auth';
 import { useBooked } from '../lib/booked';
 import { loadTrip, loadTripById, saveTrip, updateTrip, createTrip } from '../lib/trips';
-import { readActiveTripId, writeActiveTripId, takeTripOpened } from '../lib/activeTrip';
+import { readActiveTripId, writeActiveTripId, takeTripOpened, shouldAdoptTrip } from '../lib/activeTrip';
 import { sameAnswers } from '../lib/sameAnswers';
 import { createShare, loadShare } from '../lib/shares';
 import ShareEmailModal from '../components/ShareEmailModal';
@@ -41,7 +41,7 @@ import {
 } from '../data/itineraryPlan';
 import { suggestLunchspot, cardRegion, isLunchspot, LUNCHSPOTS } from '../data/lunchspots';
 import type { CardEntry, SlotEntry, Slot, SwapReason, ViatorItem, Section } from '../types';
-import type { PageId, Answers } from '../App';
+import { DEFAULT_ANSWERS, type PageId, type Answers } from '../App';
 
 type Props = { setPage: (p: PageId) => void; answers: Answers; setAnswers: (a: Answers) => void; onLogin: () => void; shareId: string | null; onNavigateToExplore?: (section: Section) => void };
 
@@ -235,13 +235,25 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
       ? loadTripById(user.id, wanted).then((t) => t ?? loadTrip(user.id))
       : loadTrip(user.id);
     fetch.then((t) => {
-      if (t && (chosen === t.id || sameAnswers(t.answers, currentAnswers))) {
+      if (t && shouldAdoptTrip(t, chosen, currentAnswers)) {
         // Reopening this trip: adopt its content AND its identity, so the
         // autosave writes back to the row it came from.
         setPlan(t.plan);
         setRejected(t.rejected);
         setRejectedGroups(t.rejectedGroups);
-        setAnswers(t.answers);
+        // Merged over the defaults, never adopted raw. `trips.answers` is a
+        // jsonb snapshot of whatever `Answers` looked like the day it was
+        // written, and the type has grown since — `flags` only arrived on
+        // 2026-07-03, a month after the table. A row from that window has no
+        // `flags` key at all, and this assignment PERSISTS to `10doa:answers`,
+        // so adopting it raw would hand `answers.flags === undefined` to
+        // `Explore.tsx`, which reads `.length` on it unguarded. There is no
+        // ErrorBoundary in this app: that is a white page, not a broken panel.
+        // Until now those rows were unreachable — `sameAnswers` is false the
+        // moment one side has an array and the other `undefined` — so it is the
+        // deliberate-open bypass that exposes them. App.tsx already merges the
+        // same way when it reads the key back, which is why a reload healed it.
+        setAnswers({ ...DEFAULT_ANSWERS, ...t.answers });
         applyTripId(t.id);
         savedName.current = t.answers.tripName ?? '';
       } else {

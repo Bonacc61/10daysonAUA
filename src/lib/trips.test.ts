@@ -93,3 +93,28 @@ describe('tripLabel', () => {
     expect(tripLabel(saved(undefined, undefined))).toBe('Untitled itinerary');
   });
 });
+
+describe('a trip saved before the Answers type grew', () => {
+  it('is missing keys that today\'s code dereferences without checking', () => {
+    // `trips.answers` is a jsonb snapshot of whatever `Answers` looked like the
+    // day it was written. `flags` arrived 2026-07-03 (663c036); the table dates
+    // from 2026-06-03. Rows from that month have no `flags` key at all.
+    const ancient = { ...sample().answers } as Record<string, unknown>;
+    delete ancient.flags;
+    const row = { ...toRow('u1', sample()), id: 't1', answers: ancient as never };
+    const restored = fromRow(row as never);
+
+    // columnsToState does NOT merge over defaults — it hands the column back
+    // verbatim, which is exactly why the Itinerary page must merge on adopt.
+    expect((restored.answers as Record<string, unknown>).flags).toBeUndefined();
+
+    // Explore.tsx reads `answers.flags.length` unguarded, and this app has no
+    // ErrorBoundary — so adopting the row raw is a white page, not a bad panel.
+    expect(() => (restored.answers.flags as string[]).length).toThrow();
+
+    // The merge the adopt branch performs is what makes it safe.
+    const adopted = { ...DEFAULT_ANSWERS, ...restored.answers };
+    expect(adopted.flags).toEqual([]);
+    expect(() => adopted.flags.length).not.toThrow();
+  });
+});

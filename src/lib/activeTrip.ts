@@ -1,3 +1,6 @@
+import type { Answers } from '../App';
+import { sameAnswers } from './sameAnswers';
+
 // Which saved itinerary the Itinerary page is editing.
 //
 // Needed the moment an account can hold more than one: the autosave has to know
@@ -47,4 +50,29 @@ export function takeTripOpened(): string | null {
     if (id) sessionStorage.removeItem(OPENED_KEY);
     return id;
   } catch { return null; }
+}
+
+/**
+ * Does the planner open this saved trip as it stands, or start a fresh plan?
+ *
+ * A rule with a name, rather than a condition inline in a `useEffect`, because
+ * it got this wrong in production: it used to be `sameAnswers` alone, which
+ * meant an itinerary saved before the questionnaire was last touched could not
+ * be opened by ANY route — pressing Edit on it handed back a new unattached plan
+ * under the generic heading, with nothing to say the choice had been ignored.
+ *
+ * Both halves are load-bearing:
+ *  - `chosenId` — the traveller pressed Edit on this row. They have said which
+ *    itinerary they mean, and their answers having moved on since is not a
+ *    reason to overrule them.
+ *  - `sameAnswers` — nobody chose anything; this is a page load resuming
+ *    whatever `10doa:trip-id` points at. If the questionnaire has been retaken,
+ *    starting unattached is what stops the new plan overwriting the old row.
+ */
+export function shouldAdoptTrip(
+  trip: { id: string; answers: Answers },
+  chosenId: string | null,
+  currentAnswers: Answers,
+): boolean {
+  return chosenId === trip.id || sameAnswers(trip.answers, currentAnswers);
 }

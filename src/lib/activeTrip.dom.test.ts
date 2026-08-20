@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  readActiveTripId, writeActiveTripId, markTripOpened, takeTripOpened,
+  readActiveTripId, writeActiveTripId, markTripOpened, takeTripOpened, shouldAdoptTrip,
 } from './activeTrip';
+import { DEFAULT_ANSWERS, type Answers } from '../App';
 
 /**
  * The two ideas here are NOT the same, and conflating them is what shipped a
@@ -77,5 +78,41 @@ describe('marking a deliberate open', () => {
     markTripOpened('t2');
     expect(sessionStorage.getItem('10doa:opened-trip')).toBe('t2');
     expect(localStorage.getItem('10doa:opened-trip')).toBeNull();
+  });
+});
+
+describe('the adoption rule', () => {
+  const answers = (over: Partial<Answers> = {}): Answers => ({ ...DEFAULT_ANSWERS, ...over });
+  const saved = (id: string, over: Partial<Answers> = {}) => ({ id, answers: answers(over) });
+
+  it('opens the itinerary the traveller pressed Edit on, even when their answers have moved on', () => {
+    // THE REGRESSION, reported from production 2026-08-20. Before the fix this
+    // was false, so Edit produced a fresh unattached plan under the generic
+    // heading and the itinerary's name never appeared.
+    const trip = saved('t2', { days: 4, tripName: 'Kids trip' });
+    expect(shouldAdoptTrip(trip, 't2', answers({ days: 7 }))).toBe(true);
+  });
+
+  it('resumes a trip whose answers still match, with nothing chosen', () => {
+    const trip = saved('t1', { days: 10 });
+    expect(shouldAdoptTrip(trip, null, answers({ days: 10 }))).toBe(true);
+  });
+
+  it('starts unattached on a retaken questionnaire when nothing was chosen', () => {
+    // The guard that stops a regenerated plan overwriting the saved row.
+    const trip = saved('t1', { days: 10 });
+    expect(shouldAdoptTrip(trip, null, answers({ days: 7 }))).toBe(false);
+  });
+
+  it('does not adopt a DIFFERENT trip just because something was chosen', () => {
+    // The fallback loaded someone else's pick — e.g. the chosen trip was
+    // deleted from another device — so the choice must not vouch for it.
+    const trip = saved('t1', { days: 10 });
+    expect(shouldAdoptTrip(trip, 't2', answers({ days: 7 }))).toBe(false);
+  });
+
+  it('still adopts a matching trip even when a different one was chosen', () => {
+    const trip = saved('t1', { days: 10 });
+    expect(shouldAdoptTrip(trip, 't2', answers({ days: 10 }))).toBe(true);
   });
 });
