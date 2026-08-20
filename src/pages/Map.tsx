@@ -16,10 +16,9 @@ import { type Catalog } from '../data/activitySource';
 import { answersToTags } from '../data/answerTags';
 import { unseedPlan } from '../data/itineraryPlan';
 import { useAuth } from '../lib/auth';
-import { loadTrip, loadTripById } from '../lib/trips';
+import { listTrips, tripTitle, type SavedTrip } from '../lib/trips';
 import { readActiveTripId } from '../lib/activeTrip';
-import { sameAnswers } from '../lib/sameAnswers';
-import type { Day } from '../data/activities';
+import { buildVariants, initialPlanIdx, clampPlanIdx, type Variant } from '../data/planVariants';
 
 const TOKEN = (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined) ?? '';
 const ARUBA_CENTER = { longitude: -70.0164, latitude: 12.5211, zoom: 11.5 };
@@ -87,19 +86,22 @@ function hideRoadShields(map: StyleMap): void {
 }
 
 type AnyPopup = { lng: number; lat: number; title: string; sub: string; price?: string | null; duration?: string | null; image?: string | null; url?: string | null; affiliate?: boolean; pin?: Pin | null; place?: string };
-// Display labels only — the underlying variant order/indices (activePlanIdx) are
-// unchanged. Three parallel adjectives; "Your trip"/"-leaning" dropped.
+// The switcher shows one of two things, never a mix.
 //
-// Slot 0 is the one that can be REAL. When a saved trip is loaded it holds that
-// trip, edits and all, and says so; with nothing saved it holds the generated
-// plan and keeps the old label. Slots 1 and 2 are always generated explorations,
-// so they are never described as something the traveller saved.
+// With saved itineraries, it shows THOSE — one tab per trip, carrying the name
+// the traveller gave it, newest first. An account holds many itineraries and
+// each is a different plan, so the strip is the list of them and the days below
+// belong to whichever is selected.
+//
+// With none saved (logged out, or signed in and never saved) it falls back to
+// these three generated explorations, which is what every visitor used to get.
+// They are never described as something the traveller saved.
 const PLAN_VARIANTS = [
   { label: 'Balanced',   description: 'Your personalised itinerary' },
   { label: 'Adventure',  description: 'Adrenaline-first, beaches second' },
   { label: 'Chill',      description: 'Slow mornings, easy afternoons' },
 ];
-const SAVED_VARIANT = { label: 'Your itinerary', description: 'The plan you saved, including your edits' };
+const SAVED_DESCRIPTION = 'The plan you saved, including your edits';
 
 /** Cache key for a tether: the exact Directions request it stands for. */
 const tetherKey = (coords: [number, number][]) =>
@@ -156,47 +158,61 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   // same 0 the Map passes, what it drew was the itinerary as first generated,
   // which is why it read as a stale copy rather than an obviously wrong one.
   //
-  // Deliberately the SAME load rule as Itinerary.tsx: the id in `10doa:trip-id`
-  // if it still resolves, else the most recently touched trip, and adopted only
-  // when `sameAnswers` holds. That last guard is what keeps the two surfaces
-  // agreeing — after a retaken questionnaire Itinerary starts unattached rather
-  // than overwriting the old trip, and the Map must show the same generated plan
-  // it does, not the trip Itinerary has stopped editing. It also keeps `tags`
-  // honest, since those are derived from `answers` and used to resolve a card's
-  // face on both surfaces.
+  // ALL of them, not just one: the switcher lists every saved itinerary by name,
+  // and `10doa:trip-id` only decides which is selected first. This replaced a
+  // single-trip load guarded by `sameAnswers`, which showed the trip only while
+  // its answers still matched the questionnaire and otherwise fell back to a
+  // generated plan. That guard existed to keep `tags` honest — they are derived
+  // from `answers` and pick a card's face when the stored product has left the
+  // catalog — so dropping it would have resolved an old trip's cards against
+  // answers it was never planned against. `buildVariants` carries per-trip tags
+  // instead, which protects the same thing without hiding the itinerary.
+  //
   // Keyed on `user?.id`, NOT `user`: useAuth derives `user` from the session
   // object, so every INITIAL_SESSION / TOKEN_REFRESH / visibility-change recovery
   // hands back a new identity for the same person. Depending on the object would
-  // refetch the trip and replace `savedPlan` with an equal-but-new array on each
-  // one, and that cascade reaches the fitBounds effect — a token refresh while
-  // the map is open would fly the camera for no reason.
-  const [savedPlan, setSavedPlan] = useState<Day[] | null>(null);
+  // refetch and replace `savedTrips` with an equal-but-new array on each one, and
+  // that cascade reaches the fitBounds effect — a token refresh while the map is
+  // open would fly the camera for no reason. `answers` is deliberately NOT a
+  // dependency any more: which itineraries you have saved does not change when
+  // you retake the questionnaire.
+  const [savedTrips, setSavedTrips] = useState<SavedTrip[]>([]);
   const [savedResolved, setSavedResolved] = useState(false);
   useEffect(() => {
     if (authLoading) return;            // decide nothing before we know whose map this is
-    if (!user) { setSavedPlan(null); setSavedResolved(true); return; }
+    if (!user) { setSavedTrips([]); setSavedResolved(true); return; }
     let alive = true;
     setSavedResolved(false);
-    const wanted = readActiveTripId();
-    const fetch = wanted
-      ? loadTripById(user.id, wanted).then((t) => t ?? loadTrip(user.id))
-      : loadTrip(user.id);
-    fetch.then((t) => {
+    listTrips(user.id).then((all) => {
       if (!alive) return;
-      setSavedPlan(t && sameAnswers(t.answers, answers) ? unseedPlan(t.plan) : null);
+      setSavedTrips(all);
+      // Open on the itinerary the planner is editing, so the Map and Itinerary
+      // agree about which trip you are looking at. Falls back to index 0, the
+      // most recently touched — the same "which one" rule `loadTrip` encodes.
+      setActivePlanIdx(initialPlanIdx(all, readActiveTripId()));
+      setActiveDay(1);
       setSavedResolved(true);
     });
     return () => { alive = false; };
-  }, [authLoading, user?.id, answers]);
+  }, [authLoading, user?.id]);
 
-  // Slot 0 is the saved trip when there is one; the generated plan otherwise.
-  const variants = useMemo(
-    () => (savedPlan ? [savedPlan, plans[1], plans[2]] : plans),
-    [savedPlan, plans],
-  );
-  const variantLabels = savedPlan
-    ? [SAVED_VARIANT, PLAN_VARIANTS[1], PLAN_VARIANTS[2]]
-    : PLAN_VARIANTS;
+  // Saved itineraries are the tabs when the traveller has any; the three
+  // generated explorations otherwise. Each saved trip resolves its cards with
+  // ITS OWN answers, not the ones currently in localStorage — a trip built
+  // before the questionnaire was retaken must not have its faces picked by
+  // answers it was never planned against. That is what the old `sameAnswers`
+  // guard protected by refusing to show the trip at all; carrying per-trip tags
+  // keeps the protection while still letting every itinerary be listed.
+  const variants = useMemo((): Variant[] => buildVariants(
+    savedTrips.map((t) => ({
+      id: t.id,
+      label: tripTitle(t),
+      plan: unseedPlan(t.plan),
+      tags: answersToTags(t.answers),
+    })),
+    plans.map((p, i) => ({ ...PLAN_VARIANTS[i], plan: p, tags })),
+    SAVED_DESCRIPTION,
+  ), [savedTrips, plans, tags]);
 
   // Nothing is drawn until we know whether there is a saved trip. Otherwise a
   // signed-in traveller gets one frame of the GENERATED plan under "Balanced /
@@ -204,7 +220,18 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   // the camera — the wrong itinerary shown confidently, which is the failure this
   // whole change is about. A blank moment is the honest state. Itinerary.tsx
   // solves the same problem with its `hydrated` gate.
-  const plan = savedResolved ? (variants[activePlanIdx] ?? null) : null;
+  // Clamp the plan index the same way `safeDay` clamps the day below, and for the
+  // same reason: the list it indexes can SHRINK under a selection. Signing out
+  // while on the 5th of five saved itineraries drops the list back to the three
+  // generated ones, and an unclamped `variants[4]` is `undefined` — which took
+  // the whole bottom panel, the route and the pins away and left no way back
+  // except navigating off the page and returning. `qDone` survives sign-out, so
+  // `canSeeItinerary` stays true and no empty state covers for it.
+  const safeIdx = clampPlanIdx(activePlanIdx, variants.length);
+  const activeVariant = savedResolved ? (variants[safeIdx] ?? null) : null;
+  const plan = activeVariant?.plan ?? null;
+  // Faces resolve against the SELECTED itinerary's answers, not the page's.
+  const activeTags = activeVariant?.tags ?? tags;
 
   const switchPlan = (idx: number) => {
     setActivePlanIdx(idx);
@@ -234,22 +261,22 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
     ];
     return slots.flatMap(([slot, slotId, entries]) =>
       entries.map((entry, i) => {
-        const book = bookLinkFor(entry, catalog, tags, slotId);
+        const book = bookLinkFor(entry, catalog, activeTags, slotId);
         return {
           key: `${slot}-${i}`,
           slot,
-          title: titleFor(entry, catalog, tags, slotId),
-          image: imageFor(entry, catalog, tags, slotId),
-          coord: pinForEntry(entry, catalog, tags, slotId)?.coord ?? null,
-          pin: pinForEntry(entry, catalog, tags, slotId),
-          price: priceFor(entry, catalog, tags, slotId),
-          duration: durationFor(entry, catalog, tags, slotId),
+          title: titleFor(entry, catalog, activeTags, slotId),
+          image: imageFor(entry, catalog, activeTags, slotId),
+          coord: pinForEntry(entry, catalog, activeTags, slotId)?.coord ?? null,
+          pin: pinForEntry(entry, catalog, activeTags, slotId),
+          price: priceFor(entry, catalog, activeTags, slotId),
+          duration: durationFor(entry, catalog, activeTags, slotId),
           url: book?.url ?? null,
           affiliate: book?.affiliate ?? false,
         };
       })
     );
-  }, [planDay, catalog, tags]);
+  }, [planDay, catalog, activeTags]);
 
   // Located stops for the map: every entry that has a coordinate, numbered 1..N
   // in chronological (morning→afternoon→evening) order so the markers match the
@@ -613,28 +640,39 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
               column costs the map. */}
           <div className="map-panel-controls">
 
-          {/* Itinerary variant switcher — mirrors Dashboard ITINERARY_VARIANTS */}
+          {/* Itinerary switcher. NOT a mirror of the Dashboard's list: that one
+              APPENDS the generated variants after the saved rows, where this one
+              replaces them, because a map shows one route at a time and a
+              generated exploration next to your real trips reads as a fourth trip. */}
           <div style={{ padding: '10px 16px 0' }}>
-            <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 4 }}>
-              {variantLabels.map((v, i) => {
-                const active = activePlanIdx === i;
-                return (
-                  <button
-                    key={i}
-                    onClick={() => switchPlan(i)}
-                    style={{ padding: '5px 14px', borderRadius: 20, border: `1.5px solid ${active ? '#1a1a1a' : '#ddd'}`, background: active ? '#1a1a1a' : 'transparent', color: active ? '#fff' : '#888', fontSize: 12, fontWeight: 600, fontFamily: 'Inter,sans-serif', cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap' }}
-                  >
-                    {v.label}
-                  </button>
-                );
-              })}
+            {/* Scrolls horizontally: an account can hold any number of saved
+                itineraries, so this row cannot assume it fits. `justifyContent`
+                is only safe while the tabs are narrower than the row — with
+                overflow it would clip the FIRST tab out of reach — so the
+                centring is done by `margin: auto` on the inner track instead. */}
+            <div style={{ display: 'flex', overflowX: 'auto', scrollbarWidth: 'none', marginBottom: 4 }}>
+              <div style={{ display: 'flex', gap: 6, margin: '0 auto', padding: '0 16px' }}>
+                {variants.map((v, i) => {
+                  const active = safeIdx === i;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => switchPlan(i)}
+                      title={v.label}
+                      style={{ padding: '5px 14px', borderRadius: 20, border: `1.5px solid ${active ? '#1a1a1a' : '#ddd'}`, background: active ? '#1a1a1a' : 'transparent', color: active ? '#fff' : '#888', fontSize: 12, fontWeight: 600, fontFamily: 'Inter,sans-serif', cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                    >
+                      {v.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             {/* Centred under the pills it describes. It was left-aligned while
                 the switcher lived in a 300px column, where centring would have
                 read as a caption on the middle pill; centred in a full-width row
                 it reads as the subtitle for all three. */}
             <p style={{ textAlign: 'center', fontSize: 11, color: '#aaa', fontFamily: 'Inter,sans-serif', margin: 0 }}>
-              {variantLabels[activePlanIdx].description}
+              {activeVariant?.description}
             </p>
           </div>
 
