@@ -14,9 +14,9 @@ import { DEFAULT_ANSWERS } from '../App';
  * meant editing assertions that are about something else.
  *
  * `poolPass` itself is unit-tested in data/exploreItems.test.ts. What is pinned
- * here is the part only a render can answer: that the two rows exist, that the
- * vehicle row cannot be used before a pool is chosen, and that a vehicle which
- * cannot reach the chosen pool is visibly dead rather than silently empty.
+ * here is the part only a render can answer: that the checkbox and its pill row
+ * exist, that the pills cannot be used before the pool is on, and that a vehicle
+ * which cannot reach it is visibly dead rather than silently empty.
  */
 
 const group = (over: Partial<ViatorGroup> = {}): ViatorGroup => ({

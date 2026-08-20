@@ -1536,16 +1536,14 @@ body:has(.cookie-banner) .map-page { padding-bottom: 72px; }
  * (The day arrows are back inside the panel, above the strip, so they sit well
  * clear of it; the victims are the strip cards and the quiz CTA.) Realistically
  * this is
- * Firefox below 121 (Dec 2023). The cost of being safe is 72px of map height
- * they keep after dismissing the banner; the cost of being clever is a control
- * they cannot click. */
+ * Firefox below 121 (Dec 2023). The cost of being safe is the reserve itself -
+ * 72, 108 or 128px by width - kept after dismissing the banner; the cost of
+ * being clever is a control they cannot click. */
 @supports not selector(:has(*)) {
   .map-page { padding-bottom: 72px; }
   @media (max-width: 900px) { .map-page { padding-bottom: 108px; } }
   @media (max-width: 500px) { .map-page { padding-bottom: 128px; } }
 }
-
-
 
 /* Scroll-driven reveal animation for itinerary cards */
 @keyframes reveal {

@@ -493,24 +493,37 @@ function sailTimes(entry: ExploreEntry): number[] {
   const id = entry.kind === 'item' ? entry.item.id : entry.activity.id;
   const times = startTimesFor(id).map(toMins).filter((n) => !Number.isNaN(n));
   if (times.length > 0 || entry.kind !== 'activity') return times;
-  // A curated pick has no Viator schedule — it is not a Viator product — but it
-  // does carry a hand-written timeOfDay, and without reading it both curated
-  // catamarans answered to no time facet and vanished the moment any of the
-  // three was pressed. One representative minute per band is enough: nothing
-  // downstream reads the value except the three comparisons below.
+  // A curated pick has no Viator schedule — its id is a slug, so the lookup
+  // above can only miss — but it carries a hand-written timeOfDay. Without this
+  // a curated sail would answer to no time facet and vanish the moment one was
+  // pressed. Dormant today for the same reason isSail's activity branch is (see
+  // there), and kept for the same reason. One representative minute per band is
+  // enough: nothing downstream reads the value except the three comparisons.
   return { Morning: [9 * 60], Afternoon: [14 * 60], Evening: [18 * 60] }[entry.activity.timeOfDay] ?? [];
 }
 
 /**
  * Is this a sail, whoever wrote the tile?
  *
- * Both kinds, because two of the curated picks genuinely are sails and carry
- * Viator's own sailing tags to prove it — "Catamaran Sail & Snorkel at Boca
- * Catalina" (11888) and "Antilla Shipwreck Snorkel Cruise" (11885). Reading
- * items only, as a first pass did, dropped both: Sail plus Show > Local picks
- * was a guaranteed-empty page, and Sail on its own quietly lost two catamarans.
- * `activityKind` reads `tags` first and falls back to title and section, all of
- * which an Activity carries, so the shim is a shape cast rather than a guess.
+ * Reads BOTH kinds, for consistency with poolPass — and today that branch
+ * rescues nothing, which is worth stating plainly because an earlier version of
+ * this comment claimed otherwise.
+ *
+ * The claim was that two curated picks are sails: "Catamaran Sail & Snorkel at
+ * Boca Catalina" and "Antilla Shipwreck Snorkel Cruise", both carrying Viator
+ * sailing tags. They do carry them — and `activityKind` answers 'snorkel' for
+ * both anyway. Their real tag arrays are [11888, 11912] and [11885, 11912], and
+ * KIND_BY_TAG tests [11912] snorkel BEFORE the sail row, first match winning.
+ * Measured, not read off the tag list: `activityKind` on the two actual records
+ * returns 'snorkel', and 0 of the curated set classifies as a sail.
+ *
+ * So the branch is here so that a curated pick tagged sail-only would be found,
+ * and because a filter that reads one kind when its neighbour reads two is a
+ * trap for whoever edits next. Not because it fixes anything visible today.
+ *
+ * The shim is a shape cast: `activityKind` reads `tags`, then `enriched_kind`
+ * (which an Activity has no field for), then falls back to `sec:<section>` —
+ * NOT to the title, which itemFit flags in as many words as a deliberate trap.
  */
 function isSail(entry: ExploreEntry): boolean {
   const shape = entry.kind === 'item'

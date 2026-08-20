@@ -7,12 +7,12 @@ import type { Activity } from '../data/activities';
 import { DEFAULT_ANSWERS } from '../App';
 
 /**
- * The Sail filter and its two pill rows, rendered.
+ * The Sail filter and its pill row, rendered.
  *
  * `sailPass` is unit-tested in data/exploreItems.test.ts. What only a render can
- * answer is here: that the pills toggle rather than replace each other, that the
- * two rows combine the way the split promises — times widening, on-board
- * narrowing — and that nothing can be left pressed once sailing is switched off.
+ * answer is here: that the pills toggle rather than replace each other, that
+ * times widen while what is on board narrows, and that nothing can be left
+ * pressed once sailing is switched off.
  *
  * The ids are real ones from src/data/startTimes.json, so the time pills are
  * exercised against the same snapshot production ships:
@@ -41,13 +41,27 @@ const CATALOG: Catalog = {
     // so a facet matching on text alone would wrongly keep it.
     item('offroad', 'Aruba Jeep Safari', { tags: [], sections: ['adventures-outdoor'], description: 'Lunch, open bar and snorkelling at the pool.' }),
   ],
-  // Two curated picks really are sails and carry Viator's sailing tags. They
-  // were dropped by an items-only read, which is what this fixture pins.
+  // Two curated entries, and the pair is the point.
+  //
+  // The first carries the REAL tag array of the live "Catamaran Sail & Snorkel
+  // at Boca Catalina" — [11888, 11912] — and is NOT a sail: KIND_BY_TAG tests
+  // snorkel (11912) before the sail row, so activityKind answers 'snorkel'.
+  // Measured on the actual record, after an earlier fixture here used a
+  // sail-only [11888] that exists nowhere in production and made the tests
+  // agree with a claim the data does not support.
+  //
+  // The second is sail-tagged only. No curated pick looks like this today; it
+  // exists so the activity branch of isSail is exercised by something rather
+  // than being dead code nothing can fail on.
   activities: [
     { id: 'boca-catalina-snorkel', title: 'Catamaran Sail & Snorkel at Boca Catalina', category: 'Watersports',
       image: '', description: 'Catamaran drops anchor at Boca Catalina.', localsSay: '', cost: '$65 pp',
       duration: '2-3 hrs', timeOfDay: 'Morning', fitReason: '', location: 'Boca Catalina',
-      rating: 4.7, reviewCount: 1245, adventure: 32, sections: ['cruises-water'], tags: [11888], matched_by: [] },
+      rating: 4.7, reviewCount: 1245, adventure: 32, sections: ['cruises-water'], tags: [11888, 11912], matched_by: [] },
+    { id: 'sunset-schooner', title: 'Curated Sunset Schooner', category: 'Watersports',
+      image: '', description: 'A hand-picked evening sail.', localsSay: '', cost: '$70 pp',
+      duration: '2 hrs', timeOfDay: 'Evening', fitReason: '', location: 'Oranjestad',
+      rating: 4.8, reviewCount: 90, adventure: 30, sections: ['cruises-water'], tags: [11888], matched_by: [] },
     { id: 'eagle-beach', title: 'Eagle Beach Morning', category: 'Beaches', image: '', description: 'White sand.',
       localsSay: '', cost: 'Free', duration: '2 hrs', timeOfDay: 'Morning', fitReason: '', location: 'Eagle Beach',
       rating: 4.9, reviewCount: 10, adventure: 8, sections: ['beaches'], matched_by: [] },
@@ -82,6 +96,16 @@ describe('Explore — the sail filter', () => {
     expect(screen.getByRole('group', { name: 'Sail options' })).toBeInTheDocument();
   });
 
+  // The owner's actual request, and nothing else guarded it: the two new
+  // filters are named by their checkbox, not by a heading of their own. Five
+  // headings for two controls is what this replaced.
+  it('adds no heading of its own to the panel', () => {
+    openMore();
+    const headings = [...document.getElementById('explore-more-filters')!.querySelectorAll('h4')]
+      .map((h) => h.textContent);
+    expect(headings).toEqual(['Duration', 'Show']);
+  });
+
   it('the pills are dead until sailing is on', () => {
     openMore();
     for (const p of ['Morning', 'Afternoon', 'Sunset']) expect(when(p)).toBeDisabled();
@@ -90,37 +114,41 @@ describe('Explore — the sail filter', () => {
 
   it('narrows to sails, and the jeep does not sneak in on its words', () => {
     openMore();
-    expect(titles()).toHaveLength(6);
+    expect(titles()).toHaveLength(7);
     fireEvent.click(sailToggle());
-    // The curated catamaran is in; the curated beach and the jeep are not.
     expect(titles()).toEqual([
-      'Aruba Sunset Sail', 'Catamaran Sail & Snorkel at Boca Catalina',
+      'Aruba Sunset Sail', 'Curated Sunset Schooner',
       'Half Day Private Sailing', 'Morning Snorkel Sail',
     ]);
   });
 
-  // A curated pick has no Viator schedule, so without reading its hand-written
-  // timeOfDay it answered to no time facet and disappeared the moment one was
-  // pressed — a silent hole exactly where the first bug was.
-  it('a curated sail keeps its place under a time pill', () => {
+  // The one the tag order decides. Its array is the real one, and snorkel is
+  // tested first, so the "Catamaran Sail" in its own name does not make it one.
+  it('a curated pick tagged snorkel-first is not a sail', () => {
     openMore();
     fireEvent.click(sailToggle());
-    fireEvent.click(when('Morning'));
-    expect(titles()).toContain('Catamaran Sail & Snorkel at Boca Catalina');
-    fireEvent.click(when('Morning'));
-    fireEvent.click(when('Sunset'));
     expect(titles()).not.toContain('Catamaran Sail & Snorkel at Boca Catalina');
   });
 
-  // A hand-written pick is a tile like any other. Reading only Viator items
-  // dropped both of the curated catamarans, and made Sail + "Local picks" an
-  // empty page by construction.
+  // A curated pick has no Viator schedule — its id is a slug — so without its
+  // hand-written timeOfDay it would answer to no time facet and vanish the
+  // moment one was pressed.
+  it('a curated sail keeps its place under a time pill', () => {
+    openMore();
+    fireEvent.click(sailToggle());
+    fireEvent.click(when('Sunset'));
+    expect(titles()).toContain('Curated Sunset Schooner');
+    fireEvent.click(when('Sunset'));
+    fireEvent.click(when('Morning'));
+    expect(titles()).not.toContain('Curated Sunset Schooner');
+  });
+
   it('keeps curated picks that are sails', () => {
     openMore();
     fireEvent.click(sailToggle());
     fireEvent.click([...screen.getByRole('group', { name: 'Show' }).querySelectorAll('button')]
       .find((b) => b.textContent === 'Local picks')!);
-    expect(titles()).toEqual(['Catamaran Sail & Snorkel at Boca Catalina']);
+    expect(titles()).toEqual(['Curated Sunset Schooner']);
   });
 
   // The pills are toggles, not a radio group: a second click adds rather than
@@ -142,9 +170,9 @@ describe('Explore — the sail filter', () => {
     openMore();
     fireEvent.click(sailToggle());
     fireEvent.click(when('Morning'));
-    expect(titles()).toEqual(['Catamaran Sail & Snorkel at Boca Catalina', 'Half Day Private Sailing', 'Morning Snorkel Sail']);
+    expect(titles()).toEqual(['Half Day Private Sailing', 'Morning Snorkel Sail']);
     fireEvent.click(when('Sunset'));
-    expect(titles()).toEqual(['Aruba Sunset Sail', 'Catamaran Sail & Snorkel at Boca Catalina', 'Half Day Private Sailing', 'Morning Snorkel Sail']);
+    expect(titles()).toEqual(['Aruba Sunset Sail', 'Curated Sunset Schooner', 'Half Day Private Sailing', 'Morning Snorkel Sail']);
   });
 
   it('what is on board narrows, across the rows and within them', () => {
@@ -153,7 +181,7 @@ describe('Explore — the sail filter', () => {
     fireEvent.click(when('Morning'));
     fireEvent.click(when('Sunset'));
     fireEvent.click(onboard('Snorkelling'));
-    expect(titles()).toEqual(['Catamaran Sail & Snorkel at Boca Catalina', 'Morning Snorkel Sail']);
+    expect(titles()).toEqual(['Morning Snorkel Sail']);
     fireEvent.click(onboard('Cocktails'));
     expect(titles()).toEqual([]);
   });
@@ -162,9 +190,9 @@ describe('Explore — the sail filter', () => {
     openMore();
     fireEvent.click(sailToggle());
     fireEvent.click(when('Sunset'));
-    expect(titles()).toEqual(['Aruba Sunset Sail']);
+    expect(titles()).toEqual(['Aruba Sunset Sail', 'Curated Sunset Schooner']);
     fireEvent.click(sailToggle());
-    expect(titles()).toHaveLength(6);
+    expect(titles()).toHaveLength(7);
     fireEvent.click(sailToggle());
     expect(when('Sunset')).toHaveAttribute('aria-pressed', 'false');
     expect(titles()).toHaveLength(4);
@@ -183,7 +211,7 @@ describe('Explore — the sail filter', () => {
     fireEvent.click(sailToggle());
     fireEvent.click(when('Sunset'));
     fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
-    expect(titles()).toHaveLength(6);
+    expect(titles()).toHaveLength(7);
     expect(when('Sunset')).toBeDisabled();
   });
 });
