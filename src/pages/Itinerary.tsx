@@ -30,7 +30,7 @@ import { loadTrip, loadTripById, saveTrip, updateTrip, createTrip } from '../lib
 import { readActiveTripId, writeActiveTripId, takeTripOpened, shouldAdoptTrip, adoptedAnswers } from '../lib/activeTrip';
 import { createShare, loadShare } from '../lib/shares';
 import ShareEmailModal from '../components/ShareEmailModal';
-import CopyLinkRow from '../components/CopyLinkRow';
+import CopyLinkRow, { SHARE_MENU_ROW } from '../components/CopyLinkRow';
 import { capture } from '../lib/analytics';
 import { supabase } from '../lib/supabase';
 import SignIn from '../components/SignIn';
@@ -172,7 +172,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
       if (!id) { setShareErr(error ?? "Couldn't create link — try again"); return; }
       url = `${window.location.origin}/i/${id}`;
       setShareUrl(url);
-      capture('itinerary_shared');
+      capture('itinerary_shared', { via: 'link' });
     }
     // Native OS share sheet on mobile; the desktop popover otherwise. If
     // navigator.share throws for a reason other than a user cancel — e.g. iOS
@@ -909,20 +909,20 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
                     {shareMenuOpen && (
                       <div
                         className="chunky"
-                        role="menu"
-                        aria-label="Share itinerary"
                         style={{ position: 'absolute', bottom: 'calc(100% + 12px)', left: '50%', transform: 'translateX(-50%)', minWidth: 220, padding: '6px 0', background: 'var(--cream)', color: 'var(--ink)', zIndex: 30 }}
                       >
                         <button
                           type="button"
                           onClick={() => { setShareMenuOpen(false); setEmailOpen(true); }}
-                          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}
+                          style={SHARE_MENU_ROW}
                         >
                           <Mail size={14} /><span>Share via email</span>
                         </button>
                         <CopyLinkRow
                           trip={{ answers, plan, rejected, rejectedGroups }}
                           onDone={() => setShareMenuOpen(false)}
+                          cachedUrl={shareUrl}
+                          onUrl={setShareUrl}
                         />
                       </div>
                     )}
@@ -931,6 +931,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
                         className="btn-red"
                         onClick={session ? () => setShareMenuOpen((v) => !v) : handleShare}
                         aria-expanded={session ? shareMenuOpen : undefined}
+                        aria-haspopup={session ? true : undefined}
                         disabled={!supabase || shareBusy}
                         title={!supabase ? 'Sharing is not configured yet' : undefined}
                         style={{ padding: '10px 18px', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6, opacity: (!supabase || shareBusy) ? 0.6 : 1 }}

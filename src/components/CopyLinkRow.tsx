@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from './Icons';
 import { createShare } from '../lib/shares';
 import { capture } from '../lib/analytics';
@@ -31,33 +31,58 @@ type State =
   | { kind: 'manual'; url: string }   // clipboard refused — select it yourself
   | { kind: 'error' };
 
-const ROW: React.CSSProperties = {
+/**
+ * Shared by every row in a share menu, including the "Share via email" siblings
+ * in Dashboard and Itinerary. Exported because writing it out per menu is
+ * exactly the drift this component exists to avoid.
+ */
+export const SHARE_MENU_ROW: React.CSSProperties = {
   width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
   background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit',
   fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left',
 };
 
-export default function CopyLinkRow({ trip, onDone }: { trip: TripState; onDone?: () => void }) {
+type Props = {
+  trip: TripState;
+  onDone?: () => void;
+  /**
+   * A link already minted for this exact itinerary, if the caller holds one.
+   * Every insert into `shared_itineraries` is PERMANENT — the table has no
+   * delete policy — so clicking Copy link three times on an unchanged plan
+   * must not leave three public snapshots behind. The caller owns the cache
+   * because only it knows when the plan changed underneath.
+   */
+  cachedUrl?: string | null;
+  onUrl?: (url: string) => void;
+};
+
+export default function CopyLinkRow({ trip, onDone, cachedUrl, onUrl }: Props) {
   const [state, setState] = useState<State>({ kind: 'idle' });
+  // The 1400ms "Copied ✓" hold outlives a fast menu switch: copy on one row,
+  // open another within the window, and a timer belonging to an unmounted row
+  // would call `onDone` and shut the menu that was just opened.
+  const timer = useRef<number | null>(null);
+  useEffect(() => () => { if (timer.current !== null) window.clearTimeout(timer.current); }, []);
+
+  const finish = (url: string) => {
+    onUrl?.(url);
+    capture('itinerary_shared', { via: 'link' });
+    navigator.clipboard.writeText(url).then(
+      () => {
+        setState({ kind: 'copied' });
+        timer.current = window.setTimeout(() => { setState({ kind: 'idle' }); onDone?.(); }, 1400);
+      },
+      () => setState({ kind: 'manual', url }),
+    );
+  };
 
   const run = async () => {
     if (state.kind === 'working') return;
+    if (cachedUrl) { finish(cachedUrl); return; }
     setState({ kind: 'working' });
-    const { id, error } = await createShare(trip).catch(() => ({ id: null, error: 'failed' }));
-    if (!id) {
-      setState({ kind: 'error' });
-      return;
-    }
-    const url = `${window.location.origin}/i/${id}`;
-    capture('itinerary_shared', { via: 'link' });
-    try {
-      await navigator.clipboard.writeText(url);
-      setState({ kind: 'copied' });
-      window.setTimeout(() => { setState({ kind: 'idle' }); onDone?.(); }, 1400);
-    } catch {
-      setState({ kind: 'manual', url });
-    }
-    void error;
+    const { id } = await createShare(trip).catch(() => ({ id: null }));
+    if (!id) { setState({ kind: 'error' }); return; }
+    finish(`${window.location.origin}/i/${id}`);
   };
 
   if (state.kind === 'manual') {
@@ -78,7 +103,7 @@ export default function CopyLinkRow({ trip, onDone }: { trip: TripState; onDone?
   }
 
   return (
-    <button type="button" onClick={run} style={ROW} disabled={state.kind === 'working'}>
+    <button type="button" onClick={run} style={SHARE_MENU_ROW} disabled={state.kind === 'working'}>
       <Link size={14} />
       <span>
         {state.kind === 'working' ? 'Creating link…'

@@ -22,7 +22,7 @@ import { useAuth } from '../lib/auth';
 import { listTrips, deleteTrip, tripLabel, type SavedTrip } from '../lib/trips';
 import { readActiveTripId, writeActiveTripId, markTripOpened } from '../lib/activeTrip';
 import ShareEmailModal from '../components/ShareEmailModal';
-import CopyLinkRow from '../components/CopyLinkRow';
+import CopyLinkRow, { SHARE_MENU_ROW } from '../components/CopyLinkRow';
 import { matchPool, blendPools, parseActivityCost } from '../data/matcher';
 import { productUrlFor, sectionLabel, primarySection, bookUrlForActivity } from '../data/exploreItems';
 import type { PageId, Answers } from '../App';
@@ -720,6 +720,12 @@ export function ItineraryPanel({
   // shape as the email dialog: the row travels with the state, so the card can
   // name the trip it is about to destroy and can never act on a different one.
   const [confirmDelete, setConfirmDelete] = useState<SavedTrip | null>(null);
+  // One share link per itinerary per visit. Inserts into `shared_itineraries`
+  // are permanent — the table has no delete policy — so re-opening a menu and
+  // pressing Copy link again must not mint a second public snapshot of a plan
+  // that has not changed. Keyed by row id; the saved trips do not mutate while
+  // this panel is mounted.
+  const [shareUrls, setShareUrls] = useState<Record<string, string>>({});
   // Which itinerary the email dialog is about. The dialog is a single modal
   // shared by every row, so it has to carry the row it was opened from.
   const [emailTrip,    setEmailTrip]    = useState<SavedTrip | null>(null);
@@ -927,14 +933,21 @@ export function ItineraryPanel({
                         <div className="chunky" style={{ position: 'absolute', ...(isExpanded ? { top: 'calc(100% + 6px)' } : { bottom: 'calc(100% + 6px)' }), right: 0, padding: '6px 0', minWidth: 190, zIndex: 20, background: 'var(--cream)' }}>
                           <button
                             onClick={() => { setShareOpen(null); setEmailTrip(rowTrip); setEmailOpen(true); }}
-                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
+                            style={SHARE_MENU_ROW}>
                             <Mail size={14} /><span>Share via email</span>
                           </button>
                           {/* The other half of sharing. Sending by email creates
                               a public link but only puts it in the message, so
                               without this row a traveller cannot get one to
                               paste anywhere themselves. */}
-                          {rowTrip && <CopyLinkRow trip={rowTrip} onDone={() => setShareOpen(null)} />}
+                          {rowTrip && (
+                            <CopyLinkRow
+                              trip={rowTrip}
+                              onDone={() => setShareOpen(null)}
+                              cachedUrl={shareUrls[rowTrip.id] ?? null}
+                              onUrl={(url) => setShareUrls((m) => ({ ...m, [rowTrip.id]: url }))}
+                            />
+                          )}
                         </div>
                       )}
                     </div>
