@@ -539,7 +539,13 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
               >
                 {popup.image && (
                   <div style={{ width: '100%', height: 110, overflow: 'hidden', background: '#e0dbd0' }}>
-                    <img src={popup.image} alt={popup.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={ev => { (ev.target as HTMLImageElement).style.display = 'none'; }} />
+                    {/* Keyed on the src for the same reason the strip's image
+                        is: the popup node is reused from pin to pin, so a hide
+                        from one product's missing photo survived onto the next
+                        one's. Measured: after opening a card whose image 404s,
+                        the next popup's image loaded at 2048px wide and was
+                        still display:none. */}
+                    <img key={popup.image} src={popup.image} alt={popup.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={ev => { (ev.target as HTMLImageElement).style.display = 'none'; }} />
                   </div>
                 )}
                 <div style={{ padding: '8px 10px 10px' }}>
@@ -689,8 +695,20 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
                 onClick={() => e.coord && setPopup({ lng: e.coord.lng, lat: e.coord.lat, title: e.title, sub: e.slot, price: e.price, duration: e.duration, image: e.image, url: e.url, affiliate: e.affiliate, pin: e.pin })}
               >
                 <div style={{ width: 120, height: 72, borderRadius: 10, overflow: 'hidden', background: '#e8e2d6', border: `2px solid ${dayColor}`, flexShrink: 0 }}>
+                  {/* Keyed on the SRC, and that is the fix for a real bug rather
+                      than tidiness. The strip's entry keys are `${slot}-${i}`,
+                      identical on every day, so changing day hands React the
+                      same <img> node with a new src. onError hides the node by
+                      mutating style, nothing ever un-hides it, and one broken
+                      image therefore blanked that slot for every LATER day too:
+                      measured on production, days 4, 5 and 6 showed an empty
+                      third card whose image had in fact loaded (naturalWidth
+                      1250 and 720) and was simply still display:none from day
+                      3's miss. A key on the src remounts the node whenever the
+                      picture changes, so the hide cannot outlive the image it
+                      was about. */}
                   {e.image
-                    ? <img src={e.image} alt={e.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={ev => { (ev.target as HTMLImageElement).style.display = 'none'; }} />
+                    ? <img key={e.image} src={e.image} alt={e.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={ev => { (ev.target as HTMLImageElement).style.display = 'none'; }} />
                     : <div style={{ width: '100%', height: '100%', background: dayColor, opacity: 0.2 }} />
                   }
                 </div>
