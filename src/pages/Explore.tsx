@@ -9,8 +9,8 @@ import Footer from '../components/Footer';
 import { useShortlist } from '../lib/shortlist';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
-import { filterExploreEntries, sortEntries, bookUrlForEntry, viatorLink, bookUrlForActivity, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, poolPass } from '../data/exploreItems';
-import type { DurationBand, Provenance, SortKey, PoolMode } from '../data/exploreItems';
+import { filterExploreEntries, sortEntries, bookUrlForEntry, viatorLink, bookUrlForActivity, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, poolPass, sailPass } from '../data/exploreItems';
+import type { DurationBand, Provenance, SortKey, PoolMode, SailFacet } from '../data/exploreItems';
 import { searchEntries } from '../lib/entrySearch';
 import { answersToTags } from '../data/answerTags';
 import { useSearchBox } from '../lib/useSearchBox';
@@ -89,6 +89,35 @@ const PROVENANCE_OPTIONS: { v: Provenance; label: string }[] = [
   { v: 'all', label: 'All' }, { v: 'local', label: 'Local picks' }, { v: 'bookable', label: 'Bookable' },
   { v: 'free', label: 'Free' },
 ];
+/* Same pill, many at once. Kept separate from PillRow rather than folded into
+   it with a flag: one takes a value and returns a value, this takes a set and
+   toggles membership, and the two aria contracts differ with them. */
+function PillToggles<T extends string>({ label, values, options, onToggle }: {
+  label: string; values: T[]; options: { v: T; label: string; disabled?: boolean }[]; onToggle: (v: T) => void;
+}) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <h4 style={{ fontWeight: 700, fontSize: 11, margin: '0 0 7px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-700)' }}>{label}</h4>
+      <div role="group" aria-label={label} style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+        {options.map((o) => (
+          <button key={o.v} type="button" aria-pressed={values.includes(o.v)} disabled={o.disabled}
+            className={`filter-pill${values.includes(o.v) ? ' active' : ''}`}
+            onClick={() => onToggle(o.v)}>{o.label}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Two rows because they combine differently, and the split is what says so: the
+// three times are three answers to one question and widen each other, while
+// what is on board narrows. sailPass carries the rule.
+const SAIL_WHEN_OPTIONS: { v: SailFacet; label: string }[] = [
+  { v: 'morning', label: 'Morning' }, { v: 'afternoon', label: 'Afternoon' }, { v: 'sunset', label: 'Sunset' },
+];
+const SAIL_ONBOARD_OPTIONS: { v: SailFacet; label: string }[] = [
+  { v: 'food', label: 'Food' }, { v: 'cocktails', label: 'Cocktails' }, { v: 'snorkeling', label: 'Snorkelling' },
+];
 const POOL_MODE_OPTIONS: { v: PoolMode; label: string }[] = [
   { v: 'any', label: 'Any' }, { v: 'jeep', label: 'Jeep' }, { v: 'utv', label: 'UTV' },
   { v: 'atv', label: 'ATV' }, { v: 'horseback', label: 'Horseback' }, { v: 'hike', label: 'Hike' },
@@ -162,18 +191,21 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   const [provenance, setProvenance] = useState<Provenance>('all');
   const [pool, setPool] = useState(false);
   const [poolMode, setPoolMode] = useState<PoolMode>('any');
+  const [sail, setSail] = useState(false);
+  const [sailFacets, setSailFacets] = useState<SailFacet[]>([]);
   const [moreOpen, setMoreOpen] = useState(false);
   // Only the filters hidden behind "More filters" are counted — the badge exists
   // to say what is narrowing the page out of sight. The pool and its vehicle row
   // are one entry here, not two; see the comment on hiddenActive below.
   // The pool and its vehicle row count as ONE narrowing, because that is what
   // they are: the vehicle cannot narrow anything on its own.
-  const hiddenActive = [duration !== 'any', privateOnly, provenance !== 'all', pool].filter(Boolean).length;
+  const hiddenActive = [duration !== 'any', privateOnly, provenance !== 'all', pool, sail].filter(Boolean).length;
   const anyActive = hiddenActive > 0 || sort !== 'recommended' || vibe !== 50 || price !== 50;
   const clearAll = () => {
     setVibe(50); setPrice(50); setSort('recommended');
     setDuration('any'); setPrivateOnly(false); setProvenance('all');
     setPool(false); setPoolMode('any');
+    setSail(false); setSailFacets([]);
   };
   // No ♥ on Explore's cards since 2026-08-05 — "+ Add" is the one way to keep an
   // activity here, so a card offers one action instead of two that read alike.
@@ -194,8 +226,8 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   // stay in exploreItems and pass everything when the option is absent, so the
   // filter is dormant rather than deleted. Sorting by rating or reviews is
   // untouched — a sort cannot hide anything.
-  const extra = useMemo(() => ({ duration, privateOnly, provenance, pool, poolMode }),
-    [duration, privateOnly, provenance, pool, poolMode]);
+  const extra = useMemo(() => ({ duration, privateOnly, provenance, pool, poolMode, sail, sailFacets }),
+    [duration, privateOnly, provenance, pool, poolMode, sail, sailFacets]);
   // Which vehicles can actually reach a pool, counted against the page as it is
   // currently filtered so the row cannot disagree with the grid. Greyed rather
   // than hidden: a dead button reads as a fact about supply, where a missing one
@@ -214,6 +246,21 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
     .filter((o) => o.v !== 'any' && o.v !== poolMode && poolModeCounts?.[o.v] === 0)
     .map((o) => o.label);
   const togglePool = (on: boolean) => { setPool(on); setPoolMode('any'); };
+  // Switching sailing off drops the facets with it, so they cannot come back
+  // with the checkbox and narrow a page nothing on screen explains.
+  const toggleSail = (on: boolean) => { setSail(on); setSailFacets([]); };
+  const toggleFacet = (f: SailFacet) =>
+    setSailFacets((prev) => (prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]));
+  // A facet nothing answers to, counted against the page as it stands — the same
+  // guard the vehicle row has, and it never disables one already chosen.
+  const sailFacetCounts = useMemo(() => {
+    if (!sail) return null;
+    const sails = filterExploreEntries(catalog, { section, search, vibe, price, ...extra, sailFacets: [] });
+    const all = [...SAIL_WHEN_OPTIONS, ...SAIL_ONBOARD_OPTIONS];
+    return Object.fromEntries(all.map((o) => [o.v, sails.filter((e) => sailPass(e, true, [o.v])).length])) as Record<SailFacet, number>;
+  }, [catalog, section, search, vibe, price, extra, sail]);
+  const facetOptions = (opts: { v: SailFacet; label: string }[]) =>
+    opts.map((o) => ({ ...o, disabled: !sail || (!sailFacets.includes(o.v) && sailFacetCounts?.[o.v] === 0) }));
   // The "Good for kids" checkbox that wrapped this in `splitByFacet` was removed
   // 2026-08-19 and deferred to v2, owner's call: the underlying kids verdict is
   // not good enough to filter on. The VERDICT stays live — the search box reads
@@ -319,6 +366,13 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
                         {`${deadVehicles.join(', ').replace(/, ([^,]*)$/, ' and $1')} tours do not reach this pool.`}
                       </p>
                     )}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', marginBottom: 10 }}>
+                      <input type="checkbox" checked={sail} onChange={(e) => toggleSail(e.target.checked)} />
+                      Sail
+                    </label>
+                    <PillToggles label="When" values={sailFacets} options={facetOptions(SAIL_WHEN_OPTIONS)} onToggle={toggleFacet} />
+                    <PillToggles label="On board" values={sailFacets} options={facetOptions(SAIL_ONBOARD_OPTIONS)} onToggle={toggleFacet} />
+
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                       <input type="checkbox" checked={privateOnly} onChange={(e) => setPrivateOnly(e.target.checked)} />
                       Private tours only

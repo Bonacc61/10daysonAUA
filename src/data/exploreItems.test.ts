@@ -21,6 +21,7 @@ import {
   privatePass,
   provenancePass,
   poolPass,
+  sailPass,
   sortEntries,
   rankRecommended,
   shrunkRating,
@@ -639,6 +640,94 @@ describe('poolPass', () => {
   test('a local pick is filtered on its own words, not skipped', () => {
     expect(poolPass(local('Conchi Natural Pool', 'Reachable only by 4x4.'), true, 'any')).toBe(true);
     expect(poolPass(local('Eagle Beach', 'Wide white sand.'), true, 'any')).toBe(false);
+  });
+});
+
+describe('sailPass', () => {
+  // Ids that carry real start times in src/data/startTimes.json, so the time
+  // facets are tested against the same snapshot the app ships:
+  //   245504 -> 09:00   245508 -> 17:30   102406P4 -> 09:00, 13:00
+  const sail = (id: string, title: string, description = ''): ExploreEntry =>
+    ({ kind: 'item', item: { id, title, description, tags: [11888] } as unknown as ViatorItem,
+       category: 'Tours', adventure: 40, sections: [] });
+  const notASail: ExploreEntry =
+    { kind: 'item', item: { id: '245504', title: 'Aruba Jeep Safari', description: 'Open bar and lunch.' } as ViatorItem,
+      category: 'Tours', adventure: 70, sections: [] };
+  const local: ExploreEntry =
+    { kind: 'activity', activity: { title: 'Sunset at Arashi Beach' } as Activity, category: 'Beaches', adventure: 8, sections: [] };
+
+  test('off, it admits everything', () => {
+    expect(sailPass(notASail, false, [])).toBe(true);
+    expect(sailPass(local, undefined, undefined)).toBe(true);
+    // Facets alone must not filter — they are a SUB-filter of the checkbox.
+    expect(sailPass(notASail, false, ['sunset'])).toBe(true);
+  });
+
+  test('on, it keeps sails and drops everything else', () => {
+    expect(sailPass(sail('245508', 'Aruba Sunset Sail with Open Bar'), true, [])).toBe(true);
+    expect(sailPass(notASail, true, [])).toBe(false);
+    expect(sailPass(local, true, [])).toBe(false);
+  });
+
+  test('the time comes from the real departure, not the prose', () => {
+    const morning = sail('245504', 'Half-Day Snorkel Sail Tour');
+    expect(sailPass(morning, true, ['morning'])).toBe(true);
+    expect(sailPass(morning, true, ['afternoon'])).toBe(false);
+    expect(sailPass(morning, true, ['sunset'])).toBe(false);
+
+    const evening = sail('245508', 'Catamaran Cruise');
+    expect(sailPass(evening, true, ['sunset'])).toBe(true);
+    expect(sailPass(evening, true, ['afternoon'])).toBe(false);
+  });
+
+  // "Sunset Champagne and Lobster sail" departs at 14:30. A traveller asking
+  // for an afternoon sail does not mean that one, so the title wins the clock.
+  test('a titled sunset sail is a sunset sail whatever time it leaves', () => {
+    const early = sail('102406P4', 'Sunset Champagne and Lobster Sail');
+    expect(sailPass(early, true, ['sunset'])).toBe(true);
+    expect(sailPass(early, true, ['afternoon'])).toBe(false);
+    expect(sailPass(early, true, ['morning'])).toBe(false);
+  });
+
+  test('a sail with two departures answers to both', () => {
+    const both = sail('102406P4', 'Tropical Sailing Experience');
+    expect(sailPass(both, true, ['morning'])).toBe(true);
+    expect(sailPass(both, true, ['afternoon'])).toBe(true);
+  });
+
+  test('what is on board is read from the description too', () => {
+    const s = sail('245504', 'Private Catamaran Charter', 'Includes a Caribbean lunch, an open bar and two snorkelling stops.');
+    expect(sailPass(s, true, ['food'])).toBe(true);
+    expect(sailPass(s, true, ['cocktails'])).toBe(true);
+    expect(sailPass(s, true, ['snorkeling'])).toBe(true);
+    const bare = sail('245504', 'Private Catamaran Charter', 'Three hours along the coast.');
+    expect(sailPass(bare, true, ['food'])).toBe(false);
+    expect(sailPass(bare, true, ['snorkeling'])).toBe(false);
+  });
+
+  // The rule that makes multi-select usable: three times are three answers to
+  // one question, so they widen; what is on board narrows.
+  test('times OR each other, everything else ANDs', () => {
+    const morningSnorkel = sail('245504', 'Morning Snorkel Sail', 'Snorkelling and a light brunch.');
+    const sunsetBar = sail('245508', 'Sunset Sail', 'Open bar on board.');
+
+    // ANDing the times would make this pair impossible; ORing returns both.
+    expect(sailPass(morningSnorkel, true, ['morning', 'sunset'])).toBe(true);
+    expect(sailPass(sunsetBar, true, ['morning', 'sunset'])).toBe(true);
+
+    // Across the groups it narrows: a morning sail with snorkelling, yes; the
+    // sunset one, no, because it does not snorkel.
+    expect(sailPass(morningSnorkel, true, ['morning', 'sunset', 'snorkeling'])).toBe(true);
+    expect(sailPass(sunsetBar, true, ['morning', 'sunset', 'snorkeling'])).toBe(false);
+
+    // And two on-board facets both have to hold.
+    expect(sailPass(morningSnorkel, true, ['snorkeling', 'food'])).toBe(true);
+    expect(sailPass(morningSnorkel, true, ['snorkeling', 'cocktails'])).toBe(false);
+  });
+
+  test('no facets means every sail', () => {
+    expect(sailPass(sail('245508', 'Aruba Sunset Sail'), true, [])).toBe(true);
+    expect(sailPass(sail('245508', 'Aruba Sunset Sail'), true, undefined)).toBe(true);
   });
 });
 

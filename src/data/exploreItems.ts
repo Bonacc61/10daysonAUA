@@ -3,7 +3,8 @@ import type { ViatorGroup, ViatorItem, MatchTag, Section } from '../types';
 import type { Catalog } from './activitySource';
 import { parseActivityCost } from './matcher';
 import { durationMinutes } from './itineraryGenerator';
-import { isWaterBased, adventureCapForFlags, fitItem } from './itemFit';
+import { isWaterBased, adventureCapForFlags, fitItem, activityKind } from './itemFit';
+import { startTimesFor } from './startTimes';
 import { activityTags } from './answerTags';
 
 // Content bucket for a tile — CATEGORIES without the 'All' filter sentinel.
@@ -125,10 +126,15 @@ export type ExploreFilters = {
   provenance?: Provenance;
   pool?: boolean;           // the north-coast swimming holes
   poolMode?: PoolMode;      // sub-filter of `pool`; inert while pool is off
+  sail?: boolean;           // sailing trips
+  sailFacets?: SailFacet[]; // sub-filter of `sail`; inert while sail is off
 };
 
 // How you get to the pool — see poolPass.
 export type PoolMode = 'any' | 'jeep' | 'utv' | 'atv' | 'horseback' | 'hike';
+
+// When a sail goes out, and what is on board — see sailPass.
+export type SailFacet = 'morning' | 'afternoon' | 'sunset' | 'food' | 'cocktails' | 'snorkeling';
 
 // Map a Viator group id → existing UI category bucket. New groups: 1 line each.
 const GROUP_TAXONOMY_TO_CATEGORY: Record<string, Category> = {
@@ -443,6 +449,89 @@ export function provenancePass(entry: ExploreEntry, provenance?: Provenance): bo
   // of "Free + $16 gear" parses to 0, so Baby Beach lands here.
   if (provenance === 'free') return priceOf(entry) === 0;
   return provenance === 'local' ? entry.kind === 'activity' : entry.kind === 'item';
+}
+
+// === Sailing =============================================================
+
+/**
+ * WHEN a sail goes out, from its real departure times rather than its prose.
+ *
+ * 31 of the 32 sails on the live catalog have start times on record
+ * (src/data/startTimes.json, ingested from Viator's availability schedules), so
+ * this is a data question and not a keyword one — except for sunset, which is
+ * as much a product category as a clock reading. A sail whose TITLE says sunset
+ * is a sunset sail whatever time it leaves: "Sunset Champagne and Lobster sail"
+ * departs at 14:30, and a traveller looking for an afternoon sail does not mean
+ * that one. So sunset wins, and morning/afternoon are what is left.
+ *
+ * Measured 2026-08-20 over the 32 live sails: morning 8, afternoon 6, sunset
+ * 21, and none that answer to no time at all.
+ */
+const SUNSET_TITLE = /\bsunset\b/i;
+const SUNSET_FROM = 16 * 60;
+const NOON = 12 * 60;
+const toMins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+
+function sailTimes(entry: ExploreEntry): number[] {
+  if (entry.kind !== 'item') return [];
+  return startTimesFor(entry.item.id).map(toMins).filter((n) => !Number.isNaN(n));
+}
+
+/**
+ * WHAT is on board. These read title AND description, which is the opposite of
+ * the vehicle half of `poolPass` and for a reason that survives the comparison:
+ * a vehicle is what a tour IS, and prose that names one is as likely to be
+ * contrasting ("before the packed jeep riders") as describing. Food, drink and
+ * snorkelling are INCLUSIONS, and an inclusions list is prose by nature — 7 of
+ * the 14 snorkelling sails never say so in their title. Checked all 32 for a
+ * mention that exists only to deny the thing: one flag, a false alarm
+ * ("without feeling crowded"), so nothing here is being read backwards.
+ *
+ * Live counts: food 17, cocktails 26, snorkelling 14. Cocktails covering most
+ * of the fleet is a fact about Aruban sunset sails, not a loose pattern — the
+ * alternation is named drinks and open bars, never the bare word "bar".
+ */
+const SAIL_FOOD = /\b(lunch|dinner|brunch|tapas|bbq|barbecue|buffet|appetiz\w*|canap\w*|bites|lobster|(three|four|3|4)[- ]course)\b/i;
+const SAIL_DRINK = /\b(open bar|cocktails?|mojitos?|champagne|prosecco|sangria|mimosas?|rum punch|happy hour)\b/i;
+const SAIL_SNORKEL = /\bsnorkel(ing|ling)?\b/i;
+
+const SAIL_TIME_FACETS: SailFacet[] = ['morning', 'afternoon', 'sunset'];
+
+/**
+ * Sailing trips, narrowed by any number of facets.
+ *
+ * The facets combine the way a traveller means them rather than the way a
+ * boolean AND would: OR inside the time group, AND across groups. Morning,
+ * afternoon and sunset are three answers to ONE question, so ANDing them asks
+ * for a sail that leaves at three different times and is guaranteed to return
+ * nothing — while "sunset AND cocktails" is exactly the reasonable request.
+ * Pick sunset and morning and you get both; add snorkelling and you get the
+ * ones among those that snorkel.
+ *
+ * `sailFacets` is a SUB-filter: with sailing switched off it admits everything,
+ * so facets left set cannot narrow the page invisibly.
+ */
+export function sailPass(entry: ExploreEntry, sail?: boolean, facets?: SailFacet[]): boolean {
+  if (!sail) return true;
+  if (entry.kind !== 'item' || activityKind(entry.item) !== 'sail') return false;
+  if (!facets || facets.length === 0) return true;
+
+  const title = entry.item.title;
+  const text = `${title} ${entry.item.description ?? ''}`;
+  const times = sailTimes(entry);
+  const isSunset = SUNSET_TITLE.test(title) || times.some((m) => m >= SUNSET_FROM);
+  const has: Record<SailFacet, boolean> = {
+    sunset: isSunset,
+    morning: !isSunset && times.some((m) => m < NOON),
+    afternoon: !isSunset && times.some((m) => m >= NOON),
+    food: SAIL_FOOD.test(text),
+    cocktails: SAIL_DRINK.test(text),
+    snorkeling: SAIL_SNORKEL.test(text),
+  };
+
+  const wantedTimes = facets.filter((f) => SAIL_TIME_FACETS.includes(f));
+  if (wantedTimes.length > 0 && !wantedTimes.some((f) => has[f])) return false;
+  return facets.every((f) => SAIL_TIME_FACETS.includes(f) || has[f]);
 }
 
 // === The north-coast swimming holes ========================================
@@ -939,6 +1028,7 @@ export function filterExploreEntries(catalog: Catalog, opts: ExploreFilters): Ex
       privatePass(e, opts.privateOnly) &&
       provenancePass(e, opts.provenance) &&
       poolPass(e, opts.pool, opts.poolMode) &&
+      sailPass(e, opts.sail, opts.sailFacets) &&
       matchSearch(e),
     )
     .sort((a, b) => sortScore(b) - sortScore(a));
