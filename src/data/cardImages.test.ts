@@ -22,9 +22,7 @@ import { LUNCHSPOTS } from './lunchspots';
 const PUBLIC = join(__dirname, '../../public');
 
 /** Files genuinely absent from `public/`, awaiting an upload. */
-const AWAITING_UPLOAD = [
-  '/California Dunes.jpg',   // card `california-dunes-sunset` — no photo supplied yet
-];
+const AWAITING_UPLOAD: string[] = [];
 
 const cards = [...ACTIVITIES, ...LUNCHSPOTS];
 
