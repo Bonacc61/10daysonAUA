@@ -63,7 +63,12 @@ export default function ShareEmailModal({ trip, onClose }: { trip: TripState; on
   const [error, setError] = useState<string | null>(null);
 
   const handleSend = async () => {
-    if (!session) return;
+    // The Itinerary caller only offers this dialog to a signed-in traveller, so
+    // the way in is a session expiring while the dialog sits open. Returning
+    // silently — which is what the Dashboard original did — leaves the button
+    // live and nothing happening, so the traveller presses Send again and
+    // concludes the app is broken. Say what went wrong instead.
+    if (!session) { setError('Your session expired — sign in again to send this.'); return; }
     setSending(true);
     setError(null);
     try {

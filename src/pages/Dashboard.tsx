@@ -22,7 +22,6 @@ import { useAuth } from '../lib/auth';
 import { listTrips, deleteTrip, tripLabel, type SavedTrip } from '../lib/trips';
 import { readActiveTripId, writeActiveTripId } from '../lib/activeTrip';
 import ShareEmailModal from '../components/ShareEmailModal';
-import { capture } from '../lib/analytics';
 import { matchPool, blendPools, parseActivityCost } from '../data/matcher';
 import { productUrlFor, sectionLabel, primarySection, bookUrlForActivity } from '../data/exploreItems';
 import type { PageId, Answers } from '../App';
@@ -698,7 +697,7 @@ const ITINERARY_VARIANTS: { id: string; label: string; description: string; avai
   { id: 'chill',     label: 'Chill-leaning',      description: 'Slow mornings, easy afternoons',   available: false },
 ];
 
-function ItineraryPanel({
+export function ItineraryPanel({
   setPage, trips, onLogin, onOpenTrip, onDeleteTrip, activeTripId,
 }: {
   setPage: (p: PageId) => void;
@@ -708,7 +707,7 @@ function ItineraryPanel({
   onDeleteTrip: (id: string) => void;
   activeTripId: string | null;
 }) {
-  const { user, session, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { catalog } = useCatalog();
   const { booked, toggle: toggleBooked } = useBooked();
   const [expanded,     setExpanded]     = useState<string | null>(null);

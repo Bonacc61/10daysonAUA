@@ -883,12 +883,6 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
                     {sharePopoverOpen && shareUrl && (
                       <SharePopover url={shareUrl} onClose={() => setSharePopoverOpen(false)} />
                     )}
-                    {emailOpen && (
-                      <ShareEmailModal
-                        trip={{ answers, plan, rejected, rejectedGroups }}
-                        onClose={() => setEmailOpen(false)}
-                      />
-                    )}
                     <div className="chunky itin-action-bar" style={{ padding: '14px 22px', display: 'inline-flex', alignItems: 'center', gap: 16, background: 'var(--ink)', color: 'var(--cream)' }}>
                       <button
                         className="btn-red"
@@ -929,6 +923,20 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
 
       <div id="sso-login"><SignIn /></div>
       <Footer setPage={setPage} />
+
+      {/* At the top level, NOT inside the sticky action bar that opens it. That
+          bar sets `zIndex: 12`, which creates a stacking context — a fixed
+          overlay nested inside it competes at 12 against the page, so the
+          cookie banner (9999) and the Nav dropdowns (200) would paint straight
+          over this dialog. `SharePopover` belongs in that bar because it is
+          anchored to the button; a viewport modal does not. Same placement as
+          the Save trip modal directly below. */}
+      {emailOpen && (
+        <ShareEmailModal
+          trip={{ answers, plan, rejected, rejectedGroups }}
+          onClose={() => setEmailOpen(false)}
+        />
+      )}
 
       {saveTripOpen && (
         <div className="login-modal-backdrop" onClick={() => saveTripStatus !== 'saving' && setSaveTripOpen(false)}>
