@@ -600,12 +600,11 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
       {canSeeItinerary && plan && planDay && (
         <div className="map-panel" style={{ background: 'rgba(255,251,240,0.98)', backdropFilter: 'blur(12px)', borderTop: '1px solid rgba(0,0,0,0.1)', flexShrink: 0 }}>
 
-          {/* Variant switcher. Out of flow on desktop, pinned to the panel's left
-              gutter so the strip can centre on the page; stacked above it on a
-              phone — see .map-panel in index.css for why the map's height is
-              worth this much. The day nav is a sibling below, not a child: an
-              absolute pill resolves against its nearest positioned ancestor, and
-              inside here that would be this column. */}
+          {/* Variant switcher — the first of the panel's three centred rows,
+              above the day nav and the day's cards. The nav is a SIBLING below
+              rather than a child of this div, which is what keeps the three
+              rows independent; see .map-panel in index.css for what the stacked
+              column costs the map. */}
           <div className="map-panel-controls">
 
           {/* Itinerary variant switcher — mirrors Dashboard ITINERARY_VARIANTS */}
@@ -624,9 +623,11 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
                 );
               })}
             </div>
-            {/* Left-aligned so it reads as a subtitle for the whole control, not
-                a caption under the centred middle option. */}
-            <p style={{ textAlign: 'left', fontSize: 11, color: '#aaa', fontFamily: 'Inter,sans-serif', margin: 0 }}>
+            {/* Centred under the pills it describes. It was left-aligned while
+                the switcher lived in a 300px column, where centring would have
+                read as a caption on the middle pill; centred in a full-width row
+                it reads as the subtitle for all three. */}
+            <p style={{ textAlign: 'center', fontSize: 11, color: '#aaa', fontFamily: 'Inter,sans-serif', margin: 0 }}>
               {variantLabels[activePlanIdx].description}
             </p>
           </div>
@@ -652,9 +653,8 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
 
           </div>
 
-          {/* ‹ Day N of M · Title › arrows. Inline on a phone; a centred pill over
-              the map's bottom edge on desktop — .map-day-arrows in index.css
-              says why it sits above the cards rather than beside them. */}
+          {/* ‹ Day N of M · Title › arrows — the panel's second row, centred as
+              one cluster directly above the cards it labels. */}
           <div className="map-day-arrows">
             <button
               onClick={() => setActiveDay(d => Math.max(1, d - 1))}
