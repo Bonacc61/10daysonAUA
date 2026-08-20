@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { Catalog } from '../data/activitySource';
 import type { ViatorGroup, ViatorItem } from '../types';
+import type { Activity } from '../data/activities';
 import { DEFAULT_ANSWERS } from '../App';
 
 /**
@@ -40,7 +41,17 @@ const CATALOG: Catalog = {
     // so a facet matching on text alone would wrongly keep it.
     item('offroad', 'Aruba Jeep Safari', { tags: [], sections: ['adventures-outdoor'], description: 'Lunch, open bar and snorkelling at the pool.' }),
   ],
-  activities: [],
+  // Two curated picks really are sails and carry Viator's sailing tags. They
+  // were dropped by an items-only read, which is what this fixture pins.
+  activities: [
+    { id: 'boca-catalina-snorkel', title: 'Catamaran Sail & Snorkel at Boca Catalina', category: 'Watersports',
+      image: '', description: 'Catamaran drops anchor at Boca Catalina.', localsSay: '', cost: '$65 pp',
+      duration: '2-3 hrs', timeOfDay: 'Morning', fitReason: '', location: 'Boca Catalina',
+      rating: 4.7, reviewCount: 1245, adventure: 32, sections: ['cruises-water'], tags: [11888], matched_by: [] },
+    { id: 'eagle-beach', title: 'Eagle Beach Morning', category: 'Beaches', image: '', description: 'White sand.',
+      localsSay: '', cost: 'Free', duration: '2 hrs', timeOfDay: 'Morning', fitReason: '', location: 'Eagle Beach',
+      rating: 4.9, reviewCount: 10, adventure: 8, sections: ['beaches'], matched_by: [] },
+  ],
 };
 
 vi.mock('../data/useCatalog', () => ({ useCatalog: () => ({ catalog: CATALOG, loading: false }) }));
@@ -52,11 +63,13 @@ const Explore = (await import('./Explore')).default;
 const openMore = () => fireEvent.click(screen.getByRole('button', { name: /More filters/ }));
 const titles = () => [...document.querySelectorAll('.a-card h3')].map((n) => n.textContent).sort();
 const sailToggle = () => screen.getByLabelText('Sail') as HTMLInputElement;
-const pill = (row: string, name: string) =>
-  [...screen.getByRole('group', { name: row }).querySelectorAll('button')]
+// One row, no visible heading — the checkbox above names the filter. `when` and
+// `onboard` are the same row; the names say which half of the rule is in play.
+const pill = (name: string) =>
+  [...screen.getByRole('group', { name: 'Sail options' }).querySelectorAll('button')]
     .find((b) => b.textContent === name)!;
-const when = (name: string) => pill('When', name);
-const onboard = (name: string) => pill('On board', name);
+const when = pill;
+const onboard = pill;
 
 beforeEach(() => render(<Explore setPage={() => {}} answers={DEFAULT_ANSWERS} canSeeItinerary={false} />));
 afterEach(() => { document.body.innerHTML = ''; });
@@ -66,8 +79,7 @@ describe('Explore — the sail filter', () => {
     expect(screen.queryByLabelText('Sail')).not.toBeInTheDocument();
     openMore();
     expect(sailToggle()).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'When' })).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'On board' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Sail options' })).toBeInTheDocument();
   });
 
   it('the pills are dead until sailing is on', () => {
@@ -78,9 +90,37 @@ describe('Explore — the sail filter', () => {
 
   it('narrows to sails, and the jeep does not sneak in on its words', () => {
     openMore();
-    expect(titles()).toHaveLength(4);
+    expect(titles()).toHaveLength(6);
     fireEvent.click(sailToggle());
-    expect(titles()).toEqual(['Aruba Sunset Sail', 'Half Day Private Sailing', 'Morning Snorkel Sail']);
+    // The curated catamaran is in; the curated beach and the jeep are not.
+    expect(titles()).toEqual([
+      'Aruba Sunset Sail', 'Catamaran Sail & Snorkel at Boca Catalina',
+      'Half Day Private Sailing', 'Morning Snorkel Sail',
+    ]);
+  });
+
+  // A curated pick has no Viator schedule, so without reading its hand-written
+  // timeOfDay it answered to no time facet and disappeared the moment one was
+  // pressed — a silent hole exactly where the first bug was.
+  it('a curated sail keeps its place under a time pill', () => {
+    openMore();
+    fireEvent.click(sailToggle());
+    fireEvent.click(when('Morning'));
+    expect(titles()).toContain('Catamaran Sail & Snorkel at Boca Catalina');
+    fireEvent.click(when('Morning'));
+    fireEvent.click(when('Sunset'));
+    expect(titles()).not.toContain('Catamaran Sail & Snorkel at Boca Catalina');
+  });
+
+  // A hand-written pick is a tile like any other. Reading only Viator items
+  // dropped both of the curated catamarans, and made Sail + "Local picks" an
+  // empty page by construction.
+  it('keeps curated picks that are sails', () => {
+    openMore();
+    fireEvent.click(sailToggle());
+    fireEvent.click([...screen.getByRole('group', { name: 'Show' }).querySelectorAll('button')]
+      .find((b) => b.textContent === 'Local picks')!);
+    expect(titles()).toEqual(['Catamaran Sail & Snorkel at Boca Catalina']);
   });
 
   // The pills are toggles, not a radio group: a second click adds rather than
@@ -102,9 +142,9 @@ describe('Explore — the sail filter', () => {
     openMore();
     fireEvent.click(sailToggle());
     fireEvent.click(when('Morning'));
-    expect(titles()).toEqual(['Half Day Private Sailing', 'Morning Snorkel Sail']);
+    expect(titles()).toEqual(['Catamaran Sail & Snorkel at Boca Catalina', 'Half Day Private Sailing', 'Morning Snorkel Sail']);
     fireEvent.click(when('Sunset'));
-    expect(titles()).toEqual(['Aruba Sunset Sail', 'Half Day Private Sailing', 'Morning Snorkel Sail']);
+    expect(titles()).toEqual(['Aruba Sunset Sail', 'Catamaran Sail & Snorkel at Boca Catalina', 'Half Day Private Sailing', 'Morning Snorkel Sail']);
   });
 
   it('what is on board narrows, across the rows and within them', () => {
@@ -113,7 +153,7 @@ describe('Explore — the sail filter', () => {
     fireEvent.click(when('Morning'));
     fireEvent.click(when('Sunset'));
     fireEvent.click(onboard('Snorkelling'));
-    expect(titles()).toEqual(['Morning Snorkel Sail']);
+    expect(titles()).toEqual(['Catamaran Sail & Snorkel at Boca Catalina', 'Morning Snorkel Sail']);
     fireEvent.click(onboard('Cocktails'));
     expect(titles()).toEqual([]);
   });
@@ -124,10 +164,10 @@ describe('Explore — the sail filter', () => {
     fireEvent.click(when('Sunset'));
     expect(titles()).toEqual(['Aruba Sunset Sail']);
     fireEvent.click(sailToggle());
-    expect(titles()).toHaveLength(4);
+    expect(titles()).toHaveLength(6);
     fireEvent.click(sailToggle());
     expect(when('Sunset')).toHaveAttribute('aria-pressed', 'false');
-    expect(titles()).toHaveLength(3);
+    expect(titles()).toHaveLength(4);
   });
 
   it('counts as one filter in the badge, however many pills are on', () => {
@@ -143,7 +183,7 @@ describe('Explore — the sail filter', () => {
     fireEvent.click(sailToggle());
     fireEvent.click(when('Sunset'));
     fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
-    expect(titles()).toHaveLength(4);
+    expect(titles()).toHaveLength(6);
     expect(when('Sunset')).toBeDisabled();
   });
 });

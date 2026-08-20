@@ -1503,10 +1503,28 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
  * what this rule assumed until 2026-08-20. Measured at 390x844 with the banner
  * up: the banner is 108px and starts at y=736, the strip runs 681-854, so the
  * bottom 117px of a 173px card - title, price, Book link, all of it - was under
- * the banner, and the panel overflowed the viewport by 10px. The old exemption
- * reasoned that the phone's layout "was already framing correctly", which was
- * about the MAP's aspect and never about the cards. */
+ * the banner. The old exemption reasoned that the phone's layout "was already
+ * framing correctly", which was about the MAP's aspect and never the cards.
+ *
+ * The reserve follows the BANNER's own breakpoint rather than the panel's,
+ * because the banner is what it measures. Below 500px the banner stacks (see
+ * .cookie-banner above) and below ~380px its text wraps one line further:
+ * measured 72px at 501px and up, 108px from 390 to 500, and 127px at 320, 360
+ * and 375 - the default Android width and the iPhone SE among them. A single
+ * 108px reserve, which is what the first attempt at this shipped, still left
+ * 9px of the "Start the quiz" CTA under the banner on all three of those.
+ * 128px covers the tallest.
+ *
+ * The 501-900px band keeps 108px rather than dropping to the banner's own 72px,
+ * and that 36px of slack is buying around a DIFFERENT bug: on the no-itinerary
+ * map the CTA block overflows .map-page by 25px at those widths (10px on a
+ * phone, 0 at 1440), so padding the page cannot reach it and the extra height
+ * is what keeps it tappable. Measured, not guessed - at 72px the CTA goes 5px
+ * under the banner at 700px wide. The overflow itself is pre-existing and
+ * unrelated to the banner; it wants its own fix. */
 body:has(.cookie-banner) .map-page { padding-bottom: 72px; }
+@media (max-width: 900px) { body:has(.cookie-banner) .map-page { padding-bottom: 108px; } }
+@media (max-width: 500px) { body:has(.cookie-banner) .map-page { padding-bottom: 128px; } }
 
 /* An engine without :has() cannot see the banner, so it reserves the strip
  * unconditionally instead.
@@ -1523,17 +1541,11 @@ body:has(.cookie-banner) .map-page { padding-bottom: 72px; }
  * they cannot click. */
 @supports not selector(:has(*)) {
   .map-page { padding-bottom: 72px; }
+  @media (max-width: 900px) { .map-page { padding-bottom: 108px; } }
+  @media (max-width: 500px) { .map-page { padding-bottom: 128px; } }
 }
 
-/* The layout is the same centred column at every width. The only thing that
- * still differs below 900px is the banner's height - 108px on a phone against
- * 72px on a desktop - so the reserve is bigger here rather than absent. */
-@media (max-width: 900px) {
-  body:has(.cookie-banner) .map-page { padding-bottom: 108px; }
-  @supports not selector(:has(*)) {
-    .map-page { padding-bottom: 108px; }
-  }
-}
+
 
 /* Scroll-driven reveal animation for itinerary cards */
 @keyframes reveal {

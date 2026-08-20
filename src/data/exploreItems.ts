@@ -465,7 +465,11 @@ export function provenancePass(entry: ExploreEntry, provenance?: Provenance): bo
  * that one. So sunset wins, and morning/afternoon are what is left.
  *
  * Measured 2026-08-20 over the 32 live sails: morning 8, afternoon 6, sunset
- * 21, and none that answer to no time at all.
+ * 21, and none that answer to no time at all. That last part leans on the title
+ * rule rather than luck of the data: the one sail with no schedule on record is
+ * "Private Sunset Tour in Aruba", and it is the TITLE that places it. An untimed
+ * sail whose name does not say sunset would answer to no time facet and vanish
+ * whenever one is on — worth knowing if the snapshot ever thins.
  */
 const SUNSET_TITLE = /\bsunset\b/i;
 const SUNSET_FROM = 16 * 60;
@@ -473,8 +477,33 @@ const NOON = 12 * 60;
 const toMins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 
 function sailTimes(entry: ExploreEntry): number[] {
-  if (entry.kind !== 'item') return [];
-  return startTimesFor(entry.item.id).map(toMins).filter((n) => !Number.isNaN(n));
+  const id = entry.kind === 'item' ? entry.item.id : entry.activity.id;
+  const times = startTimesFor(id).map(toMins).filter((n) => !Number.isNaN(n));
+  if (times.length > 0 || entry.kind !== 'activity') return times;
+  // A curated pick has no Viator schedule — it is not a Viator product — but it
+  // does carry a hand-written timeOfDay, and without reading it both curated
+  // catamarans answered to no time facet and vanished the moment any of the
+  // three was pressed. One representative minute per band is enough: nothing
+  // downstream reads the value except the three comparisons below.
+  return { Morning: [9 * 60], Afternoon: [14 * 60], Evening: [18 * 60] }[entry.activity.timeOfDay] ?? [];
+}
+
+/**
+ * Is this a sail, whoever wrote the tile?
+ *
+ * Both kinds, because two of the curated picks genuinely are sails and carry
+ * Viator's own sailing tags to prove it — "Catamaran Sail & Snorkel at Boca
+ * Catalina" (11888) and "Antilla Shipwreck Snorkel Cruise" (11885). Reading
+ * items only, as a first pass did, dropped both: Sail plus Show > Local picks
+ * was a guaranteed-empty page, and Sail on its own quietly lost two catamarans.
+ * `activityKind` reads `tags` first and falls back to title and section, all of
+ * which an Activity carries, so the shim is a shape cast rather than a guess.
+ */
+function isSail(entry: ExploreEntry): boolean {
+  const shape = entry.kind === 'item'
+    ? entry.item
+    : { tags: entry.activity.tags, title: entry.activity.title, sections: entry.activity.sections } as ViatorItem;
+  return activityKind(shape) === 'sail';
 }
 
 /**
@@ -485,15 +514,17 @@ function sailTimes(entry: ExploreEntry): number[] {
  * snorkelling are INCLUSIONS, and an inclusions list is prose by nature — 7 of
  * the 14 snorkelling sails never say so in their title. Checked all 32 for a
  * mention that exists only to deny the thing: one flag, a false alarm
- * ("without feeling crowded"), so nothing here is being read backwards.
+ * ("without feeling crowded"); a wider sweep for denials found four, all of
+ * them affirmations in disguise ("No need to stand in line at the bar"), so
+ * nothing here is being read backwards.
  *
- * Live counts: food 17, cocktails 26, snorkelling 14. Cocktails covering most
+ * Live counts: food 19, cocktails 26, snorkelling 14. Cocktails covering most
  * of the fleet is a fact about Aruban sunset sails, not a loose pattern — the
  * alternation is named drinks and open bars, never the bare word "bar".
  */
 const SAIL_FOOD = /\b(lunch|dinner|brunch|tapas|bbq|barbecue|buffet|appetiz\w*|canap\w*|bites|lobster|(three|four|3|4)[- ]course)\b/i;
 const SAIL_DRINK = /\b(open bar|cocktails?|mojitos?|champagne|prosecco|sangria|mimosas?|rum punch|happy hour)\b/i;
-const SAIL_SNORKEL = /\bsnorkel(ing|ling)?\b/i;
+const SAIL_SNORKEL = /\bsnorkel(s|ing|ling)?\b/i;
 
 const SAIL_TIME_FACETS: SailFacet[] = ['morning', 'afternoon', 'sunset'];
 
@@ -513,11 +544,12 @@ const SAIL_TIME_FACETS: SailFacet[] = ['morning', 'afternoon', 'sunset'];
  */
 export function sailPass(entry: ExploreEntry, sail?: boolean, facets?: SailFacet[]): boolean {
   if (!sail) return true;
-  if (entry.kind !== 'item' || activityKind(entry.item) !== 'sail') return false;
+  if (!isSail(entry)) return false;
   if (!facets || facets.length === 0) return true;
 
-  const title = entry.item.title;
-  const text = `${title} ${entry.item.description ?? ''}`;
+  const title = entry.kind === 'item' ? entry.item.title : entry.activity.title;
+  const description = (entry.kind === 'item' ? entry.item.description : entry.activity.description) ?? '';
+  const text = `${title} ${description}`;
   const times = sailTimes(entry);
   const isSunset = SUNSET_TITLE.test(title) || times.some((m) => m >= SUNSET_FROM);
   const has: Record<SailFacet, boolean> = {

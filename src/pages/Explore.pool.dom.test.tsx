@@ -55,8 +55,10 @@ const Explore = (await import('./Explore')).default;
 
 const openMore = () => fireEvent.click(screen.getByRole('button', { name: /More filters/ }));
 const titles = () => [...document.querySelectorAll('.a-card h3')].map((n) => n.textContent);
+// The row carries no visible heading — the checkbox above names the filter —
+// so its accessible name is the one the group tag supplies.
 const vehicle = (name: string) =>
-  [...screen.getByRole('group', { name: 'Getting there' }).querySelectorAll('button')]
+  [...screen.getByRole('group', { name: 'Natural Pool options' }).querySelectorAll('button')]
     .find((b) => b.textContent === name)!;
 const poolToggle = () => screen.getByLabelText('Natural Pool') as HTMLInputElement;
 
@@ -68,7 +70,7 @@ describe('Explore — the pool filter', () => {
     expect(screen.queryByLabelText('Natural Pool')).not.toBeInTheDocument();
     openMore();
     expect(poolToggle()).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Getting there' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Natural Pool options' })).toBeInTheDocument();
   });
 
   it('the vehicle row is dead until the pool is on', () => {
@@ -143,13 +145,16 @@ describe('Explore — the pool filter', () => {
     fireEvent.click(vehicle('Hike'));
     expect(titles()).toEqual(['Arikok Sunrise Hike']);
 
-    // Nothing in the fixture runs under 2 hours, so every count drops to zero.
+    // Nothing in the fixture runs under 2 hours, so the pool set empties.
     fireEvent.click(screen.getByRole('button', { name: 'Under 2h' }));
     expect(titles()).toHaveLength(0);
     expect(vehicle('Hike')).toBeEnabled();
     expect(vehicle('Hike')).toHaveAttribute('aria-pressed', 'true');
     expect(vehicle('Any')).toBeEnabled();
-    expect(vehicle('Jeep')).toBeDisabled();
+    // And nothing else greys either: an empty set is not evidence about any one
+    // vehicle's supply, so the row stops claiming things about the park.
+    expect(vehicle('Jeep')).toBeEnabled();
+    expect(screen.queryByText(/do not reach this pool/)).not.toBeInTheDocument();
   });
 
   // `disabled` takes a button out of the tab order and announces nothing, so
@@ -158,6 +163,17 @@ describe('Explore — the pool filter', () => {
     openMore();
     fireEvent.click(poolToggle());
     expect(screen.getByText('UTV and Horseback tours do not reach this pool.')).toBeInTheDocument();
+  });
+
+  // With sailing also on the intersection is empty, and greying every vehicle
+  // would blame Arikok for a page the other filter emptied.
+  it('does not grey the row when another filter has already emptied the page', () => {
+    openMore();
+    fireEvent.click(poolToggle());
+    fireEvent.click(screen.getByLabelText('Sail'));
+    expect(titles()).toHaveLength(0);
+    expect(vehicle('Jeep')).toBeEnabled();
+    expect(screen.queryByText(/do not reach this pool/)).not.toBeInTheDocument();
   });
 
   it('"Clear all filters" switches the pool back off', () => {

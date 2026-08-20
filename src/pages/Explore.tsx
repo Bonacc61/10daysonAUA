@@ -65,12 +65,13 @@ function Slider({ label, value, onChange, lo, hi, hint }: {
 // A row of mutually exclusive filter pills. One selected value, always — every
 // row carries its own "Any", so there is no state in which a row filters
 // nothing yet looks unset.
-function PillRow<T extends string | number>({ label, value, options, onChange }: {
+function PillRow<T extends string | number>({ label, value, options, onChange, showLabel = true }: {
   label: string; value: T; options: { v: T; label: string; disabled?: boolean }[]; onChange: (v: T) => void;
+  showLabel?: boolean;
 }) {
   return (
     <div style={{ marginBottom: 14 }}>
-      <h4 style={{ fontWeight: 700, fontSize: 11, margin: '0 0 7px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-700)' }}>{label}</h4>
+      {showLabel && <h4 style={{ fontWeight: 700, fontSize: 11, margin: '0 0 7px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-700)' }}>{label}</h4>}
       <div role="group" aria-label={label} style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
         {options.map((o) => (
           <button key={String(o.v)} type="button" aria-pressed={o.v === value} disabled={o.disabled}
@@ -92,12 +93,13 @@ const PROVENANCE_OPTIONS: { v: Provenance; label: string }[] = [
 /* Same pill, many at once. Kept separate from PillRow rather than folded into
    it with a flag: one takes a value and returns a value, this takes a set and
    toggles membership, and the two aria contracts differ with them. */
-function PillToggles<T extends string>({ label, values, options, onToggle }: {
+function PillToggles<T extends string>({ label, values, options, onToggle, showLabel = true }: {
   label: string; values: T[]; options: { v: T; label: string; disabled?: boolean }[]; onToggle: (v: T) => void;
+  showLabel?: boolean;
 }) {
   return (
     <div style={{ marginBottom: 14 }}>
-      <h4 style={{ fontWeight: 700, fontSize: 11, margin: '0 0 7px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-700)' }}>{label}</h4>
+      {showLabel && <h4 style={{ fontWeight: 700, fontSize: 11, margin: '0 0 7px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sand-700)' }}>{label}</h4>}
       <div role="group" aria-label={label} style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
         {options.map((o) => (
           <button key={o.v} type="button" aria-pressed={values.includes(o.v)} disabled={o.disabled}
@@ -109,13 +111,11 @@ function PillToggles<T extends string>({ label, values, options, onToggle }: {
   );
 }
 
-// Two rows because they combine differently, and the split is what says so: the
-// three times are three answers to one question and widen each other, while
-// what is on board narrows. sailPass carries the rule.
-const SAIL_WHEN_OPTIONS: { v: SailFacet; label: string }[] = [
+// One row, in the order they were asked for. The three times still widen each
+// other while the rest narrow — that asymmetry lives in sailPass, and it did not
+// need two headings above the pills to be true.
+const SAIL_OPTIONS: { v: SailFacet; label: string }[] = [
   { v: 'morning', label: 'Morning' }, { v: 'afternoon', label: 'Afternoon' }, { v: 'sunset', label: 'Sunset' },
-];
-const SAIL_ONBOARD_OPTIONS: { v: SailFacet; label: string }[] = [
   { v: 'food', label: 'Food' }, { v: 'cocktails', label: 'Cocktails' }, { v: 'snorkeling', label: 'Snorkelling' },
 ];
 const POOL_MODE_OPTIONS: { v: PoolMode; label: string }[] = [
@@ -237,6 +237,10 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   const poolModeCounts = useMemo(() => {
     if (!pool) return null;
     const atPool = filterExploreEntries(catalog, { section, search, vibe, price, ...extra, poolMode: 'any' });
+    // Nothing to say when the page is already empty for another reason: with
+    // Sail also on, the intersection is empty, every count is 0, and greying the
+    // whole row would blame Arikok for a page the other filter emptied.
+    if (atPool.length === 0) return null;
     return Object.fromEntries(POOL_MODE_OPTIONS.map((o) => [o.v, atPool.filter((e) => poolPass(e, pool, o.v)).length])) as Record<PoolMode, number>;
   }, [catalog, section, search, vibe, price, extra, pool]);
   // Named so the row can say why a button is dead. `disabled` drops a button
@@ -256,11 +260,13 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   const sailFacetCounts = useMemo(() => {
     if (!sail) return null;
     const sails = filterExploreEntries(catalog, { section, search, vibe, price, ...extra, sailFacets: [] });
-    const all = [...SAIL_WHEN_OPTIONS, ...SAIL_ONBOARD_OPTIONS];
-    return Object.fromEntries(all.map((o) => [o.v, sails.filter((e) => sailPass(e, true, [o.v])).length])) as Record<SailFacet, number>;
+    // Same guard as the pool row: an empty set is not evidence about any one
+    // facet's supply, so nothing greys.
+    if (sails.length === 0) return null;
+    return Object.fromEntries(SAIL_OPTIONS.map((o) => [o.v, sails.filter((e) => sailPass(e, true, [o.v])).length])) as Record<SailFacet, number>;
   }, [catalog, section, search, vibe, price, extra, sail]);
-  const facetOptions = (opts: { v: SailFacet; label: string }[]) =>
-    opts.map((o) => ({ ...o, disabled: !sail || (!sailFacets.includes(o.v) && sailFacetCounts?.[o.v] === 0) }));
+  const sailOptions = SAIL_OPTIONS.map((o) =>
+    ({ ...o, disabled: !sail || (!sailFacets.includes(o.v) && sailFacetCounts?.[o.v] === 0) }));
   // The "Good for kids" checkbox that wrapped this in `splitByFacet` was removed
   // 2026-08-19 and deferred to v2, owner's call: the underlying kids verdict is
   // not good enough to filter on. The VERDICT stays live — the search box reads
@@ -358,7 +364,7 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
                       <input type="checkbox" checked={pool} onChange={(e) => togglePool(e.target.checked)} />
                       Natural Pool
                     </label>
-                    <PillRow label="Getting there" value={poolMode}
+                    <PillRow label="Natural Pool options" showLabel={false} value={poolMode}
                       options={POOL_MODE_OPTIONS.map((o) => ({ ...o, disabled: !pool || (o.v !== 'any' && o.v !== poolMode && poolModeCounts?.[o.v] === 0) }))}
                       onChange={setPoolMode} />
                     {deadVehicles.length > 0 && (
@@ -370,8 +376,7 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
                       <input type="checkbox" checked={sail} onChange={(e) => toggleSail(e.target.checked)} />
                       Sail
                     </label>
-                    <PillToggles label="When" values={sailFacets} options={facetOptions(SAIL_WHEN_OPTIONS)} onToggle={toggleFacet} />
-                    <PillToggles label="On board" values={sailFacets} options={facetOptions(SAIL_ONBOARD_OPTIONS)} onToggle={toggleFacet} />
+                    <PillToggles label="Sail options" showLabel={false} values={sailFacets} options={sailOptions} onToggle={toggleFacet} />
 
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                       <input type="checkbox" checked={privateOnly} onChange={(e) => setPrivateOnly(e.target.checked)} />
