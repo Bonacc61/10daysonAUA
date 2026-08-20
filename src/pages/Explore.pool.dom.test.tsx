@@ -35,9 +35,10 @@ const CATALOG: Catalog = {
   groups: [group()],
   items: [
     item('jeep', 'Aruba Jeep Safari: Natural Pool and Baby Beach'),
-    // Says Conchi only in its DESCRIPTION — 6 of the 28 live ones are like this,
-    // and matching titles alone would drop every one of them.
-    item('hike', 'Arikok Sunrise Walk', { description: 'A guided hiking route through Arikok, ending with a swim at the Natural Pool.' }),
+    // Names the POOL only in its description — 6 of the 28 live ones are like
+    // this — while naming its VEHICLE in the title, which is the split poolPass
+    // relies on.
+    item('hike', 'Arikok Sunrise Hike', { description: 'A guided route through Arikok, ending with a swim at the Natural Pool.' }),
     // The cave is the other place, and the only one a quad can reach: Arikok
     // bars ATVs, which is why the ATV button must go dead under Natural Pool.
     item('atv', 'Aruba North Coast ATV Desert Adventure', { description: 'End the trip with a dip at the Cave Pool.' }),
@@ -83,7 +84,7 @@ describe('Explore — the pool filter', () => {
     openMore();
     expect(titles()).toHaveLength(4);
     fireEvent.click(place('Natural Pool'));
-    expect(titles().sort()).toEqual(['Arikok Sunrise Walk', 'Aruba Jeep Safari: Natural Pool and Baby Beach']);
+    expect(titles().sort()).toEqual(['Arikok Sunrise Hike', 'Aruba Jeep Safari: Natural Pool and Baby Beach']);
     fireEvent.click(place('Cave Pool'));
     expect(titles()).toEqual(['Aruba North Coast ATV Desert Adventure']);
   });
@@ -106,7 +107,7 @@ describe('Explore — the pool filter', () => {
     openMore();
     fireEvent.click(place('Natural Pool'));
     fireEvent.click(vehicle('Hike'));
-    expect(titles()).toEqual(['Arikok Sunrise Walk']);
+    expect(titles()).toEqual(['Arikok Sunrise Hike']);
   });
 
   // Otherwise switching pool keeps a vehicle that cannot reach the new one, and
@@ -130,6 +131,34 @@ describe('Explore — the pool filter', () => {
     expect(screen.getByRole('button', { name: /Fewer filters/ })).toHaveTextContent('1 on');
     fireEvent.click(vehicle('Jeep'));
     expect(screen.getByRole('button', { name: /Fewer filters/ })).toHaveTextContent('1 on');
+  });
+
+  // A vehicle the traveller CHOSE must never go dead: another filter can drive
+  // its count to zero, and a pressed-and-disabled pill narrows a page with no
+  // way left to widen it.
+  it('never disables the vehicle currently chosen', () => {
+    openMore();
+    fireEvent.click(place('Natural Pool'));
+    fireEvent.click(vehicle('Hike'));
+    expect(titles()).toEqual(['Arikok Sunrise Hike']);
+
+    // Nothing in the fixture runs under 2 hours, so every count drops to zero.
+    fireEvent.click(screen.getByRole('button', { name: 'Under 2h' }));
+    expect(titles()).toHaveLength(0);
+    expect(vehicle('Hike')).toBeEnabled();
+    expect(vehicle('Hike')).toHaveAttribute('aria-pressed', 'true');
+    expect(vehicle('Any')).toBeEnabled();
+    expect(vehicle('Jeep')).toBeDisabled();
+  });
+
+  // `disabled` takes a button out of the tab order and announces nothing, so
+  // the reason a vehicle is dead has to be readable text.
+  it('says which vehicles do not reach the chosen pool', () => {
+    openMore();
+    fireEvent.click(place('Natural Pool'));
+    expect(screen.getByText('UTV, ATV and Horseback tours do not reach this pool.')).toBeInTheDocument();
+    fireEvent.click(place('Cave Pool'));
+    expect(screen.getByText('Jeep, UTV, Horseback and Hike tours do not reach this pool.')).toBeInTheDocument();
   });
 
   it('"Clear all filters" puts the pool back to Any', () => {

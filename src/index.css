@@ -499,7 +499,10 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
  * bars the quads. Greyed rather than removed: a row that changes shape reads as
  * a bug, where a dead button reads as an answer. */
 .filter-pill:disabled { opacity: 0.35; cursor: not-allowed; }
-.filter-pill:disabled:hover { background: var(--cream); }
+/* :not(.active) because the two rules have equal specificity, so source order
+ * would otherwise hand a chosen-and-dead pill the cream background while
+ * .active keeps the cream text — a label the same colour as what is behind it. */
+.filter-pill:not(.active):disabled:hover { background: var(--cream); }
 .filter-select { width: 100%; padding: 8px 10px; border: 2px solid var(--ink); border-radius: 10px; background: var(--cream); color: var(--ink); font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 .filter-more { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border: 2px dashed var(--ink); border-radius: 10px; background: transparent; color: var(--ink); font-family: inherit; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
 .filter-more:hover { background: var(--sand-50); }

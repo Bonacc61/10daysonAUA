@@ -475,9 +475,13 @@ const POOL_PLACE: Record<Exclude<PoolPlace, 'any'>, RegExp> = {
  * How you get there. Split UTV from ATV, unlike `itemFit`'s `UTV_TITLE`, which
  * deliberately treats the whole quad family as one for the generator's vehicle
  * preference — here they are two buttons because they are two answers.
+ *
+ * `safari` rides along with the jeeps, as it does in `itemFit`'s
+ * `JEEP_VEHICLE_TITLE`: three Conchi tours name no vehicle beyond "Safari
+ * Tour", and they are jeeps.
  */
 const POOL_MODE: Record<Exclude<PoolMode, 'any'>, RegExp> = {
-  jeep: /\b(jeeps?|4x4|4wd)\b/i,
+  jeep: /\b(jeeps?|4x4|4wd|safari)\b/i,
   utv: /\b(utv|side[\s-]?by[\s-]?side)\b/i,
   atv: /\b(atv|quads?)\b/i,
   horseback: /\bhorse ?back|\bhorse ?riding\b/i,
@@ -485,21 +489,38 @@ const POOL_MODE: Record<Exclude<PoolMode, 'any'>, RegExp> = {
 };
 
 /**
- * Matched on title AND description, which is the difference between a filter
- * that works and one that does not: 6 of the 28 Conchi products never name it
- * in their title ("Private Jeep Tour to Arikok National Park" is one), and both
- * ATV products reach the Cave Pool only in prose.
+ * The two halves read DIFFERENT text, and that asymmetry is the accuracy of
+ * this filter.
+ *
+ * WHERE a tour goes is often only in the prose: 6 of the 28 Conchi products
+ * never name the pool in their title ("Private Jeep Tour to Arikok National
+ * Park" is one), and both ATV products reach the Cave Pool only in
+ * description. So the PLACE reads title + description.
+ *
+ * WHAT a tour is, is in its name — and reading prose for it goes wrong in a way
+ * a traveller can see. Measured on the live catalog: matching the mode on
+ * description too filed four products under the wrong button, every one because
+ * the prose named a vehicle the tour was NOT. "only reached by walking,
+ * horseback or 4x4" made a horseback tour a jeep; "the first swimmers before
+ * the packed jeep riders" made a sunrise HIKE one. So the MODE reads the title
+ * alone. It costs one Conchi tour whose title names no vehicle at all ("Natural
+ * Pool Caves and Beach Private Tour"), which is the honest answer for a listing
+ * that does not say.
+ *
+ * This mirrors the rule the generator learned on 2026-08-19 — a title does not
+ * reliably say where a tour goes, so it must not decide what a tour IS. Here: a
+ * description does not reliably say what a tour is, so it must not decide how
+ * you get there.
  *
  * The mode is a SUB-filter — with no place chosen it admits everything, so a
  * mode left set while the place is cleared cannot narrow the page invisibly.
  */
 export function poolPass(entry: ExploreEntry, place?: PoolPlace, mode?: PoolMode): boolean {
   if (!place || place === 'any') return true;
-  const text = entry.kind === 'item'
-    ? `${entry.item.title} ${entry.item.description ?? ''}`
-    : `${entry.activity.title} ${entry.activity.description ?? ''}`;
-  if (!POOL_PLACE[place].test(text)) return false;
-  return !mode || mode === 'any' || POOL_MODE[mode].test(text);
+  const title = entry.kind === 'item' ? entry.item.title : entry.activity.title;
+  const description = (entry.kind === 'item' ? entry.item.description : entry.activity.description) ?? '';
+  if (!POOL_PLACE[place].test(`${title} ${description}`)) return false;
+  return !mode || mode === 'any' || POOL_MODE[mode].test(title);
 }
 
 // Ensure medium=link is present on a Viator product URL. The edge function

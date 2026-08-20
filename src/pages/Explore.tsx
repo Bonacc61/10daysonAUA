@@ -157,7 +157,8 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
     // mobility/low-adventure tags, and without this those tags were derived and
     // then thrown away because the traveller had ticked nothing.
     || !!answers.specialNotes.trim();
-  // Sort and the four extra filters. Every default is the neutral value, so a
+  // Sort and the five extra filters (the pool and its vehicle row count as one
+  // narrowing). Every default is the neutral value, so a
   // traveller who touches none of them sees the same SET of activities the page
   // showed before these controls existed. The default ORDER is different —
   // 'recommended' is now a ranking rather than a passthrough (see rankRecommended)
@@ -170,7 +171,8 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   const [poolMode, setPoolMode] = useState<PoolMode>('any');
   const [moreOpen, setMoreOpen] = useState(false);
   // Only the filters hidden behind "More filters" are counted — the badge exists
-  // to say what is narrowing the page out of sight.
+  // to say what is narrowing the page out of sight. The pool and its vehicle row
+  // are one entry here, not two; see the comment on hiddenActive below.
   // The pool and its vehicle row count as ONE narrowing, because that is what
   // they are: the vehicle cannot narrow anything on its own.
   const hiddenActive = [duration !== 'any', privateOnly, provenance !== 'all', pool !== 'any'].filter(Boolean).length;
@@ -199,17 +201,23 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   // stay in exploreItems and pass everything when the option is absent, so the
   // filter is dormant rather than deleted. Sorting by rating or reviews is
   // untouched — a sort cannot hide anything.
-  const extra = { duration, privateOnly, provenance, pool, poolMode };
+  const extra = useMemo(() => ({ duration, privateOnly, provenance, pool, poolMode }),
+    [duration, privateOnly, provenance, pool, poolMode]);
   // Which vehicles can actually reach the chosen pool, counted against the page
   // as it is currently filtered so the row cannot disagree with the grid. Greyed
   // rather than hidden: a dead ATV button under the Natural Pool is Arikok's
   // rule made visible, where a missing one would read as an oversight.
   const poolModeCounts = useMemo(() => {
     if (pool === 'any') return null;
-    const atPool = filterExploreEntries(catalog, { section, search, vibe, price, duration, privateOnly, provenance, pool, poolMode: 'any' });
+    const atPool = filterExploreEntries(catalog, { section, search, vibe, price, ...extra, poolMode: 'any' });
     return Object.fromEntries(POOL_MODE_OPTIONS.map((o) => [o.v, atPool.filter((e) => poolPass(e, pool, o.v)).length])) as Record<PoolMode, number>;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalog, section, search, vibe, price, duration, privateOnly, provenance, pool]);
+  }, [catalog, section, search, vibe, price, extra, pool]);
+  // Named so the row can say why a button is dead. `disabled` drops a button
+  // out of the tab order and announces nothing, so the reason has to be text
+  // somebody can actually read.
+  const deadVehicles = POOL_MODE_OPTIONS
+    .filter((o) => o.v !== 'any' && o.v !== poolMode && poolModeCounts?.[o.v] === 0)
+    .map((o) => o.label);
   // The "Good for kids" checkbox that wrapped this in `splitByFacet` was removed
   // 2026-08-19 and deferred to v2, owner's call: the underlying kids verdict is
   // not good enough to filter on. The VERDICT stays live — the search box reads
@@ -305,8 +313,13 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
                     <PillRow label="Natural pool" value={pool} options={POOL_OPTIONS}
                       onChange={(v) => { setPool(v); setPoolMode('any'); }} />
                     <PillRow label="Getting there" value={poolMode}
-                      options={POOL_MODE_OPTIONS.map((o) => ({ ...o, disabled: pool === 'any' || (o.v !== 'any' && poolModeCounts?.[o.v] === 0) }))}
+                      options={POOL_MODE_OPTIONS.map((o) => ({ ...o, disabled: pool === 'any' || (o.v !== 'any' && o.v !== poolMode && poolModeCounts?.[o.v] === 0) }))}
                       onChange={setPoolMode} />
+                    {deadVehicles.length > 0 && (
+                      <p style={{ fontSize: 11, color: 'var(--sand-700)', margin: '-8px 0 14px' }}>
+                        {`${deadVehicles.join(', ').replace(/, ([^,]*)$/, ' and $1')} tours do not reach this pool.`}
+                      </p>
+                    )}
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                       <input type="checkbox" checked={privateOnly} onChange={(e) => setPrivateOnly(e.target.checked)} />
                       Private tours only

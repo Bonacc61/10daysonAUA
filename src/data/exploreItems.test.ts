@@ -611,6 +611,37 @@ describe('poolPass', () => {
     expect(poolPass(caveAtv, 'cave', 'utv')).toBe(false);
   });
 
+  // The two halves read different text on purpose. Matching the mode on prose
+  // too filed four live products under the wrong button; these are two of them.
+  test('the place reads the description, the mode does not', () => {
+    const horseback = item('Horseback Ride Tour to Natural Pool in Arikok National Park',
+      'The pool can only be reached by walking, horseback or 4x4.');
+    expect(poolPass(horseback, 'natural', 'any')).toBe(true);
+    expect(poolPass(horseback, 'natural', 'horseback')).toBe(true);
+    expect(poolPass(horseback, 'natural', 'jeep')).toBe(false);
+
+    const sunriseHike = item('Sunrise Hike & Swim in Natural Pool',
+      'Be the first swimmers, before the packed jeep riders arrive.');
+    expect(poolPass(sunriseHike, 'natural', 'hike')).toBe(true);
+    expect(poolPass(sunriseHike, 'natural', 'jeep')).toBe(false);
+  });
+
+  // Three Conchi tours name no vehicle beyond "Safari Tour", and they are jeeps
+  // — the same alternation itemFit's JEEP_VEHICLE_TITLE uses.
+  test('a safari is a jeep', () => {
+    expect(poolPass(item('Aruba Natural Pools Northshore Safari Tour'), 'natural', 'jeep')).toBe(true);
+  });
+
+  // A listing that never says how you get there answers to no vehicle, which is
+  // the honest reading of a title that does not say.
+  test('a tour that names no vehicle answers only to Any', () => {
+    const silent = item('Natural Pool Caves and Beach Private Tour');
+    expect(poolPass(silent, 'natural', 'any')).toBe(true);
+    for (const m of ['jeep', 'utv', 'atv', 'horseback', 'hike'] as const) {
+      expect(poolPass(silent, 'natural', m)).toBe(false);
+    }
+  });
+
   test('a local pick is filtered on its own words, not skipped', () => {
     expect(poolPass(local('Conchi Natural Pool', 'Reachable only by 4x4.'), 'natural', 'any')).toBe(true);
     expect(poolPass(local('Eagle Beach', 'Wide white sand.'), 'natural', 'any')).toBe(false);
