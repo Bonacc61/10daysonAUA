@@ -1457,8 +1457,8 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 .map-strip-outer { text-align: center; }
 .map-strip-inner { text-align: left; }
 
-.map-day-arrows   { display: flex; align-items: center; padding: 8px 16px 4px; gap: 12px; }
-.map-day-label    { text-align: center; }
+.map-day-arrows   { display: flex; align-items: center; justify-content: center; padding: 8px 16px 4px; gap: 12px; }
+.map-day-label    { flex: 0 1 auto; min-width: 0; text-align: center; }
 .map-day-timeline { display: none; }
 
 /* The bottom panel is one centred column: variant switcher, then the day nav,
@@ -1481,8 +1481,6 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
  * one group.
  */
 .map-panel { display: block; }
-.map-day-arrows { justify-content: center; }
-.map-day-label { flex: 0 1 auto; min-width: 0; }
 .map-day-label-row { min-width: 0; }
 /* The title is the one part with no length bound — it is a Viator group name —
  * so it is what gives way when the cluster runs out of room. */
@@ -1491,23 +1489,23 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 /* Reserve the cookie banner's strip while it is actually on screen.
  *
  * The banner is fixed to the bottom and nothing on this page ever accounted for
- * it. Stacked, the panel was tall enough that this never showed; laying the
- * controls beside the strip made the panel `max(controls, strip)` instead of
- * their sum, so on a FREE DAY - a day a traveller emptied with removeCard - the
- * panel floors at its 64px min-height and ALL of it lands inside the banner's
- * 72px. Measured: the variant buttons stop responding to a click at all
- * (elementFromPoint at their centre returns the banner). The reserve is MORE
- * load-bearing since the day nav left the column, not less: the panel used to
- * bottom out at ~100px and now bottoms out below the banner's own height.
+ * it. Stacked, the panel is tall enough that its controls never reach the
+ * banner - measured 2026-08-20, panel bottom 826 against a banner top of 828 at
+ * 1440x900 - so this is not about the panel's height, which is exactly why it
+ * survived three layouts. Two collisions do not depend on that height at all:
+ * the banner covers the bottom of every strip card including its "Book" link,
+ * and buries the "Start the quiz" CTA on the no-itinerary map so completely
+ * that it cannot be clicked. Padding the PAGE rather than the panel is what
+ * makes the rule independent of the layout, and it costs nothing once the
+ * banner is dismissed.
  *
- * Padding the page rather than the panel because two pre-existing collisions
- * share the cause and the cure: the banner also covers the bottom of every
- * strip card including its "Book" link, and buries the "Start the quiz" CTA on
- * the no-itinerary map so completely that it cannot be clicked either. One rule
- * closes all three, and it costs nothing once the banner is dismissed.
- *
- * Desktop only: the phone's banner is 108px, not 72px, and its layout is the
- * one already framing correctly, so it is left alone. */
+ * The phone needs it MORE than the desktop, not less, which is the opposite of
+ * what this rule assumed until 2026-08-20. Measured at 390x844 with the banner
+ * up: the banner is 108px and starts at y=736, the strip runs 681-854, so the
+ * bottom 117px of a 173px card - title, price, Book link, all of it - was under
+ * the banner, and the panel overflowed the viewport by 10px. The old exemption
+ * reasoned that the phone's layout "was already framing correctly", which was
+ * about the MAP's aspect and never about the cards. */
 body:has(.cookie-banner) .map-page { padding-bottom: 72px; }
 
 /* An engine without :has() cannot see the banner, so it reserves the strip
@@ -1517,8 +1515,9 @@ body:has(.cookie-banner) .map-page { padding-bottom: 72px; }
  * was harmless, and it is not: with both :has() rules removed at runtime, the
  * free-day variant buttons and strip cards go straight back to returning
  * .cookie-banner from elementFromPoint - the exact bug that held this commit.
- * (The day arrows are no longer among the victims: on desktop they float 54px
- * above the panel and cannot reach the banner at all.) Realistically this is
+ * (The day arrows are back inside the panel, above the strip, so they sit well
+ * clear of it; the victims are the strip cards and the quiz CTA.) Realistically
+ * this is
  * Firefox below 121 (Dec 2023). The cost of being safe is 72px of map height
  * they keep after dismissing the banner; the cost of being clever is a control
  * they cannot click. */
@@ -1526,12 +1525,13 @@ body:has(.cookie-banner) .map-page { padding-bottom: 72px; }
   .map-page { padding-bottom: 72px; }
 }
 
-/* Below 900px the width is not spare any more and the rows stack again, which
- * is the layout the phone already framed correctly. */
+/* The layout is the same centred column at every width. The only thing that
+ * still differs below 900px is the banner's height - 108px on a phone against
+ * 72px on a desktop - so the reserve is bigger here rather than absent. */
 @media (max-width: 900px) {
-  body:has(.cookie-banner) .map-page { padding-bottom: 0; }
+  body:has(.cookie-banner) .map-page { padding-bottom: 108px; }
   @supports not selector(:has(*)) {
-    .map-page { padding-bottom: 0; }
+    .map-page { padding-bottom: 108px; }
   }
 }
 

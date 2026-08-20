@@ -196,10 +196,12 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   // untouched — a sort cannot hide anything.
   const extra = useMemo(() => ({ duration, privateOnly, provenance, pool, poolMode }),
     [duration, privateOnly, provenance, pool, poolMode]);
-  // Which vehicles can actually reach the chosen pool, counted against the page
-  // as it is currently filtered so the row cannot disagree with the grid. Greyed
-  // rather than hidden: a dead ATV button under the Natural Pool is Arikok's
-  // rule made visible, where a missing one would read as an oversight.
+  // Which vehicles can actually reach a pool, counted against the page as it is
+  // currently filtered so the row cannot disagree with the grid. Greyed rather
+  // than hidden: a dead button reads as a fact about supply, where a missing one
+  // reads as an oversight. Nothing is grey on the live catalog today — covering
+  // both swimming holes is what keeps ATV answerable — so this only shows itself
+  // when supply moves.
   const poolModeCounts = useMemo(() => {
     if (!pool) return null;
     const atPool = filterExploreEntries(catalog, { section, search, vibe, price, ...extra, poolMode: 'any' });

@@ -506,8 +506,8 @@ const POOL_MODE: Record<Exclude<PoolMode, 'any'>, RegExp> = {
  * description does not reliably say what a tour is, so it must not decide how
  * you get there.
  *
- * The mode is a SUB-filter — with no place chosen it admits everything, so a
- * mode left set while the place is cleared cannot narrow the page invisibly.
+ * The mode is a SUB-filter — with the pool switched off it admits everything,
+ * so a mode left set while the pool is off cannot narrow the page invisibly.
  */
 export function poolPass(entry: ExploreEntry, pool?: boolean, mode?: PoolMode): boolean {
   if (!pool) return true;
