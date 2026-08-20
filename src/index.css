@@ -1452,6 +1452,79 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 .map-day-arrows   { display: flex; }
 .map-day-timeline { display: none; }
 
+/* The bottom panel lays its controls BESIDE the strip on desktop, not above it.
+ *
+ * Stacked, the panel's three centred rows took 273px of an 830px window, which
+ * left the map a 1440x557 canvas — aspect 2.59. Aruba's day routes run NW-SE,
+ * so on a letterbox that shape the VERTICAL axis binds every time: measured on
+ * live production, a day's pins filled 70% of the canvas height and as little
+ * as 5% of its width, the day reduced to a thin ribbon with the rest open sea.
+ * The same site on an iPhone (390x501, aspect 0.78) frames the same day at 70%
+ * of the WIDTH and looks right, which is what prompted this.
+ *
+ * The width was already there and unused — the three rows were centred in
+ * 1440px with empty space either side. Spending it horizontally gives the map
+ * back 99px of height (557 -> 656 at 1440x900, aspect 2.59 -> 2.20), and height
+ * is the axis that decides the zoom: the box the bounds fit into goes from
+ * 330px to 401px, so the day is drawn 21% larger. The phone is untouched —
+ * 390x501 before and after, same fit, which is the point.
+ */
+.map-panel { display: flex; align-items: flex-start; gap: 18px; }
+.map-panel-controls { flex: 0 0 auto; width: 300px; }
+
+/* Left-aligned beside the controls. The base rule centres the cards so a short
+ * day does not hug the left edge, but in the row layout "centred" means centred
+ * in the leftover 1122px, which parked a two-card day some 440px away from the
+ * controls it belongs to — and put "Free day — nothing scheduled." nowhere near
+ * the panel saying which day. The phone keeps the centring. */
+.map-strip-outer { flex: 1 1 auto; min-width: 0; text-align: left; }
+
+/* Reserve the cookie banner's strip while it is actually on screen.
+ *
+ * The banner is fixed to the bottom and nothing on this page ever accounted for
+ * it. Stacked, the panel was tall enough that this never showed; laying the
+ * controls beside the strip made the panel `max(controls, strip)` instead of
+ * their sum, so on a FREE DAY - a day a traveller emptied with removeCard - the
+ * panel collapses to 100px and the controls column's lower 70px land inside the
+ * banner's 72px. Measured: the variant buttons stop responding to a click at
+ * all (elementFromPoint at their centre returns the banner).
+ *
+ * Padding the page rather than the panel because two pre-existing collisions
+ * share the cause and the cure: the banner also covers the bottom of every
+ * strip card including its "Book" link, and buries the "Start the quiz" CTA on
+ * the no-itinerary map so completely that it cannot be clicked either. One rule
+ * closes all three, and it costs nothing once the banner is dismissed.
+ *
+ * Desktop only: the phone's banner is 108px, not 72px, and its layout is the
+ * one already framing correctly, so it is left alone. */
+body:has(.cookie-banner) .map-page { padding-bottom: 72px; }
+
+/* An engine without :has() cannot see the banner, so it reserves the strip
+ * unconditionally instead.
+ *
+ * Stated because an earlier draft of the comment above claimed the degradation
+ * was harmless, and it is not: with both :has() rules removed at runtime, the
+ * free-day day-arrows go straight back to returning .cookie-banner from
+ * elementFromPoint - the exact bug that held this commit. Realistically this is
+ * Firefox below 121 (Dec 2023). The cost of being safe is 72px of map height
+ * they keep after dismissing the banner; the cost of being clever is a control
+ * they cannot click. */
+@supports not selector(:has(*)) {
+  .map-page { padding-bottom: 72px; }
+}
+
+/* Below 900px the width is not spare any more and the rows stack again, which
+ * is the layout the phone already framed correctly. */
+@media (max-width: 900px) {
+  .map-panel { display: block; }
+  .map-panel-controls { width: auto; }
+  .map-strip-outer { text-align: center; }
+  body:has(.cookie-banner) .map-page { padding-bottom: 0; }
+  @supports not selector(:has(*)) {
+    .map-page { padding-bottom: 0; }
+  }
+}
+
 /* Scroll-driven reveal animation for itinerary cards */
 @keyframes reveal {
   from {

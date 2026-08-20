@@ -380,11 +380,35 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   // day at every viewport, and zero markers outside the canvas — a frame that
   // was legal and cramped at the same time. The margin is a share of the canvas
   // now; see BREATHING_FRACTION in src/data/mapCamera.ts.
+
+  // Keep the canvas the size of its container.
+  //
+  // mapbox-gl's `trackResize` listens to the WINDOW, so a container that
+  // changes on its own leaves the canvas at its old size — the map then renders
+  // into a box that no longer exists. Nothing on this page resized itself until
+  // the cookie banner started reserving its strip (see .map-page in
+  // index.css): dismissing it gave the container 72px back and the canvas kept
+  // none of them, staying 584px in a 656px box for the rest of the session.
+  //
+  // Observing the container covers that, and the window resize and phone
+  // rotation that had the same stale-canvas problem before it. Only `resize` —
+  // not a re-frame: growing the box can only ADD margin around pins that are
+  // already inside it, and flying the camera because a banner was dismissed
+  // would be motion the traveller did not ask for. The next day change reframes
+  // against the true size anyway.
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!mapReady || !map) return;
+    const ro = new ResizeObserver(() => map.resize());
+    ro.observe(map.getContainer());
+    return () => ro.disconnect();
+  }, [mapReady]);
+
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
-    // The CANVAS, not the window: the bottom panel takes about a third of the
-    // window's height before the map sees any of it, and the padding is a share
-    // of what the map actually got.
+    // The CANVAS, not the window: the bottom panel takes about a fifth of the
+    // window's height on desktop and a third on a phone before the map sees any
+    // of it, and the padding is a share of what the map actually got.
     const box = mapRef.current.getContainer().getBoundingClientRect();
     const cam = dayCamera(locatedEntries.map(e => e.coord), { width: box.width, height: box.height });
     if (!cam) return;
@@ -444,7 +468,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   }));
 
   return (
-    <div style={{ height: 'calc(100vh - 70px)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+    <div className="map-page" style={{ height: 'calc(100vh - 70px)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       {/* Map fills remaining space above the bottom panel */}
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
         <RMap
@@ -574,7 +598,12 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
 
       {/* ── Bottom panel: plan switcher + day nav + activity photo strip ── */}
       {canSeeItinerary && plan && planDay && (
-        <div style={{ background: 'rgba(255,251,240,0.98)', backdropFilter: 'blur(12px)', borderTop: '1px solid rgba(0,0,0,0.1)', flexShrink: 0 }}>
+        <div className="map-panel" style={{ background: 'rgba(255,251,240,0.98)', backdropFilter: 'blur(12px)', borderTop: '1px solid rgba(0,0,0,0.1)', flexShrink: 0 }}>
+
+          {/* Variant switcher + day nav. Beside the strip on desktop, above it
+              on a phone — see .map-panel in index.css for why the map's height
+              is worth this much. */}
+          <div className="map-panel-controls">
 
           {/* Itinerary variant switcher — mirrors Dashboard ITINERARY_VARIANTS */}
           <div style={{ padding: '10px 16px 0' }}>
@@ -638,6 +667,8 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
                 </button>
               );
             })}
+          </div>
+
           </div>
 
           {/* Horizontal photo strip */}
