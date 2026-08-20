@@ -20,7 +20,7 @@ import { useSearchBox } from '../lib/useSearchBox';
 import { useBooked } from '../lib/booked';
 import { useAuth } from '../lib/auth';
 import { listTrips, deleteTrip, tripLabel, type SavedTrip } from '../lib/trips';
-import { readActiveTripId, writeActiveTripId } from '../lib/activeTrip';
+import { readActiveTripId, writeActiveTripId, markTripOpened } from '../lib/activeTrip';
 import ShareEmailModal from '../components/ShareEmailModal';
 import { matchPool, blendPools, parseActivityCost } from '../data/matcher';
 import { productUrlFor, sectionLabel, primarySection, bookUrlForActivity } from '../data/exploreItems';
@@ -1219,6 +1219,11 @@ export default function Dashboard({ setPage, initialSection = 'starred', onLogin
   const openTrip = (id: string) => {
     setActiveTripId(id);
     writeActiveTripId(id);
+    // Deliberate: the traveller pressed Edit on THIS row. Without this the
+    // Itinerary page would open it only while its answers still matched the
+    // questionnaire, and otherwise hand back a fresh unattached plan — the same
+    // heading, a different itinerary, no sign anything had been ignored.
+    markTripOpened(id);
   };
 
   const [deleteError, setDeleteError] = useState<string | null>(null);

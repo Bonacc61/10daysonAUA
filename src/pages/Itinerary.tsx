@@ -27,7 +27,7 @@ import { logEvent } from '../data/feedback';
 import { useAuth } from '../lib/auth';
 import { useBooked } from '../lib/booked';
 import { loadTrip, loadTripById, saveTrip, updateTrip, createTrip } from '../lib/trips';
-import { readActiveTripId, writeActiveTripId } from '../lib/activeTrip';
+import { readActiveTripId, writeActiveTripId, takeTripOpened } from '../lib/activeTrip';
 import { sameAnswers } from '../lib/sameAnswers';
 import { createShare, loadShare } from '../lib/shares';
 import ShareEmailModal from '../components/ShareEmailModal';
@@ -228,11 +228,14 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
     // recently touched) covers a first visit on this browser, and a stored id
     // that no longer resolves — a trip deleted from another device.
     const wanted = readActiveTripId();
+    // Consumed here, once: if the traveller reached this page by pressing Edit
+    // on an itinerary, that itinerary opens whatever their answers say now.
+    const chosen = takeTripOpened();
     const fetch = wanted
       ? loadTripById(user.id, wanted).then((t) => t ?? loadTrip(user.id))
       : loadTrip(user.id);
     fetch.then((t) => {
-      if (t && sameAnswers(t.answers, currentAnswers)) {
+      if (t && (chosen === t.id || sameAnswers(t.answers, currentAnswers))) {
         // Reopening this trip: adopt its content AND its identity, so the
         // autosave writes back to the row it came from.
         setPlan(t.plan);
