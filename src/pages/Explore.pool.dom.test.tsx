@@ -6,7 +6,7 @@ import type { ViatorGroup, ViatorItem } from '../types';
 import { DEFAULT_ANSWERS } from '../App';
 
 /**
- * The Natural Pool / Cave Pool rows, rendered.
+ * The Natural Pool filter and its vehicle row, rendered.
  *
  * Its own file rather than another block in Explore.dom.test.tsx because this
  * needs a catalog of pool products, and that file's tests count the whole
@@ -58,75 +58,76 @@ const titles = () => [...document.querySelectorAll('.a-card h3')].map((n) => n.t
 const vehicle = (name: string) =>
   [...screen.getByRole('group', { name: 'Getting there' }).querySelectorAll('button')]
     .find((b) => b.textContent === name)!;
-const place = (name: string) =>
-  [...screen.getByRole('group', { name: 'Natural pool' }).querySelectorAll('button')]
-    .find((b) => b.textContent === name)!;
+const poolToggle = () => screen.getByLabelText('Natural Pool') as HTMLInputElement;
 
 beforeEach(() => render(<Explore setPage={() => {}} answers={DEFAULT_ANSWERS} canSeeItinerary={false} />));
 afterEach(() => { document.body.innerHTML = ''; });
 
 describe('Explore — the pool filter', () => {
-  it('keeps both rows behind "More filters"', () => {
-    expect(screen.queryByRole('group', { name: 'Natural pool' })).not.toBeInTheDocument();
+  it('keeps the pool and its vehicles behind "More filters"', () => {
+    expect(screen.queryByLabelText('Natural Pool')).not.toBeInTheDocument();
     openMore();
-    expect(screen.getByRole('group', { name: 'Natural pool' })).toBeInTheDocument();
+    expect(poolToggle()).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Getting there' })).toBeInTheDocument();
   });
 
-  it('the vehicle row is dead until a pool is chosen', () => {
+  it('the vehicle row is dead until the pool is on', () => {
     openMore();
     for (const v of ['Jeep', 'UTV', 'ATV', 'Horseback', 'Hike']) {
       expect(vehicle(v)).toBeDisabled();
     }
   });
 
-  it('a pool narrows the page to what actually goes there', () => {
+  it('the pool narrows the page to what actually goes to one', () => {
     openMore();
     expect(titles()).toHaveLength(4);
-    fireEvent.click(place('Natural Pool'));
-    expect(titles().sort()).toEqual(['Arikok Sunrise Hike', 'Aruba Jeep Safari: Natural Pool and Baby Beach']);
-    fireEvent.click(place('Cave Pool'));
-    expect(titles()).toEqual(['Aruba North Coast ATV Desert Adventure']);
+    fireEvent.click(poolToggle());
+    // The catamaran is the only tile that reaches no pool; the ATV run reaches
+    // the Cave Pool, which this one filter covers.
+    expect(titles().sort()).toEqual([
+      'Arikok Sunrise Hike',
+      'Aruba Jeep Safari: Natural Pool and Baby Beach',
+      'Aruba North Coast ATV Desert Adventure',
+    ]);
   });
 
-  // The whole reason the two pools are separate chips: Arikok bars the quads,
-  // so under Natural Pool the ATV button is not empty by accident.
-  it('greys the vehicles that cannot reach the chosen pool', () => {
+  // Every vehicle in the fixture reaches a pool, so none is greyed — the row
+  // only greys what nothing answers to.
+  it('greys only the vehicles nothing answers to', () => {
     openMore();
-    fireEvent.click(place('Natural Pool'));
+    fireEvent.click(poolToggle());
     expect(vehicle('Jeep')).toBeEnabled();
     expect(vehicle('Hike')).toBeEnabled();
-    expect(vehicle('ATV')).toBeDisabled();
-
-    fireEvent.click(place('Cave Pool'));
     expect(vehicle('ATV')).toBeEnabled();
-    expect(vehicle('Hike')).toBeDisabled();
+    expect(vehicle('UTV')).toBeDisabled();
+    expect(vehicle('Horseback')).toBeDisabled();
   });
 
   it('a vehicle narrows within the pool', () => {
     openMore();
-    fireEvent.click(place('Natural Pool'));
+    fireEvent.click(poolToggle());
     fireEvent.click(vehicle('Hike'));
     expect(titles()).toEqual(['Arikok Sunrise Hike']);
   });
 
-  // Otherwise switching pool keeps a vehicle that cannot reach the new one, and
-  // the page empties for a reason nothing on screen explains.
-  it('switching pool resets the vehicle', () => {
+  // Otherwise a vehicle set in a previous session of the panel comes back with
+  // the pool and narrows it for a reason nothing on screen explains.
+  it('turning the pool off resets the vehicle', () => {
     openMore();
-    fireEvent.click(place('Natural Pool'));
+    fireEvent.click(poolToggle());
     fireEvent.click(vehicle('Jeep'));
     expect(vehicle('Jeep')).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(place('Cave Pool'));
+    fireEvent.click(poolToggle());
+    expect(titles()).toHaveLength(4);
+    fireEvent.click(poolToggle());
     expect(vehicle('Any')).toHaveAttribute('aria-pressed', 'true');
-    expect(titles()).toEqual(['Aruba North Coast ATV Desert Adventure']);
   });
 
   // The pool and its vehicle are one narrowing, not two — the vehicle cannot
   // narrow anything on its own.
   it('counts as one filter in the "More filters" badge', () => {
     openMore();
-    fireEvent.click(place('Natural Pool'));
+    fireEvent.click(poolToggle());
     // The button reads "Fewer filters" once the panel is open.
     expect(screen.getByRole('button', { name: /Fewer filters/ })).toHaveTextContent('1 on');
     fireEvent.click(vehicle('Jeep'));
@@ -138,7 +139,7 @@ describe('Explore — the pool filter', () => {
   // way left to widen it.
   it('never disables the vehicle currently chosen', () => {
     openMore();
-    fireEvent.click(place('Natural Pool'));
+    fireEvent.click(poolToggle());
     fireEvent.click(vehicle('Hike'));
     expect(titles()).toEqual(['Arikok Sunrise Hike']);
 
@@ -153,18 +154,16 @@ describe('Explore — the pool filter', () => {
 
   // `disabled` takes a button out of the tab order and announces nothing, so
   // the reason a vehicle is dead has to be readable text.
-  it('says which vehicles do not reach the chosen pool', () => {
+  it('says which vehicles reach no pool in the catalog', () => {
     openMore();
-    fireEvent.click(place('Natural Pool'));
-    expect(screen.getByText('UTV, ATV and Horseback tours do not reach this pool.')).toBeInTheDocument();
-    fireEvent.click(place('Cave Pool'));
-    expect(screen.getByText('Jeep, UTV, Horseback and Hike tours do not reach this pool.')).toBeInTheDocument();
+    fireEvent.click(poolToggle());
+    expect(screen.getByText('UTV and Horseback tours do not reach this pool.')).toBeInTheDocument();
   });
 
-  it('"Clear all filters" puts the pool back to Any', () => {
+  it('"Clear all filters" switches the pool back off', () => {
     openMore();
-    fireEvent.click(place('Natural Pool'));
-    expect(titles()).toHaveLength(2);
+    fireEvent.click(poolToggle());
+    expect(titles()).toHaveLength(3);
     fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
     expect(titles()).toHaveLength(4);
     expect(vehicle('Jeep')).toBeDisabled();

@@ -558,93 +558,87 @@ describe('poolPass', () => {
 
   const conchiJeep = item('Aruba Jeep Tour: Natural Pool, Caves and Baby Beach Adventure');
   const conchiHike = item('Arikok Sunrise Hiking Tour to Natural Pool + Transportation');
-  // The whole reason the filter reads descriptions: 6 of the 28 Conchi products
-  // on the live catalog never say so in their title.
+  // The whole reason the pool half reads descriptions: 6 of the 28 Conchi
+  // products on the live catalog never say so in their title.
   const conchiByDesc = item('Private Jeep Tour to Arikok National Park', 'A 4x4 run through Arikok, stopping to swim at the Natural Pool.');
+  // The Cave Pool is a different place — outside Arikok, and the only one the
+  // quads can reach. One filter covers both, which is what keeps ATV answerable.
   const caveAtv = item('Aruba North Coast ATV Desert Adventure', 'End the trip by taking a refreshing dip at the Cave Pool.');
   const caveUtv = item('Aruba UTV Tour with Natural Cave Pool and Cliff Jumping');
   const unrelated = item('Aruba Sunset Catamaran Sail', 'Open bar and snorkelling off Boca Catalina.');
 
   test('off, it admits everything', () => {
-    expect(poolPass(conchiJeep, 'any', 'any')).toBe(true);
+    expect(poolPass(conchiJeep, false, 'any')).toBe(true);
     expect(poolPass(unrelated, undefined, undefined)).toBe(true);
     // The mode alone must not filter — it is a SUB-filter, and a mode left set
-    // while the place is cleared would otherwise silently narrow the page.
-    expect(poolPass(unrelated, 'any', 'jeep')).toBe(true);
+    // while the pool is switched off would otherwise narrow the page invisibly.
+    expect(poolPass(unrelated, false, 'jeep')).toBe(true);
   });
 
-  test('the two places are different places, and do not admit each other', () => {
-    expect(poolPass(conchiJeep, 'natural', 'any')).toBe(true);
-    expect(poolPass(caveAtv, 'natural', 'any')).toBe(false);
-    expect(poolPass(caveAtv, 'cave', 'any')).toBe(true);
-    expect(poolPass(conchiJeep, 'cave', 'any')).toBe(false);
-    expect(poolPass(unrelated, 'natural', 'any')).toBe(false);
-    expect(poolPass(unrelated, 'cave', 'any')).toBe(false);
-  });
-
-  // "Natural Cave Pool" contains "cave pool" but not "natural pool"; matching
-  // the place on the longer phrase first is what keeps it out of Conchi.
-  test('"Natural Cave Pool" is the cave, not Conchi', () => {
-    expect(poolPass(caveUtv, 'cave', 'any')).toBe(true);
-    expect(poolPass(caveUtv, 'natural', 'any')).toBe(false);
+  test('on, it keeps what goes to a pool and drops what does not', () => {
+    expect(poolPass(conchiJeep, true, 'any')).toBe(true);
+    expect(poolPass(conchiHike, true, 'any')).toBe(true);
+    expect(poolPass(caveAtv, true, 'any')).toBe(true);
+    expect(poolPass(caveUtv, true, 'any')).toBe(true);
+    expect(poolPass(unrelated, true, 'any')).toBe(false);
   });
 
   test('the description counts, not just the title', () => {
-    expect(poolPass(conchiByDesc, 'natural', 'any')).toBe(true);
-    expect(poolPass(conchiByDesc, 'natural', 'jeep')).toBe(true);
+    expect(poolPass(conchiByDesc, true, 'any')).toBe(true);
+    expect(poolPass(conchiByDesc, true, 'jeep')).toBe(true);
   });
 
-  test('the mode narrows within the place', () => {
-    expect(poolPass(conchiJeep, 'natural', 'jeep')).toBe(true);
-    expect(poolPass(conchiJeep, 'natural', 'hike')).toBe(false);
-    expect(poolPass(conchiHike, 'natural', 'hike')).toBe(true);
-    expect(poolPass(caveAtv, 'cave', 'atv')).toBe(true);
-    expect(poolPass(caveAtv, 'cave', 'jeep')).toBe(false);
+  test('the mode narrows within the pool', () => {
+    expect(poolPass(conchiJeep, true, 'jeep')).toBe(true);
+    expect(poolPass(conchiJeep, true, 'hike')).toBe(false);
+    expect(poolPass(conchiHike, true, 'hike')).toBe(true);
+    expect(poolPass(caveAtv, true, 'atv')).toBe(true);
+    expect(poolPass(caveAtv, true, 'jeep')).toBe(false);
   });
 
   // UTV and ATV are separate buttons here, unlike itemFit's UTV_TITLE, which
-  // treats the whole family as one for the generator's vehicle preference.
+  // treats the whole quad family as one for the generator's vehicle preference.
   test('UTV and ATV are separate buttons', () => {
     const utv = item('Aruba UTV Adventure to Natural Pool Jeep Transfer');
-    expect(poolPass(utv, 'natural', 'utv')).toBe(true);
-    expect(poolPass(utv, 'natural', 'atv')).toBe(false);
-    expect(poolPass(caveAtv, 'cave', 'utv')).toBe(false);
+    expect(poolPass(utv, true, 'utv')).toBe(true);
+    expect(poolPass(utv, true, 'atv')).toBe(false);
+    expect(poolPass(caveAtv, true, 'utv')).toBe(false);
   });
 
   // The two halves read different text on purpose. Matching the mode on prose
   // too filed four live products under the wrong button; these are two of them.
-  test('the place reads the description, the mode does not', () => {
+  test('the pool reads the description, the mode does not', () => {
     const horseback = item('Horseback Ride Tour to Natural Pool in Arikok National Park',
       'The pool can only be reached by walking, horseback or 4x4.');
-    expect(poolPass(horseback, 'natural', 'any')).toBe(true);
-    expect(poolPass(horseback, 'natural', 'horseback')).toBe(true);
-    expect(poolPass(horseback, 'natural', 'jeep')).toBe(false);
+    expect(poolPass(horseback, true, 'any')).toBe(true);
+    expect(poolPass(horseback, true, 'horseback')).toBe(true);
+    expect(poolPass(horseback, true, 'jeep')).toBe(false);
 
     const sunriseHike = item('Sunrise Hike & Swim in Natural Pool',
       'Be the first swimmers, before the packed jeep riders arrive.');
-    expect(poolPass(sunriseHike, 'natural', 'hike')).toBe(true);
-    expect(poolPass(sunriseHike, 'natural', 'jeep')).toBe(false);
+    expect(poolPass(sunriseHike, true, 'hike')).toBe(true);
+    expect(poolPass(sunriseHike, true, 'jeep')).toBe(false);
   });
 
   // Three Conchi tours name no vehicle beyond "Safari Tour", and they are jeeps
   // — the same alternation itemFit's JEEP_VEHICLE_TITLE uses.
   test('a safari is a jeep', () => {
-    expect(poolPass(item('Aruba Natural Pools Northshore Safari Tour'), 'natural', 'jeep')).toBe(true);
+    expect(poolPass(item('Aruba Natural Pools Northshore Safari Tour'), true, 'jeep')).toBe(true);
   });
 
   // A listing that never says how you get there answers to no vehicle, which is
   // the honest reading of a title that does not say.
   test('a tour that names no vehicle answers only to Any', () => {
     const silent = item('Natural Pool Caves and Beach Private Tour');
-    expect(poolPass(silent, 'natural', 'any')).toBe(true);
+    expect(poolPass(silent, true, 'any')).toBe(true);
     for (const m of ['jeep', 'utv', 'atv', 'horseback', 'hike'] as const) {
-      expect(poolPass(silent, 'natural', m)).toBe(false);
+      expect(poolPass(silent, true, m)).toBe(false);
     }
   });
 
   test('a local pick is filtered on its own words, not skipped', () => {
-    expect(poolPass(local('Conchi Natural Pool', 'Reachable only by 4x4.'), 'natural', 'any')).toBe(true);
-    expect(poolPass(local('Eagle Beach', 'Wide white sand.'), 'natural', 'any')).toBe(false);
+    expect(poolPass(local('Conchi Natural Pool', 'Reachable only by 4x4.'), true, 'any')).toBe(true);
+    expect(poolPass(local('Eagle Beach', 'Wide white sand.'), true, 'any')).toBe(false);
   });
 });
 

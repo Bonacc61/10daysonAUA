@@ -123,13 +123,11 @@ export type ExploreFilters = {
   duration?: DurationBand;
   privateOnly?: boolean;
   provenance?: Provenance;
-  pool?: PoolPlace;         // 'any' = off
-  poolMode?: PoolMode;      // sub-filter of `pool`; inert while pool is 'any'
+  pool?: boolean;           // the north-coast swimming holes
+  poolMode?: PoolMode;      // sub-filter of `pool`; inert while pool is off
 };
 
-// Which swimming hole, and how you get there — see poolPass for why these are
-// two questions and not one.
-export type PoolPlace = 'any' | 'natural' | 'cave';
+// How you get to the pool — see poolPass.
 export type PoolMode = 'any' | 'jeep' | 'utv' | 'atv' | 'horseback' | 'hike';
 
 // Map a Viator group id → existing UI category bucket. New groups: 1 line each.
@@ -450,26 +448,23 @@ export function provenancePass(entry: ExploreEntry, provenance?: Provenance): bo
 // === The north-coast swimming holes ========================================
 
 /**
- * Two different places, and the filter says so rather than lumping them.
+ * The north-coast swimming holes, as one filter. Owner's call, 2026-08-20.
  *
- * The Natural Pool (Conchi) sits INSIDE Arikok National Park. The Cave Pool is
- * on the north coast, outside it. That is not a nicety: Arikok bars ATVs and
- * UTVs, which two products state in their own listing ("Entrance to Arikok Park
- * with an atv/utv vehicle is not permitted"), and it is why measuring the live
- * catalog on 2026-08-20 found 28 Conchi products of which ZERO are ATV, against
- * 7 Cave Pool products of which 2 are. The 2 UTV tours that do reach Conchi get
- * there by swapping vehicle at the gate — "Aruba UTV Adventure to Natural Pool
- * Jeep Transfer". Sold as one "Natural Pool" filter, the ATV button would look
- * broken when it is actually a park rule.
+ * It covers two places that are genuinely different, and the distinction is
+ * worth knowing even though the rail no longer offers it. The Natural Pool
+ * (Conchi) is INSIDE Arikok National Park; the Cave Pool is on the north coast,
+ * outside it. Arikok bars the quads — two products say so in their own listing,
+ * "Entrance to Arikok Park with an atv/utv vehicle is not permitted" — so of
+ * the 28 Conchi products on the live catalog, ZERO are ATV, and the 2 UTV tours
+ * that reach it swap vehicle at the gate ("Aruba UTV Adventure to Natural Pool
+ * Jeep Transfer"). The 7 Cave Pool products include the catalog's only ATV run
+ * to a pool.
  *
- * The two sets do not overlap at all on the live catalog, so a product answers
- * to one place or the other. "Natural Cave Pool" is the cave — it contains
- * "cave pool" and not "natural pool", so the plain phrases separate them.
+ * So splitting them would leave the ATV button permanently dead, and merging
+ * them is what keeps every vehicle in the row answerable. The sets do not
+ * overlap: "Natural Cave Pool" contains "cave pool" and not "natural pool".
  */
-const POOL_PLACE: Record<Exclude<PoolPlace, 'any'>, RegExp> = {
-  natural: /natural pool|conchi/i,
-  cave: /cave pool/i,
-};
+const POOL = /natural pool|conchi|cave pool/i;
 
 /**
  * How you get there. Split UTV from ATV, unlike `itemFit`'s `UTV_TITLE`, which
@@ -494,8 +489,7 @@ const POOL_MODE: Record<Exclude<PoolMode, 'any'>, RegExp> = {
  *
  * WHERE a tour goes is often only in the prose: 6 of the 28 Conchi products
  * never name the pool in their title ("Private Jeep Tour to Arikok National
- * Park" is one), and both ATV products reach the Cave Pool only in
- * description. So the PLACE reads title + description.
+ * Park" is one). So the POOL half reads title + description.
  *
  * WHAT a tour is, is in its name — and reading prose for it goes wrong in a way
  * a traveller can see. Measured on the live catalog: matching the mode on
@@ -515,11 +509,11 @@ const POOL_MODE: Record<Exclude<PoolMode, 'any'>, RegExp> = {
  * The mode is a SUB-filter — with no place chosen it admits everything, so a
  * mode left set while the place is cleared cannot narrow the page invisibly.
  */
-export function poolPass(entry: ExploreEntry, place?: PoolPlace, mode?: PoolMode): boolean {
-  if (!place || place === 'any') return true;
+export function poolPass(entry: ExploreEntry, pool?: boolean, mode?: PoolMode): boolean {
+  if (!pool) return true;
   const title = entry.kind === 'item' ? entry.item.title : entry.activity.title;
   const description = (entry.kind === 'item' ? entry.item.description : entry.activity.description) ?? '';
-  if (!POOL_PLACE[place].test(`${title} ${description}`)) return false;
+  if (!POOL.test(`${title} ${description}`)) return false;
   return !mode || mode === 'any' || POOL_MODE[mode].test(title);
 }
 
