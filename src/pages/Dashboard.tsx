@@ -22,6 +22,7 @@ import { useAuth } from '../lib/auth';
 import { listTrips, deleteTrip, tripLabel, type SavedTrip } from '../lib/trips';
 import { readActiveTripId, writeActiveTripId, markTripOpened } from '../lib/activeTrip';
 import ShareEmailModal from '../components/ShareEmailModal';
+import CopyLinkRow from '../components/CopyLinkRow';
 import { matchPool, blendPools, parseActivityCost } from '../data/matcher';
 import { productUrlFor, sectionLabel, primarySection, bookUrlForActivity } from '../data/exploreItems';
 import type { PageId, Answers } from '../App';
@@ -929,6 +930,11 @@ export function ItineraryPanel({
                             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
                             <Mail size={14} /><span>Share via email</span>
                           </button>
+                          {/* The other half of sharing. Sending by email creates
+                              a public link but only puts it in the message, so
+                              without this row a traveller cannot get one to
+                              paste anywhere themselves. */}
+                          {rowTrip && <CopyLinkRow trip={rowTrip} onDone={() => setShareOpen(null)} />}
                         </div>
                       )}
                     </div>

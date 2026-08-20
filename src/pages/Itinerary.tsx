@@ -7,7 +7,7 @@ import {
   SortableContext, useSortable, sortableKeyboardCoordinates, verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Bookmark, Calendar, Chev, Share, X } from '../components/Icons';
+import { Bookmark, Calendar, Chev, Mail, Share, X } from '../components/Icons';
 import { buildIcs, downloadIcs } from '../lib/icsExport';
 import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
@@ -30,6 +30,7 @@ import { loadTrip, loadTripById, saveTrip, updateTrip, createTrip } from '../lib
 import { readActiveTripId, writeActiveTripId, takeTripOpened, shouldAdoptTrip, adoptedAnswers } from '../lib/activeTrip';
 import { createShare, loadShare } from '../lib/shares';
 import ShareEmailModal from '../components/ShareEmailModal';
+import CopyLinkRow from '../components/CopyLinkRow';
 import { capture } from '../lib/analytics';
 import { supabase } from '../lib/supabase';
 import SignIn from '../components/SignIn';
@@ -158,6 +159,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   // visitor who has not signed in. Losing sharing entirely for them to make the
   // two surfaces match would have been the wrong trade.
   const [emailOpen, setEmailOpen] = useState(false);
+  const [shareMenuOpen, setShareMenuOpen] = useState(false);
 
   const handleShare = async () => {
     if (shareBusy) return;
@@ -897,10 +899,38 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
                     {sharePopoverOpen && shareUrl && (
                       <SharePopover url={shareUrl} onClose={() => setSharePopoverOpen(false)} />
                     )}
+                    {/* The same two choices My Aruba offers, so a traveller who
+                        meets "Share itinerary" on either page gets the same
+                        thing. Signed-in only: the email half posts to an
+                        authenticated function, and a menu whose first row
+                        cannot work is worse than no menu. A signed-out visitor
+                        keeps the direct path below — link, then the OS share
+                        sheet or the copy popover. */}
+                    {shareMenuOpen && (
+                      <div
+                        className="chunky"
+                        role="menu"
+                        aria-label="Share itinerary"
+                        style={{ position: 'absolute', bottom: 'calc(100% + 12px)', left: '50%', transform: 'translateX(-50%)', minWidth: 220, padding: '6px 0', background: 'var(--cream)', color: 'var(--ink)', zIndex: 30 }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => { setShareMenuOpen(false); setEmailOpen(true); }}
+                          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}
+                        >
+                          <Mail size={14} /><span>Share via email</span>
+                        </button>
+                        <CopyLinkRow
+                          trip={{ answers, plan, rejected, rejectedGroups }}
+                          onDone={() => setShareMenuOpen(false)}
+                        />
+                      </div>
+                    )}
                     <div className="chunky itin-action-bar" style={{ padding: '14px 22px', display: 'inline-flex', alignItems: 'center', gap: 16, background: 'var(--ink)', color: 'var(--cream)' }}>
                       <button
                         className="btn-red"
-                        onClick={session ? () => setEmailOpen(true) : handleShare}
+                        onClick={session ? () => setShareMenuOpen((v) => !v) : handleShare}
+                        aria-expanded={session ? shareMenuOpen : undefined}
                         disabled={!supabase || shareBusy}
                         title={!supabase ? 'Sharing is not configured yet' : undefined}
                         style={{ padding: '10px 18px', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6, opacity: (!supabase || shareBusy) ? 0.6 : 1 }}
