@@ -1449,10 +1449,13 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 .map-strip-outer { text-align: center; }
 .map-strip-inner { text-align: left; }
 
-.map-day-arrows   { display: flex; }
+.map-day-arrows   { display: flex; align-items: center; padding: 8px 16px 4px; gap: 12px; }
+.map-day-label    { flex: 1; text-align: center; }
 .map-day-timeline { display: none; }
 
-/* The bottom panel lays its controls BESIDE the strip on desktop, not above it.
+/* The bottom panel takes its controls OUT OF FLOW on desktop — pinned to the
+ * panel's left gutter — so the strip can span the full width and centre on the
+ * page rather than in what is left over beside a column.
  *
  * Stacked, the panel's three centred rows took 273px of an 830px window, which
  * left the map a 1440x557 canvas — aspect 2.59. Aruba's day routes run NW-SE,
@@ -1469,15 +1472,61 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
  * 330px to 401px, so the day is drawn 21% larger. The phone is untouched —
  * 390x501 before and after, same fit, which is the point.
  */
-.map-panel { display: flex; align-items: flex-start; gap: 18px; }
-.map-panel-controls { flex: 0 0 auto; width: 300px; }
+.map-panel { display: flex; align-items: flex-start; gap: 18px; --map-panel-gutter: 300px; }
+.map-panel-controls { flex: 0 0 auto; width: var(--map-panel-gutter); }
 
-/* Left-aligned beside the controls. The base rule centres the cards so a short
- * day does not hug the left edge, but in the row layout "centred" means centred
- * in the leftover 1122px, which parked a two-card day some 440px away from the
- * controls it belongs to — and put "Free day — nothing scheduled." nowhere near
- * the panel saying which day. The phone keeps the centring. */
-.map-strip-outer { flex: 1 1 auto; min-width: 0; text-align: left; }
+.map-strip-outer { flex: 1 1 auto; min-width: 0; }
+
+/* The day nav is the caption for the cards, so it sits ABOVE them and both are
+ * centred on the page — not in a left column, which is where a first pass at
+ * spending the width put it.
+ *
+ * Stacking the nav on top of the strip inside the panel would cost 44px of the
+ * 99px this layout just bought back, so it does not live in the panel's flow at
+ * all: it is a pill floating in the map's bottom margin, and the panel is
+ * exactly as tall as it was (174px, canvas 656px — measured, unchanged).
+ * That margin is reliably empty. `fitBounds` frames a day's pins at ~70% of the
+ * binding axis, leaving ~15% clear top and bottom; the pill occupies the bottom
+ * 53px of a 656px canvas. Swept every day of a 10-day plan against all three
+ * variants: 0 of 30 put a pin under the pill.
+ *
+ * Taking the controls out of flow is what lets the cards centre on the PAGE
+ * rather than in the leftover 1122px — the difference between a two-card day
+ * sitting under its own nav and sitting 159px to the right of it. The panel
+ * keeps a min-height because an absolute column cannot hold it open, and on a
+ * free day the strip alone is shorter than the switcher.
+ *
+ * The gutter is SYMMETRIC, and that is load-bearing rather than tidy. Out of
+ * flow, the controls stop reserving their 300px, so a full-width strip draws
+ * its leftmost cards underneath them: measured on a plain 3-card day, 31% of
+ * card 1 sat under the variant switcher, and a click there called switchPlan()
+ * — changing the itinerary and resetting to day 1 — instead of opening the card
+ * it was aimed at. Padding both edges by the same amount makes the overlap
+ * structurally impossible while leaving the centre exactly where it was, since
+ * equal padding cannot move a centred box. It costs visible strip width: 840px
+ * at 1440 against 1122px before, which still holds 6 cards, and a day is 3.
+ *
+ * One custom property feeds the column width and both gutters, because the bug
+ * above is what two independent 300px literals look like when only one moves. */
+@media not all and (max-width: 900px) {
+  .map-panel { position: relative; min-height: 64px; padding: 0 var(--map-panel-gutter); }
+  .map-panel-controls { position: absolute; left: 0; top: 0; width: var(--map-panel-gutter); }
+  .map-strip-outer { text-align: center; }
+  .map-day-label { flex: 0 0 auto; }
+  .map-day-arrows {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: -54px;
+    padding: 5px 12px;
+    gap: 10px;
+    background: rgba(255, 251, 240, 0.98);
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 999px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+    z-index: 5;
+  }
+}
 
 /* Reserve the cookie banner's strip while it is actually on screen.
  *

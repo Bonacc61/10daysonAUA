@@ -600,9 +600,12 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
       {canSeeItinerary && plan && planDay && (
         <div className="map-panel" style={{ background: 'rgba(255,251,240,0.98)', backdropFilter: 'blur(12px)', borderTop: '1px solid rgba(0,0,0,0.1)', flexShrink: 0 }}>
 
-          {/* Variant switcher + day nav. Beside the strip on desktop, above it
-              on a phone — see .map-panel in index.css for why the map's height
-              is worth this much. */}
+          {/* Variant switcher. Out of flow on desktop, pinned to the panel's left
+              gutter so the strip can centre on the page; stacked above it on a
+              phone — see .map-panel in index.css for why the map's height is
+              worth this much. The day nav is a sibling below, not a child: an
+              absolute pill resolves against its nearest positioned ancestor, and
+              inside here that would be this column. */}
           <div className="map-panel-controls">
 
           {/* Itinerary variant switcher — mirrors Dashboard ITINERARY_VARIANTS */}
@@ -628,28 +631,6 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
             </p>
           </div>
 
-          {/* Mobile: ‹ Day N of M · Title › arrows */}
-          <div className="map-day-arrows" style={{ alignItems: 'center', padding: '8px 16px 4px', gap: 12 }}>
-            <button
-              onClick={() => setActiveDay(d => Math.max(1, d - 1))}
-              disabled={safeDay <= 1}
-              style={{ width: 32, height: 32, borderRadius: '50%', border: '1.5px solid #ccc', background: safeDay <= 1 ? '#f5f5f5' : '#fff', cursor: safeDay <= 1 ? 'default' : 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: safeDay <= 1 ? '#ccc' : '#1a1a1a', flexShrink: 0 }}
-            >‹</button>
-            <div style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: dayColor, border: '1.5px solid rgba(0,0,0,0.1)' }} />
-                <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'Inter,sans-serif', color: '#1a1a1a' }}>Day {safeDay}</span>
-                <span style={{ fontSize: 13, color: '#888', fontFamily: 'Inter,sans-serif' }}>of {totalDays}</span>
-                <span style={{ fontSize: 13, color: '#555', fontFamily: 'Inter,sans-serif' }}>· {planDay.title}</span>
-              </div>
-            </div>
-            <button
-              onClick={() => setActiveDay(d => Math.min(totalDays, d + 1))}
-              disabled={safeDay >= totalDays}
-              style={{ width: 32, height: 32, borderRadius: '50%', border: '1.5px solid #ccc', background: safeDay >= totalDays ? '#f5f5f5' : '#fff', cursor: safeDay >= totalDays ? 'default' : 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: safeDay >= totalDays ? '#ccc' : '#1a1a1a', flexShrink: 0 }}
-            >›</button>
-          </div>
-
           {/* Desktop: clickable dot timeline across all days */}
           <div className="map-day-timeline" style={{ alignItems: 'flex-end', gap: 0, padding: '10px 24px 6px', overflowX: 'auto', scrollbarWidth: 'none' }}>
             {plan.map((d, i) => {
@@ -669,6 +650,30 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
             })}
           </div>
 
+          </div>
+
+          {/* ‹ Day N of M · Title › arrows. Inline on a phone; a centred pill over
+              the map's bottom edge on desktop — .map-day-arrows in index.css
+              says why it sits above the cards rather than beside them. */}
+          <div className="map-day-arrows">
+            <button
+              onClick={() => setActiveDay(d => Math.max(1, d - 1))}
+              disabled={safeDay <= 1}
+              style={{ width: 32, height: 32, borderRadius: '50%', border: '1.5px solid #ccc', background: safeDay <= 1 ? '#f5f5f5' : '#fff', cursor: safeDay <= 1 ? 'default' : 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: safeDay <= 1 ? '#ccc' : '#1a1a1a', flexShrink: 0 }}
+            >‹</button>
+            <div className="map-day-label">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: dayColor, border: '1.5px solid rgba(0,0,0,0.1)' }} />
+                <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'Inter,sans-serif', color: '#1a1a1a' }}>Day {safeDay}</span>
+                <span style={{ fontSize: 13, color: '#888', fontFamily: 'Inter,sans-serif' }}>of {totalDays}</span>
+                <span style={{ fontSize: 13, color: '#555', fontFamily: 'Inter,sans-serif' }}>· {planDay.title}</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setActiveDay(d => Math.min(totalDays, d + 1))}
+              disabled={safeDay >= totalDays}
+              style={{ width: 32, height: 32, borderRadius: '50%', border: '1.5px solid #ccc', background: safeDay >= totalDays ? '#f5f5f5' : '#fff', cursor: safeDay >= totalDays ? 'default' : 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: safeDay >= totalDays ? '#ccc' : '#1a1a1a', flexShrink: 0 }}
+            >›</button>
           </div>
 
           {/* Horizontal photo strip */}
