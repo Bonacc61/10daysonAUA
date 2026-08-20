@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Rea
 import RatingChip, { RatingChipInline, hasRealRating } from '../components/RatingChip';
 import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
-import { Calendar, Check, Chev, Clock, Dice, Doc, Dollar, Download, Info, IOSShare, Mail, MapPin, Star } from '../components/Icons';
+import { Calendar, Check, Chev, Clock, Dice, Doc, Dollar, Download, Info, IOSShare, Mail, MapPin, Pencil, Star, Trash } from '../components/Icons';
 import GoodToKnowTimeline from '../components/GoodToKnowTimeline';
 import { ChillEnd, AdrenalineEnd, FreeEnd, SplurgeEnd } from '../components/SliderEnds';
 import { useCatalog } from '../data/useCatalog';
@@ -19,9 +19,9 @@ import { searchEntries } from '../lib/entrySearch';
 import { useSearchBox } from '../lib/useSearchBox';
 import { useBooked } from '../lib/booked';
 import { useAuth } from '../lib/auth';
-import { listTrips, deleteTrip, tripTitle, type SavedTrip } from '../lib/trips';
+import { listTrips, deleteTrip, tripLabel, type SavedTrip } from '../lib/trips';
 import { readActiveTripId, writeActiveTripId } from '../lib/activeTrip';
-import { createShare } from '../lib/shares';
+import ShareEmailModal from '../components/ShareEmailModal';
 import { capture } from '../lib/analytics';
 import { matchPool, blendPools, parseActivityCost } from '../data/matcher';
 import { productUrlFor, sectionLabel, primarySection, bookUrlForActivity } from '../data/exploreItems';
@@ -690,37 +690,6 @@ function BookedRow({
 
 // ────────────────────────────────────────────── Itinerary panel ──────────── //
 
-function buildShareText(
-  trip: TripState,
-  resolveEntry: (e: SlotEntry, slot?: Slot) => CardEntry | null,
-): string {
-  const lines: string[] = [`Your ${trip.answers.days}-day Aruba itinerary`, ''];
-  for (const day of trip.plan) {
-    lines.push(`Day ${day.day}${day.title ? ` — ${day.title}` : ''}`);
-    const slots: [string, Slot, typeof day.morning][] = [
-      ['Morning',   'morning',   day.morning],
-      ['Afternoon', 'afternoon', day.afternoon],
-      ['Evening',   'evening',   day.evening],
-    ];
-    for (const [label, slot, cards] of slots) {
-      for (const card of cards) {
-        const entry = resolveEntry(card.entry, slot);
-        if (!entry) continue;
-        if (entry.kind === 'activity') {
-          const cost = entry.activity.cost ?? '';
-          lines.push(`  ${label}: ${entry.activity.title} (${entry.activity.duration}${cost ? ', ' + cost : ''})`);
-        } else {
-          const price = entry.bestSeller.price_usd === 0 ? 'Free' : `$${entry.bestSeller.price_usd}`;
-          lines.push(`  ${label}: ${entry.bestSeller.title} (${entry.bestSeller.duration}, ${price})`);
-        }
-      }
-    }
-    lines.push('');
-  }
-  lines.push('Built with 10 Days on Aruba — https://10daysonaruba.com');
-  return lines.join('\n');
-}
-
 // The two unbuilt variants. The traveller's real itineraries are no longer a
 // row in here — an account can hold any number of them now, so they are listed
 // from the database and these are appended after.
@@ -747,14 +716,13 @@ function ItineraryPanel({
   const [exportOpen,   setExportOpen]   = useState<string | null>(null);
   const [shareOpen,    setShareOpen]    = useState<string | null>(null);
   const [emailOpen,    setEmailOpen]    = useState(false);
+  // Which itinerary a delete is being confirmed for. Same single-modal-many-rows
+  // shape as the email dialog: the row travels with the state, so the card can
+  // name the trip it is about to destroy and can never act on a different one.
+  const [confirmDelete, setConfirmDelete] = useState<SavedTrip | null>(null);
   // Which itinerary the email dialog is about. The dialog is a single modal
   // shared by every row, so it has to carry the row it was opened from.
   const [emailTrip,    setEmailTrip]    = useState<SavedTrip | null>(null);
-  const [emailTo,      setEmailTo]      = useState('');
-  const [emailNote,    setEmailNote]    = useState('');
-  const [emailSending, setEmailSending] = useState(false);
-  const [emailSent,    setEmailSent]    = useState(false);
-  const [emailError,   setEmailError]   = useState<string | null>(null);
 
   // A resolver per itinerary, not one for the panel: each saved trip carries its
   // own answers, and the answers are what decide which items a card may show.
@@ -786,38 +754,6 @@ function ItineraryPanel({
     setExportOpen(null);
   };
 
-  const handleSendEmail = async () => {
-    const t = emailTrip;
-    if (!t || !session) return;
-    setEmailSending(true);
-    setEmailError(null);
-    try {
-      const text = buildShareText(t, resolverFor(t));
-      // Create a share link so the email includes a direct "Book your activities" URL.
-      // If it fails we still send the email — the button falls back to the homepage.
-      const { id: shareId } = await createShare(t).catch(() => ({ id: null }));
-      const itinerary_url = shareId ? `${window.location.origin}/i/${shareId}` : null;
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-      const res = await fetch(`${supabaseUrl}/functions/v1/itinerary-share`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ to: emailTo.trim(), note: emailNote.trim(), itinerary_text: text, itinerary_url }),
-      });
-      if (!res.ok) {
-        const msg = await res.text().catch(() => '');
-        throw new Error(msg || `Error ${res.status}`);
-      }
-      capture('itinerary_shared', { via: 'email' });
-      setEmailSent(true);
-    } catch (err) {
-      setEmailError(err instanceof Error ? err.message : 'Failed to send. Please try again.');
-    } finally {
-      setEmailSending(false);
-    }
-  };
 
   if (authLoading) return <p style={{ color: 'var(--sand-500)', fontStyle: 'italic' }}>Loading…</p>;
 
@@ -852,7 +788,7 @@ function ItineraryPanel({
   type Row = { id: string; label: string; description: string; available: boolean; trip: SavedTrip | null };
   const savedRows: Row[] = trips.map((t) => ({
     id: t.id,
-    label: tripTitle(t),
+    label: tripLabel(t),
     description: '',
     available: true,
     trip: t,
@@ -926,6 +862,23 @@ function ItineraryPanel({
                     carries its own trip, so a menu can never act on another row. */}
                 {!isLocked && (
                   <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                    {/* Edit — sits immediately after the arrow that expands the
+                        row, so the order reads: look inside, or go work on it.
+                        Opens THIS itinerary, never whichever was last touched. */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!hasTrip) { setPage('questionnaire'); return; }
+                        onOpenTrip(rowTrip.id);
+                        setPage('itinerary');
+                      }}
+                      title={hasTrip ? 'Edit itinerary' : 'Build your itinerary first'}
+                      aria-label="Edit itinerary"
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 8, border: '1.5px solid var(--sand-200)', background: 'transparent', color: hasTrip ? 'var(--sand-600)' : 'var(--sand-300)', cursor: 'pointer' }}
+                    >
+                      <Pencil size={15} />
+                    </button>
+
                     {/* Export dropdown */}
                     <div style={{ position: 'relative' }}>
                       <button
@@ -973,13 +926,28 @@ function ItineraryPanel({
                       {shareOpen === variant.id && (
                         <div className="chunky" style={{ position: 'absolute', ...(isExpanded ? { top: 'calc(100% + 6px)' } : { bottom: 'calc(100% + 6px)' }), right: 0, padding: '6px 0', minWidth: 190, zIndex: 20, background: 'var(--cream)' }}>
                           <button
-                            onClick={() => { setShareOpen(null); setEmailTrip(rowTrip); setEmailOpen(true); setEmailSent(false); setEmailError(null); }}
+                            onClick={() => { setShareOpen(null); setEmailTrip(rowTrip); setEmailOpen(true); }}
                             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}>
                             <Mail size={14} /><span>Share via email</span>
                           </button>
                         </div>
                       )}
                     </div>
+
+                    {/* Delete — last, furthest from the arrow, because it is the
+                        one action here that cannot be undone. Confirms in a
+                        branded card rather than `window.confirm`, which the
+                        browser renders as a system dialog with our itinerary's
+                        name in it and no way to style the warning. */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); if (rowTrip) setConfirmDelete(rowTrip); }}
+                      disabled={!hasTrip}
+                      title={hasTrip ? 'Delete itinerary' : 'Nothing saved to delete'}
+                      aria-label="Delete itinerary"
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 8, border: '1.5px solid var(--sand-200)', background: 'transparent', color: hasTrip ? 'var(--sand-600)' : 'var(--sand-300)', cursor: hasTrip ? 'pointer' : 'not-allowed' }}
+                    >
+                      <Trash size={15} />
+                    </button>
                   </div>
                 )}
               </div>
@@ -1110,11 +1078,7 @@ function ItineraryPanel({
                       {rowTrip.id === activeTripId ? 'Edit itinerary →' : 'Open in planner →'}
                     </button>
                     <button
-                      onClick={() => {
-                        if (window.confirm(`Delete “${tripTitle(rowTrip)}”? This cannot be undone.`)) {
-                          onDeleteTrip(rowTrip.id);
-                        }
-                      }}
+                      onClick={() => setConfirmDelete(rowTrip)}
                       style={{ padding: '9px 14px', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', borderRadius: 10, border: '2px solid var(--sand-200)', background: 'transparent', color: 'var(--sand-600)', cursor: 'pointer' }}
                     >
                       Delete
@@ -1137,67 +1101,51 @@ function ItineraryPanel({
         })}
       </div>
 
-      {/* Email share modal */}
-      {emailOpen && (
+      {/* Delete confirmation — the same centred card as the sign-in and
+          "Logged in ✓" windows, so a destructive prompt looks like it belongs to
+          this app rather than to the browser. Backdrop clicks, ✕ and Cancel all
+          back out — matching LoginModal, which has no Escape handler either —
+          and only the red button deletes. */}
+      {confirmDelete && (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-          onClick={(e) => { if (e.target === e.currentTarget) { setEmailOpen(false); setEmailTo(''); setEmailNote(''); setEmailSent(false); setEmailError(null); } }}
+          className="login-modal-backdrop"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="confirm-delete-title"
+          onClick={(e) => { if (e.target === e.currentTarget) setConfirmDelete(null); }}
         >
-          <div className="chunky" style={{ width: '100%', maxWidth: 440, padding: '28px 28px 24px', background: 'var(--cream)', position: 'relative' }}>
-            {emailSent ? (
-              <>
-                <p style={{ fontSize: 28, margin: '0 0 10px' }}>✓</p>
-                <h3 className="font-display" style={{ fontSize: 22, margin: '0 0 10px', color: 'var(--ink)' }}>Sent!</h3>
-                <p style={{ fontSize: 14, color: 'var(--sand-700)', margin: '0 0 20px' }}>Your itinerary is on its way to <strong>{emailTo}</strong>.</p>
-                <button className="btn-red" onClick={() => { setEmailOpen(false); setEmailTo(''); setEmailNote(''); setEmailSent(false); }} style={{ padding: '9px 18px', fontSize: 14 }}>Close</button>
-              </>
-            ) : (
-              <>
-                <h3 className="font-display" style={{ fontSize: 22, margin: '0 0 4px', color: 'var(--ink)' }}>Share via email</h3>
-                <p style={{ fontSize: 13, color: 'var(--sand-500)', margin: '0 0 20px' }}>Send your itinerary as a branded 10 Days on Aruba email.</p>
-                <label style={{ display: 'block', fontWeight: 700, fontSize: 13, marginBottom: 6, color: 'var(--ink)' }}>
-                  Recipient email
-                  <input
-                    type="email"
-                    value={emailTo}
-                    onChange={(e) => setEmailTo(e.target.value)}
-                    placeholder="friend@example.com"
-                    style={{ display: 'block', width: '100%', marginTop: 6, padding: '10px 12px', fontSize: 14, fontFamily: 'inherit', borderRadius: 10, border: '2px solid var(--sand-200)', outline: 'none', boxSizing: 'border-box', background: 'var(--cream)' }}
-                  />
-                </label>
-                <label style={{ display: 'block', fontWeight: 700, fontSize: 13, margin: '14px 0 6px', color: 'var(--ink)' }}>
-                  Personal note <span style={{ fontWeight: 400, color: 'var(--sand-400)' }}>(optional)</span>
-                  <textarea
-                    value={emailNote}
-                    onChange={(e) => setEmailNote(e.target.value)}
-                    placeholder="Hey! Here's our Aruba plan…"
-                    rows={3}
-                    style={{ display: 'block', width: '100%', marginTop: 6, padding: '10px 12px', fontSize: 14, fontFamily: 'inherit', borderRadius: 10, border: '2px solid var(--sand-200)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', background: 'var(--cream)' }}
-                  />
-                </label>
-                {emailError && (
-                  <p style={{ fontSize: 13, color: 'var(--red)', margin: '10px 0 0' }}>{emailError}</p>
-                )}
-                <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-                  <button
-                    onClick={handleSendEmail}
-                    disabled={emailSending || !emailTo.trim()}
-                    className="btn-red"
-                    style={{ flex: 1, padding: '10px 18px', fontSize: 14, opacity: (emailSending || !emailTo.trim()) ? 0.6 : 1, cursor: (emailSending || !emailTo.trim()) ? 'not-allowed' : 'pointer' }}
-                  >
-                    {emailSending ? 'Sending…' : 'Send itinerary'}
-                  </button>
-                  <button
-                    onClick={() => { setEmailOpen(false); setEmailTo(''); setEmailNote(''); setEmailError(null); }}
-                    style={{ padding: '10px 18px', fontSize: 14, fontWeight: 700, fontFamily: 'inherit', borderRadius: 10, border: '2px solid var(--sand-200)', background: 'transparent', color: 'var(--ink)', cursor: 'pointer' }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </>
-            )}
+          <div className="login-modal-card" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="login-modal-close" onClick={() => setConfirmDelete(null)} aria-label="Close">✕</button>
+            <h2 id="confirm-delete-title" className="font-display" style={{ fontSize: 26, margin: '0 0 6px', color: 'var(--ink)' }}>Are you sure you want to delete?</h2>
+            <p style={{ fontStyle: 'italic', fontSize: 14, color: 'rgba(0,0,0,0.65)', margin: '0 0 20px' }}>
+              “{tripLabel(confirmDelete)}” will be permanently deleted. This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                type="button"
+                className="btn-red"
+                onClick={() => { onDeleteTrip(confirmDelete.id); setConfirmDelete(null); }}
+                style={{ flex: 1, padding: '12px 16px', fontSize: 15 }}
+              >
+                Delete itinerary
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(null)}
+                style={{ padding: '12px 18px', fontSize: 15, fontWeight: 700, fontFamily: 'inherit', borderRadius: 10, border: '2px solid var(--sand-200)', background: 'transparent', color: 'var(--ink)', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
+      )}
+
+      {/* Share via email — the same dialog the Itinerary page opens, so the
+          two surfaces cannot drift apart. It carries the row it was opened
+          from; `emailTrip` is that row, not whichever trip is active. */}
+      {emailOpen && emailTrip && (
+        <ShareEmailModal trip={emailTrip} onClose={() => { setEmailOpen(false); setEmailTrip(null); }} />
       )}
     </div>
   );

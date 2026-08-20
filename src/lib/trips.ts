@@ -22,6 +22,40 @@ export function tripTitle(t: TripState): string {
   return t.answers.tripName?.trim() || 'Untitled itinerary';
 }
 
+/**
+ * MM/DD/YY — US format, written out rather than delegated to
+ * `toLocaleDateString`, which would hand a European visitor DD/MM/YY and make
+ * 08/09/26 mean two different days depending on who is reading.
+ *
+ * Local time, not UTC: the date a traveller wants to recognise is the one they
+ * were living when they saved, not the one Postgres recorded.
+ */
+export function shortDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const yy = String(d.getFullYear() % 100).padStart(2, '0');
+  return `${mm}/${dd}/${yy}`;
+}
+
+/**
+ * What a saved itinerary is CALLED in a list of them.
+ *
+ * `tripTitle` alone is not enough once there is more than one: the planner
+ * autosaves a row within a second of any signed-in visit, and it has no name to
+ * give it, so a regular traveller accumulates several rows all reading
+ * "Untitled itinerary". Dating the unnamed ones is what makes them tellable
+ * apart — a named trip is already distinct and is left exactly as the traveller
+ * wrote it.
+ */
+export function tripLabel(t: SavedTrip): string {
+  const named = t.answers.tripName?.trim();
+  if (named) return named;
+  const when = t.updatedAt ? shortDate(t.updatedAt) : '';
+  return when ? `Untitled itinerary · ${when}` : 'Untitled itinerary';
+}
+
 // Every itinerary this user has saved, newest first (RLS returns only their own).
 export async function listTrips(userId: string): Promise<SavedTrip[]> {
   if (!supabase) return [];

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toRow, fromRow, type TripState } from './trips';
+import { toRow, fromRow, shortDate, tripLabel, type TripState, type SavedTrip } from './trips';
 import { DEFAULT_ANSWERS } from '../App';
 
 const sample = (): TripState => ({
@@ -43,5 +43,53 @@ describe('trips serialization (carries answers + itinerary + its activities)', (
     const back = fromRow({ id: 't1', user_id: 'u', answers: DEFAULT_ANSWERS, plan: [], rejected: null as unknown as string[], rejected_groups: null as unknown as string[] });
     expect([...back.rejected]).toEqual([]);
     expect([...back.rejectedGroups]).toEqual([]);
+  });
+});
+
+describe('shortDate', () => {
+  it('formats US style, MM/DD/YY', () => {
+    // Midday UTC so the local-time conversion cannot move the date in any zone
+    // this runs in, which would make the assertion machine-dependent.
+    expect(shortDate('2026-08-18T12:00:00Z')).toBe('08/18/26');
+    expect(shortDate('2026-12-01T12:00:00Z')).toBe('12/01/26');
+  });
+
+  it('zero-pads single-digit months and days', () => {
+    expect(shortDate('2026-01-05T12:00:00Z')).toBe('01/05/26');
+  });
+
+  it('is US order, not European — the whole point of not using toLocaleDateString', () => {
+    // 9 August, not 8 September.
+    expect(shortDate('2026-08-09T12:00:00Z')).toBe('08/09/26');
+  });
+
+  it('returns empty for an unparseable timestamp rather than "NaN/NaN/NaN"', () => {
+    expect(shortDate('not a date')).toBe('');
+  });
+});
+
+describe('tripLabel', () => {
+  const saved = (name: string | undefined, updatedAt?: string): SavedTrip => {
+    const s = sample();
+    return { ...s, answers: { ...s.answers, tripName: name }, id: 't1', updatedAt };
+  };
+
+  it('uses the traveller’s own name untouched when there is one', () => {
+    expect(tripLabel(saved('Honeymoon week', '2026-08-18T12:00:00Z'))).toBe('Honeymoon week');
+  });
+
+  it('dates an unnamed itinerary so several of them can be told apart', () => {
+    expect(tripLabel(saved(undefined, '2026-08-18T12:00:00Z'))).toBe('Untitled itinerary · 08/18/26');
+    expect(tripLabel(saved('   ', '2026-08-17T12:00:00Z'))).toBe('Untitled itinerary · 08/17/26');
+  });
+
+  it('two unnamed itineraries saved on different days do not collide', () => {
+    const a = tripLabel(saved(undefined, '2026-08-18T12:00:00Z'));
+    const b = tripLabel(saved(undefined, '2026-08-17T12:00:00Z'));
+    expect(a).not.toBe(b);
+  });
+
+  it('falls back to the bare label when the row carries no timestamp', () => {
+    expect(tripLabel(saved(undefined, undefined))).toBe('Untitled itinerary');
   });
 });

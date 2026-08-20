@@ -30,6 +30,7 @@ import { loadTrip, loadTripById, saveTrip, updateTrip, createTrip } from '../lib
 import { readActiveTripId, writeActiveTripId } from '../lib/activeTrip';
 import { sameAnswers } from '../lib/sameAnswers';
 import { createShare, loadShare } from '../lib/shares';
+import ShareEmailModal from '../components/ShareEmailModal';
 import { capture } from '../lib/analytics';
 import { supabase } from '../lib/supabase';
 import SignIn from '../components/SignIn';
@@ -108,7 +109,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   };
 
   // --- Per-user persistence (Supabase trips row) ---------------------------
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [hydrated, setHydrated] = useState(false);
   const hydratedUser = useRef<string | null>(null);
 
@@ -150,6 +151,14 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   // re-share after edits snapshots the new state and repeat clicks on an
   // unchanged plan don't create duplicate rows.
   useEffect(() => { setShareUrl(null); setSharePopoverOpen(false); }, [plan, answers, rejected, rejectedGroups]);
+
+  // Signed in, "Share itinerary" opens the same email dialog My Aruba uses.
+  // Signed out it keeps doing what it always did — create a public link and hand
+  // it to the OS share sheet or the copy popover — because the email route posts
+  // to an authenticated edge function and would simply have nothing to offer a
+  // visitor who has not signed in. Losing sharing entirely for them to make the
+  // two surfaces match would have been the wrong trade.
+  const [emailOpen, setEmailOpen] = useState(false);
 
   const handleShare = async () => {
     if (shareBusy) return;
@@ -789,10 +798,20 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.7)', marginBottom: 8 }}>Your itinerary</div>
-              <h1 className="font-display" style={{ fontSize: 44, margin: '0 0 6px', color: 'var(--ink)', lineHeight: 1 }}>{tripDays} days, hand-picked.</h1>
-              {answers.tripName && (
-                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: '0 0 4px', letterSpacing: '-0.2px' }}>
-                  {answers.tripName}
+              {/* The itinerary's OWN name is the heading, because an account
+                  holds many and "10 days, hand-picked." is true of all of them —
+                  it could not tell you which one you had opened. The name used
+                  to sit under the heading as a subtitle; promoting it left that
+                  line saying the same thing twice, so it went. An unnamed
+                  itinerary keeps the original heading: inventing "Untitled" at
+                  44px would shout a non-answer. The day count moves to the line
+                  below, where it is still on the page. */}
+              <h1 className="font-display" style={{ fontSize: 44, margin: '0 0 6px', color: 'var(--ink)', lineHeight: 1 }}>
+                {answers.tripName?.trim() || `${tripDays} days, hand-picked.`}
+              </h1>
+              {answers.tripName?.trim() && (
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'rgba(0,0,0,0.55)', margin: '0 0 4px' }}>
+                  {tripDays} days, hand-picked.
                 </div>
               )}
               <p style={{ fontStyle: 'italic', fontSize: 15, color: 'rgba(0,0,0,0.75)', margin: 0, maxWidth: 640 }}>
@@ -864,10 +883,16 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
                     {sharePopoverOpen && shareUrl && (
                       <SharePopover url={shareUrl} onClose={() => setSharePopoverOpen(false)} />
                     )}
+                    {emailOpen && (
+                      <ShareEmailModal
+                        trip={{ answers, plan, rejected, rejectedGroups }}
+                        onClose={() => setEmailOpen(false)}
+                      />
+                    )}
                     <div className="chunky itin-action-bar" style={{ padding: '14px 22px', display: 'inline-flex', alignItems: 'center', gap: 16, background: 'var(--ink)', color: 'var(--cream)' }}>
                       <button
                         className="btn-red"
-                        onClick={handleShare}
+                        onClick={session ? () => setEmailOpen(true) : handleShare}
                         disabled={!supabase || shareBusy}
                         title={!supabase ? 'Sharing is not configured yet' : undefined}
                         style={{ padding: '10px 18px', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6, opacity: (!supabase || shareBusy) ? 0.6 : 1 }}

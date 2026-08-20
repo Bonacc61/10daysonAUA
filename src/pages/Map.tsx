@@ -16,7 +16,7 @@ import { type Catalog } from '../data/activitySource';
 import { answersToTags } from '../data/answerTags';
 import { unseedPlan } from '../data/itineraryPlan';
 import { useAuth } from '../lib/auth';
-import { listTrips, tripTitle, type SavedTrip } from '../lib/trips';
+import { listTrips, tripLabel, type SavedTrip } from '../lib/trips';
 import { readActiveTripId } from '../lib/activeTrip';
 import { buildVariants, initialPlanIdx, clampPlanIdx, type Variant } from '../data/planVariants';
 
@@ -206,7 +206,7 @@ export default function TripMap({ answers, canSeeItinerary, setPage }: Props) {
   const variants = useMemo((): Variant[] => buildVariants(
     savedTrips.map((t) => ({
       id: t.id,
-      label: tripTitle(t),
+      label: tripLabel(t),
       plan: unseedPlan(t.plan),
       tags: answersToTags(t.answers),
     })),
