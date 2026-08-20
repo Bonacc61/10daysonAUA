@@ -184,7 +184,7 @@ describe('Explore — the sail filter', () => {
     fireEvent.click(sailToggle());
     fireEvent.click(when('Morning'));
     fireEvent.click(when('Sunset'));
-    fireEvent.click(onboard('Snorkelling'));
+    fireEvent.click(onboard('Snorkeling'));
     expect(titles()).toEqual(['Morning Snorkel Sail']);
     fireEvent.click(onboard('Cocktails'));
     expect(titles()).toEqual([]);

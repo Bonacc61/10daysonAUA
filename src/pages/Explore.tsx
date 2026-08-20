@@ -120,7 +120,7 @@ function PillToggles<T extends string>({ label, values, options, onToggle, showL
 // need two headings above the pills to be true.
 const SAIL_OPTIONS: { v: SailFacet; label: string }[] = [
   { v: 'morning', label: 'Morning' }, { v: 'afternoon', label: 'Afternoon' }, { v: 'sunset', label: 'Sunset' },
-  { v: 'food', label: 'Food' }, { v: 'cocktails', label: 'Cocktails' }, { v: 'snorkeling', label: 'Snorkelling' },
+  { v: 'food', label: 'Food' }, { v: 'cocktails', label: 'Cocktails' }, { v: 'snorkeling', label: 'Snorkeling' },
 ];
 const POOL_MODE_OPTIONS: { v: PoolMode; label: string }[] = [
   { v: 'any', label: 'Any' }, { v: 'jeep', label: 'Jeep' }, { v: 'utv', label: 'UTV' },
