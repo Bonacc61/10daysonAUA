@@ -253,12 +253,24 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   const deadVehicles = POOL_MODE_OPTIONS
     .filter((o) => o.v !== 'any' && o.v !== poolMode && poolModeCounts?.[o.v] === 0)
     .map((o) => o.label);
-  const togglePool = (on: boolean) => { setPool(on); setPoolMode('any'); };
-  // Switching sailing off drops the facets with it, so they cannot come back
-  // with the checkbox and narrow a page nothing on screen explains.
-  const toggleSail = (on: boolean) => { setSail(on); setSailFacets([]); };
-  const toggleFacet = (f: SailFacet) =>
+  // "Any" is the filter's on/off. Pressing it while it is already the state
+  // switches the filter off; pressing a vehicle turns the filter on around it.
+  const choosePool = (v: PoolMode | 'off') => {
+    if (v === 'any') { if (pool && poolMode === 'any') { setPool(false); } else { setPool(true); } setPoolMode('any'); return; }
+    if (v === 'off') return;
+    setPool(true);
+    setPoolMode(pool && poolMode === v ? 'any' : v);
+  };
+  // Same contract on the multi-select side, and switching sailing off drops the
+  // facets with it so a stale one cannot come back with the filter.
+  const chooseSail = (f: SailFacet | 'any') => {
+    if (f === 'any') {
+      if (sail && sailFacets.length === 0) setSail(false); else { setSail(true); setSailFacets([]); }
+      return;
+    }
+    setSail(true);
     setSailFacets((prev) => (prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]));
+  };
   // A facet nothing answers to, counted against the page as it stands — the same
   // guard the vehicle row has, and it never disables one already chosen.
   const sailFacetCounts = useMemo(() => {
@@ -269,8 +281,8 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
     if (sails.length === 0) return null;
     return Object.fromEntries(SAIL_OPTIONS.map((o) => [o.v, sails.filter((e) => sailPass(e, true, [o.v])).length])) as Record<SailFacet, number>;
   }, [catalog, section, search, vibe, price, extra, sail]);
-  const sailOptions = SAIL_OPTIONS.map((o) =>
-    ({ ...o, disabled: !sail || (!sailFacets.includes(o.v) && sailFacetCounts?.[o.v] === 0) }));
+  const sailOptions = [{ v: 'any' as const, label: 'Any' }, ...SAIL_OPTIONS].map((o) =>
+    ({ ...o, disabled: o.v !== 'any' && sail && !sailFacets.includes(o.v) && sailFacetCounts?.[o.v] === 0 }));
   // The "Good for kids" checkbox that wrapped this in `splitByFacet` was removed
   // 2026-08-19 and deferred to v2, owner's call: the underlying kids verdict is
   // not good enough to filter on. The VERDICT stays live — the search box reads
@@ -361,26 +373,21 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
                   <div id="explore-more-filters" style={{ marginTop: 16 }}>
                     <PillRow label="Duration" value={duration} options={DURATION_OPTIONS} onChange={setDuration} />
                     <PillRow label="Show" value={provenance} options={PROVENANCE_OPTIONS} onChange={setProvenance} />
-                    {/* The pool, then the ways to reach it. Turning the pool
-                        off resets the vehicle so a stale one cannot come back
-                        with it. */}
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', marginBottom: 10 }}>
-                      <input type="checkbox" checked={pool} onChange={(e) => togglePool(e.target.checked)} />
-                      Natural Pool
-                    </label>
-                    <PillRow label="Natural Pool options" showLabel={false} value={poolMode}
-                      options={POOL_MODE_OPTIONS.map((o) => ({ ...o, disabled: !pool || (o.v !== 'any' && o.v !== poolMode && poolModeCounts?.[o.v] === 0) }))}
-                      onChange={setPoolMode} />
+                    {/* A heading like Duration and Show, not a control. "Any"
+                        is what carries the filter's on/off: pressed, it means
+                        every pool trip; pressed again it switches the filter
+                        back off, so nothing here needs a checkbox and no state
+                        is unreachable. */}
+                    <PillRow label="Natural Pool" value={pool ? poolMode : 'off'}
+                      options={POOL_MODE_OPTIONS.map((o) => ({ ...o, disabled: pool && o.v !== 'any' && o.v !== poolMode && poolModeCounts?.[o.v] === 0 }))}
+                      onChange={choosePool} />
                     {deadVehicles.length > 0 && (
                       <p style={{ fontSize: 11, color: 'var(--sand-700)', margin: '-8px 0 14px' }}>
                         {`${deadVehicles.join(', ').replace(/, ([^,]*)$/, ' and $1')} tours do not reach this pool.`}
                       </p>
                     )}
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', marginBottom: 10 }}>
-                      <input type="checkbox" checked={sail} onChange={(e) => toggleSail(e.target.checked)} />
-                      Sail
-                    </label>
-                    <PillToggles label="Sail options" showLabel={false} values={sailFacets} options={sailOptions} onToggle={toggleFacet} />
+                    <PillToggles label="Sail" values={sail && sailFacets.length === 0 ? ['any'] : sailFacets}
+                      options={sailOptions} onToggle={chooseSail} />
 
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                       <input type="checkbox" checked={privateOnly} onChange={(e) => setPrivateOnly(e.target.checked)} />

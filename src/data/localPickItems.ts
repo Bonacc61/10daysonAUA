@@ -26,6 +26,10 @@ export const LOCAL_PICK_ITEM_IDS = new Set<string>([
   // AFTERNOON sail, not a sunset one, which is worth knowing if this was meant
   // to be a sunset boat.
   '2455HAPPY', // Aruba Afternoon Snorkel Sail aboard Palm Pleasure Catamaran ($85, 4.6★/324)
+  // Two jeep safaris to the Natural Pool, added 2026-08-20. Both are the same
+  // operator (6841*) and between them carry 19,355 reviews at 5.0.
+  '6841ISLAND', // Island Jeep Safari with Natural Pool Baby Beach and Lunch    ($139, 5.0★/10003)
+  '6841POOL',   // Aruba Natural Pool and Indian Cave Rugged Jeep Safari        ($99,  5.0★/9352)
 ]);
 
 export function isLocalPickItem(id: string): boolean {

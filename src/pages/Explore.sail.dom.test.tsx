@@ -76,11 +76,12 @@ const Explore = (await import('./Explore')).default;
 
 const openMore = () => fireEvent.click(screen.getByRole('button', { name: /More filters/ }));
 const titles = () => [...document.querySelectorAll('.a-card h3')].map((n) => n.textContent).sort();
-const sailToggle = () => screen.getByLabelText('Sail') as HTMLInputElement;
+// "Any" carries the filter's on/off, the same contract the vehicle row uses.
+const sailToggle = () => pill('Any');
 // One row, no visible heading — the checkbox above names the filter. `when` and
 // `onboard` are the same row; the names say which half of the rule is in play.
 const pill = (name: string) =>
-  [...screen.getByRole('group', { name: 'Sail options' }).querySelectorAll('button')]
+  [...screen.getByRole('group', { name: 'Sail' }).querySelectorAll('button')]
     .find((b) => b.textContent === name)!;
 const when = pill;
 const onboard = pill;
@@ -89,27 +90,30 @@ beforeEach(() => render(<Explore setPage={() => {}} answers={DEFAULT_ANSWERS} ca
 afterEach(() => { document.body.innerHTML = ''; });
 
 describe('Explore — the sail filter', () => {
-  it('keeps the checkbox and both rows behind "More filters"', () => {
-    expect(screen.queryByLabelText('Sail')).not.toBeInTheDocument();
+  it('keeps the row behind "More filters", under a heading like the others', () => {
+    expect(screen.queryByRole('group', { name: 'Sail' })).not.toBeInTheDocument();
     openMore();
-    expect(sailToggle()).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Sail options' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Sail' })).toBeInTheDocument();
   });
 
-  // The owner's actual request, and nothing else guarded it: the two new
-  // filters are named by their checkbox, not by a heading of their own. Five
-  // headings for two controls is what this replaced.
-  it('adds no heading of its own to the panel', () => {
+  // The owner's request, and nothing else guarded it: four headings in the same
+  // style, one per filter, and no checkbox among them.
+  it('is a heading in the same style as the others, not a control', () => {
     openMore();
-    const headings = [...document.getElementById('explore-more-filters')!.querySelectorAll('h4')]
-      .map((h) => h.textContent);
-    expect(headings).toEqual(['Duration', 'Show']);
+    const panel = document.getElementById('explore-more-filters')!;
+    expect([...panel.querySelectorAll('h4')].map((h) => h.textContent))
+      .toEqual(['Duration', 'Show', 'Natural Pool', 'Sail']);
+    expect(panel.querySelectorAll('input[type=checkbox]')).toHaveLength(1); // Private tours only
   });
 
-  it('the pills are dead until sailing is on', () => {
+  // No checkbox to press first: every pill is live from off, and pressing one
+  // turns the filter on around it.
+  it('a facet can be pressed straight from off', () => {
     openMore();
-    for (const p of ['Morning', 'Afternoon', 'Sunset']) expect(when(p)).toBeDisabled();
-    for (const p of ['Food', 'Cocktails', 'Snorkelling']) expect(onboard(p)).toBeDisabled();
+    for (const p of ['Any', 'Morning', 'Sunset', 'Food']) expect(pill(p)).toBeEnabled();
+    fireEvent.click(when('Sunset'));
+    expect(when('Sunset')).toHaveAttribute('aria-pressed', 'true');
+    expect(titles()).toEqual(['Aruba Sunset Sail', 'Curated Sunset Schooner']);
   });
 
   it('narrows to sails, and the jeep does not sneak in on its words', () => {
@@ -186,16 +190,19 @@ describe('Explore — the sail filter', () => {
     expect(titles()).toEqual([]);
   });
 
-  it('switching sailing off drops the pills with it', () => {
+  // Clearing the last facet leaves sailing ON with Any pressed; pressing Any
+  // again is what switches the filter off. Both steps, because Any is the only
+  // way off and a wrong turn either way strands the traveller.
+  it('walks off -> facet -> any -> off', () => {
     openMore();
-    fireEvent.click(sailToggle());
     fireEvent.click(when('Sunset'));
     expect(titles()).toEqual(['Aruba Sunset Sail', 'Curated Sunset Schooner']);
-    fireEvent.click(sailToggle());
-    expect(titles()).toHaveLength(7);
-    fireEvent.click(sailToggle());
-    expect(when('Sunset')).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(when('Sunset'));
+    expect(pill('Any')).toHaveAttribute('aria-pressed', 'true');
     expect(titles()).toHaveLength(4);
+    fireEvent.click(pill('Any'));
+    expect(pill('Any')).toHaveAttribute('aria-pressed', 'false');
+    expect(titles()).toHaveLength(7);
   });
 
   it('counts as one filter in the badge, however many pills are on', () => {
@@ -212,6 +219,6 @@ describe('Explore — the sail filter', () => {
     fireEvent.click(when('Sunset'));
     fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
     expect(titles()).toHaveLength(7);
-    expect(when('Sunset')).toBeDisabled();
+    expect(when('Sunset')).toHaveAttribute('aria-pressed', 'false');
   });
 });

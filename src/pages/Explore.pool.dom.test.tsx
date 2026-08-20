@@ -58,26 +58,36 @@ const titles = () => [...document.querySelectorAll('.a-card h3')].map((n) => n.t
 // The row carries no visible heading — the checkbox above names the filter —
 // so its accessible name is the one the group tag supplies.
 const vehicle = (name: string) =>
-  [...screen.getByRole('group', { name: 'Natural Pool options' }).querySelectorAll('button')]
+  [...screen.getByRole('group', { name: 'Natural Pool' }).querySelectorAll('button')]
     .find((b) => b.textContent === name)!;
-const poolToggle = () => screen.getByLabelText('Natural Pool') as HTMLInputElement;
+// "Any" carries the filter's on/off: pressed it means every pool trip, pressed
+// again while it is the state it switches the filter off.
+const poolToggle = () => vehicle('Any');
 
 beforeEach(() => render(<Explore setPage={() => {}} answers={DEFAULT_ANSWERS} canSeeItinerary={false} />));
 afterEach(() => { document.body.innerHTML = ''; });
 
 describe('Explore — the pool filter', () => {
-  it('keeps the pool and its vehicles behind "More filters"', () => {
-    expect(screen.queryByLabelText('Natural Pool')).not.toBeInTheDocument();
+  it('keeps the row behind "More filters", under a heading like the others', () => {
+    expect(screen.queryByRole('group', { name: 'Natural Pool' })).not.toBeInTheDocument();
     openMore();
-    expect(poolToggle()).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Natural Pool options' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Natural Pool' })).toBeInTheDocument();
+    const headings = [...document.getElementById('explore-more-filters')!.querySelectorAll('h4')]
+      .map((h) => h.textContent);
+    expect(headings).toContain('Natural Pool');
   });
 
-  it('the vehicle row is dead until the pool is on', () => {
+  // No checkbox to press first: with the filter off every vehicle is live, and
+  // pressing one turns the filter on around it.
+  it('a vehicle can be pressed straight from off', () => {
     openMore();
-    for (const v of ['Jeep', 'UTV', 'ATV', 'Horseback', 'Hike']) {
-      expect(vehicle(v)).toBeDisabled();
+    for (const v of ['Any', 'Jeep', 'UTV', 'ATV', 'Horseback', 'Hike']) {
+      expect(vehicle(v)).toBeEnabled();
+      expect(vehicle(v)).toHaveAttribute('aria-pressed', 'false');
     }
+    fireEvent.click(vehicle('Jeep'));
+    expect(vehicle('Jeep')).toHaveAttribute('aria-pressed', 'true');
+    expect(titles()).toEqual(['Aruba Jeep Safari: Natural Pool and Baby Beach']);
   });
 
   it('the pool narrows the page to what actually goes to one', () => {
@@ -112,17 +122,21 @@ describe('Explore — the pool filter', () => {
     expect(titles()).toEqual(['Arikok Sunrise Hike']);
   });
 
-  // Otherwise a vehicle set in a previous session of the panel comes back with
-  // the pool and narrows it for a reason nothing on screen explains.
-  it('turning the pool off resets the vehicle', () => {
+  // Pressing the active vehicle widens back to every pool trip; pressing Any
+  // while it is the state switches the filter off entirely. Both directions
+  // matter, because "Any" is the only way off.
+  it('walks off -> any -> vehicle -> any -> off', () => {
     openMore();
-    fireEvent.click(poolToggle());
+    fireEvent.click(vehicle('Any'));
+    expect(titles()).toHaveLength(3);
     fireEvent.click(vehicle('Jeep'));
-    expect(vehicle('Jeep')).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(poolToggle());
-    expect(titles()).toHaveLength(4);
-    fireEvent.click(poolToggle());
+    expect(titles()).toEqual(['Aruba Jeep Safari: Natural Pool and Baby Beach']);
+    fireEvent.click(vehicle('Jeep'));
     expect(vehicle('Any')).toHaveAttribute('aria-pressed', 'true');
+    expect(titles()).toHaveLength(3);
+    fireEvent.click(vehicle('Any'));
+    expect(vehicle('Any')).toHaveAttribute('aria-pressed', 'false');
+    expect(titles()).toHaveLength(4);
   });
 
   // The pool and its vehicle are one narrowing, not two — the vehicle cannot
@@ -170,7 +184,8 @@ describe('Explore — the pool filter', () => {
   it('does not grey the row when another filter has already emptied the page', () => {
     openMore();
     fireEvent.click(poolToggle());
-    fireEvent.click(screen.getByLabelText('Sail'));
+    fireEvent.click([...screen.getByRole('group', { name: 'Sail' }).querySelectorAll('button')]
+      .find((b) => b.textContent === 'Any')!);
     expect(titles()).toHaveLength(0);
     expect(vehicle('Jeep')).toBeEnabled();
     expect(screen.queryByText(/do not reach this pool/)).not.toBeInTheDocument();
@@ -182,6 +197,6 @@ describe('Explore — the pool filter', () => {
     expect(titles()).toHaveLength(3);
     fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
     expect(titles()).toHaveLength(4);
-    expect(vehicle('Jeep')).toBeDisabled();
+    expect(vehicle('Any')).toHaveAttribute('aria-pressed', 'false');
   });
 });
