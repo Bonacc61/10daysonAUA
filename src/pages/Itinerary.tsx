@@ -27,8 +27,7 @@ import { logEvent } from '../data/feedback';
 import { useAuth } from '../lib/auth';
 import { useBooked } from '../lib/booked';
 import { loadTrip, loadTripById, saveTrip, updateTrip, createTrip } from '../lib/trips';
-import { readActiveTripId, writeActiveTripId, takeTripOpened, shouldAdoptTrip } from '../lib/activeTrip';
-import { sameAnswers } from '../lib/sameAnswers';
+import { readActiveTripId, writeActiveTripId, takeTripOpened, shouldAdoptTrip, adoptedAnswers } from '../lib/activeTrip';
 import { createShare, loadShare } from '../lib/shares';
 import ShareEmailModal from '../components/ShareEmailModal';
 import { capture } from '../lib/analytics';
@@ -253,7 +252,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
         // moment one side has an array and the other `undefined` — so it is the
         // deliberate-open bypass that exposes them. App.tsx already merges the
         // same way when it reads the key back, which is why a reload healed it.
-        setAnswers({ ...DEFAULT_ANSWERS, ...t.answers });
+        setAnswers(adoptedAnswers(t.answers, DEFAULT_ANSWERS));
         applyTripId(t.id);
         savedName.current = t.answers.tripName ?? '';
       } else {

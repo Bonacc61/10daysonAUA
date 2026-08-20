@@ -76,3 +76,30 @@ export function shouldAdoptTrip(
 ): boolean {
   return chosenId === trip.id || sameAnswers(trip.answers, currentAnswers);
 }
+
+/**
+ * The answers to adopt from a saved trip — never the stored object raw.
+ *
+ * `trips.answers` is a jsonb snapshot of whatever `Answers` looked like the day
+ * it was written, and the type has grown since: `flags` arrived 2026-07-03, a
+ * month after the table. A row from that window has no `flags` key, callers
+ * read `answers.flags.length` without checking, and this app has no
+ * ErrorBoundary — so adopting one raw is a white page, not a broken panel.
+ *
+ * Fills ABSENT keys only, so a value the traveller deliberately cleared — no
+ * interests, an empty note, adventure 0 — survives untouched. A jsonb `null`
+ * counts as absent too: a spread would happily carry it through, and `null`
+ * fails `.length` exactly like `undefined` does.
+ *
+ * `defaults` is a parameter rather than an import because this module is loaded
+ * by Map, Dashboard and Itinerary, and `DEFAULT_ANSWERS` lives in `App.tsx` —
+ * importing it as a VALUE here would put a real cycle (App → page → here → App)
+ * under all three.
+ */
+export function adoptedAnswers(stored: Answers, defaults: Answers): Answers {
+  const merged = { ...defaults, ...stored } as Record<string, unknown>;
+  for (const [key, fallback] of Object.entries(defaults as Record<string, unknown>)) {
+    if (merged[key] === null || merged[key] === undefined) merged[key] = fallback;
+  }
+  return merged as unknown as Answers;
+}

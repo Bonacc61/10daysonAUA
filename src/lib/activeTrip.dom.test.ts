@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   readActiveTripId, writeActiveTripId, markTripOpened, takeTripOpened, shouldAdoptTrip,
+  adoptedAnswers,
 } from './activeTrip';
 import { DEFAULT_ANSWERS, type Answers } from '../App';
 
@@ -114,5 +115,50 @@ describe('the adoption rule', () => {
   it('still adopts a matching trip even when a different one was chosen', () => {
     const trip = saved('t1', { days: 10 });
     expect(shouldAdoptTrip(trip, 't2', answers({ days: 10 }))).toBe(true);
+  });
+});
+
+describe('adopting a saved trip’s answers', () => {
+  it('fills a key the row predates', () => {
+    // `flags` arrived 2026-07-03; `trips` dates from 2026-06-03. Rows from that
+    // month have no `flags` key, callers read `.length` on it unguarded, and
+    // there is no ErrorBoundary — so this is the difference between a working
+    // page and a white one.
+    const legacy = { ...DEFAULT_ANSWERS } as Record<string, unknown>;
+    delete legacy.flags;
+    const adopted = adoptedAnswers(legacy as unknown as Answers, DEFAULT_ANSWERS);
+    expect(adopted.flags).toEqual([]);
+    expect(() => adopted.flags.length).not.toThrow();
+  });
+
+  it('treats a jsonb null as absent, because null fails .length too', () => {
+    const nulled = { ...DEFAULT_ANSWERS, flags: null } as unknown as Answers;
+    expect(adoptedAnswers(nulled, DEFAULT_ANSWERS).flags).toEqual([]);
+  });
+
+  it('keeps what the traveller deliberately cleared', () => {
+    // The whole risk of merging: a default must not overwrite a real choice.
+    const cleared: Answers = {
+      ...DEFAULT_ANSWERS, interests: [], specialNotes: '', adventureLevel: 0, budget: '',
+    };
+    const adopted = adoptedAnswers(cleared, { ...DEFAULT_ANSWERS, adventureLevel: 50 });
+    expect(adopted.interests).toEqual([]);
+    expect(adopted.specialNotes).toBe('');
+    expect(adopted.adventureLevel).toBe(0);
+    expect(adopted.budget).toBe('');
+  });
+
+  it('keeps the trip’s own values over the defaults', () => {
+    const trip: Answers = { ...DEFAULT_ANSWERS, days: 4, tripName: 'Kids trip' };
+    const adopted = adoptedAnswers(trip, DEFAULT_ANSWERS);
+    expect(adopted.days).toBe(4);
+    expect(adopted.tripName).toBe('Kids trip');
+  });
+
+  it('does not invent a tripName, so an unsaved plan keeps the generic heading', () => {
+    // `tripName` is optional and absent from DEFAULT_ANSWERS; the merge must not
+    // resurrect one the else-branch deliberately cleared.
+    const unnamed = { ...DEFAULT_ANSWERS, tripName: undefined } as Answers;
+    expect(adoptedAnswers(unnamed, DEFAULT_ANSWERS).tripName).toBeUndefined();
   });
 });

@@ -17,7 +17,11 @@ Live production app. Dutch law (GDPR) applies. Reddit launch imminent.
 - localStorage keys are stable contracts: `10doa:answers`, `10doa:starred`, `10doa:booked`, `10doa:analytics-consent`, `10doa:trip-id`, `aruba.session`, `qDone`. Shape changes need migration.
 - An account holds MANY saved itineraries (`trips` is keyed on its own `id`, not
   on `user_id`). `10doa:trip-id` is which one the planner is editing; saving under
-  a different name branches a new row rather than overwriting.
+  a different name branches a new row rather than overwriting. That key alone no
+  longer settles which itinerary OPENS: the Itinerary page adopts it only when
+  its answers still match the questionnaire, or when the traveller deliberately
+  pressed Edit — recorded by `10doa:opened-trip`, a one-shot **sessionStorage**
+  marker that is deliberately NOT one of the stable contracts above.
 - `specialNotes` (free-text PII) is stripped from all shared itinerary snapshots in `src/lib/shares.ts`.
 - Viator affiliate params (`pid`, `mcid`, `medium`) must survive any URL rewrite.
 
@@ -96,7 +100,7 @@ Our key is **Basic access**. Verified, not assumed:
 
 ## Tests
 
-- ~1,180 tests (`vitest run`, excluding any untracked `.claude/worktrees/` copy — that double-counts `src/data` and inflates the figure). `npm test` is offline and free EXCEPT for three
+- ~1,200 tests (`vitest run`, excluding any untracked `.claude/worktrees/` copy — that double-counts `src/data` and inflates the figure). `npm test` is offline and free EXCEPT for three
   live-catalog suites — `e2e-engine`, `influencer-e2e` and `bookableDensity` — which read
   `VITE_SUPABASE_ANON_KEY` from `.env.production` and skip without it (`bookableDensity`
   says so out loud; the other two skip silently). Everything
