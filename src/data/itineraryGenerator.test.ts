@@ -3007,7 +3007,17 @@ describe('generatePlan — one paid outing a day', () => {
     ['adventurer', { budget: 'Mid-range', adventureLevel: 95, interests: ['Adventure & adrenaline'] }],
   ];
 
-  it('never places two paid outings on one day, on any catalog, persona or trip length', () => {
+  // 20s, against vitest's 5000ms default. This is the slowest test in the suite
+  // and it was failing intermittently — twice in about fifteen full runs, never
+  // once in isolation — which read as flakiness in the ENGINE and cost two
+  // investigations. It is not: measured on an idle machine it takes 4359ms, i.e.
+  // 87% of the default budget, because it runs 200 `generatePlan` calls
+  // (5 personas x 5 trip lengths x 4 seeds x 2 catalogs). Under full-suite
+  // worker contention it crosses 5000ms occasionally and the failure looks like
+  // a placement bug. The inputs are deterministic — the offline stub and a
+  // fixture — so a real failure here cannot be intermittent, and any future
+  // intermittent one is this budget again rather than the rule.
+  it('never places two paid outings on one day, on any catalog, persona or trip length', { timeout: 20_000 }, () => {
     for (const [label, extra] of PERSONAS) {
       for (const days of [1, 5, 7, 10, 14]) {
         for (let seed = 0; seed < 4; seed += 1) {

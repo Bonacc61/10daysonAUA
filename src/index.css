@@ -951,8 +951,11 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
      970, and not the 900 or 940 tried before it: above the tier the links wrap
      to a second line and the row grows 66px -> 82px. That edge moves with the
      button's LABEL — logged out it reads "Log in" and wrapping stops at 935;
-     signed in it reads "My Aruba" plus a caret, which is wider, and 969 and
-     970 still wrap. 971 is the first clean width with a 44px logo.
+     signed in it reads "My Aruba" plus a caret, which is wider, and wrapping
+     stops at 969 (968 is the last width that wraps). 970 is therefore 2px
+     conservative on purpose: this figure has been measured wrong three times,
+     twice by sampling without waiting for reflow and fonts, so the rule sits a
+     margin below the edge rather than on it.
      Sweep BOTH nav states, with a settle delay, if this number ever moves:
      measuring only the signed-out one is how 940 was shipped and then fixed.
      This block sits ABOVE the 640px one, so the phone override still wins. */
