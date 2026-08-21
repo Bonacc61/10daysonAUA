@@ -938,7 +938,7 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
    the heavy use of !important in this block.
    ========================================================================= */
 
-@media (max-width: 970px) {
+@media (max-width: 1015px) {
   /* The logo keeps its old 38px from here down. The desktop bump to 44px
      (Nav.tsx) is a DESKTOP change: the nav row cannot shrink below logo +
      links, and widening the logo widened that floor from 799px to 836px —
@@ -948,14 +948,20 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
      44px the nav clipped from 835 down to 641; at 38px it clips from 798 down
      to 641, the PRE-EXISTING floor this rule does not touch. So read it as
      "the band 799-835 is given back", not as "the nav is clean at 38px".
-     970, and not the 900 or 940 tried before it: above the tier the links wrap
-     to a second line and the row grows 66px -> 82px. That edge moves with the
-     button's LABEL — logged out it reads "Log in" and wrapping stops at 935;
-     signed in it reads "My Aruba" plus a caret, which is wider, and wrapping
-     stops at 969 (968 is the last width that wraps). 970 is therefore 2px
-     conservative on purpose: this figure has been measured wrong three times,
-     twice by sampling without waiting for reflow and fonts, so the rule sits a
-     margin below the edge rather than on it.
+     The tier moves with the LOGO HEIGHT, because the nav row cannot shrink
+     past logo + links: a taller logo is a wider one, so the floor rises with
+     it. Measured by forcing each height at every width 850-1400 and looking for
+     a wrapped link, a clipped link or page overflow, with fonts loaded and a
+     settle — the signed-in label "My Aruba" plus a caret is always the binding
+     case, being wider than "Log in":
+         38px  ->  no tier needed (this is the old size)
+         44px  ->  clean from 969   (signed out 935)
+         51px  ->  clean from 1013  (signed out 979)
+     1015 gives the current 51px two pixels of margin. Re-measure this number
+     whenever the logo height changes; it has been got wrong three times, twice
+     by sampling the row before reflow and once by reading absolute row height
+     rather than detecting a wrapped link — a taller logo makes the row taller
+     legitimately, so height alone says nothing.
      Sweep BOTH nav states, with a settle delay, if this number ever moves:
      measuring only the signed-out one is how 940 was shipped and then fixed.
      This block sits ABOVE the 640px one, so the phone override still wins. */

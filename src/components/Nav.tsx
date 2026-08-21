@@ -94,11 +94,12 @@ export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) 
                at public/logo-horizontal.png is replaced to force a fresh fetch. */
             src="/logo-horizontal.png?v=20260621"
             alt="10 days on Aruba"
-            /* 44 = 38 x 1.15, rounded up off 43.7 so the raster lands on a whole
-               pixel. DESKTOP ONLY: index.css holds this at 38px at 970px and below, and
+            /* 51 = 44 x 1.15, a second 15% on top of the first (38 -> 44 -> 51,
+               +34% overall). Rounded up off 50.6 so the raster lands on a whole
+               pixel. DESKTOP ONLY: index.css holds this at 38px at 1015px and below, and
                30px at 640px and below, because the nav row cannot shrink past logo +
                links and a wider logo pushes Log in off the right edge. */
-            style={{ height: 44, width: 'auto', display: 'block' }}
+            style={{ height: 51, width: 'auto', display: 'block' }}
           />
         </button>
 
