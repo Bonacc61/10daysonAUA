@@ -25,7 +25,7 @@ import ShareEmailModal from '../components/ShareEmailModal';
 import { matchingSection } from '../data/itemFit';
 import CopyLinkRow, { SHARE_MENU_ROW } from '../components/CopyLinkRow';
 import { matchPool, blendPools, parseActivityCost } from '../data/matcher';
-import { productUrlFor, sectionLabel, primarySection, bookUrlForActivity } from '../data/exploreItems';
+import { productUrlFor, sectionLabel, bookUrlForActivity } from '../data/exploreItems';
 import type { PageId, Answers } from '../App';
 import type { Activity } from '../data/activities';
 import type { ViatorGroup, ViatorItem } from '../types';

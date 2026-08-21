@@ -55,7 +55,12 @@ export function sectionsForTags(tags?: number[]): Section[] {
   return [...out];
 }
 
-// Primary (first by tab order) section — used for the card header label.
+// Primary (first by tab order) section.
+//
+// No longer the whole story for a card header: since 2026-08-21 a Viator item's
+// badge comes from `matchingSection`, which asks the activity kind first — tab
+// order alone let one water tag outvote four adventure tags. This still names
+// the badge for `kind: 'activity'` entries, and still picks `SECTION_VIATOR_URL`.
 export function primarySection(sections: Section[]): Section {
   for (const key of SECTION_ORDER) if (sections.includes(key)) return key;
   return 'tours-sightseeing';

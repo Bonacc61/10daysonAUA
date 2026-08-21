@@ -219,8 +219,6 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   // '10doa:starred'), so what you add here is what My Aruba > Shortlisted shows
   // and what survives a refresh.
 
-  // Region per Viator item: its own override, else its group's region (coarse for
-  // now; precise per-item locations are the planned backend follow-up).
   /**
    * The name on a card's dark header strip.
    *
@@ -268,6 +266,8 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
     return sectionLabel(matchingSection({ ...e.item, enriched_kind: undefined }));
   };
 
+  // Region per Viator item: its own override, else its group's region (coarse for
+  // now; precise per-item locations are the planned backend follow-up).
   const regionOf = (item: ViatorItem) => {
     const slug = item.region ?? catalog.groups.find((g) => g.id === item.group_id)?.region;
     return slug ? REGION_LABEL[slug] ?? slug : '';

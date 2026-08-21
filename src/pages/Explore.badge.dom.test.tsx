@@ -48,10 +48,14 @@ const CATALOG: Catalog = {
       tags: [11888, 11885, 22046],
       sections: ['cruises-water'],
     }),
-    // The reported bug INVERTED, and a real product: 367744P1 carries no tag
-    // naming an activity, and the enrichment snapshot guesses `snorkel` at
-    // medium confidence. Trusting that for a badge put a bus under Cruises &
-    // Water. Its tags say sightseeing, and tags are what the badge listens to.
+    // The reported bug INVERTED. Modelled on 367744P1 — "Half-Day Aruba
+    // Sightseeing Tour & Beach in an Air-condition Bus", which the enrichment
+    // snapshot guesses is a `snorkel` at medium confidence — but NOT a copy of
+    // it: the real product carries tag 22046, so its sections put it in
+    // Adventures & Outdoor either way, which would make a poor test of the rule.
+    // This fixture strips it to the case that matters: tags that name no
+    // activity, an enrichment guess that says water, and a section that says
+    // otherwise. The badge must listen to the tags.
     item('bus', 'Half-Day Sightseeing Tour in an Air-conditioned Bus', {
       tags: [21725],
       sections: ['tours-sightseeing'],
