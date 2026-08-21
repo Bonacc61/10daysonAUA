@@ -11,7 +11,8 @@ import { useShortlist } from '../lib/shortlist';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
 import { isLocalPickItem } from '../data/localPickItems';
-import { filterExploreEntries, sortEntries, bookUrlForEntry, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, poolPass, sailPass } from '../data/exploreItems';
+import { filterExploreEntries, sortEntries, bookUrlForEntry, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, poolPass, sailPass, type ExploreEntry } from '../data/exploreItems';
+import { matchingSection } from '../data/itemFit';
 import type { DurationBand, Provenance, SortKey, PoolMode, SailFacet } from '../data/exploreItems';
 import { searchEntries } from '../lib/entrySearch';
 import { answersToTags } from '../data/answerTags';
@@ -220,6 +221,53 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
 
   // Region per Viator item: its own override, else its group's region (coarse for
   // now; precise per-item locations are the planned backend follow-up).
+  /**
+   * The name on a card's dark header strip.
+   *
+   * Two rules, and the first is why "homogeneity" was the right word for the
+   * complaint. Inside a section tab, the badge simply NAMES THAT TAB. A card
+   * only ever appears in a tab it genuinely belongs to, so this cannot lie, and
+   * it stops one card in a row of UTVs wearing a different word from its
+   * neighbours. The same card can badge differently in two tabs; both readings
+   * are true, because 193 of 365 products really do belong to more than one.
+   *
+   * On All there is no tab to take the name from, so a single one has to be
+   * chosen. `primarySection` chooses it by TAB ORDER — first match down the row
+   * — and Cruises & Water is the leftmost tab, so a lone water tag beat four
+   * adventure tags and filed a UTV tour as a boat trip. That is not a data
+   * error: Viator's water tag 20255 sits on 73 products, 53 of them genuinely
+   * water, and 10 land tours it also happens to mark.
+   *
+   * `matchingSection` already solves this for the ENGINE — `KIND_SECTION[kind]`
+   * first, tab order only as a fallback — with a test pinning the exact case
+   * ("a jeep safari that also carries a boat tag"). The badge had never been
+   * told. Reading it here changes no kind and re-files nothing; it is the label
+   * catching up with how the product was already filed.
+   *
+   * `enriched_kind` is BLANKED before asking, and that is the load-bearing line
+   * here. `activityKind` reads Viator's tags first and falls back to the
+   * enrichment snapshot when they say nothing — a model's guess, carrying its
+   * own confidence field. Trusting it for a badge put "Half-Day Aruba
+   * Sightseeing Tour & Beach in an Air-conditioned Bus" (enriched_kind
+   * "snorkel", confidence medium) under Cruises & Water: the reported bug
+   * inverted, a bus reading as a boat. With enrichment blanked, a product whose
+   * tags name no activity falls through to tab order exactly as before, so this
+   * only ever overrides a tie the TAGS themselves settle. The engine keeps
+   * using the enriched kind — it needs a kind for every product and a guess
+   * beats nothing there. A badge is a claim to a traveller's face, and it does
+   * not.
+   *
+   * Local picks keep `primarySection`: a `kind: 'activity'` entry carries a
+   * hand-written section rather than Viator tags — all 26 have exactly one, so
+   * there is no tie to break. (A Viator ITEM can also be a local pick; those
+   * take the branch above.)
+   */
+  const badgeFor = (e: ExploreEntry): string => {
+    if (section !== 'All') return sectionLabel(section as Section);
+    if (e.kind !== 'item') return sectionLabel(primarySection(e.sections));
+    return sectionLabel(matchingSection({ ...e.item, enriched_kind: undefined }));
+  };
+
   const regionOf = (item: ViatorItem) => {
     const slug = item.region ?? catalog.groups.find((g) => g.id === item.group_id)?.region;
     return slug ? REGION_LABEL[slug] ?? slug : '';
@@ -428,8 +476,8 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
                   ? Array.from({ length: 12 }, (_, i) => <SkeletonCard key={i} />)
                   : entries.map((e) => (
                     e.kind === 'item'
-                      ? <ItemTile key={`item:${e.item.id}`} item={e.item} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} region={regionOf(e.item)} bookNow={bookUrlForEntry(e)} added={shortlist.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />
-                      : <ActivityTile key={e.activity.id} a={e.activity} section={sectionLabel(primarySection(e.sections))} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} bookNow={bookUrlForEntry(e)} added={shortlist.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} />
+                      ? <ItemTile key={`item:${e.item.id}`} item={e.item} section={badgeFor(e)} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} region={regionOf(e.item)} bookNow={bookUrlForEntry(e)} added={shortlist.has(`item:${e.item.id}`)} onAdd={() => toggleAdd(`item:${e.item.id}`)} />
+                      : <ActivityTile key={e.activity.id} a={e.activity} section={badgeFor(e)} sectionUrl={SECTION_VIATOR_URL[primarySection(e.sections) as Section] ?? null} bookNow={bookUrlForEntry(e)} added={shortlist.has(e.activity.id)} onAdd={() => toggleAdd(e.activity.id)} />
                   ))}
               </div>
               {!loading && totalCount === 0 && (

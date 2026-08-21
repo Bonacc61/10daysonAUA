@@ -22,6 +22,7 @@ import { useAuth } from '../lib/auth';
 import { listTrips, deleteTrip, tripLabel, type SavedTrip } from '../lib/trips';
 import { readActiveTripId, writeActiveTripId, markTripOpened } from '../lib/activeTrip';
 import ShareEmailModal from '../components/ShareEmailModal';
+import { matchingSection } from '../data/itemFit';
 import CopyLinkRow, { SHARE_MENU_ROW } from '../components/CopyLinkRow';
 import { matchPool, blendPools, parseActivityCost } from '../data/matcher';
 import { productUrlFor, sectionLabel, primarySection, bookUrlForActivity } from '../data/exploreItems';
@@ -421,7 +422,11 @@ function StarredActivityCard({ entry, added, onAdd }: { entry: ExploreEntry & { 
 function StarredItemCard({ entry, added, onAdd }: { entry: ExploreEntry & { kind: 'item' }; added: boolean; onAdd: () => void }) {
   const { item } = entry;
   const book = bookUrlForEntry(entry);
-  const sec  = sectionLabel(primarySection(entry.sections));
+  // The same rule Explore's badge uses, so a starred product does not read
+  // "Adventures & Outdoor" there and "Cruises & Water" here. Tags only —
+  // `enriched_kind` is blanked — because a model's guess should not name a
+  // section to a traveller's face; see the note on `badgeFor` in Explore.tsx.
+  const sec  = sectionLabel(matchingSection({ ...item, enriched_kind: undefined }));
   return (
     <div className="a-card fade-in">
       <div className="a-img">
