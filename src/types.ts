@@ -29,7 +29,17 @@ export type MatchTag =
   // From the Q8 `avoid-crowds` flag. Same shape as `influencer` above: no
   // product carries it, so it never scores through the overlap loop — fitItem
   // reads it explicitly to invert the popularity preference.
-  | 'avoid-crowds';
+  | 'avoid-crowds'
+  // From the trip LENGTH, not from an answer the traveller picks directly.
+  // Same shape as the two above: no product carries it, so it never scores
+  // through the overlap loop — `bookableTier` reads it explicitly.
+  //
+  // It exists because three of the owner's 2026-08-21 curation rules are
+  // conditional on "more than 10 days" and `bookableTier(entry, tags)` never
+  // saw the trip length. Threading `nDays` through it would have changed a
+  // signature with 20-odd call sites; a tag rides the argument that is already
+  // there. `LONG_TRIP_MIN_DAYS` in answerTags.ts is the threshold.
+  | 'long-trip';
 
 export type Region =
   | 'palm-beach' | 'eagle-beach' | 'noord' | 'oranjestad'

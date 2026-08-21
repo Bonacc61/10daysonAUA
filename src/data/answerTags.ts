@@ -75,6 +75,16 @@ export function activityTags(a: Activity): MatchTag[] {
   return [...tags];
 }
 
+/**
+ * The trip length above which the extended-itinerary curation switches on.
+ *
+ * 10 and not 11 reads oddly until you say it out loud: the rule is "longer than
+ * 10 days", so the comparison is `> LONG_TRIP_MIN_DAYS` and an 11-day trip is
+ * the first that qualifies. Named for the boundary the owner stated rather than
+ * for the first qualifying value, so the constant and the sentence agree.
+ */
+export const LONG_TRIP_MIN_DAYS = 10;
+
 export function answersToTags(a: Answers): Set<MatchTag> {
   const tags = new Set<MatchTag>();
 
@@ -85,6 +95,11 @@ export function answersToTags(a: Answers): Set<MatchTag> {
   const g = GROUP_TYPE_MAP[a.groupType]; if (g) tags.add(g);
   const b = BUDGET_MAP[a.budget];        if (b) tags.add(b);
   const l = LODGING_MAP[a.lodging];      if (l) tags.add(l);
+
+  // "More than 10 days", as a tag rather than an argument — see the note on
+  // `long-trip` in types.ts. Strictly greater than: a 10-day trip is the
+  // standard shape the curation was tuned against and must not change.
+  if (a.days > LONG_TRIP_MIN_DAYS) tags.add('long-trip');
 
   // Adventure level bands
   if (a.adventureLevel <= 33)       tags.add('low-adventure');

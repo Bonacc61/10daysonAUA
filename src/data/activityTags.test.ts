@@ -65,3 +65,34 @@ describe('the Personalized panel actually discriminates', () => {
     expect(picksFor(DEFAULT_ANSWERS).length).toBeGreaterThan(0);
   });
 });
+
+// ── The trip-length tag ──────────────────────────────────────────────────────
+// `long-trip` is emitted by trip LENGTH rather than by anything the traveller
+// picks, and it is the only thing gating three of the 2026-08-21 curation rules
+// (horseback, kitesurfing, and the dive once its product reaches the catalog).
+//
+// Tested HERE and not only through `bookableTier`, because every bookables test
+// builds its tag set by hand: deleting the emission entirely left all 36 of
+// them green. This is the test that fails when the tag stops being produced.
+describe('answersToTags — long-trip', () => {
+  const at = (days: number) => answersToTags(profile({ days }));
+
+  it('is absent at ten days and present at eleven', () => {
+    // The owner's rule is "longer than 10 days", so 10 is the last trip that
+    // behaves exactly as it did before any of this.
+    expect(at(10).has('long-trip')).toBe(false);
+    expect(at(11).has('long-trip')).toBe(true);
+  });
+
+  it('is absent for every shorter trip and present for every longer one', () => {
+    for (const d of [1, 3, 5, 7, 8, 9, 10]) expect(at(d).has('long-trip')).toBe(false);
+    for (const d of [11, 12, 13, 14]) expect(at(d).has('long-trip')).toBe(true);
+  });
+
+  it('depends on nothing but the length', () => {
+    const long = answersToTags(profile({
+      days: 14, budget: 'Budget-conscious', adventureLevel: 0, groupType: 'Solo', interests: [],
+    }));
+    expect(long.has('long-trip')).toBe(true);
+  });
+});

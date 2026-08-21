@@ -212,6 +212,43 @@ describe('bookableTier — content products (ruling R8)', () => {
   });
 });
 
+describe('bookableTier — the extended-itinerary curation (2026-08-21)', () => {
+  const ride = (id: string, title: string, over = {}) => group({ id, title, tags: [11902], price_usd: 99, ...over });
+  const LONG = (...t: string[]) => tags('long-trip', ...(t as never[]));
+
+  it('offers horseback only on a trip longer than 10 days', () => {
+    const h = ride('h1', 'Aruba Countryside: Horseback Adventure to Urirama Cove');
+    expect(bookableTier(h, tags('couple', 'mid-range'))).toBe(null);        // 10 days or fewer
+    expect(bookableTier(h, LONG('couple', 'mid-range'))).toBe(2);           // 11+
+  });
+
+  // The two rides Viator files under `offroad`. Without the title test above the
+  // kind rows they would reach row 2 and be handed to EVERY traveller as jeep
+  // safaris — the opposite of "keep them separate".
+  it('catches the rides Viator mis-files as off-road', () => {
+    for (const t of ['Aruba Horseback Riding Tour For Advanced Riders',
+                     'Horseback Riding and Natural Pool Adventure in Aruba']) {
+      expect(bookableTier(ride(`o-${t.slice(0, 8)}`, t, { tags: [12035] }), tags('couple'))).toBe(null);
+      expect(bookableTier(ride(`o2-${t.slice(0, 8)}`, t, { tags: [12035] }), LONG('couple'))).toBe(2);
+    }
+  });
+
+  it('gives kitesurfing to an adventurous splurge traveller on a long trip, and to nobody shorter', () => {
+    const kite = local({ id: 'kitesurfing-lesson', cost: '$120 lesson' });
+    expect(bookableTier(kite, LONG('treat-yourself', 'high-adventure'))).toBe(1);
+    expect(bookableTier(kite, LONG('money-no-object', 'high-adventure'))).toBe(1);
+    // Each condition is load-bearing — drop any one and it is refused.
+    expect(bookableTier(kite, tags('treat-yourself', 'high-adventure'))).toBe(null);      // not long
+    expect(bookableTier(kite, LONG('mid-range', 'high-adventure'))).toBe(null);           // not splurge
+    expect(bookableTier(kite, LONG('treat-yourself', 'low-adventure'))).toBe(null);       // not adventurous
+  });
+
+  it('keeps the family-teens route to kitesurfing, which predates all of this', () => {
+    const kite = local({ id: 'kitesurfing-lesson', cost: '$120 lesson' });
+    expect(bookableTier(kite, tags('family-teens', 'high-adventure'))).toBe(1);
+  });
+});
+
 describe('bookableTier — guided hikes (tier 2, 2026-08-21)', () => {
   // Every title here is a real live product. Tier 2, so a hike fills a booking
   // day the curated set left over and never competes with a catamaran.

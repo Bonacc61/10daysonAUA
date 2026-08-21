@@ -104,6 +104,9 @@ const TWO_WHEELER_TITLE = /\b(e[\s-]?bikes?|bikes?|biking|bicycles?|cycling|mope
 // same commit: require POSITIVE evidence, and do not let one word in a title
 // decide what a tour is.
 const FOUR_WHEELER_TITLE = /\b(utv|atv|quads?|buggy|buggies|jeeps?|4x4|4wd)\b/i;
+// A horse is not a vehicle, and two of the island's rides are Viator-tagged
+// off-road — see the matching note in itineraryGenerator.ts.
+const HORSEBACK_TITLE = /\b(horseback|horse ?riding|horse ?back)\b/i;
 // Positive evidence that a `hike`-kind product is actually a walk.
 const HIKE_TITLE = /\b(hik(?:e|ing)|trek(?:king)?|nature walk)\b/i;
 const WATER_TITLE = /\b(snorkel(?:l?ing)?|catamaran|sail|cruise|boat|charter|seabob|reef|wreck|sea scooter|island|day pass)\b/i;
@@ -134,8 +137,9 @@ const BOOKABLE_LOCAL_IDS = new Set(['antilla-wreck-dive', 'boca-catalina-snorkel
 // itineraryGenerator.ts reads this set to draw exactly that line: a local
 // listed here is refused when its condition fails, one absent from both this
 // set and BOOKABLE_LOCAL_IDS is never refused. `kitesurfing-lesson` is the
-// only one today (tier 1 for family-teens + high-adventure, null otherwise) —
-// a second conditional local is added here, not inferred from bookableTier.
+// only one today (tier 1 for family-teens + high-adventure, or for an
+// adventurous splurge traveller on a trip longer than 10 days; null otherwise)
+// — a second conditional local is added here, not inferred from bookableTier.
 export const CONDITIONALLY_BOOKABLE_LOCAL_IDS = new Set(['kitesurfing-lesson']);
 
 export type BookableTier = 1 | 2;
@@ -158,10 +162,17 @@ export function bookableTier(e: CardEntry, tags: Set<MatchTag>): BookableTier | 
   const youngKids = tags.has('family-young-kids');
   const anyKids = youngKids || tags.has('family-teens');
   const teensAdventurous = tags.has('family-teens') && tags.has('high-adventure');
+  // Owner's ruling 2026-08-21: an adventurous splurge traveller on an extended
+  // itinerary gets the kitesurfing lesson too. All three conditions matter —
+  // `splurge` because $120 for a lesson is a treat rather than a staple,
+  // `high-adventure` because the card sits at adventure 85, and `long-trip`
+  // because a 10-day plan has better uses for a booking day.
+  const splurge = tags.has('treat-yourself') || tags.has('money-no-object');
+  const adventurousSplurge = splurge && tags.has('high-adventure') && tags.has('long-trip');
 
   if (e.kind === 'activity') {
     if (BOOKABLE_LOCAL_IDS.has(e.activity.id)) return 1;
-    if (e.activity.id === 'kitesurfing-lesson') return teensAdventurous ? 1 : null;
+    if (e.activity.id === 'kitesurfing-lesson') return teensAdventurous || adventurousSplurge ? 1 : null;
     return null;
   }
 
@@ -176,6 +187,19 @@ export function bookableTier(e: CardEntry, tags: Set<MatchTag>): BookableTier | 
   if (item.id === JET_SKI_ID) return teensAdventurous ? 1 : null;
 
   const kind = activityKind(item);
+  // Horseback riding — TIER 2, and only on an EXTENDED itinerary.
+  //
+  // Owner's ruling 2026-08-21: horseback is for trips where the standard
+  // curated activities are already depleted, which on a 10-day trip they are
+  // not. Tier 2 keeps it off the days the must-do set wants; `long-trip` keeps
+  // it off short trips entirely, so a 10-day plan is unchanged.
+  //
+  // Tested by TITLE and placed ABOVE the off-road row on purpose: Viator files
+  // "Aruba Horseback Riding Tour For Advanced Riders" and "Horseback Riding and
+  // Natural Pool Adventure in Aruba" under `offroad`, so a kind-only rule here
+  // would hand them to every traveller through row 2 as jeep safaris.
+  if (HORSEBACK_TITLE.test(item.title)) return tags.has('long-trip') ? 2 : null;
+
   if (kind === 'sail') return 1;
   if (kind === 'snorkel') return WATER_TITLE.test(item.title) ? 1 : null;
   if (kind === 'offroad') {
