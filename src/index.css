@@ -192,6 +192,23 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
      would out-specify a bare `.swap-reasons-wrap.open` here and clip. */
   .swap-reasons-wrap.open,
   .swap-reasons-wrap.open.with-text { height: auto; }
+
+  /* The 58% cap assumes the itinerary card is the WIDE layout. On a phone it is
+     not — it is as narrow as an Explore tile, so it develops exactly the defect
+     the `.a-card` override above was written for, and for the same reason.
+
+     Measured on an iPhone-width viewport (390px): the box came out 159x97, a
+     ratio of 1.63, sitting 14px from the card's left edge and 128px from its
+     right. That asymmetry is the visible half — a detail box indented on one
+     side only reads as broken rather than as deliberate — and the near-square
+     shape is the costly half, because `.itin-card-front` grows to fit and every
+     wrapped line makes the card taller.
+
+     Full width here rather than a smaller cap for the same reason Explore
+     settled on 100%: at this width anything less leaves a ragged right edge and
+     recovers only part of the height. The desktop cap is untouched, where the
+     card really is wide and a half-width box reads as the detail it is. */
+  .card-departure { max-width: 100%; }
 }
 
 /* "Other suggestions" drawer.
