@@ -60,7 +60,9 @@ export function sectionsForTags(tags?: number[]): Section[] {
 // No longer the whole story for a card header: since 2026-08-21 a Viator item's
 // badge comes from `matchingSection`, which asks the activity kind first — tab
 // order alone let one water tag outvote four adventure tags. This still names
-// the badge for `kind: 'activity'` entries, and still picks `SECTION_VIATOR_URL`.
+// the badge for `kind: 'activity'` entries and still picks `SECTION_VIATOR_URL`
+// — and it has three consumers beyond the label: itemFit's `sec:` fallback kind,
+// the generator, and the section a card's header band navigates to.
 export function primarySection(sections: Section[]): Section {
   for (const key of SECTION_ORDER) if (sections.includes(key)) return key;
   return 'tours-sightseeing';

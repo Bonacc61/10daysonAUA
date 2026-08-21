@@ -148,8 +148,10 @@ button.card-header-band:focus-visible { outline: 2px solid var(--yellow); outlin
      edge it read as a banner rather than a detail. Capped rather than fixed at
      50% so it does not become a sliver on a narrow card.
 
-     This cap is tuned for the ITINERARY flip card, which is the wide layout —
-     see the .a-card override below for why Explore needs its own answer. */
+     This cap is tuned for the ITINERARY flip card, which is the wide layout.
+     TWO overrides below say where that stops being true: `.a-card` for Explore's
+     narrower tile at every width, and the <=768px block for the itinerary card
+     itself on a phone, where it is no wider than one. */
   max-width: 58%;
   display: flex; align-items: flex-start; gap: 7px;
   background: var(--sand-50); border: 2px solid var(--ink); border-radius: 10px;
