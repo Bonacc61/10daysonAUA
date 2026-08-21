@@ -938,7 +938,7 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
    the heavy use of !important in this block.
    ========================================================================= */
 
-@media (max-width: 940px) {
+@media (max-width: 968px) {
   /* The logo keeps its old 38px from here down. The desktop bump to 44px
      (Nav.tsx) is a DESKTOP change: the nav row cannot shrink below logo +
      links, and widening the logo widened that floor from 799px to 836px —
@@ -949,17 +949,19 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
      down to 641, which is the PRE-EXISTING floor this rule does not touch and
      is not trying to. So read this as "the band 799-835 is given back", not as
      "the nav is clean at 38px" — it is not, below 799.
-     940 and not 900: between 901 and 934 the row still fits but "How it works"
-     and "Log in" each wrap to a second line, taking the row from 66px to 82px.
-     Nothing is lost there, but it is a visible difference from the previous
-     commit, and 935 is where the measured row stops wrapping.
+     968 and not 900: above the tier the row still fits but the links wrap to a
+     second line, taking it from 66px to 82px. 934 was the edge measured
+     LOGGED OUT, where the button reads "Log in"; signed in it reads
+     "My Aruba" plus a caret, which is wider and pushes the wrap band on to
+     968. Measured every integer 900-1200 against both builds with that label —
+     969 is where the row is clean. Sweep the signed-in nav, not just the
+     signed-out one, if this number ever moves again.
      This block sits ABOVE the 640px one, so the phone override still wins. */
   .nav-logo { height: 38px !important; }
 }
 
 @media (max-width: 900px) {
   .container-1280 { padding: 0 20px; }
-
 
   /* Hero typography shrinks */
   .hero-title { font-size: 44px !important; }
@@ -1283,7 +1285,6 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   .gtk-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
 }
 
-
 /* Afternoon "Suggest lunchspot" button — same box footprint as
    .itin-section-empty (16px padding, 12px radius), neon blue with a
    neon-yellow sparkle. */
@@ -1301,7 +1302,6 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 .itin-lunch-btn:active { transform: translate(2px,2px);   box-shadow: 1px 1px 0 var(--ink); }
 .itin-lunch-spark { color: #eaff00; font-size: 15px; line-height: 1; }
 
-
 /* "← Back" button — lives in the card control cluster when flipped, so the
    top-right row reads Back -> drag -> X without overlapping. */
 .itin-card-back-btn {
@@ -1312,7 +1312,6 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 }
 .itin-card-back-btn:hover { background: var(--sand-50); }
 
-
 /* "Book now" button on bookable itinerary cards (paid + Viator link). */
 .itin-book-btn {
   display: inline-flex; align-items: center; gap: 6px;
@@ -1322,7 +1321,6 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   background: var(--red); color: var(--cream);
   text-decoration: none; box-shadow: 3px 3px 0 var(--ink);
 }
-
 
 /* Login modal — centered card over a blurred page. */
 .login-modal-backdrop {
@@ -1346,7 +1344,6 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   display: inline-flex; align-items: center; justify-content: center;
 }
 .login-modal-close:hover { background: var(--sand-50); }
-
 
 /* ── Dashboard ────────────────────────────────────────────────── */
 .dashboard-layout {

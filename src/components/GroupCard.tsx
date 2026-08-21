@@ -260,7 +260,14 @@ function ItineraryBody({
         onClick={onFlip}
         aria-label="See more about this"
         style={{
-          flex: '0 0 200px', height: '100%',
+          /* Must match ItineraryCard's basis exactly. Both components render the
+             same .itin-card-split / .itin-card-image-btn structure and appear in
+             the same day, often stacked — so a divergence shows up immediately as
+             two image columns that do not share a right edge. Changing only the
+             activity card left a ~145px mismatch at desktop widths that INVERTED
+             below ~660px, where the group photo became the wider of the two.
+             See the derivation of 29.75% in ItineraryCard.tsx. */
+          flex: '0 0 29.75%', height: '100%',
           background: 'var(--sand-100)',
           border: 'none', padding: 0, cursor: 'pointer',
           position: 'relative', overflow: 'hidden',

@@ -196,11 +196,13 @@ export function bookableTier(e: CardEntry, tags: Set<MatchTag>): BookableTier | 
     // Explore, the Swap shelf and add-from-shortlist never consult the
     // whitelist, so the card is still there for a traveller who wants it — it
     // just stops taking a slot in a plan nobody asked it for.
-    // Documentary, not load-bearing: the `return null` below already covers it.
-    // Written out because the behaviour change lives in the SET membership above
-    // and nothing at this line would fail if it were deleted — a reader looking
-    // for "why is the walking tour gone" should find it where they look first.
-    if (e.activity.id === 'oranjestad-walking') return null;
+    // `oranjestad-walking` deliberately has NO line here. It is refused by the
+    // `return null` below, and its being refused is what stops it reaching a
+    // plan — see CONDITIONALLY_BOOKABLE_LOCAL_IDS above, which is where the
+    // behaviour actually lives. A documentary `if (id === ...) return null;`
+    // stood here briefly and was removed: it was dead the moment it was
+    // written, and worse, it would silently shadow any rule a later edit
+    // inserted between it and this line.
     return null;
   }
 
