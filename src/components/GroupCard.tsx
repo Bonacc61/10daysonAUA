@@ -274,7 +274,24 @@ function ItineraryBody({
         }}
       >
         <img src={bestSeller.image_url} alt={bestSeller.title}
-             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+             style={{
+               /* ABSOLUTE, so the photo fills the column without SIZING it.
+                  The button is `height: auto !important` (index.css
+                  .itin-card-image-btn), so a statically-positioned img's
+                  `height: 100%` has no definite height to resolve against and
+                  falls back to the intrinsic aspect ratio — which means
+                  `object-fit: cover` never crops and the image sets the card's
+                  height instead. Harmless at a fixed 200px column; at 29.75%
+                  it multiplied card height by the same 1.7. Measured at 1440:
+                  the O'Niels card went 337px -> 540px, ~370px of it empty
+                  space above Swap this, because that photo is portrait (0.67).
+                  Five of the six sub-1.4 aspect images in public/ are food
+                  photos, i.e. the lunch or dinner slot of most days.
+                  Positioning it out of flow gives the button a definite box to
+                  stretch into and lets cover do the cropping it was there for. */
+               position: 'absolute', inset: 0,
+               width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+               }} />
         <span style={{
           position: 'absolute', bottom: 10, left: 10,
           background: 'rgba(26,26,26,0.85)', color: 'var(--cream)',

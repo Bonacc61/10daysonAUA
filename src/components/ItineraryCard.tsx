@@ -130,17 +130,40 @@ function ActivityCardFront({
                Percentage rather than the equivalent 340px on purpose: a fixed
                width would hold at 340 as the card narrows and reach 51% of a
                660px card at 768px, squeezing the text pane. As a share it stays
-               29.75% everywhere, which leaves narrow cards almost exactly where
-               they were (196px against 200px) and spends the gain on the wide
-               ones. Below 640px the image stacks full-width and this does not
-               apply — see .itin-card-image-btn in index.css. */
+               29.75% everywhere. That is NOT "narrow cards stay where they
+               were", which an earlier version of this comment claimed off a
+               single 768px measurement: the photo matches 200px only around
+               768, and below that it SHRINKS — 171px at 700 and 154px at 641,
+               about a fifth smaller than before. The brief was more photo, and
+               in the 641-750 band this delivers less. Revisit with a second
+               breakpoint if that band matters; it is above the 640 stack point,
+               so it is tablets in portrait rather than phones.
+               Below 640px the image stacks full-width and none of this applies
+               — see .itin-card-image-btn in index.css. */
             flex: '0 0 29.75%', height: '100%',
             background: 'var(--sand-100)',
             border: 'none', padding: 0, cursor: 'pointer',
             position: 'relative', overflow: 'hidden',
           }}>
           <img src={a.image} alt={a.title}
-               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+               style={{
+                 /* ABSOLUTE, so the photo fills the column without SIZING it.
+                    The button is `height: auto !important` (index.css
+                    .itin-card-image-btn), so a statically-positioned img's
+                    `height: 100%` has no definite height to resolve against and
+                    falls back to the intrinsic aspect ratio — which means
+                    `object-fit: cover` never crops and the image sets the card's
+                    height instead. Harmless at a fixed 200px column; at 29.75%
+                    it multiplied card height by the same 1.7. Measured at 1440:
+                    the O'Niels card went 337px -> 540px, ~370px of it empty
+                    space above Swap this, because that photo is portrait (0.67).
+                    Five of the six sub-1.4 aspect images in public/ are food
+                    photos, i.e. the lunch or dinner slot of most days.
+                    Positioning it out of flow gives the button a definite box to
+                    stretch into and lets cover do the cropping it was there for. */
+                 position: 'absolute', inset: 0,
+                 width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+               }} />
           <span style={{
             position: 'absolute', bottom: 10, left: 10,
             background: 'rgba(26,26,26,0.85)', color: 'var(--cream)',

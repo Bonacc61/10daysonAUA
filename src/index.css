@@ -938,24 +938,23 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
    the heavy use of !important in this block.
    ========================================================================= */
 
-@media (max-width: 968px) {
+@media (max-width: 970px) {
   /* The logo keeps its old 38px from here down. The desktop bump to 44px
      (Nav.tsx) is a DESKTOP change: the nav row cannot shrink below logo +
      links, and widening the logo widened that floor from 799px to 836px —
      which swallowed the two commonest iPad portrait widths (834 and 820) and
      clipped the Log in button off the right edge.
-     Swept every integer width 320-1000 against a build of the previous commit:
-     at 44px the nav clipped from 835 down to 641; at 38px it clips from 798
-     down to 641, which is the PRE-EXISTING floor this rule does not touch and
-     is not trying to. So read this as "the band 799-835 is given back", not as
-     "the nav is clean at 38px" — it is not, below 799.
-     968 and not 900: above the tier the row still fits but the links wrap to a
-     second line, taking it from 66px to 82px. 934 was the edge measured
-     LOGGED OUT, where the button reads "Log in"; signed in it reads
-     "My Aruba" plus a caret, which is wider and pushes the wrap band on to
-     968. Measured every integer 900-1200 against both builds with that label —
-     969 is where the row is clean. Sweep the signed-in nav, not just the
-     signed-out one, if this number ever moves again.
+     Swept every integer 320-1200 against a build of the previous commit: at
+     44px the nav clipped from 835 down to 641; at 38px it clips from 798 down
+     to 641, the PRE-EXISTING floor this rule does not touch. So read it as
+     "the band 799-835 is given back", not as "the nav is clean at 38px".
+     970, and not the 900 or 940 tried before it: above the tier the links wrap
+     to a second line and the row grows 66px -> 82px. That edge moves with the
+     button's LABEL — logged out it reads "Log in" and wrapping stops at 935;
+     signed in it reads "My Aruba" plus a caret, which is wider, and 969 and
+     970 still wrap. 971 is the first clean width with a 44px logo.
+     Sweep BOTH nav states, with a settle delay, if this number ever moves:
+     measuring only the signed-out one is how 940 was shipped and then fixed.
      This block sits ABOVE the 640px one, so the phone override still wins. */
   .nav-logo { height: 38px !important; }
 }
@@ -977,11 +976,6 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   .nav-link-text { display: none !important; }
   .nav-links-desktop { display: none !important; }
   .nav-mobile-row { display: flex !important; }
-  /* NOT scaled with the desktop bump, deliberately. The logo is wider than it
-     is tall (188px at 30px high), so height x1.15 costs ~31px of width, and at
-     390px the nav row had 14px of slack. Rendered at 35px it tipped the page
-     into horizontal scroll on the commonest phone width. Anything above ~32px
-     overflows here; the desktop logo is the one the owner asked to grow. */
   .nav-logo { height: 30px !important; }
   .nav-row { padding: 12px 14px !important; gap: 10px !important; }
 
@@ -1285,6 +1279,7 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   .gtk-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
 }
 
+
 /* Afternoon "Suggest lunchspot" button — same box footprint as
    .itin-section-empty (16px padding, 12px radius), neon blue with a
    neon-yellow sparkle. */
@@ -1302,6 +1297,7 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 .itin-lunch-btn:active { transform: translate(2px,2px);   box-shadow: 1px 1px 0 var(--ink); }
 .itin-lunch-spark { color: #eaff00; font-size: 15px; line-height: 1; }
 
+
 /* "← Back" button — lives in the card control cluster when flipped, so the
    top-right row reads Back -> drag -> X without overlapping. */
 .itin-card-back-btn {
@@ -1312,6 +1308,7 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 }
 .itin-card-back-btn:hover { background: var(--sand-50); }
 
+
 /* "Book now" button on bookable itinerary cards (paid + Viator link). */
 .itin-book-btn {
   display: inline-flex; align-items: center; gap: 6px;
@@ -1321,6 +1318,7 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   background: var(--red); color: var(--cream);
   text-decoration: none; box-shadow: 3px 3px 0 var(--ink);
 }
+
 
 /* Login modal — centered card over a blurred page. */
 .login-modal-backdrop {
@@ -1344,6 +1342,7 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   display: inline-flex; align-items: center; justify-content: center;
 }
 .login-modal-close:hover { background: var(--sand-50); }
+
 
 /* ── Dashboard ────────────────────────────────────────────────── */
 .dashboard-layout {
