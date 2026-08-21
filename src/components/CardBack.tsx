@@ -139,7 +139,7 @@ export default function CardBack(props: Props) {
   const overview = trimToSentence(overviewRaw, whatToExpect ? 420 : 700);
   const showBreakdown = Boolean(productId && hasBreakdown(productId));
   // A product card gets two halves whenever it has words to show. The ratings
-  // half no longer depends on there BEING ratings: 45 of 368 products have none
+  // half no longer depends on there BEING ratings: 43 of 365 products have none
   // yet, and dropping the half for those left a card that looked half-built
   // rather than one whose product is simply new. It says so instead.
   const twoHalves = Boolean(productId)
@@ -203,7 +203,7 @@ export default function CardBack(props: Props) {
     // alone — see RatingBreakdown for why five bars beat one number.
     blocks.push(<RatingBreakdown key="breakdown" id={productId} />);
   } else if (showTravellers) {
-    // Fallback for the 44 products with no captured histogram. Deliberately
+    // Fallback for the 43 products with no captured histogram. Deliberately
     // unbranded: these numbers come from the booking API, not from TripAdvisor,
     // and the cards carry no Viator branding by design — so the block says what
     // the number is rather than borrowing a logo for it.

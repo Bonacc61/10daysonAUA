@@ -9,7 +9,7 @@ import { combinedBreakdown } from '../data/reviewBreakdown';
  * product from 4.9 where everyone mildly agreed. The bars show which.
  *
  * ONE figure, summed across platforms, deliberately. Viator's own page prints
- * the combined count — 206 for the turtle tour, not the 154 it holds under its
+ * the combined count — 212 for the turtle tour, not the 157 it holds under its
  * own name — so a card showing a single platform reads as stale even when every
  * number on it is correct. The traveller checks the card against the page, and
  * the page is what the card has to agree with.

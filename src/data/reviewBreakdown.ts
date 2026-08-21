@@ -4,14 +4,14 @@ import SNAPSHOT from './reviewBreakdown.json';
  * How a product's reviews are DISTRIBUTED, per platform — the thing an average
  * hides.
  *
- * Captured from Viator's `/products/{product-code}` on 2026-08-14 by
+ * Captured from Viator's `/products/{product-code}` on 2026-08-21 by
  * `node tools/probe-reviews.cjs`, and committed: the same contract as the
- * coordinate registry and the start-time snapshot. 322 of 366 products have one;
+ * coordinate registry and the start-time snapshot. 322 of 365 products have one;
  * the rest have no reviews at all on either platform.
  *
  * WHY A SNAPSHOT AND NOT A LIVE CALL. The histogram is absent from
  * /products/search, which is what builds the catalog, so it needs one request
- * per product. At 366 products that is a minute of API calls — fine offline,
+ * per product. At 365 products that is a minute of API calls — fine offline,
  * impossible on a cache miss with a traveller waiting. Committing it makes the
  * per-visitor cost zero at any traffic level, which is the whole point.
  *
@@ -51,12 +51,12 @@ export type Breakdown = {
  * One rating for the product, summed across platforms.
  *
  * SUMMED, not per-platform, because the number a traveller can check is the one
- * on the Viator page — and that is the combined figure. Showing Viator's 154
- * beside TripAdvisor's 52 was accurate and still wrong: the page says 206, so a
- * card saying 154 reads as stale data even though both numbers are right.
+ * on the Viator page — and that is the combined figure. Showing Viator's 157
+ * beside TripAdvisor's 55 was accurate and still wrong: the page says 212, so a
+ * card saying 157 reads as stale data even though both numbers are right.
  *
  * The sum reproduces Viator's own `combinedAverageRating` exactly — 472918P1
- * gives (2x1 + 1x4 + 203x5) / 206 = 4.956, against the 4.9563 the API returns —
+ * gives (2x1 + 1x4 + 209x5) / 212 = 4.9575, matching the 4.957547 the API returns —
  * so this is their arithmetic, not ours.
  *
  * It also retires the need to name platforms on the card at all, which restores

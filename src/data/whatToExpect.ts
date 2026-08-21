@@ -18,7 +18,7 @@ import SNAPSHOT from './whatToExpect.json';
  *
  * `/products/search` builds the catalog and does not return `itinerary` at all,
  * so this cannot ride the catalog and arrives as a committed snapshot from
- * `node tools/probe-reviews.cjs`. 89 of 366 products have one.
+ * `node tools/probe-reviews.cjs`. 89 of 365 products have one.
  */
 const DATA: Record<string, string> = SNAPSHOT as Record<string, string>;
 

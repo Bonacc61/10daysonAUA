@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import CardBack from './CardBack';
+import { reviewSourcesFor } from '../data/reviewBreakdown';
 import type { ViatorItem } from '../types';
 import type { Activity } from '../data/activities';
 import { SNORKEL_GEAR } from '../data/gearRental';
@@ -20,6 +21,9 @@ const viator = (over: Partial<ViatorItem> = {}): ViatorItem => ({
   id: '8936P1', group_id: 'sailing-cruises',
   title: 'Arusun Catamaran Sail with Snorkeling in Aruba',
   image_url: '', price_usd: 89, duration: '2.5 hrs',
+  // Deliberately STALE against the snapshot (which reads 2,649 since the
+  // 2026-08-21 refresh). The card must show the snapshot's combined figure, not
+  // the item's own count, and leaving these equal made that untestable.
   rating: 4.8, review_count: 2645, viator_item_url: 'https://viator.com/x',
   is_best_seller: true, display_order: 0,
   description: 'Have a warm Aruban welcome on board of a beautiful 65-foot catamaran.',
@@ -31,10 +35,24 @@ const noop = () => {};
 describe('CardBack — a Viator product', () => {
   it('shows the combined review total, not one platform', () => {
     // The bug: the card said 154 (Viator alone) while the page said 206.
-    // 8936P1 is 1179 + 1466 = 2645 across the two platforms.
+    //
+    // Read from the snapshot rather than written out, because these are LIVE
+    // numbers on a committed capture: 8936P1 was 1179 + 1466 = 2645 until the
+    // 2026-08-21 refresh and 1182 + 1467 = 2649 after it. A literal here turns
+    // every routine refresh into a red suite that looks like a broken card.
+    //
+    // Still discriminating, in three ways: it fails if the card shows a single
+    // platform, it fails if the card shows the ITEM's own `review_count` (the
+    // fixture below deliberately holds a stale 2645, so the prop and the
+    // snapshot disagree), and it fails if the card shows nothing at all.
+    const sources = reviewSourcesFor('8936P1');
+    const combined = sources.reduce((t, x) => t + x.n, 0);
+    expect(sources.length).toBeGreaterThan(1);
     render(<CardBack kind="group" bestSeller={viator()} onFlip={noop} />);
-    expect(screen.getByText(/2,645 reviews/)).toBeInTheDocument();
-    expect(screen.queryByText(/1,179 reviews/)).not.toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`${combined.toLocaleString()} reviews`))).toBeInTheDocument();
+    for (const one of sources) {
+      expect(screen.queryByText(new RegExp(`${one.n.toLocaleString()} reviews`))).not.toBeInTheDocument();
+    }
   });
 
   it('labels Overview and What to expect as separate sections', () => {
@@ -84,7 +102,9 @@ describe('CardBack — a local pick that borrowed a product identity', () => {
 
   it('shows the product\'s ratings and Overview instead', () => {
     render(<CardBack kind="activity" activity={matched()} onFlip={noop} />);
-    expect(screen.getByText(/2,645 reviews/)).toBeInTheDocument();
+    expect(screen.getByText(
+      new RegExp(`${reviewSourcesFor('8936P1').reduce((t, x) => t + x.n, 0).toLocaleString()} reviews`),
+    )).toBeInTheDocument();
     expect(screen.getByText('Overview')).toBeInTheDocument();
   });
 

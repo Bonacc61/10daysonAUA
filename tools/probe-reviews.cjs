@@ -8,7 +8,7 @@
  *   NOT return is `reviews.sources[].reviewCounts` — the 1★…5★ histogram. That
  *   only appears on /products/{product-code}, one call per product.
  *
- *   328 sequential detail calls take over a minute, which is why this does not
+ *   365 sequential detail calls take over a minute, which is why this does not
  *   live inside the `viator-cards` ingest: an edge function on a cache miss has
  *   a traveller waiting on it. Run offline, commit the result, and the cost per
  *   visitor is zero no matter how many visitors there are.
@@ -106,7 +106,7 @@ async function pool(items, n, fn) {
       overviewHead: (body?.description ?? '').trim().slice(0, 120),
       // The "What to expect" narrative — a DIFFERENT page section from the
       // Overview, not another copy of it. Absent from /products/search, so only
-      // this probe can see it. 89 of 366 products publish one.
+      // this probe can see it. 89 of 365 products publish one.
       whatToExpect: (body?.itinerary?.activityInfo?.description ?? '').trim(),
     };
   });
