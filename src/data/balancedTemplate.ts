@@ -133,6 +133,16 @@ export const BALANCED_TEMPLATE: TemplateEntry[] = [
   { day: 3,  slot: 'morning',   id: 'mangel-halto',
     alternatives: [{ type: 'highBudget', activity: 'Private snorkel sail', privateUpgrade: true }] },
   { day: 3,  slot: 'afternoon', id: 'baby-beach-snorkel' },
+  // PROMOTED 2026-08-21. This row is no longer template-only: `naturalPoolFor`
+  // and the natural pool pre-pass in itineraryGenerator.ts give a Conchi
+  // excursion to every traveller above budget-conscious ON A TRIP OF 5+ DAYS,
+  // chosen from the budget and adventure sliders. Two exclusions, both
+  // deliberate: a shorter trip has one booking day and the catamaran staple
+  // wins it (owner ruling, 2026-08-21), and `no-early-mornings` excludes it at
+  // every length because all 22 live Conchi products are morning-pinned. The row stays here and still wins for a balanced
+  // traveller — the pre-pass stands down when the template has already placed
+  // one — because the template's day-4 placement carries the day-theme and
+  // geography reasoning the pre-pass does not.
   { day: 4,  slot: 'morning',   id: 'natural-pool-jeep',
     alternatives: [{ type: 'highBudget', activity: 'Private hike tour', privateUpgrade: true }] },
   // Day 4 afternoon carries arashi-beach again as of 2026-08-12, reversing the

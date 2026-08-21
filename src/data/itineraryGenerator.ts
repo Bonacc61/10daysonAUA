@@ -355,7 +355,7 @@ function scoreEntry(e: CardEntry, tags: Set<MatchTag>, prefSections: Set<Section
 }
 
 // --- Trace instrumentation (opt-in, off in the app) -------------------------
-// The engine discards candidates for five reported reasons and, once a plan is
+// The engine discards candidates for eight reported reasons and, once a plan is
 // returned, every one of those decisions is gone — leaving "why did two jeep
 // safaris land on consecutive days?" to be answered by reading the source.
 // Passing `onTrace` to generatePlan makes it narrate instead. Nothing is
@@ -367,7 +367,16 @@ export type TraceRejectReason =
   | 'already-placed'      // lastUsedDay — this exact id is elsewhere in the trip
   | 'similar-to-placed'   // notSimilar — route family, boat day-gap, one-boat-
                           // per-day, same-day Jaccard, cluster, trip-wide Jaccard
-  | 'day-time-budget'     // would push the day past DAY_CAP_MIN
+  | 'day-time-budget'     // would push the day past DAY_CAP_MIN (or EVENING_CAP_MIN)
+  | 'booking-cap'         // mayBook — not a booking day, or the trip's bookings
+                          // are spent. Split out of 'day-time-budget' on
+                          // 2026-08-21: `feasible` bundles the whole of
+                          // `withinDayShape` with the time check, and reporting
+                          // the bundle as a time overrun sent a real
+                          // investigation after the wrong rule.
+  | 'excluded-product'    // isExcludedPaidProduct — paid, and not on the whitelist
+  | 'day-shape'           // one paid outing a day, a day pass owning its day,
+                          // the meal cap, the per-day card and outing ceilings
   | 'same-kind-today'     // variety pass only; relaxed on the second run
   | 'over-budget';        // price > maxPrice for this slot
 
@@ -414,7 +423,11 @@ export type TraceEvent =
       type: 'preplaced';
       day: number;
       slot: Slot;
-      source: 'pin' | 'premium' | 'staple';
+      // 'template' distinguished on 2026-08-21. Template placements reported as
+      // 'staple', which hid the curated template's involvement entirely — the
+      // reason it took a code read to notice that the natural pool row exists
+      // and is gated to ~8% of travellers.
+      source: 'pin' | 'premium' | 'staple' | 'template';
       id: string;
       title: string;
     }
@@ -811,6 +824,91 @@ function privateUpgradeFor(
   return { kind: 'group', group, bestSeller: best, others: otherItemsInGroup(group.id, best.id, catalog) };
 }
 
+// Where the 22 live natural pool products split for the adventure slider. They
+// span 45-80: the hikes, horseback rides and the gentler park jeeps sit at the
+// bottom, the rugged jeeps and the UTV at the top. Measured 2026-08-21 — a
+// reface that shifts the spread wants these re-measured, not nudged.
+const NATURAL_POOL_RUGGED_MIN = 65;
+const NATURAL_POOL_GENTLE_MAX = 60;
+
+/**
+ * The natural pool excursion this traveller is offered, or undefined for a
+ * budget-conscious one.
+ *
+ * Both sliders steer it. BUDGET sets the price band — `fitItem` applies the
+ * tier's per-item ceiling, and above mid-range the pick is dearest-first, the
+ * same shape as `privateUpgradeFor`, because a traveller paying for the top of
+ * the tier should get the private version rather than the popular one. Below
+ * that, popularity decides: a mid-range traveller wants the island's signature
+ * run, not the priciest thing that still clears $200.
+ *
+ * The champion review floor is why "dearest-first" does not pick junk. Measured
+ * 2026-08-21: the two natural pool products at the top of the price range that
+ * this floor rejects are $680 (0 reviews) and $599 (15); the winner it leaves
+ * standing for money-no-object is $600 with 41. The same floor keeps
+ * `privateUpgradeFor` honest for the same reason.
+ */
+export function naturalPoolFor(
+  catalog: Catalog, tags: Set<MatchTag>,
+): Extract<CardEntry, { kind: 'group' }> | undefined {
+  return naturalPoolCandidatesFor(catalog, tags)[0];
+}
+
+/**
+ * The same choice as `naturalPoolFor`, but the whole ranked field rather than
+ * the winner — best first.
+ *
+ * The pre-pass walks it. A product that cannot be PLACED (an evening-named
+ * Conchi run with only a morning to put it in, a day whose shape refuses it)
+ * must not take the excursion down with it: the traveller gets the next-best
+ * natural pool tour instead of none. This is the same fall-through the staple
+ * pass runs over `[firstChoice, ...alternatives]`, and it exists for the same
+ * reason — a staple that could not be placed used to cost the trip its only
+ * boat trip rather than dropping to the afternoon sailing behind it.
+ */
+export function naturalPoolCandidatesFor(
+  catalog: Catalog, tags: Set<MatchTag>,
+): Extract<CardEntry, { kind: 'group' }>[] {
+  if (tags.has('budget')) return [];
+  const premium = tags.has('treat-yourself') || tags.has('money-no-object');
+  // A private variant is a money-no-object entitlement and not merely a
+  // question of affording one — settled 2026-08-19, and asserted by
+  // `bookableDensity.test.ts` ("leaves a treat-yourself traveller on the
+  // standard one, though they could afford it"). Treat-yourself still spends
+  // its tier (dearest-first), it just spends it on the dearest SHARED tour.
+  const privateOk = tags.has('money-no-object');
+  // The adventure band is a PREFERENCE, not a filter: it sorts ahead of price
+  // and popularity, but an off-band candidate still wins an empty band. "Every
+  // traveller above budget-conscious is offered one" is the requirement, and a
+  // catalog that happens to carry only rugged options must not silently
+  // produce nothing for a gentle traveller.
+  const offBand = (i: ViatorItem): 0 | 1 => {
+    const adv = itemAdventure(i);
+    if (tags.has('high-adventure')) return adv >= NATURAL_POOL_RUGGED_MIN ? 0 : 1;
+    if (tags.has('low-adventure')) return adv <= NATURAL_POOL_GENTLE_MAX ? 0 : 1;
+    return 0;
+  };
+  return catalog.items
+    .filter((i) => isNaturalPool(i)
+      && (privateOk || !PRIVATE_TITLE_RE.test(i.title))
+      && (i.review_count ?? 0) >= MIN_CHAMPION_REVIEWS
+      && !fitItem(i, tags).rejected)
+    // Tiebreak on id so two equal candidates resolve the same way whatever
+    // order the catalog arrives in — the stability rule champion selection,
+    // the splurge pre-pass and `privateUpgradeFor` all already follow.
+    .sort((a, b) => offBand(a) - offBand(b)
+      || (premium
+        ? b.price_usd - a.price_usd
+        : (b.review_count ?? 0) - (a.review_count ?? 0))
+      || (a.id < b.id ? -1 : 1))
+    .flatMap((best) => {
+      const group = catalog.groups.find((g) => g.id === best.group_id);
+      return group
+        ? [{ kind: 'group' as const, group, bestSeller: best, others: otherItemsInGroup(group.id, best.id, catalog) }]
+        : [];
+    });
+}
+
 // Whether a bookable may be placed on this day. Pins bypass the SCHEDULE half
 // (an explicit shortlist choice always lands) but never this function — see the
 // pin pre-pass, which marks the day booked without asking.
@@ -1086,6 +1184,11 @@ function pickForSlot(
   // back with no card at all after every slot has had its turn. It unlocks one
   // extra rung below the ladder — see `lastResortPick`.
   lastResort = false,
+  // Diagnostic only: WHY `feasible` refused a candidate, so the trace can name
+  // the gate that actually fired instead of filing the whole of
+  // `withinDayShape` under a time overrun. Never consulted unless `ctx.trace`
+  // is set, and never allowed to change a decision.
+  feasibleReason: (e: CardEntry) => TraceRejection['reason'] | null = () => 'day-time-budget',
 ): CardEntry | null {
   const affordable = (e: CardEntry) => entryPrice(e) <= maxPrice;
   // `unused` is trip-wide: lastUsedDay holds every id placed on any prior day,
@@ -1337,7 +1440,7 @@ function pickForSlot(
       } else if (sim) {
         rejections.push({ id, title, reason: 'similar-to-placed', detail: sim });
       } else if (!feasible(e)) {
-        rejections.push({ id, title, reason: 'day-time-budget' });
+        rejections.push({ id, title, reason: feasibleReason(e) ?? 'day-time-budget' });
       } else if (!kindOk(e)) {
         rejections.push({ id, title, reason: 'same-kind-today', detail: `kind "${entryKind(e)}" already placed today` });
       } else if ((maxPrice === 0 || ctx.tags.has('budget')) && !affordable(e)) {
@@ -2111,6 +2214,144 @@ export function generatePlan(
     return outings < MAX_ACTIVITIES_PER_DAY;
   };
 
+  // --- Natural pool pre-pass -------------------------------------------------
+  // Conchi is the island's signature excursion and the balanced template has
+  // always reserved day 4 morning for it — but the template is gated on
+  // `isBalancedTraveller` (med-adventure AND mid-range), so ~8% of travellers
+  // ever saw that row. Everyone else was left to the fill ladder, where a
+  // natural pool tour has to win a scheduled booking day AND out-rank the free
+  // curated beaches, and frequently lost both: measured 2026-08-21 on the live
+  // catalog, the budget-conscious and family personas got no natural pool at
+  // all while a $39 downtown walking tour took the leftover afternoon.
+  //
+  // This promotes that one template row to every traveller above
+  // budget-conscious, with `naturalPoolFor` choosing WHICH product from the
+  // budget and adventure sliders. It is NOT the whole template — opening that
+  // gate is a separate, measured decision that costs the Regenerate button
+  // (see the 2026-08-12 "yield curve" log entry), and one row is nowhere near
+  // the 65% slot coverage that broke reseed variety.
+  //
+  // Runs BEFORE the premium and staple pre-passes — but NOT because of the
+  // off-road family: the premium pass skips off-road outright. What the
+  // ordering actually decides is who spends the trip's BOOKING budget, which is
+  // what the guard below is about.
+  // `filteredCatalog` is flag-filtered but NOT auto-fill-filtered, so a UTV
+  // RENTAL or a self-drive listing is still in it — `isAutoFillExcluded` exists
+  // to keep exactly those out of a generated plan. Filtering the catalog rather
+  // than gating the result is deliberate: a rejected candidate then falls
+  // through to the next-best Conchi run instead of costing the traveller the
+  // excursion. Caught in pre-ship review, 2026-08-21.
+  //
+  // NO `privateUpgradeFor` LAYER HERE, also deliberately, and also from that
+  // review. It was tried and removed: that rule matches on route family and a
+  // private-sounding title, never on the destination, so for a money-no-object
+  // traveller it answered with "Aruba Island Private Jeep Tour Arikok Park &
+  // Baby beach" ($650) — a private jeep that never reaches Conchi — which then
+  // claimed the one-per-trip off-road family and left the top-paying tier with
+  // no natural pool excursion at all, the exact requirement this pass exists to
+  // meet. It is also unnecessary: `naturalPoolFor` is dearest-first for that
+  // tier, and the dearest credible natural pool product on the live catalog IS
+  // the private one ("Private 4x4 Natural Pool, Caves & Baby Beach", $600, 41
+  // reviews). Measured: the money-no-object pick is identical either way.
+  const naturalPoolCandidates = naturalPoolCandidatesFor(
+    { ...filteredCatalog, items: filteredCatalog.items.filter(autoFillOk) }, tags,
+  );
+  const templateHasNaturalPool = [...templateSlots.values()]
+    .some((slots) => [...slots.values()].some((p) => isNaturalPool({ title: entryTitle(p.cardEntry) })));
+  // NEVER the trip's only booking (pre-ship review, 2026-08-21). `bookingDays`
+  // returns exactly one day for a 2-4 day trip, and this pass runs before the
+  // staple pass, so on a long weekend the excursion took that single booking
+  // and the catamaran staple vanished — measured on the live catalog at 2, 3
+  // and 4 days: no boat outing in the plan at all. A sail is one of Aruba's
+  // four universal experiences and this guarantee is not worth the trip's only
+  // boat trip. The excursion resumes at 5 days, where there are two bookings to
+  // go round; verified at 5, 7 and 10.
+  // REMAINING, not the entitlement: `ctx.bookedDays` is already seeded above by
+  // pins and by surviving template bookables, so `bookingDaySet.size` alone
+  // would read a spent schedule as a free one. Latent rather than live today
+  // (production never passes `opts.pinned`, and a template that has a natural
+  // pool row stands this pass down before the arithmetic matters), but it is
+  // the same class of mistake as the 2-4 day regression above.
+  const hasBookingToSpare = ctx.bookingDaySet.size - ctx.bookedDays.size >= 2;
+  if (!templateHasNaturalPool && hasBookingToSpare) {
+    for (const naturalPool of naturalPoolCandidates) {
+      // The route-family rail the sibling premium pass carries. This pass places
+      // UNCONDITIONALLY and never reaches `similarReason`, so without it a
+      // pinned off-road tour plus this one is two off-road excursions in a trip
+      // — the thing the one-per-trip family rule exists to stop. Latent while
+      // pins are unwired in production; kept for the reason the premium pass
+      // keeps it.
+      // `continue`, not `break` — the sibling premium and staple loops both do,
+      // and the staple one carries a postmortem about `break` having silently
+      // deleted a staple for exactly this reason. Equivalent today (every
+      // candidate here returns 'offroad', because `routeFamilyOf` tests
+      // `isNaturalPool` first), but not coupled to that ordering.
+      const rf = tripRouteFamily(naturalPool, nDays);
+      if (rf && ctx.usedRouteFamilies.has(rf)) continue;
+      if (ctx.lastUsedDay.has(entryId(naturalPool))) continue;
+      const avail = (day: number, slot: Slot): boolean =>
+        slotAvail(day, slot)
+        // The same Conchi day rule `candidatesFor` applies: it is a full morning
+        // that starts with a drive across the island, so it belongs in the
+        // middle of a trip rather than on the day you land or the day you fly
+        // out.
+        //
+        // The `nDays <= 2` arm is UNREACHABLE here, kept only to mirror
+        // `candidatesFor` verbatim: this pass needs two booking days, which
+        // means nDays >= 5. Do not read it as a live branch.
+        && (nDays <= 2 || (day !== 1 && day !== nDays))
+        && freeArikokAfternoon(naturalPool, day, slot)
+        // One live natural pool product is a cruise, so `dayCapFamilyOf` calls
+        // it a boat. Same rail the staple pass applies for the same reason.
+        && avoidsBoatClash(naturalPool)(day)
+        // Slot legality on the PRODUCT. `naturalPoolFor` filters on the title
+        // saying "natural pool"; it does not read a time of day the same title
+        // may also state.
+        //
+        // Narrow, and worth being exact about it: `itemSlotOk` returns true
+        // unconditionally for a natural pool item in a MORNING (itemFit.ts), so
+        // the only thing this can refuse is a Conchi product whose own title
+        // says "Afternoon" — the case itemFit names as a future "Natural Pool
+        // Afternoon Tour". No such product exists on the live catalog today, so
+        // this is a rail rather than a live branch, and deleting it leaves the
+        // suite green. It stays because it is the one thing stopping a card
+        // that says Afternoon being printed in a morning slot.
+        //
+        // (It is NOT protecting against display-time refacing, as an earlier
+        // version of this comment claimed: the pass writes `staple: true`,
+        // which short-circuits refacing entirely.)
+        && itemSlotOkForFill(naturalPool.bestSeller, slot)
+        && fitsDayShape(naturalPool, day);
+      // Morning only, no fallback slots. Arikok's gates shut at 16:00 and an
+      // afternoon departure cannot get in, round the north coast and back out
+      // before closing — `itemSlotOkForFill` pins it the same way for the
+      // ladder.
+      const found = findPinSlot(['morning'], [], nDays, 1, avail);
+      if (!found) continue;
+      const { day, slot } = found;
+      if (!pinClaimed.has(day)) pinClaimed.set(day, new Set());
+      pinClaimed.get(day)!.add(slot);
+      // Retired trip-wide up front, exactly as the pin, template and staple
+      // passes do, so normal fill on an EARLIER day cannot place a second
+      // natural pool tour before the day loop reaches this one.
+      ctx.lastUsedDay.set(entryId(naturalPool), day);
+      bumpPlacement(ctx, entryId(naturalPool));
+      if (rf) ctx.usedRouteFamilies.add(rf);
+      { const cid = naturalPool.bestSeller.experience_cluster_id; if (cid) ctx.usedClusterIds.add(cid); }
+      if (dayCapFamilyOf(naturalPool) === 'boat') boatDays.add(day);
+      if (bookableTier(naturalPool, tags) !== null) ctx.bookedDays.add(day);
+      // Written into `templateSlots` rather than a map of its own: this IS a
+      // template row, and everything downstream — `claimedOn`, `fitsDayShape`,
+      // the day loop — already reads that map.
+      if (!templateSlots.has(day)) templateSlots.set(day, new Map());
+      templateSlots.get(day)!.set(slot, {
+        cardEntry: naturalPool, slotEntry: { ...toSlotEntry(naturalPool), staple: true },
+      });
+      break;
+    }
+  }
+  // ---------------------------------------------------------------------------
+
   // --- Premium splurge pre-pass ---------------------------------------------
   // A money-no-object traveller on a week-plus trip should get an aspirational
   // premium experience (a private charter) IN ADDITION to the universal crowd-
@@ -2483,15 +2724,19 @@ export function generatePlan(
     // put it on, and this way the "free afternoon" promise is not quietly
     // broken by whichever pre-pass got there first.
     const afternoonClaimed = slot === 'morning' && afternoonClaimedOn(d);
-    const withinDayShape = (e: CardEntry) => {
-      if (afternoonClaimed && isArikok(e)) return false;
+    // Returns WHY this entry does not fit the day, or null if it does — the same
+    // reason-string-is-primary shape `similarReason` uses, and for the same
+    // reason: the trace and the decision then read from one piece of code and
+    // can never diverge. `withinDayShape` below is the boolean the ladder uses.
+    const dayShapeReason = (e: CardEntry): TraceRejection['reason'] | null => {
+      if (afternoonClaimed && isArikok(e)) return 'day-shape';
       // A day pass owns its day outright, in both directions: nothing joins one,
       // and one never joins a day that already has something. Time accounting
       // cannot express this on its own — the evening budget is separate from
       // dayMin by design, so FULL_DAY_MIN can never reach it.
       const today = [...picks, ...ahead];
-      if (today.some(isFullDayEntry)) return false;
-      if (isFullDayEntry(e) && today.length > 0) return false;
+      if (today.some(isFullDayEntry)) return 'day-shape';
+      if (isFullDayEntry(e) && today.length > 0) return 'day-shape';
       // UNREACHABLE, kept as a rail. The ordering matters in principle — below
       // the meal branch a meal returns early and never meets the ceiling — but
       // `cardsToday` is `picks.length + ahead.length` and `fillSlot` only runs
@@ -2501,32 +2746,38 @@ export function generatePlan(
       // ceiling that actually bites is in the en-route food post-pass, which is
       // the only path that ever wrote a fourth card. Do not read this line as
       // the fix.
-      if (cardsToday >= MAX_CARDS_PER_DAY) return false;
-      if (isMealEntry(e)) return mealsToday < 1;
-      if (isRevisitableBeach(e)) return true;
+      if (cardsToday >= MAX_CARDS_PER_DAY) return 'day-shape';
+      if (isMealEntry(e)) return mealsToday < 1 ? null : 'day-shape';
+      if (isRevisitableBeach(e)) return null;
       // One paid outing a day. `today` is picks + reservedAhead, and both read
       // templateSlots, so whatever the template put on this day already counts
       // against the ladder — which is the whole point: the template's booking
       // wins the slot and the ladder may not add a second.
-      if (isPaidOuting(e) && today.filter(isPaidOuting).length >= MAX_PAID_OUTINGS_PER_DAY) return false;
+      if (isPaidOuting(e) && today.filter(isPaidOuting).length >= MAX_PAID_OUTINGS_PER_DAY) return 'day-shape';
       // The trip-wide booking cap. Strictly tighter than the per-day rule above,
       // which still governs everything that merely costs money — a day may still
       // read "jeep safari + a free beach + a sunset".
-      if (bookableTier(e, ctx.tags) !== null && !mayBook(ctx, d)) return false;
+      if (bookableTier(e, ctx.tags) !== null && !mayBook(ctx, d)) return 'booking-cap';
       // A paid Viator product that never made the whitelist is not auto-placed at
       // all — see isExcludedPaidProduct. Curated locals (kind 'activity') are
       // exempt: Arikok's gate, the Oranjestad guide and the Flamingo pass stay
       // placeable, they just never spend a booking slot.
-      if (isExcludedPaidProduct(e, ctx.tags)) return false;
-      return outingsToday < MAX_ACTIVITIES_PER_DAY;
+      if (isExcludedPaidProduct(e, ctx.tags)) return 'excluded-product';
+      return outingsToday < MAX_ACTIVITIES_PER_DAY ? null : 'day-shape';
     };
-    const feasible = (e: CardEntry) => withinDayShape(e) && (slot === 'evening'
+    const withinDayShape = (e: CardEntry) => dayShapeReason(e) === null;
+    // The trace's half: null means feasible. `feasible` stays a plain predicate
+    // so the ladder's hot path is unchanged.
+    const withinTimeBudget = (e: CardEntry) => (slot === 'evening'
       ? (picks.length > 0 ? BUFFER_MIN : 0) + entryDurationMin(e) <= EVENING_CAP_MIN
       : dayMin + (picks.length > 0 ? BUFFER_MIN : 0) + entryDurationMin(e) <= DAY_CAP_MIN);
+    const feasibleReason = (e: CardEntry): TraceRejection['reason'] | null =>
+      dayShapeReason(e) ?? (withinTimeBudget(e) ? null : 'day-time-budget');
+    const feasible = (e: CardEntry) => withinDayShape(e) && withinTimeBudget(e);
     // Theme-first: the day's anchor (first placed) slot is biased toward the
     // day theme; later slots fill freely (variety).
     const themeId = picks.length === 0 ? dayTheme?.id : undefined;
-    let pick = pickForSlot(ctx, slot, anchor, anchorCoord, maxP, usedKinds, feasible, themeId, lastResort);
+    let pick = pickForSlot(ctx, slot, anchor, anchorCoord, maxP, usedKinds, feasible, themeId, lastResort, feasibleReason);
     if (!pick) return;
     // --- Private upgrade for a money-no-object traveller (2026-08-19) --------
     // When this slot's pick is one of the trip's BOOKINGS, swap it for the
@@ -2661,12 +2912,13 @@ export function generatePlan(
       // catamaran the same day. Those two score Jaccard 0.500 against each other,
       // twice the 0.35 threshold; nothing was ever asked to compare them.
       const premium = premiumSlots.get(d)?.get(slot);
-      const autoPlaced = premium ?? templateSlots.get(d)?.get(slot) ?? stapleSlots.get(d)?.get(slot);
+      const template = templateSlots.get(d)?.get(slot);
+      const autoPlaced = premium ?? template ?? stapleSlots.get(d)?.get(slot);
       if (autoPlaced) {
         const { cardEntry: pick, slotEntry } = autoPlaced;
         emit?.({
           type: 'preplaced', day: d, slot,
-          source: premium ? 'premium' : 'staple',
+          source: premium ? 'premium' : template ? 'template' : 'staple',
           id: entryId(pick), title: entryTitle(pick),
         });
         budgetLeft -= entryPrice(pick);

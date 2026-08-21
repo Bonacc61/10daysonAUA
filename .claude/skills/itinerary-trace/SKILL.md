@@ -5,7 +5,7 @@ description: Make the matching engine explain a slot decision. Use when an itine
 
 # Itinerary trace
 
-The generator discards candidates for five reported reasons and keeps no record.
+The generator discards candidates for eight reported reasons and keeps no record.
 Once `generatePlan` returns you have the winners and nothing else — which is why
 diagnosing a duplicate historically meant simulating 1000 lines of
 `itineraryGenerator.ts` by hand. This makes the engine narrate instead.
@@ -28,7 +28,7 @@ question and fix the fallback cause first.
 
 | Flag | Effect |
 |---|---|
-| `--persona <name>` | `default`, `foodie`, `adventurer`, `splurge`, `family` |
+| `--persona <name>` | `default`, `foodie`, `adventurer`, `balanced`, `treat`, `splurge`, `family` |
 | `--days N` | trip length (default: the persona's) |
 | `--seed N` | regenerate variant; same seed = same plan |
 | `--pinned a,b` | simulate shortlisted picks |
@@ -74,6 +74,9 @@ afternoon  ✓  Arikok National Park 4x4 Jeep Safari   $89  pool 18/21, survivor
 | `day time budget` | past 8h of daytime activity, or past the 4h evening cap | `DAY_CAP_MIN` / `EVENING_CAP_MIN` |
 | `same kind today` | variety gate, first pass only | `entryKind` |
 | `over budget` | free-only arrival day, or a budget-conscious trip with its pool spent | `maxPrice === 0 \|\| tags.has('budget')` |
+| `booking cap` | not one of the trip's booking days, or its bookings are spent | `mayBook` |
+| `not whitelisted` | a paid Viator product that never made the booking whitelist | `isExcludedPaidProduct` |
+| `day shape` | one paid outing a day, a day pass owning its day, the meal cap, the per-day card and outing ceilings | `dayShapeReason` |
 
 `duplicate experience` always names which of the six rules fired, with the
 Jaccard score where relevant — that is usually the whole diagnosis.
@@ -89,7 +92,11 @@ cluster id at all (see [tag sparsity](../../../docs/matching-engine/development-
 **"This slot is empty."**
 `npm run trace -- --persona family --days 10 --only-open`
 Read the reason counts. A large `day time budget` count means the day is
-overbooked upstream, not that the pool is thin.
+overbooked upstream, not that the pool is thin. A large `booking cap` count
+means close to the opposite — the day is not one the trip may book on at all,
+so the slot's own shape is fine and the schedule is what to look at. Those two
+were a single `day time budget` label until 2026-08-21, which sent one
+investigation after the wrong rule.
 
 **"I expected activity X and never got it."**
 `--why "<part of the title>"`. If nothing matches at all, it was filtered

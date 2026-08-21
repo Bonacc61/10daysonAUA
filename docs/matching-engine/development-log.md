@@ -23,6 +23,10 @@ answersToTags(answers)
   → isAutoFillExcluded + championsByExperience   // one well-reviewed champion per experience
   → pin pre-pass                          // claim slots for `opts.pinned` (see note)
   → balanced template pre-pass            // mid-slider personas only
+  → natural pool pre-pass                 // above budget-conscious, 5+ days;
+                                          //   before the splurge and staples,
+                                          //   which is what decides who spends
+                                          //   the trip's booking budget
   → premium splurge pre-pass              // money-no-object; runs BEFORE staples
   → staple pre-pass                       // stands down on a family the splurge took
   → day loop (d = 1 … nDays)
@@ -2114,3 +2118,119 @@ a rule can fire constantly and cost nothing while alternatives remain.
   conservatively. If the live catalog shows false positives (legitimate variety
   blocked) or false negatives (duplicates still slip through), adjust this
   constant in `itineraryGenerator.ts`.
+
+### 2026-08-21 — the natural pool excursion was reaching plans by luck
+
+**Symptom:** a "treat yourself" couple was shown the $39 "Aruba Downtown
+Historic and Cultural Walking Tour" and no natural pool excursion. Reported as a
+ranking failure — a downtown walk beating Conchi.
+
+**Not the root cause.** The walking tour won its slot fairly. Traced on the live
+catalog, day 3 afternoon had 41 candidates, 36 rejected; the survivors were four
+free beaches and the walking tour. No natural pool tour was in that pool at all —
+`itemSlotOkForFill` pins Conchi to a morning because Arikok shuts at 16:00.
+
+**Root cause, two halves.**
+
+1. `BALANCED_TEMPLATE` has reserved day 4 morning for `natural-pool-jeep` since
+   it was written, but the template is gated on `isBalancedTraveller` —
+   `med-adventure` AND `mid-range`, about 8% of answer combinations. None of the
+   five trace personas satisfied both, which is why no trace ever showed the row
+   firing and why it looked like the template had no natural pool in it.
+2. Everyone else fell through to the fill ladder, where a natural pool tour has
+   to win a scheduled booking day (`mayBook`) AND out-rank the free curated
+   beaches. Measured over the five personas: `default`, `adventurer` and
+   `splurge` got one by luck; budget-conscious and family got none. For the
+   budget-conscious persona it passed every gate on days 4 and 6 and still lost
+   the ranking — to Eagle Beach ($0) and Tres Trapi ($0).
+
+Compounding it: a walking tour returns `null` from `bookableTier`, so it is not
+rationed by the booking schedule at all and drifts into whatever slot is left
+over. The cheap filler is uncapped while the headline excursion is rationed.
+That half is UNCHANGED and is worth revisiting separately.
+
+**Fix:** a natural pool pre-pass (`itineraryGenerator.ts`), promoting that one
+template row to every traveller above budget-conscious. `naturalPoolFor` chooses
+WHICH product from both sliders — budget sets the price band (`fitItem`'s tier
+ceiling, then dearest-first above mid-range and best-known at mid-range),
+adventure sets the intensity, as a preference rather than a filter so an empty
+band still yields a pick. A private variant stays a money-no-object entitlement
+(`privateOk`), preserving the 2026-08-19 ruling that treat-yourself keeps the
+standard tour though it could afford the private one. `naturalPoolCandidatesFor`
+returns the whole ranked field and the pre-pass walks it, so a product that
+cannot be PLACED falls through to the next-best rather than costing the
+traveller the excursion — the same fall-through the staple pass runs.
+
+A `privateUpgradeFor` layer inside the pre-pass was written, measured and
+REMOVED in pre-ship review. That rule matches on route family and a
+private-sounding title, never on the destination, so it answered with "Aruba
+Island Private Jeep Tour Arikok Park & Baby beach" ($650) — a private jeep that
+never reaches Conchi — which then claimed the one-per-trip off-road family and
+left the top-paying tier with no natural pool excursion at all. It was also
+unnecessary: `naturalPoolFor` is dearest-first for that tier and the dearest
+credible natural pool product on the live catalog IS the private one.
+
+Deliberately NOT the whole template: opening that gate is the parked 2026-08-12
+"yield curve" decision and costs the Regenerate button at 65% slot coverage.
+One row is nowhere near that.
+
+**Measured after, live catalog, 7 days, seed 0:**
+
+```
+default      Island Jeep Safari with Natural Pool Baby Beach   $139  (most-reviewed <= cap)
+adventurer   Island Jeep Safari with Natural Pool Baby Beach   $139  (high band)
+treat        Aruba UTV Adventure to Natural Pool               $349  (dearest NON-PRIVATE <= $400)
+splurge      Private 4x4 Natural Pool, Caves & Baby Beach      $600  (dearest credible; private)
+balanced     Aruba Natural Pool and Indian Cave Rugged Jeep    $99   (template's own row)
+foodie       none                                                    (budget-conscious)
+family       none                                                    (no-early-mornings)
+```
+
+`family` is correct, not a gap: Conchi is morning-only and that persona ticked
+"no early mornings". A traveller who declined early mornings is not put in a 7am
+jeep pickup.
+
+**Trip length is the second exclusion, and it was nearly shipped as a
+regression.** `bookingDays` returns exactly ONE booking day for a 2-4 day trip
+(2→[2], 3→[2], 4→[3]). The pre-pass runs before the staple pass, so on a long
+weekend the excursion took that single booking and `mayBook` then refused the
+catamaran — measured on the live catalog at 2, 3 and 4 days: **no boat outing in
+the plan at all**, against a boat in every plan before. Every new test used
+`days: 7` and the table above is 7-day only, so the first round of verification
+could not see it.
+
+Ruled by the owner, 2026-08-21 — "the catamaran has preference over the jeep
+conchi / natural pool tour in the shortest of trips": the staple wins. A sail is one of Aruba's four universal experiences and
+this guarantee is not worth the trip's only boat trip. `hasBookingToSpare`
+(`ctx.bookingDaySet.size >= 2`) stands the pass down, so the natural pool
+excursion is guaranteed from 5 days up. Verified at 2/3/4 (sail restored, no
+Conchi) and 5/7/10 (both).
+
+**Cost, accepted:** off-road is a one-per-trip route family, so that single slot
+now goes to the natural pool product for every non-budget traveller. The
+`bookableDensity` sweep's "both off-road products stay reachable" assertion was
+narrowed to match, with the reasoning recorded there. On live data this gives up
+less than the synthetic fixture suggests — 15 of the 22 live natural pool
+products are themselves jeep or UTV tours.
+
+**Found in pre-ship review, and worth recording as a coverage loss:** the
+ladder's off-road private upgrade is now unreachable — the pre-pass claims that
+booking first — so `bookableDensity.test.ts`'s "refuses a private variant the
+slot cannot legally hold" passes for the wrong reason and no longer catches the
+guard's removal (confirmed by deleting the guard and watching it stay green).
+Retargeting it to the sail family does not work either: the premium splurge
+pre-pass places `private-charter` itself, so the ladder's `fresh` check blocks
+the upgrade before the slot guard is consulted. The guard is unchanged and
+correct; what is gone is the test's ability to prove it. The test is left in
+place, marked SUPERSEDED, rather than deleted. Whether `privateUpgradeFor` in
+the ladder is now substantially dead is a separate investigation.
+
+**Also fixed, because it caused the misdiagnosis:** the trace reported the whole
+of `feasible()` as `day time budget`. `feasible` bundles `withinDayShape` — the
+booking cap, the one-paid-outing-a-day rule, the whitelist exclusion — with the
+DAY_CAP_MIN check, so "day 3 is not a booking day" read as "day 3 is too full".
+`dayShapeReason` now returns the reason and `withinDayShape` is derived from it,
+the same reason-string-is-primary shape `similarReason` uses. New codes:
+`booking-cap`, `excluded-product`, `day-shape`. Template placements also
+reported as `staple`, hiding the template's involvement entirely; `preplaced`
+now carries a `template` source.

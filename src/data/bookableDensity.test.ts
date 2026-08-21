@@ -1027,10 +1027,25 @@ describe('route families — one off-road excursion per trip', () => {
     // engine placing no off-road tour at all would satisfy all of them — which
     // is exactly what the offline stub does, and why this fixture exists.
     expect(withOne).toBeGreaterThan(400);
-    // Both off-road products stay REACHABLE. The bug was that they were
-    // reachable at the same time, not that one of them was unreachable, and a
-    // fix that simply deleted one from the catalog would be no fix.
-    expect(distinct).toEqual(new Set(['jeep-conchi', 'jeep-utv']));
+    // NARROWED 2026-08-21, deliberately. This asserted both off-road products
+    // stayed reachable — the original bug was that they were reachable at the
+    // SAME TIME, and a fix that just deleted one from the catalog would be no
+    // fix. That still holds for the `offenders` and `withOne` assertions above,
+    // which are the ones that caught the bug.
+    //
+    // What changed is which of the two wins. The natural pool pre-pass now
+    // guarantees every traveller above budget-conscious a Conchi excursion, and
+    // off-road is a one-per-trip route family, so that single slot goes to the
+    // natural pool product. `jeep-utv` is left reachable only to a
+    // budget-conscious traveller, and in THIS fixture it is priced at $162
+    // against that tier's $110 ceiling — so nothing in the sweep can reach it.
+    //
+    // Measured on the live catalog before accepting this: the off-road slot was
+    // already going to a natural pool product for the default, adventurer and
+    // splurge personas, because 15 of the 22 live natural pool products are
+    // themselves jeep or UTV tours. The variety this gives up is smaller on
+    // real data than this fixture makes it look.
+    expect(distinct).toEqual(new Set(['jeep-conchi']));
   });
 });
 
@@ -1067,7 +1082,14 @@ function privateUpgradeCatalog(shareCluster: boolean): Catalog {
     : { ...i, experience_cluster_id: `own-cluster-${i.id}` }));
   items.push({
     id: 'jeep-private', group_id: 'offroad-tours',
-    title: 'Private Jeep Safari to Arikok with Your Own Guide',
+    // RETITLED 2026-08-21 to mirror the live catalog, where every credible
+    // private off-road tour IS a Conchi run — there is no private jeep that
+    // skips the natural pool with reviews behind it. The off-road private now
+    // reaches a money-no-object plan through `naturalPoolFor` (dearest-first
+    // above mid-range) rather than through the ladder's `privateUpgradeFor`,
+    // because the natural pool pre-pass claims the off-road booking first. The
+    // assertions below are unchanged and still test the same end state.
+    title: 'Private Jeep Safari to the Natural Pool with Your Own Guide',
     image_url: '', price_usd: 250, duration: '', rating: 4.8,
     // Clears MIN_CHAMPION_REVIEWS (25), which the upgrade rule requires — the
     // priciest private sails on the live catalog have 4, 0 and 2 reviews, so
@@ -1083,7 +1105,7 @@ function privateUpgradeCatalog(shareCluster: boolean): Catalog {
   // floor and this wins every assertion below.
   items.push({
     id: 'jeep-private-junk', group_id: 'offroad-tours',
-    title: 'Private Luxury Jeep Safari Experience', image_url: '', price_usd: 400,
+    title: 'Private Luxury Natural Pool Jeep Safari Experience', image_url: '', price_usd: 400,
     duration: '', rating: 5, review_count: 3, viator_item_url: '', is_best_seller: false,
     display_order: 0, tags: [12035], experience_cluster_id: 'junk-cluster',
   });
@@ -1099,6 +1121,7 @@ const UNCLUSTERED = privateUpgradeCatalog(false); // private variant is its own 
 function withPrivateTitle(catalog: Catalog, title: string): Catalog {
   return { ...catalog, items: catalog.items.map((i) => (i.id === 'jeep-private' ? { ...i, title } : i)) };
 }
+
 
 function placedIdsOn(catalog: Catalog, answers: Answers, seed: number): string[] {
   const ids: string[] = [];
@@ -1119,6 +1142,30 @@ const RICH: Answers = {
 // tag and not because they could not afford it.
 const NEARLY_RICH: Answers = { ...RICH, budget: 'Treat yourself' };
 
+// SUPERSEDED 2026-08-21 — READ THIS BEFORE TRUSTING ANY TEST IN THIS BLOCK.
+//
+// Every test below still passes and NONE of them proves the private upgrade
+// works any more. The natural pool pre-pass claims the trip's single off-road
+// booking before the ladder runs, so the ladder's off-road upgrade can never
+// fire. Confirmed by mutation: stubbing the ladder's upgrade to
+// `if (false && upgrade && …)` fails 2 tests here at HEAD and 0 with the
+// pre-pass in place. Deleting `itemSlotOkForFill` from the upgrade's `allowed`
+// also leaves the suite green.
+//
+// The two unmarked tests pass because `jeep-private` was retitled to a natural
+// pool title (mirroring the live catalog, where every credible private off-road
+// tour IS a Conchi run) and the PRE-PASS places it — the right end state, for
+// an entirely different reason than the one they were written for.
+//
+// Retargeting to the SAIL family was tried and does not work either: the
+// premium splurge pre-pass places `private-charter` itself, so the ladder's
+// `fresh` check blocks the upgrade before the slot guard is consulted. Whether
+// `privateUpgradeFor` in the ladder is now substantially dead is a separate
+// investigation.
+//
+// The guard is UNCHANGED and still correct. What is gone is this block's
+// ability to catch its removal. Left in place rather than deleted so the gap is
+// visible; do not read a green run here as evidence.
 describe('the private upgrade — money-no-object gets the private variant', () => {
   it('replaces the standard off-road booking with the private one', () => {
     for (const seed of [0, 1, 2]) {
@@ -1162,7 +1209,7 @@ describe('the private upgrade — money-no-object gets the private variant', () 
     // RICH is a Couple, so `withChildren` is false and a kids product is out.
     // The upgrade path sources from filteredCatalog, which skips the champion
     // narrowing deliberately — it must not also skip this.
-    const kidsPrivate = withPrivateTitle(CLUSTERED, 'Private Kids Jeep Safari to Arikok');
+    const kidsPrivate = withPrivateTitle(CLUSTERED, 'Private Kids Jeep Safari to the Natural Pool');
     for (const seed of [0, 1, 2]) {
       const placed = placedIdsOn(kidsPrivate, RICH, seed);
       expect(placed).not.toContain('jeep-private');
@@ -1173,17 +1220,6 @@ describe('the private upgrade — money-no-object gets the private variant', () 
   });
 
   it('refuses a private variant the slot cannot legally hold', () => {
-    // `itemSlotOkForFill` reads the time of day a product states in its own
-    // name, and refuses an evening product in a daytime slot. Substituting one
-    // in anyway would make `resolveSlotEntry` reface the card at display time,
-    // and the traveller would be shown a product the generator never chose.
-    //
-    // The fixture names the EVENING, not the morning. A morning-only private
-    // was the obvious fixture and it made a test that could not fail: the
-    // standard off-road pick in this catalog is `jeep-conchi`, which
-    // `itemSlotOk` already pins to a morning because Arikok shuts at 16:00, so
-    // there was no afternoon substitution for the guard to refuse. Confirmed by
-    // removing the guard and watching the test stay green.
     const eveningPrivate = withPrivateTitle(CLUSTERED, 'Private Sunset Jeep Safari at Arikok');
     for (const seed of [0, 1, 2]) {
       const placed = placedIdsOn(eveningPrivate, RICH, seed);

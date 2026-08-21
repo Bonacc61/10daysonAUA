@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { generatePlan, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies, isPaidOuting, isBoatOuting, dayCapFamilyOf, gapFamilyOf, routeFamilyOf } from './itineraryGenerator';
+import { generatePlan, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies, isPaidOuting, isBoatOuting, dayCapFamilyOf, gapFamilyOf, routeFamilyOf, naturalPoolFor } from './itineraryGenerator';
+import type { TraceEvent } from './itineraryGenerator';
 import { getCatalog } from './activitySource';
 import { DEFAULT_ANSWERS } from '../App';
 import type { Answers } from '../App';
@@ -3202,5 +3203,312 @@ describe('generatePlan — no traveller gets a blank day', () => {
         expect(cards, `${days}-day trip, day ${i + 1} has no cards at all`).toBeGreaterThan(0);
       });
     }
+  });
+});
+
+// ── The natural pool excursion, per budget and adventure band ────────────────
+//
+// Conchi is the island's signature excursion and every traveller above
+// budget-conscious should be offered one. Which one is a function of BOTH
+// sliders: budget sets the price band, adventure sets the intensity. Before
+// this, the natural pool reached a plan only when the fill ladder happened to
+// land one on a scheduled booking day, so budget-conscious and family plans
+// got none at all while a $39 downtown walking tour took the leftover slot.
+describe('naturalPoolFor — selection by budget and adventure', () => {
+  const mkGroup = (id: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  // Prices, adventure scores and review counts are the live values of the
+  // products they are named for (measured 2026-08-21). The VALUES are live; the
+  // resulting order is not the production order, because the fixture leaves out
+  // the products that actually win — on the full 327-item catalog a mid-range
+  // med-adventure traveller gets "Island Jeep Safari with Natural Pool Baby
+  // Beach and Lunch" ($139, 10,017 reviews). These are unit tests of the
+  // ordering RULE; the per-persona production picks are recorded in
+  // docs/matching-engine/development-log.md.
+  const mkItem = (
+    id: string, title: string, price: number, adventure: number, reviews: number,
+  ): ViatorItem => ({
+    id, group_id: `g-${id}`, title,
+    image_url: '', price_usd: price, duration: '4 hrs', rating: 4.9, review_count: reviews,
+    viator_item_url: '', is_best_seller: true, display_order: 0,
+    tags: [12035], experience_cluster_id: `c-${id}`, adventure,
+  });
+
+  const MILD_JEEP    = mkItem('441143P1', 'Aruba Arikok National Park Jeep Safari: Natural Pool & Baby Beach', 95, 45, 436);
+  const RUGGED_JEEP  = mkItem('6841POOL', 'Aruba Natural Pool and Indian Cave Rugged Jeep Safari', 99, 70, 9360);
+  const UTV          = mkItem('6841P7', 'Aruba UTV Adventure to Natural Pool Jeep Transfer', 349, 80, 7031);
+  const PRIVATE_4X4  = mkItem('441143P5', 'Private 4x4 Natural Pool, Caves & Baby Beach by Cross Aruba', 600, 45, 41);
+  // 0 reviews — below MIN_CHAMPION_REVIEWS. Dearest-first must not pick junk,
+  // the same floor `privateUpgradeFor` applies for the same reason.
+  const UNPROVEN     = mkItem('5566924P8', 'Private Aruba Jeep Tour Natural Pool and Beyond', 680, 70, 0);
+  const NOT_CONCHI   = mkItem('ctrl', 'Aruba Catamaran Sail with Snorkeling', 120, 40, 2000);
+
+  const items = [MILD_JEEP, RUGGED_JEEP, UTV, PRIVATE_4X4, UNPROVEN, NOT_CONCHI];
+  const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
+  const tags = (...t: MatchTag[]) => new Set<MatchTag>(['couple', ...t]);
+  const pickedId = (t: Set<MatchTag>) => naturalPoolFor(cat, t)?.bestSeller.id;
+
+  it('offers no natural pool excursion to a budget-conscious traveller', () => {
+    expect(naturalPoolFor(cat, tags('budget', 'med-adventure'))).toBeUndefined();
+  });
+
+  it('gives a mid-range traveller the best-known excursion inside the tier cap', () => {
+    // $200 cap. Both jeeps clear it; the rugged one is the island's signature
+    // product at 9,360 reviews, so popularity decides — not price.
+    expect(pickedId(tags('mid-range', 'med-adventure'))).toBe('6841POOL');
+  });
+
+  it('gives a treat-yourself traveller the dearest excursion inside the tier cap', () => {
+    // $400 cap. The $600 private is out of reach; the $349 UTV is the top of
+    // what this tier can spend.
+    expect(pickedId(tags('treat-yourself', 'med-adventure'))).toBe('6841P7');
+  });
+
+  it('gives a money-no-object traveller the dearest excursion that has a track record', () => {
+    // Uncapped, so dearest-first — but the $680 private has 0 reviews and must
+    // lose to the $600 one with 41, the same champion floor privateUpgradeFor
+    // applies for the same reason.
+    expect(pickedId(tags('money-no-object', 'med-adventure'))).toBe('441143P5');
+  });
+
+  it('steps a low-adventure mid-range traveller down to the gentler jeep', () => {
+    // Same $200 cap as the med-adventure case above, and the rugged jeep is
+    // still the better-known product — the adventure band is what moves the
+    // pick, which is the whole point of taking both sliders.
+    expect(pickedId(tags('mid-range', 'low-adventure'))).toBe('441143P1');
+  });
+
+  it('steps a low-adventure treat-yourself traveller down from the UTV', () => {
+    // Dearest-first would take the $349 UTV at adventure 80. A traveller who
+    // told us they want it gentle should not be sold the roughest ride on the
+    // island just because they can afford it.
+    expect(pickedId(tags('treat-yourself', 'low-adventure'))).toBe('441143P1');
+  });
+
+  it('keeps the UTV for a high-adventure treat-yourself traveller', () => {
+    expect(pickedId(tags('treat-yourself', 'high-adventure'))).toBe('6841P7');
+  });
+
+  it('still offers an excursion when nothing matches the adventure band', () => {
+    // The band is a PREFERENCE, not a filter. "Every traveller above
+    // budget-conscious gets one" outranks intensity matching, so a catalog with
+    // only rugged options must still produce a pick for a gentle traveller.
+    const ruggedOnly: Catalog = {
+      activities: [], groups: [mkGroup('g-6841P7'), mkGroup('g-6841POOL')], items: [UTV, RUGGED_JEEP],
+    };
+    expect(naturalPoolFor(ruggedOnly, tags('money-no-object', 'low-adventure'))?.bestSeller.id).toBe('6841P7');
+  });
+});
+
+// ── The natural pool excursion reaches the plan ──────────────────────────────
+//
+// Two exclusions beyond budget-conscious, both deliberate and both covered by
+// their own tests below/elsewhere: a trip under 5 days has one booking day and
+// the catamaran staple wins it, and `no-early-mornings` excludes it at every
+// length because all 22 live Conchi products are morning-pinned.
+//
+// Selecting one is half the job. Before this, the natural pool reached a plan
+// only if the fill ladder happened to land one on a scheduled booking day —
+// which it did for three of the five trace personas and not for the other two,
+// so whether a traveller was offered the island's signature excursion came down
+// to luck. `naturalPoolFor` decides; this pass places what it decided.
+describe('generatePlan — a natural pool excursion for every budget tier above budget-conscious', () => {
+  const mkGroup = (id: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  const mk = (id: string, title: string, price: number, adventure: number, reviews: number): ViatorItem => ({
+    id, group_id: `g-${id}`, title, image_url: '', price_usd: price, duration: '4 hrs',
+    rating: 4.9, review_count: reviews, viator_item_url: '', is_best_seller: true,
+    display_order: 0, tags: [12035, 1], experience_cluster_id: `c-${id}`, adventure,
+  });
+
+  const items = [
+    mk('441143P1', 'Aruba Arikok National Park Jeep Safari: Natural Pool & Baby Beach', 95, 45, 436),
+    mk('6841POOL', 'Aruba Natural Pool and Indian Cave Rugged Jeep Safari', 99, 70, 9360),
+    mk('6841P7', 'Aruba UTV Adventure to Natural Pool Jeep Transfer', 349, 80, 7031),
+  ];
+  // The rival jeep is why this fixture can fail. Off-road is a ONE-PER-TRIP
+  // route family, so whichever jeep the ladder places first retires every other
+  // one — and on review count this one wins every time. That is the live
+  // mechanism, not a contrivance: it is how a plan ends up with a jeep safari
+  // and no natural pool.
+  // Adventure 50 is dead-centre for DEFAULT_ANSWERS, so it out-fits every
+  // natural pool product as well as out-reviewing them.
+  items.push(mk('rival', 'Aruba Jeep Safari Adventure to Arikok and Baby Beach', 89, 50, 50000));
+  // Padding so the ladder has something to fill the other slots with and the
+  // assertion is about the natural pool pass, not about an empty catalog.
+  for (let n = 0; n < 16; n += 1) {
+    items.push(mk(`pad-${n}`, `Aruba Snorkel Boat Charter ${n}`, 70, 40, 300));
+    items[items.length - 1].tags = [11912, 90000 + n];
+  }
+  const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
+  const NATURAL_POOL_IDS = ['441143P1', '6841POOL', '6841P7'];
+
+  // Exactly one, and WHICH one is the tier's answer — not whatever the ladder
+  // would have reached for. At mid-range that is the signature $99 rugged jeep;
+  // above it, the $349 UTV.
+  const EXPECTED: Record<string, string> = {
+    'Mid-range': '6841POOL',
+    'Treat yourself': '6841P7',
+    'Money no object': '6841P7',
+  };
+  for (const [budget, want] of Object.entries(EXPECTED)) {
+    it(`places ${want} for a ${budget} traveller`, () => {
+      const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 7, budget }, cat, { seed: 0 }));
+      expect(ids.filter((id) => NATURAL_POOL_IDS.includes(id))).toEqual([want]);
+    });
+  }
+
+  it('places none for a budget-conscious traveller', () => {
+    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 7, budget: 'Budget-conscious' }, cat, { seed: 0 }));
+    expect(ids.filter((id) => NATURAL_POOL_IDS.includes(id))).toHaveLength(0);
+  });
+});
+
+// ── The trace names the gate that actually fired ─────────────────────────────
+//
+// `feasible()` bundles `withinDayShape` — the trip-wide booking cap, the
+// one-paid-outing-a-day rule, the whitelist exclusion — with the DAY_CAP_MIN
+// time check, and the trace reported the whole bundle as "day time budget".
+// That is not a cosmetic mislabel: diagnosing why a natural pool tour never
+// reached a plan on 2026-08-21 read as a day that was too full, when the real
+// answer was that day 3 was not one of the trip's booking days.
+describe('trace — a candidate blocked by the booking cap is not reported as a time overrun', () => {
+  const mkGroup = (id: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  // 30 min each: nothing here can ever exhaust DAY_CAP_MIN, so any
+  // 'day-time-budget' verdict on this catalog is a mislabel by construction.
+  const mk = (id: string, title: string): ViatorItem => ({
+    id, group_id: `g-${id}`, title, image_url: '', price_usd: 90, duration: '30 min',
+    rating: 4.8, review_count: 900, viator_item_url: '', is_best_seller: true,
+    display_order: 0, tags: [11912, Number(id.replace(/\D/g, '')) + 90000], experience_cluster_id: `c-${id}`,
+  });
+  const items = Array.from({ length: 12 }, (_, n) => mk(`s${n}`, `Aruba Snorkel Boat Charter ${n}`));
+  const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
+
+  it('reports the booking cap by name', () => {
+    const events: TraceEvent[] = [];
+    generatePlan({ ...DEFAULT_ANSWERS, days: 7, budget: 'Mid-range' }, cat, { seed: 0, onTrace: (e) => events.push(e) });
+    const reasons = events
+      .filter((e): e is Extract<TraceEvent, { type: 'slot' }> => e.type === 'slot')
+      .flatMap((e) => e.rejections.map((r) => r.reason));
+    // Every one of these is a 30-minute product, so nothing can legitimately be
+    // a time overrun. They are blocked because the trip's booking days are
+    // spent — which the trace must say out loud.
+    expect(reasons).toContain('booking-cap');
+    expect(reasons).not.toContain('day-time-budget');
+  });
+});
+
+// ── The natural pool pre-pass honours the same gates as every other pass ─────
+//
+// Both caught in pre-ship review, 2026-08-21. The pass sources from
+// `filteredCatalog`, which is NOT auto-fill-filtered, and it applies a private
+// upgrade whose only test is route family — so it could place a UTV RENTAL, or
+// a private jeep tour that never goes to the natural pool. Either one then
+// claims the trip's one off-road route family and locks a real Conchi run out.
+describe('the natural pool pre-pass — gates it must not skip', () => {
+  const mkGroup = (id: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  const mk = (
+    id: string, title: string, price: number, reviews: number,
+  ): ViatorItem => ({
+    id, group_id: `g-${id}`, title, image_url: '', price_usd: price, duration: '4 hrs',
+    rating: 4.9, review_count: reviews, viator_item_url: '', is_best_seller: true,
+    display_order: 0, tags: [12035, 1], experience_cluster_id: `c-${id}`, adventure: 65,
+  });
+  const filler = (n: number): ViatorItem => {
+    const i = mk(`pad-${n}`, `Aruba Snorkel Boat Charter ${n}`, 70, 300);
+    return { ...i, tags: [11912, 90000 + n], adventure: 40 };
+  };
+
+  it('does not place a natural pool product the auto-fill rules exclude', () => {
+    // `isAutoFillExcluded`: HIRE_RE + VEHICLE_RE. Best-reviewed by a wide
+    // margin, so popularity ordering picks it unless the gate runs — and it
+    // must fall through to the real tour, not drop the excursion.
+    const items = [
+      mk('rental', 'Aruba UTV Rental Self-Drive to the Natural Pool', 120, 9000),
+      mk('guided', 'Aruba Natural Pool and Indian Cave Rugged Jeep Safari', 99, 400),
+      ...Array.from({ length: 12 }, (_, n) => filler(n)),
+    ];
+    const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
+    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 7, budget: 'Mid-range' }, cat, { seed: 0 }));
+    expect(ids).not.toContain('rental');
+    expect(ids).toContain('guided');
+  });
+
+  it('gives a money-no-object traveller a private tour that actually goes to the natural pool', () => {
+    // `privateUpgradeFor` matches route family + PRIVATE_TITLE_RE, never
+    // `isNaturalPool`. The decoy is dearer, so dearest-first takes it, it claims
+    // the one-per-trip off-road family, and the plan ends with no Conchi run —
+    // for the tier paying the most. The private CONCHI tour is the right answer.
+    const items = [
+      mk('private-decoy', 'Private Jeep Tour of Aruba Island Highlights', 650, 200),
+      mk('private-conchi', 'Private Jeep Safari to the Natural Pool and Indian Caves', 400, 200),
+      mk('standard', 'Aruba Natural Pool and Indian Cave Rugged Jeep Safari', 99, 9000),
+      ...Array.from({ length: 12 }, (_, n) => filler(n)),
+    ];
+    const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
+    const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days: 7, budget: 'Money no object' }, cat, { seed: 0 }));
+    expect(ids).not.toContain('private-decoy');
+    expect(ids).toContain('private-conchi');
+  });
+});
+
+// ── A short trip keeps its boat ──────────────────────────────────────────────
+//
+// Caught in pre-ship review, 2026-08-21. `bookingDays` returns exactly ONE day
+// for a 2-4 day trip (2→[2], 3→[2], 4→[3]), and the natural pool pre-pass runs
+// before the staple pass — so on a long weekend the excursion took the trip's
+// only booking and the catamaran staple vanished. Measured on the live catalog
+// at 2, 3 and 4 days: no boat outing in the plan at all, against a boat in
+// every plan at HEAD.
+//
+// The staple wins. A sail is one of Aruba's four universal experiences and the
+// natural pool guarantee is not worth the trip's only boat trip; the excursion
+// resumes from 5 days, where there are two bookings to go round.
+describe('generatePlan — the natural pool pass never spends the trip\'s only booking', () => {
+  const mkGroup = (id: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: '', viator_group_url: '',
+    display_order: 0, matched_by: [] as MatchTag[], region: 'islandwide' as const, allowed_slots: [] as const,
+  });
+  const mk = (id: string, title: string, tags: number[]): ViatorItem => ({
+    id, group_id: `g-${id}`, title, image_url: '', price_usd: 99, duration: '4 hrs',
+    rating: 4.9, review_count: 900, viator_item_url: '', is_best_seller: true,
+    display_order: 0, tags, experience_cluster_id: `c-${id}`, adventure: 60,
+  });
+  const items = [
+    mk('conchi', 'Aruba Natural Pool and Indian Cave Rugged Jeep Safari', [12035, 1]),
+    // Slot-NEUTRAL on purpose. An "Afternoon Sail" cannot be placed on a 2-day
+    // trip at all — the only legal day is the departure day and `openAft` keeps
+    // that afternoon clear — so the staple would drop for a reason that has
+    // nothing to do with this rule. The live staple ("Half-Day Snorkel Sail
+    // Tour with Caribbean Lunch") names no time either.
+    mk('sail', 'Half-Day Snorkel Sail Tour with Caribbean Lunch', [11888, 2]),
+    ...Array.from({ length: 10 }, (_, n) => mk(`pad-${n}`, `Aruba Beach Walk ${n}`, [90000 + n])),
+  ];
+  const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
+  const idsFor = (days: number) =>
+    entryIds(generatePlan({ ...DEFAULT_ANSWERS, days, budget: 'Mid-range' }, cat, { seed: 0 }));
+
+  for (const days of [2, 3, 4]) {
+    it(`keeps the sail on a ${days}-day trip and stands the excursion down`, () => {
+      const ids = idsFor(days);
+      expect(ids, `${days} days`).toContain('sail');
+      expect(ids, `${days} days`).not.toContain('conchi');
+    });
+  }
+
+  it('places both once a 5-day trip has two bookings to go round', () => {
+    const ids = idsFor(5);
+    expect(ids).toContain('sail');
+    expect(ids).toContain('conchi');
   });
 });

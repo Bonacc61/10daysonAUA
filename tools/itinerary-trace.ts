@@ -1,7 +1,7 @@
 /**
  * Itinerary trace — makes the matching engine narrate its own decisions.
  *
- * The engine discards candidates for five reported reasons and keeps no record,
+ * The engine discards candidates for eight reported reasons and keeps no record,
  * so "why did two jeep safaris land on consecutive days?" normally means reading
  * 1000 lines of generator. This runs a real generatePlan with the `onTrace`
  * callback and prints, per slot, which fill-ladder rung fired and why every
@@ -37,6 +37,8 @@ const PERSONAS: Record<string, Answers> = {
   default: BASE,
   foodie: { ...BASE, interests: ['Food & drink', 'Culture & history'], budget: 'Budget-conscious', adventureLevel: 10, groupType: 'Couple' },
   adventurer: { ...BASE, interests: ['Adventure & adrenaline', 'Watersports'], budget: 'Mid-range', adventureLevel: 95, groupType: 'Friends' },
+  balanced: { ...BASE, interests: ['Beach & chill'], budget: 'Mid-range', adventureLevel: 50, groupType: 'Couple' },
+  treat: { ...BASE, interests: ['Watersports'], budget: 'Treat yourself', adventureLevel: 60, groupType: 'Couple' },
   splurge: { ...BASE, interests: ['Watersports'], budget: 'Money no object', adventureLevel: 60, groupType: 'Couple' },
   family: { ...BASE, interests: ['Beach & chill'], budget: 'Mid-range', adventureLevel: 25, groupType: 'Family with young kids', flags: ['no-early-mornings'] },
 };
@@ -85,6 +87,9 @@ const REASON_LABEL: Record<string, string> = {
   'already-placed': 'already placed',
   'similar-to-placed': 'duplicate experience',
   'day-time-budget': 'day time budget',
+  'booking-cap': 'booking cap',
+  'excluded-product': 'not whitelisted',
+  'day-shape': 'day shape',
   'same-kind-today': 'same kind today',
   'over-budget': 'over budget',
 };
