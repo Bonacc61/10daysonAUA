@@ -322,17 +322,22 @@ export const KIND_VOCABULARY: ReadonlySet<string> = new Set(KIND_BY_TAG.map(([, 
 export function activityKind(item: ViatorItem): string {
   const tags = new Set(item.tags ?? []);
   for (const [ids, kind] of KIND_BY_TAG) if (ids.some((t) => tags.has(t))) return kind;
-  // Enrichment speaks only where the tags do not — the 144 live items that
-  // would otherwise land in a generic `sec:` bucket. The 184 that KIND_BY_TAG
-  // resolves are measured and are never overridden.
+  // Enrichment speaks only where the tags do not. Re-measured 2026-08-20 on the
+  // live catalog (327 items): tags resolve 183, enrichment a further 46, and 98
+  // still land in a generic `sec:` bucket — 68 of them sec:tours-sightseeing.
+  // What KIND_BY_TAG resolves is never overridden.
   if (item.enriched_kind) return item.enriched_kind;
   // NOT `titleKind` — deliberately, and this is the trap. `activityKind` is not
   // only a dedup key: regroupItems() calls matchingSection(), which reads
   // KIND_SECTION, so changing an item's kind RE-FILES IT INTO A DIFFERENT GROUP.
-  // Wiring the title layer in here recovered 35 of the 144 generic items and
-  // filled six more slots per 20 plans — and also moved a $2,300 yacht into a
-  // group a budget-conscious traveller sees, failing two engine-coverage tests
-  // and one flags test. See ROADMAP item 13.
+  // Wiring the title layer in here moved a $2,300 yacht into a group a
+  // budget-conscious traveller sees, failing two engine-coverage tests and one
+  // flags test.
+  // The earlier note here said the title layer recovers "35 of the 144" generic
+  // items, measured 2026-08-11. That is no longer true: after the 2026-08-16
+  // enrichment run it recovers 3 of 98, all offroad — enrichment had already
+  // taken 32 of the 35. The risk above is unchanged, so ROADMAP item 13 is
+  // CLOSED as obsolete rather than deferred. titleKind stays, unwired.
   return `sec:${primarySection(itemSections(item))}`;
 }
 
@@ -478,7 +483,34 @@ export function isRetailProduct(item: ViatorItem): boolean {
 }
 // Anchored on the SHOOT, not on the word 'photographer': a dive listed as
 // "Private Dive + videographer/Photographer" is a dive, not a photo service.
-const PHOTO_SERVICE_RE = /\b(photoshoot|photography)\b|\bphoto shoot\b/i;
+//
+// The boundaries on `photoshoot` and `photography` were dropped on 2026-08-21,
+// and `clear kayak` added, on the owner's ruling that a clear-kayak photoshoot
+// belongs to whoever ticked "I'm an influencer" and to nobody else. This
+// REVERSES the exclusion half of ruling I4 (2026-08-18) for that one genre;
+// I4's other half — that a tour merely mentioning video is not a photo service
+// — is untouched and still guarded below.
+//
+// Both halves of the change are about word boundaries losing to marketing:
+//   - "…Experience@arubaphotoshootexperience" glues the operator's social
+//     handle to the title, so `\bphotoshoot\b` finds no boundary either side.
+//   - "#1Clear Kayak Aruba Shoot" ($60, 293 reviews — the most-reviewed of the
+//     genre) puts a digit before "Clear", so `\bclear kayak\b` fails too.
+// Measured on the live catalog: 17 matches before, 22 after. The five added are
+// the whole clear-kayak/bamboo-raft photo genre. The four products the spec
+// deliberately keeps OUT — the two turtle snorkels naming video, the dive with
+// a videographer, and the horseback ride with a photo stop — still do not
+// match, and no title matches without a photo, video or clear-kayak word.
+//
+// `clear kayak` is a GENRE phrase, not photo evidence, and that is a deliberate
+// exception to the positive-evidence discipline the off-road and hike rows
+// follow. Justified by the catalog: all 8 clear-kayak listings are photo/video
+// products, while the 15 ordinary kayak tours — "Glass Bottom Kayak", "Night
+// Glass Kayak" — say `glass`, not `clear`. The risk is a genuine paddling tour
+// relisted as "Crystal Clear Kayak Mangrove Tour": it would be hidden from
+// every non-influencer AND handed to influencers as tier 1. If that appears,
+// this line is the one to narrow.
+const PHOTO_SERVICE_RE = /photoshoot|photography|videoshoot|\bphoto shoot\b|clear kayak/i;
 
 /**
  * A product whose proposition IS the shoot — the conservative, word-anchored

@@ -104,6 +104,8 @@ const TWO_WHEELER_TITLE = /\b(e[\s-]?bikes?|bikes?|biking|bicycles?|cycling|mope
 // same commit: require POSITIVE evidence, and do not let one word in a title
 // decide what a tour is.
 const FOUR_WHEELER_TITLE = /\b(utv|atv|quads?|buggy|buggies|jeeps?|4x4|4wd)\b/i;
+// Positive evidence that a `hike`-kind product is actually a walk.
+const HIKE_TITLE = /\b(hik(?:e|ing)|trek(?:king)?|nature walk)\b/i;
 const WATER_TITLE = /\b(snorkel(?:l?ing)?|catamaran|sail|cruise|boat|charter|seabob|reef|wreck|sea scooter|island|day pass)\b/i;
 
 // Products named individually because no kind rule can reach them: the sanctuary
@@ -180,6 +182,42 @@ export function bookableTier(e: CardEntry, tags: Set<MatchTag>): BookableTier | 
     const twoWheeled = TWO_WHEELER_TITLE.test(item.title) && !FOUR_WHEELER_TITLE.test(item.title);
     return JEEP_TITLE.test(item.title) && !twoWheeled ? 1 : null;
   }
+  // Guided hikes — TIER 2, added 2026-08-21 on the owner's preference.
+  //
+  // Tier 2 and not tier 1 deliberately: a hike may take a booking day the
+  // curated must-do set could not use, and may never displace a catamaran or a
+  // jeep. That is what keeps this off short trips, where the whole point of the
+  // 2026-08-18 density work was that a five-category island had grown nine
+  // bookings.
+  //
+  // The guard follows the off-road row's shape — positive evidence, then the
+  // vehicle exclusion — because `activityKind` is a poor eligibility filter and
+  // the live `hike` bucket holds a mountain-bike tour (37 reviews) and a
+  // bike/hike combo. Neither is a hike; both are refused here.
+  //
+  // MEASURED INERT, and left in deliberately rather than reverted. Across 1,680
+  // live plans at each of 7, 10 and 14 days, this row placed a hike in ZERO of
+  // them. Whitelisting was necessary and is not sufficient; two gates downstream
+  // still refuse every candidate:
+  //
+  //  - Of 9 live hike products only 3 clear MIN_CHAMPION_REVIEWS, and 2 of those
+  //    3 name the natural pool. `naturalPoolFor` always spends the pool on a
+  //    JEEP (every budget tier above budget-conscious gets one), so those two
+  //    are refused on NATURAL_POOL_FAMILY — the owner's one-visits-the-pool rule
+  //    working exactly as specified, just never in the hike's favour.
+  //  - The third, "Half Day Hike at Arikok National Park & Snorkel" (36 reviews,
+  //    $115), is refused `booking cap` on every non-booking day and does not
+  //    reach the fill pool on the booking days. Not cluster dedup — checked, it
+  //    is its own champion.
+  //
+  // So the row is correct and load-bearing for whatever unblocks it; what it
+  // needs is for `naturalPoolFor` to be able to choose a HIKE over a jeep for a
+  // nature-leaning traveller. That is a separate decision with its own
+  // measurement, not an edit to make here.
+  if (kind === 'hike') {
+    return HIKE_TITLE.test(item.title) && !TWO_WHEELER_TITLE.test(item.title) ? 2 : null;
+  }
+
   // Photo services LAST (ruling R10, 2026-08-18 — moved below the kind rows).
   //
   // I4 (final whole-branch review, 2026-08-18): this row asked

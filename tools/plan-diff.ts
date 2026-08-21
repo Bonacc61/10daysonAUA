@@ -21,7 +21,7 @@
  *
  * Exit 1 if enrichment introduces a violation that was not already there.
  */
-import { generatePlan, isBoatOuting, isSailOuting, isPaidOuting, MAX_PAID_OUTINGS_PER_DAY, SECOND_SAIL_MIN_DAYS } from '../src/data/itineraryGenerator';
+import { generatePlan, isBoatOuting, isSailOuting, isPaidOuting, MAX_PAID_OUTINGS_PER_DAY, SECOND_SAIL_MIN_DAYS, routeFamilyBudget } from '../src/data/itineraryGenerator';
 import { loadCatalog } from '../src/data/activitySource';
 import { activityKind, isFullDayProduct, isEveningItem } from '../src/data/itemFit';
 import { parseActivityCost } from '../src/data/matcher';
@@ -122,14 +122,18 @@ function checkInvariants(plan: Day[], catalog: Catalog, tags: Set<MatchTag>): Vi
   const all = plan.flatMap(itemsOf);
   const count = (pred: (i: ViatorItem) => boolean) => all.filter(pred).length;
 
-  // Trip-wide curation rules (2026-08-05).
+  // Trip-wide curation rules (2026-08-05), budgeted by trip length since
+  // 2026-08-21. `routeFamilyBudget` is IMPORTED, never copied — a hand-mirrored
+  // `> 1` here is what reported 20 non-violations when the sail split landed,
+  // and it would have done it again the day the budget started scaling.
+  const kayakBudget = routeFamilyBudget('kayak', plan.length);
   const kayaks = count((i) => activityKind(i) === 'kayak');
-  if (kayaks > 1) out.push({ rule: 'one kayak per trip', detail: `${kayaks} placed` });
+  if (kayaks > kayakBudget) out.push({ rule: `at most ${kayakBudget} kayak trip(s) on ${plan.length} days`, detail: `${kayaks} placed` });
 
-  // Sails, and the one rule here that depends on TRIP LENGTH (2026-08-12).
-  // Up to 7 days a trip gets ONE sail of any kind; from 8 days it may add a
-  // second, but only of the other kind — a daytime snorkel sail and an evening
-  // dinner sail. Two of one kind is never allowed at any length.
+  // Sails. TWO trip-length rules stack here. `SECOND_SAIL_MIN_DAYS` (2026-08-12)
+  // decides whether the two KINDS are counted apart — one sail of any kind up to
+  // 7 days, a daytime and an evening one from 8. `routeFamilyBudget`
+  // (2026-08-21) then decides how many of each KIND, which is no longer 1.
   //
   // This mirrored rule went stale the moment the split landed and reported 20
   // violations that were not violations, which is the third time today. The
@@ -138,12 +142,20 @@ function checkInvariants(plan: Day[], catalog: Catalog, tags: Set<MatchTag>): Vi
   // KNOWN GAP: `all` comes from itemsOf, which returns Viator products only, so
   // a sail sitting in a CURATED slot is invisible here. The engine counts those
   // (routeFamilyOf's non-group branch); this checker does not.
-  const sailItems = all.filter((i) => isSailOuting(i) && !isFullDayProduct(i) && !KAYAK_RE.test(i.title));
+  // Mirrors routeFamilyOf's ordering INCLUDING the 2026-08-21 vehicle veto —
+  // without it the B&H "Safari Jeep Tour" counts against the sail budget here
+  // while the engine files it elsewhere, which is the same mirror drift the
+  // budget import twenty lines above just fixed.
+  const VEHICLE_TITLE = /\b(jeeps?|4x4|4wd|utv|atv|buggy|buggies|quads?|off.?road|safari)\b/i;
+  const sailItems = all.filter((i) => isSailOuting(i) && !isFullDayProduct(i)
+    && !KAYAK_RE.test(i.title) && !VEHICLE_TITLE.test(i.title));
   const daySails = sailItems.filter((i) => !isEveningItem(i)).length;
   const eveSails = sailItems.filter((i) => isEveningItem(i)).length;
-  if (daySails > 1) out.push({ rule: 'one DAYTIME sail per trip', detail: `${daySails} placed` });
-  if (eveSails > 1) out.push({ rule: 'one EVENING sail per trip', detail: `${eveSails} placed` });
-  if (plan.length < SECOND_SAIL_MIN_DAYS && daySails + eveSails > 1) {
+  const dayBudget = routeFamilyBudget('day-sail', plan.length);
+  const eveBudget = routeFamilyBudget('evening-cruise', plan.length);
+  if (daySails > dayBudget) out.push({ rule: `at most ${dayBudget} DAYTIME sail(s) on ${plan.length} days`, detail: `${daySails} placed` });
+  if (eveSails > eveBudget) out.push({ rule: `at most ${eveBudget} EVENING sail(s) on ${plan.length} days`, detail: `${eveSails} placed` });
+  if (plan.length < SECOND_SAIL_MIN_DAYS && daySails + eveSails > routeFamilyBudget('sail', plan.length)) {
     out.push({ rule: `one sail per trip under ${SECOND_SAIL_MIN_DAYS} days`, detail: `${daySails + eveSails} placed on a ${plan.length}-day trip` });
   }
 

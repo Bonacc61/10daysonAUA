@@ -56,7 +56,22 @@ describe.skipIf(!ANON_KEY)('influencer flag — live catalog', () => {
     return { tripsWithOne, seeds, titles };
   }
 
-  // PINS the measured behaviour; it used to assert `on > off`. Rewritten for
+  // PINS the measured behaviour, and it has now been rewritten twice.
+  //
+  // 2026-08-21, owner's ruling: the clear-kayak photoshoot is exactly what the
+  // influencer flag is for, and must appear for them and for nobody else. So
+  // the assertion is back to `on > off` — but for one NAMED product rather
+  // than the broad `isContentProduct` net that ruling I4 removed, which is the
+  // difference between this and the pre-I4 version.
+  //
+  // This also closed the gap the note below describes, and closed it without
+  // touching champion selection. Read on: the clear kayak IS the champion of
+  // the photo cluster, so the moment the whitelist stopped refusing it for an
+  // influencer, the product the champion pass had already chosen became
+  // reachable. The paragraph is kept because its analysis is still correct
+  // about the other 16 photo services, which remain unreachable.
+  //
+  // The superseded version of this test read:
   // ruling I4 (final whole-branch review, 2026-08-18), which narrowed
   // `bookableTier`'s influencer row from `isContentProduct` (`/photo|video/i`)
   // to `isPhotoService` (word-anchored on the shoot).
@@ -89,15 +104,22 @@ describe.skipIf(!ANON_KEY)('influencer flag — live catalog', () => {
   // actually be given), which is an engine change with its own measurement,
   // not an end-of-branch edit. The predicate itself is guarded in both
   // directions by unit tests in bookables.test.ts.
-  it('places no content product for either traveller, and the same one for both (I4)', () => {
+  it('places the clear-kayak photoshoot for an influencer and for nobody else', () => {
     const off = contentPlaced(base);
     const on = contentPlaced({ ...base, flags: ['influencer'] });
     console.log(`OFF: ${off.tripsWithOne}/${off.seeds} trips, ${off.titles.length} placements`);
     console.log([...new Set(off.titles)].map((t) => `  - ${t}`).join('\n'));
     console.log(`ON : ${on.tripsWithOne}/${on.seeds} trips, ${on.titles.length} placements`);
     console.log([...new Set(on.titles)].map((t) => `  - ${t}`).join('\n'));
+    // The flag has to CHANGE something or it is decorative — the same principle
+    // that got `birthday` and `work-trip` deleted. Measured 2026-08-21 on the
+    // live catalog with this persona and 12 seeds: OFF 0/12, ON 12/12.
     expect(off.titles.length).toBe(0);
-    expect(on.titles.length).toBe(0);
+    expect(on.tripsWithOne).toBe(on.seeds);
+    // Both halves matter. Asserting only the count would pass if the flag
+    // started handing out photo services the owner never asked for, so pin
+    // WHICH product: the clear-kayak shoot, and nothing else.
+    expect([...new Set(on.titles)]).toEqual(["50%OFF Aruba\u2018s #1Clear Kayak Experience@arubaphotoshootexperience"]);
   });
 
   it('still fills every plan (the boost does not starve other slots)', () => {

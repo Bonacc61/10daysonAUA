@@ -13,7 +13,7 @@ import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
 import CollapsedDaySummary from '../components/CollapsedDaySummary';
 import { resolveSlotEntry } from '../data/activitySource';
-import { claimedRouteFamilies, withoutClaimedFamilies, tripRouteFamily } from '../data/itineraryGenerator';
+import { claimedRouteFamilies, withoutClaimedFamilies, hasClaimedFamily, tripRouteFamilies } from '../data/itineraryGenerator';
 import { useCatalog } from '../data/useCatalog';
 import { matchPool, blendPools, entryPrice, parseActivityCost } from '../data/matcher';
 import { constrainByEdit, CHIP_CONSTRAINTS, describeConstraint, satisfiableByRotation } from '../data/editConstraint';
@@ -57,18 +57,18 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
 
   // Human words for the route families, for the duplicate note below. A family
   // id is an internal token ('day-sail'); the badge has to read like English.
-  // Every value tripRouteFamily can return must appear here — the badge renders
+  // Every value tripRouteFamilies can return must appear here — the badge renders
   // `⚠ 2nd {label} this trip`, so a miss puts a raw internal token in front of a
   // traveller. 'day-sail'/'evening-cruise' were missed when the sail family
   // became trip-length aware, which showed "2nd day-sail this trip" on the
   // DEFAULT 10-day plan.
   const FAMILY_LABEL: Record<string, string> = {
     sail: 'sail', 'day-sail': 'daytime sail', 'evening-cruise': 'evening cruise',
-    // 'natural-pool' was a family of its own until 2026-08-19 and is now folded
-    // into 'offroad' (routeFamilyOf) — the same excursion under two names. Its
-    // label is dropped with it: an entry for a family nothing can return would
-    // read as a contract this map does not have.
-    offroad: 'off-road tour', kayak: 'kayak trip',
+    // 'natural-pool' was folded into 'offroad' on 2026-08-19 and became a family
+    // of its own again on 2026-08-21 — a DESTINATION an entry holds alongside
+    // its activity family, so a pool jeep is both 'offroad' and 'natural-pool'.
+    // Its label is back with it; without one the badge prints the raw token.
+    offroad: 'off-road tour', kayak: 'kayak trip', 'natural-pool': 'natural pool trip',
   };
 
   // Build the initial itinerary from the answers + the live catalog (Viator
@@ -566,10 +566,13 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
         for (const c of d[s]) {
           const resolved = resolveSlotEntry(c.entry, catalog, tags, s);
           if (!resolved) continue;
-          const fam = tripRouteFamily(resolved, answers.days);
-          if (!fam) continue;
-          if (firstSeen.has(fam)) dupes.set(c.uid, FAMILY_LABEL[fam] ?? fam);
-          else firstSeen.add(fam);
+          // Every family the card holds, not just its activity one — a second
+          // natural-pool outing has to earn the badge even when the two cards
+          // are a jeep and a hike, which share no activity family.
+          for (const fam of tripRouteFamilies(resolved, answers.days)) {
+            if (firstSeen.has(fam)) dupes.set(c.uid, FAMILY_LABEL[fam] ?? fam);
+            else firstSeen.add(fam);
+          }
         }
       }
     }
@@ -646,10 +649,11 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
     // Note the asymmetry, which is the intended behaviour: tapping "Swap this"
     // ON a sail still offers sails (that card's own family is skipped), but
     // tapping it on a jeep never returns a sail while one is already planned.
-    const isFamilyClaimed = (c: CardEntry): boolean => {
-      const fam = tripRouteFamily(c, answers.days);
-      return !!fam && claimedFamilies.has(fam);
-    };
+    // The SAME predicate `withoutClaimedFamilies` applies on the cross-pool
+    // path, called rather than restated — writing the question twice is what
+    // let this branch keep asking about one family while the set held two.
+    const isFamilyClaimed = (c: CardEntry): boolean =>
+      hasClaimedFamily(c, claimedFamilies, answers.days);
 
     // Rotating within the group is a shortcut that bypasses constrainByEdit, so
     // it is only safe for constraints another item in the same group could

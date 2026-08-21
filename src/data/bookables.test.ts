@@ -175,16 +175,65 @@ describe('bookableTier — content products (ruling R8)', () => {
   const diveWithVideographer = group({ id: 'dive-1', title: 'Private Dive + videographer/Photographer', price_usd: 120 });
 
   it('is NOT tier 1 for an influencer when the product is a tour that merely throws in photos', () => {
-    expect(bookableTier(clearKayak, tags('influencer'))).toBe(null);
     expect(bookableTier(horseback, tags('influencer'))).toBe(null);
     // The spec has a section titled "Diving is deliberately out".
     expect(bookableTier(diveWithVideographer, tags('influencer'))).toBe(null);
+  });
+
+  // 2026-08-21, owner's ruling: the clear-kayak photoshoot IS the influencer's
+  // product and must appear for them and for nobody else. This reverses I4's
+  // verdict on this one genre — `clearKayak` above asserted `null` for an
+  // influencer until today. I4's other half stands untouched and is still
+  // guarded by `horseback` and `diveWithVideographer` above, and by the turtle
+  // snorkel test: a tour that merely MENTIONS video is still not a shoot.
+  //
+  // What made the genre slip through was word boundaries, twice over — the
+  // operator's social handle is glued to the title, and a digit sits in front
+  // of "Clear". Both spellings are real live titles, so both are pinned here.
+  const clearKayakHandle = clearKayak;
+  const clearKayakDigit = group({ id: 'kayak-2', title: '#1Clear Kayak Aruba Shoot| FREE Cocktail|Edits 24hr|+Free Coupons' });
+
+  it('gives the clear-kayak photoshoot to an influencer, however the title is spelled', () => {
+    expect(bookableTier(clearKayakHandle, tags('influencer'))).toBe(1);
+    expect(bookableTier(clearKayakDigit, tags('influencer'))).toBe(1);
+  });
+
+  it('gives the clear-kayak photoshoot to NOBODY else', () => {
+    for (const t of [tags('couple', 'mid-range'), tags('friends', 'high-adventure'), tags('family-young-kids')]) {
+      expect(bookableTier(clearKayakHandle, t)).toBe(null);
+      expect(bookableTier(clearKayakDigit, t)).toBe(null);
+    }
   });
 
   it('is still tier 1 for an influencer when the product IS the shoot', () => {
     expect(bookableTier(photoshoot, tags('influencer'))).toBe(1);
     expect(bookableTier(group({ id: 'photo-2', title: 'Aruba Vacation Photography Session at Sunset' }), tags('influencer'))).toBe(1);
     expect(bookableTier(group({ id: 'photo-3', title: 'Private Beach Photo Shoot in Aruba' }), tags('influencer'))).toBe(1);
+  });
+});
+
+describe('bookableTier — guided hikes (tier 2, 2026-08-21)', () => {
+  // Every title here is a real live product. Tier 2, so a hike fills a booking
+  // day the curated set left over and never competes with a catamaran.
+  const hike = (id: string, title: string) => group({ id, title, tags: [11902], price_usd: 60 });
+
+  it('accepts a guided hike, at tier 2 and not tier 1', () => {
+    expect(bookableTier(hike('h1', 'Half Day Hike at Arikok National Park & Snorkel'), tags('couple'))).toBe(2);
+    expect(bookableTier(hike('h2', 'Private Aruba National Park Hiking & Natural Pool Swimming'), tags('couple'))).toBe(2);
+  });
+
+  it('refuses the bike tours that share the hike KIND', () => {
+    // `activityKind` files both under 'hike'; neither is a walk. This is the
+    // off-road row's lesson applied to a new family, as the spec asks.
+    expect(bookableTier(hike('b1', 'Private Mountain Bike Tour in Aruba'), tags('couple'))).toBe(null);
+    expect(bookableTier(hike('b2', 'Baby Beach Sunrise Adventure Bike, Hike & Snorkel'), tags('couple'))).toBe(null);
+  });
+
+  it('is a hike for every traveller — this row carries no persona condition', () => {
+    const h = hike('h3', 'Hooiberg Hill Hike (Sunrise, Sunset, Night)');
+    for (const t of [tags('couple', 'mid-range'), tags('family-young-kids'), tags('friends', 'high-adventure')]) {
+      expect(bookableTier(h, t)).toBe(2);
+    }
   });
 });
 

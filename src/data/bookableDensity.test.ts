@@ -1230,22 +1230,45 @@ describe('the private upgrade — money-no-object gets the private variant', () 
 
   // Replacing rather than adding means the trip books exactly as often as it
   // did before, on exactly the same days.
+  //
+  // Compared against THE SAME PERSONA on a catalog with the private variant
+  // removed, rather than against NEARLY_RICH on the same catalog. The old
+  // cross-persona form passed only while every route family had a budget of
+  // exactly 1: once DAYS_PER_ROUTE_FAMILY (2026-08-21) gave a 10-day trip two
+  // of each, money-no-object could afford a second outing that treat-yourself
+  // could not, so RICH booked on [3,5,7,9] and NEARLY_RICH on [3,5,7] for a
+  // reason that has nothing to do with the upgrade. Verified by forcing the
+  // budget back to 1, which made the old assertion pass again.
+  //
+  // Holding the persona fixed and varying only the private variant's PRESENCE
+  // tests the property the comment always claimed, and is immune to the budget.
+  //
+  // Read this as a RAIL, not a discriminating test. The upgrade is a bare
+  // `pick = upgrade` substitution and the booking is claimed once afterwards,
+  // so it cannot add a day by construction — no targeted mutation makes this
+  // fail. Verified: removing a DIFFERENT jeep from the catalog also leaves the
+  // booking days identical. What replacement actually looks like is asserted by
+  // the `toContain('jeep-private')` / `not.toContain('jeep-conchi')` tests
+  // above; this one exists so a future rewrite that ADDS cannot pass quietly.
   it('leaves the booking count and the booking days untouched', () => {
     const tags = answersToTags(RICH);
-    const bookedOn = (answers: Answers): number[] => {
+    const bookedOn = (catalog: Catalog): number[] => {
       const out: number[] = [];
-      for (const day of generatePlan(answers, CLUSTERED, { seed: 0 })) {
+      for (const day of generatePlan(RICH, catalog, { seed: 0 })) {
         const any = [...day.morning, ...day.afternoon, ...day.evening].some((se) => {
-          const card = resolveSlotEntry(se, CLUSTERED, tags);
-          return card ? bookableTier(card, answersToTags(answers)) !== null : false;
+          const card = resolveSlotEntry(se, catalog, tags);
+          return card ? bookableTier(card, tags) !== null : false;
         });
         if (any) out.push(day.day);
       }
       return out;
     };
-    const rich = bookedOn(RICH);
+    const withoutPrivate: Catalog = { ...CLUSTERED, items: CLUSTERED.items.filter((i) => i.id !== 'jeep-private') };
+    const rich = bookedOn(CLUSTERED);
     expect(rich.length).toBeGreaterThan(0);
     expect(rich.length).toBeLessThanOrEqual(bookingDays(10).length);
-    expect(rich).toEqual(bookedOn(NEARLY_RICH));
+    // The upgrade is present in one and absent in the other; the booking
+    // schedule must not notice.
+    expect(rich).toEqual(bookedOn(withoutPrivate));
   });
 });

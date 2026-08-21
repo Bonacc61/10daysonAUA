@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generatePlan, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies, isPaidOuting, isBoatOuting, dayCapFamilyOf, gapFamilyOf, routeFamilyOf, naturalPoolFor } from './itineraryGenerator';
+import { generatePlan, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies, hasClaimedFamily, isPaidOuting, isBoatOuting, dayCapFamilyOf, gapFamilyOf, routeFamilyOf, tripRouteFamilies, routeFamilyBudget, RouteFamilyLedger, naturalPoolFor } from './itineraryGenerator';
 import type { TraceEvent } from './itineraryGenerator';
 import { getCatalog } from './activitySource';
 import { DEFAULT_ANSWERS } from '../App';
@@ -1344,17 +1344,35 @@ describe('generatePlan — one sail per trip, daytime or evening', () => {
   };
   const countOf = (ids: string[], prefix: string) => ids.filter((id) => id.startsWith(prefix)).length;
 
-  it('places at most one DAYTIME sail/snorkel trip, however long the stay', () => {
+  // "However long the stay" was literal until 2026-08-21: one daytime sail and
+  // one evening cruise whether the trip was 7 days or 14. It is now one PER
+  // FAMILY BUDGET, and the budget scales — see DAYS_PER_ROUTE_FAMILY, and the
+  // note there about a 14-day trip previously retiring 57% of the catalog by
+  // day 7. A week is deliberately unchanged, which is what the second
+  // assertion in each test pins: `Math.round(7 / 5)` is 1.
+  it('places at most the trip budget of DAYTIME sails, and exactly one on a week', () => {
+    // Pinned to LITERALS at both ends. The assertions below compare against
+    // `routeFamilyBudget`, i.e. against the code under test, so without these a
+    // change to DAYS_PER_ROUTE_FAMILY in either direction would pass silently.
+    expect(routeFamilyBudget('day-sail', 7)).toBe(1);
+    // The sail families and the pool do NOT scale — see UNSCALED_FAMILIES. Only
+    // offroad and kayak do, and those are pinned separately below.
+    expect(routeFamilyBudget('day-sail', 14)).toBe(1);
+    expect(routeFamilyBudget('natural-pool', 14)).toBe(1);
+    expect(routeFamilyBudget('offroad', 14)).toBe(3);
+    expect(routeFamilyBudget('kayak', 14)).toBe(3);
     for (const days of [7, 14]) {
       const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days, interests: ['watersports'] }, cat));
-      expect(countOf(ids, 'sail-')).toBeLessThanOrEqual(1);
+      expect(countOf(ids, 'sail-')).toBeLessThanOrEqual(routeFamilyBudget('day-sail', days));
     }
   });
 
-  it('places at most one EVENING cruise, however long the stay', () => {
+  it('places at most the trip budget of EVENING cruises, and exactly one on a week', () => {
+    expect(routeFamilyBudget('evening-cruise', 7)).toBe(1);
+    expect(routeFamilyBudget('evening-cruise', 14)).toBe(1);
     for (const days of [7, 14]) {
       const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days, interests: ['watersports'] }, cat));
-      expect(countOf(ids, 'eve-')).toBeLessThanOrEqual(1);
+      expect(countOf(ids, 'eve-')).toBeLessThanOrEqual(routeFamilyBudget('evening-cruise', days));
     }
   });
 
@@ -1379,8 +1397,11 @@ describe('generatePlan — one sail per trip, daytime or evening', () => {
     // daytime catamaran, which was the original report.
     for (const days of [8, 10, 14]) {
       const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days, interests: ['watersports'] }, cat));
-      expect(countOf(ids, 'sail-')).toBeLessThanOrEqual(1);   // never two daytime
-      expect(countOf(ids, 'eve-')).toBeLessThanOrEqual(1);    // never two evening
+      // Was `<= 1` for both. The KINDS still never blur into each other — that
+      // is what SECOND_SAIL_MIN_DAYS decides and it is untouched; what changed
+      // on 2026-08-21 is how many of each kind a long trip may hold.
+      expect(countOf(ids, 'sail-')).toBeLessThanOrEqual(routeFamilyBudget('day-sail', days));
+      expect(countOf(ids, 'eve-')).toBeLessThanOrEqual(routeFamilyBudget('evening-cruise', days));
     }
   });
 
@@ -1431,11 +1452,11 @@ describe('generatePlan — one sail per trip, daytime or evening', () => {
   // the plan at all — asserted here so a future whitelist change that DID
   // re-admit it would still have to pass the one-sail-per-trip checks below.
   it('never auto-places the night shore dive (diving is off the whitelist)', () => {
-    // 7 days: one sail total. 14 days: one of each kind, never two of one.
+    // 7 days: one sail total. 14 days: up to the family budget of each kind.
     for (const days of [7, 14]) {
       const ids = entryIds(generatePlan({ ...DEFAULT_ANSWERS, days, interests: ['watersports'] }, cat));
-      expect(countOf(ids, 'sail-')).toBeLessThanOrEqual(1);
-      expect(countOf(ids, 'eve-')).toBeLessThanOrEqual(1);
+      expect(countOf(ids, 'sail-')).toBeLessThanOrEqual(routeFamilyBudget('day-sail', days));
+      expect(countOf(ids, 'eve-')).toBeLessThanOrEqual(routeFamilyBudget('evening-cruise', days));
       if (days < 8) expect(countOf(ids, 'sail-') + countOf(ids, 'eve-')).toBeLessThanOrEqual(1);
       expect(ids).not.toContain('dive-night');
     }
@@ -2481,6 +2502,68 @@ describe('generatePlan — premium splurge never re-places a staple', () => {
   });
 });
 
+describe('RouteFamilyLedger — the budget arithmetic', () => {
+  it('spends a budget of 1 on the first claim', () => {
+    const l = new RouteFamilyLedger(7);                 // round(7/5) = 1
+    expect(l.spentBy(['offroad'])).toBeUndefined();
+    l.claim(['offroad']);
+    expect(l.spentBy(['offroad'])).toBe('offroad');
+  });
+
+  it('lets a longer trip hold more of one family', () => {
+    const l = new RouteFamilyLedger(14);                // offroad: round(14/5) = 3
+    l.claim(['offroad']); l.claim(['offroad']);
+    expect(l.spentBy(['offroad'])).toBeUndefined();     // two of three spent
+    l.claim(['offroad']);
+    expect(l.spentBy(['offroad'])).toBe('offroad');
+  });
+
+  it('never scales the natural pool or the sails, however long the trip', () => {
+    for (const fam of ['natural-pool', 'day-sail', 'evening-cruise', 'sail']) {
+      const l = new RouteFamilyLedger(14);
+      l.claim([fam]);
+      expect(l.spentBy([fam])).toBe(fam);
+    }
+  });
+
+  it('reports WHICH family is spent, since the trace prints it', () => {
+    const l = new RouteFamilyLedger(14);
+    l.claim(['natural-pool']);
+    expect(l.spentBy(['offroad', 'natural-pool'])).toBe('natural-pool');
+  });
+
+  // The refund path, and the bug it was written for: under the old Set the
+  // release was guarded by "is anything still holding this?", which
+  // under-releases the moment a family has two live placements and a budget
+  // of 2 — the count stayed at 2 with one placement left, retiring the family
+  // for the rest of the trip.
+  it('refunds exactly one placement per release', () => {
+    const l = new RouteFamilyLedger(10);                // round(10/5) = 2
+    l.claim(['offroad']); l.claim(['offroad']);
+    expect(l.spentBy(['offroad'])).toBe('offroad');
+    l.release(['offroad']);
+    expect(l.spentBy(['offroad'])).toBeUndefined();     // one back, one still held
+    l.claim(['offroad']);
+    expect(l.spentBy(['offroad'])).toBe('offroad');
+  });
+
+  it('refunds each family of a multi-family entry independently', () => {
+    const l = new RouteFamilyLedger(14);
+    l.claim(['offroad', 'natural-pool']);               // a pool jeep
+    expect(l.spentBy(['natural-pool'])).toBe('natural-pool');
+    l.release(['offroad', 'natural-pool']);
+    expect(l.spentBy(['natural-pool'])).toBeUndefined();
+    expect(l.spentBy(['offroad'])).toBeUndefined();
+  });
+
+  it('does not go negative when released more often than claimed', () => {
+    const l = new RouteFamilyLedger(7);
+    l.release(['offroad']); l.release(['offroad']);
+    l.claim(['offroad']);
+    expect(l.spentBy(['offroad'])).toBe('offroad');     // one claim still spends it
+  });
+});
+
 describe('route families outside the generator (swap / add paths)', () => {
   // The one-sail rule lived only inside generatePlan. Measured on the live
   // catalog: the engine produced two Viator sails in 0 of 1,728 plans, and the
@@ -2510,11 +2593,12 @@ describe('route families outside the generator (swap / add paths)', () => {
   const utv = mkItem('utv', 'Aruba UTV & ATV Adventure', [OFFROAD, 5]);
   const entry = (i: ViatorItem): CardEntry => ({ kind: 'group', group: mkGroup(i.group_id), bestSeller: i, others: [] });
   const slotEntryOf = (i: ViatorItem): SlotEntry => ({ kind: 'group', groupId: i.group_id, bestSellerId: i.id });
-  const resolve = (c: { uid: string; entry: SlotEntry }): CardEntry | null => {
+  const resolveFrom = (pool: ViatorItem[]) => (c: { uid: string; entry: SlotEntry }): CardEntry | null => {
     if (c.entry.kind !== 'group') return null;
-    const i = [sailA, sailB, jeep, jeepPool, utv].find((x) => x.id === (c.entry as { bestSellerId: string }).bestSellerId);
+    const i = pool.find((x) => x.id === (c.entry as { bestSellerId: string }).bestSellerId);
     return i ? entry(i) : null;
   };
+  const resolve = resolveFrom([sailA, sailB, jeep, jeepPool, utv]);
 
   it('reports the families a plan has already used', () => {
     const cards = [{ uid: 'u1', entry: slotEntryOf(sailA) }, { uid: 'u2', entry: slotEntryOf(jeep) }];
@@ -2531,17 +2615,79 @@ describe('route families outside the generator (swap / add paths)', () => {
     expect(routeFamilyOf(entry(utv))).toBe('offroad');
   });
 
-  // The natural-pool TEST still earns its keep even though both branches now
-  // answer the same. `activityKind` reads Viator's tags, and the 21 live
-  // Natural Pool products split 17 off-road / 3 hike / 1 cruise — so a pool
-  // HIKE reaches no kind rule and would claim nothing without it, leaving a
-  // pool hike and a pool jeep free to share a trip. This is the item that
-  // proves the branch is load-bearing: no off-road tag, pool in the title.
-  it('still catches a Natural Pool trip its Viator tags do NOT call off-road', () => {
-    const HIKING = 11902;
-    const poolHike = mkItem('pool-hike', 'Arikok Natural Pool Hiking Adventure', [HIKING, 6]);
+  // Owner's ruling, 2026-08-21: a hike and an off-road tour may share a trip so
+  // long as only ONE of them goes to the natural pool. The pool is a
+  // DESTINATION, so it became its own family and an entry can hold two at once.
+  //
+  // `activityKind` reads Viator's tags, and the 21 live Natural Pool products
+  // split 17 off-road / 3 hike / 1 cruise. Those 3 hikes are the whole point:
+  // they used to be forced into 'offroad' and so were retired by the jeep the
+  // template places on day 3 — including the two best-reviewed hikes on the
+  // island (161 and 116 reviews, $60 and $59).
+  const HIKING = 11902;
+  const poolHike = mkItem('pool-hike', 'Arikok Natural Pool Hiking Adventure', [HIKING, 6]);
+  const plainHike = mkItem('plain-hike', 'Half Day Hike at Arikok National Park & Snorkel', [HIKING, 7]);
+
+  const resolveAll = resolveFrom([sailA, sailB, jeep, jeepPool, utv, poolHike, plainHike]);
+
+  // Regression guard: removing the isNaturalPool early return let a jeep tour
+  // that Viator tags `snorkel` fall through to the sail test and retire the
+  // trip's catamaran. Title verbatim from the live catalog.
+  it('keeps a jeep tour out of the SAIL family even when Viator tags it snorkel', () => {
+    const SNORKEL = 11912;
+    const misTagged = mkItem('bh-jeep', 'Safari Jeep Tour Adventure by B&H AM Tour - Caves & Natural Pool', [SNORKEL, 8]);
+    expect(activityKind(misTagged)).not.toBe('offroad');
+    // A VETO, not a family: it claims no sail (which is the bug — it would have
+    // retired the trip's catamaran) and still claims the pool it names.
+    expect(routeFamilyOf(entry(misTagged))).toBeUndefined();
+    expect(tripRouteFamilies(entry(misTagged), 14)).toEqual(['natural-pool']);
+  });
+
+  // The other half of choosing a veto: a CAR HIRE must not claim the trip's
+  // off-road family. All three titles are live listings; the last is the one
+  // `isAutoFillExcluded` misses, since it says neither rent nor hire.
+  it('gives a vehicle RENTAL no route family at all', () => {
+    for (const t of ['Aruba UTV Rental | Explore the Island at Your Own Pace',
+                     'Convenient Jeep Rentals for Island Adventures',
+                     'Jeep Wrangler Jk Hardtop 4 door']) {
+      expect(tripRouteFamilies(entry(mkItem(`r-${t.slice(0, 6)}`, t, [999])), 14)).toEqual([]);
+    }
+  });
+
+  // Binds the fix for the 2026-08-21 Swap defect. `Itinerary.tsx`'s within-group
+  // rotation calls this; before the fix it asked the activity half alone, and a
+  // pool HIKE (no activity family) slipped past a trip that already held a pool
+  // jeep. Unit-level because the predicate is now shared with
+  // `withoutClaimedFamilies` rather than restated in the component.
+  it('hasClaimedFamily catches a pool hike once the trip holds a pool jeep', () => {
+    const claimed = claimedRouteFamilies([{ uid: 'u1', entry: slotEntryOf(jeepPool) }], resolveAll, 14);
+    expect(claimed.has('natural-pool')).toBe(true);
+    expect(hasClaimedFamily(entry(poolHike), claimed, 14)).toBe(true);    // the defect
+    expect(hasClaimedFamily(entry(plainHike), claimed, 14)).toBe(false);  // still offered
+    expect(hasClaimedFamily(entry(jeep), claimed, 14)).toBe(true);        // 2026-08-19 intact
+  });
+
+  it('gives a Natural Pool hike the pool family and NOT the off-road one', () => {
     expect(activityKind(poolHike)).not.toBe('offroad');
-    expect(routeFamilyOf(entry(poolHike))).toBe('offroad');
+    expect(tripRouteFamilies(entry(poolHike), 14)).toEqual(['natural-pool']);
+  });
+
+  it('gives a Natural Pool JEEP both families, so jeep-vs-jeep still collides', () => {
+    // The 2026-08-19 merge is preserved by 'offroad', which both jeeps carry.
+    expect(tripRouteFamilies(entry(jeepPool), 14)).toEqual(['offroad', 'natural-pool']);
+    expect(tripRouteFamilies(entry(jeep), 14)).toEqual(['offroad']);
+  });
+
+  it('lets a pool jeep and a PLAIN hike share a trip, but not a pool jeep and a pool hike', () => {
+    const claimed = claimedRouteFamilies([{ uid: 'u1', entry: slotEntryOf(jeepPool) }], resolveAll, 14);
+    // Only one of the two visits the pool → allowed.
+    expect(withoutClaimedFamilies([entry(plainHike)], claimed, 14)).toHaveLength(1);
+    // Both visit the pool → refused, on 'natural-pool' rather than 'offroad'.
+    expect(withoutClaimedFamilies([entry(poolHike)], claimed, 14)).toHaveLength(0);
+    // ...and the other direction: a pool HIKE first still blocks a pool jeep.
+    const byHike = claimedRouteFamilies([{ uid: 'u1', entry: slotEntryOf(poolHike) }], resolveAll, 14);
+    expect(withoutClaimedFamilies([entry(jeepPool)], byHike, 14)).toHaveLength(0);
+    expect(withoutClaimedFamilies([entry(jeep)], byHike, 14)).toHaveLength(1);
   });
 
   // The owner's explicit requirement: tapping "Swap this" on an off-road card
@@ -2565,7 +2711,8 @@ describe('route families outside the generator (swap / add paths)', () => {
   it('offers no second off-road tour on another card once the trip has one', () => {
     const cards = [{ uid: 'u1', entry: slotEntryOf(jeepPool) }, { uid: 'u2', entry: slotEntryOf(sailA) }];
     const claimed = claimedRouteFamilies(cards, resolve, 5, 'u2');   // swapping the SAIL
-    expect(claimed).toEqual(new Set(['offroad']));
+    // 'natural-pool' joined 'offroad' on 2026-08-21 — the pool jeep holds both.
+    expect(claimed).toEqual(new Set(['offroad', 'natural-pool']));
     expect(withoutClaimedFamilies([entry(jeep), entry(utv)], claimed, 5)).toHaveLength(0);
     // ...and the swap the traveller actually asked for still works.
     expect(withoutClaimedFamilies([entry(sailB)], claimed, 5)).toHaveLength(1);
