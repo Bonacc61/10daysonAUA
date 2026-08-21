@@ -122,7 +122,19 @@ function ActivityCardFront({
           onClick={onFlip}
           aria-label="See more about this"
           style={{
-            flex: '0 0 200px', height: '100%',
+            /* A PROPORTION, not a fixed 200px, since that is what was asked for:
+               "the proportion of the picture to the width of the card, 70% more
+               than it is now". Measured on the built app before the change — a
+               1140px card with a 200px image, i.e. 17.5% — so 17.5 x 1.7 =
+               29.75%.
+               Percentage rather than the equivalent 340px on purpose: a fixed
+               width would hold at 340 as the card narrows and reach 51% of a
+               660px card at 768px, squeezing the text pane. As a share it stays
+               29.75% everywhere, which leaves narrow cards almost exactly where
+               they were (196px against 200px) and spends the gain on the wide
+               ones. Below 640px the image stacks full-width and this does not
+               apply — see .itin-card-image-btn in index.css. */
+            flex: '0 0 29.75%', height: '100%',
             background: 'var(--sand-100)',
             border: 'none', padding: 0, cursor: 'pointer',
             position: 'relative', overflow: 'hidden',

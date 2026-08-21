@@ -938,17 +938,28 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
    the heavy use of !important in this block.
    ========================================================================= */
 
-@media (max-width: 900px) {
-  .container-1280 { padding: 0 20px; }
-
+@media (max-width: 940px) {
   /* The logo keeps its old 38px from here down. The desktop bump to 44px
      (Nav.tsx) is a DESKTOP change: the nav row cannot shrink below logo +
      links, and widening the logo widened that floor from 799px to 836px —
      which swallowed the two commonest iPad portrait widths (834 and 820) and
-     clipped the Log in button off the right edge. Swept 1440 down to 320:
-     clipping ran from 834px to 641px at 44px, and none of it at 38px.
+     clipped the Log in button off the right edge.
+     Swept every integer width 320-1000 against a build of the previous commit:
+     at 44px the nav clipped from 835 down to 641; at 38px it clips from 798
+     down to 641, which is the PRE-EXISTING floor this rule does not touch and
+     is not trying to. So read this as "the band 799-835 is given back", not as
+     "the nav is clean at 38px" — it is not, below 799.
+     940 and not 900: between 901 and 934 the row still fits but "How it works"
+     and "Log in" each wrap to a second line, taking the row from 66px to 82px.
+     Nothing is lost there, but it is a visible difference from the previous
+     commit, and 935 is where the measured row stops wrapping.
      This block sits ABOVE the 640px one, so the phone override still wins. */
   .nav-logo { height: 38px !important; }
+}
+
+@media (max-width: 900px) {
+  .container-1280 { padding: 0 20px; }
+
 
   /* Hero typography shrinks */
   .hero-title { font-size: 44px !important; }

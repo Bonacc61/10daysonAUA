@@ -211,7 +211,12 @@ export const SAMPLE_ITINERARY: Day[] = [
     evening:   [{ kind: 'activity', id: 'gasparito-restaurant' }] },
   { day: 3, title: 'Wild Aruba',         color: '#22C55E',
     morning:   [{ kind: 'activity', id: 'arikok-hiking' }],
-    afternoon: [{ kind: 'activity', id: 'oranjestad-walking' }],
+    // Was `oranjestad-walking` until 2026-08-21, when that card stopped being
+    // auto-placed anywhere (see CONDITIONALLY_BOOKABLE_LOCAL_IDS). A downtown
+    // walk was also the odd one out on a day called Wild Aruba: Boca Grandi is
+    // the windswept east coast, free, and reads as the same island as the
+    // Arikok morning above it.
+    afternoon: [{ kind: 'activity', id: 'boca-grandi' }],
     evening:   [{ kind: 'activity', id: 'manchebo-beach' }] },
   { day: 4, title: 'Flamingos & Wind',   color: '#EAB308',
     morning:   [{ kind: 'activity', id: 'flamingo-renaissance' }],
