@@ -94,7 +94,9 @@ export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) 
                at public/logo-horizontal.png is replaced to force a fresh fetch. */
             src="/logo-horizontal.png?v=20260621"
             alt="10 days on Aruba"
-            style={{ height: 38, width: 'auto', display: 'block' }}
+            /* 44 = 38 x 1.15, rounded up off 43.7 so the raster lands on a whole
+               pixel. The mobile override in index.css scales with it. */
+            style={{ height: 44, width: 'auto', display: 'block' }}
           />
         </button>
 

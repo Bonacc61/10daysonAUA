@@ -955,6 +955,11 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   .nav-link-text { display: none !important; }
   .nav-links-desktop { display: none !important; }
   .nav-mobile-row { display: flex !important; }
+  /* NOT scaled with the desktop bump, deliberately. The logo is wider than it
+     is tall (188px at 30px high), so height x1.15 costs ~31px of width, and at
+     390px the nav row had 14px of slack. Rendered at 35px it tipped the page
+     into horizontal scroll on the commonest phone width. Anything above ~32px
+     overflows here; the desktop logo is the one the owner asked to grow. */
   .nav-logo { height: 30px !important; }
   .nav-row { padding: 12px 14px !important; gap: 10px !important; }
 
