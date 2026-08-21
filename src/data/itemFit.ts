@@ -703,11 +703,19 @@ export function offroadAdrenalineBonus(item: ViatorItem, tags: Set<MatchTag>): n
 const UTV_TITLE = /\b(utv|atv|quads?|buggy|buggies|dune ?buggy|side[\s-]?by[\s-]?side)\b/i;
 // --- Title predicates shared by the generator, the whitelist and plan-diff ---
 //
-// They live in itemFit because it is a LEAF: bookables.ts and
-// itineraryGenerator.ts both import it and it imports neither, so a shared
-// definition here cannot create the cycle that putting them in the generator
-// did. Copying them instead is what tools/plan-diff.ts did twice, and the
-// second time it silently reported 20 violations that were not violations.
+// They live here because bookables.ts and itineraryGenerator.ts BOTH ALREADY
+// IMPORT itemFit, so a shared definition adds no new edge — unlike exporting
+// them from the generator, which made bookables.ts import it back. Copying them
+// instead is what tools/plan-diff.ts did twice, and the second time it silently
+// reported 20 violations that were not violations.
+//
+// itemFit is NOT a leaf, whatever a one-level grep suggests: it imports
+// exploreItems, which imports `durationMinutes` from itineraryGenerator, so
+// `itemFit -> exploreItems -> itineraryGenerator -> itemFit` is a live cycle and
+// predates all of this. It is safe because every use of these two is inside a
+// function body, so nothing is read at module-evaluation time. Park a shared
+// constant here on that reasoning, not on a leaf property this module does not
+// have — and never one that is read at the top level.
 
 /**
  * A title that names a LAND VEHICLE. Used to veto the sail family for a jeep

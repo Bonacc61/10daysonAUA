@@ -717,6 +717,12 @@ describe.skipIf(!ANON_KEY)('bookable density — the live catalog', () => {
         for (const se of [...day.morning, ...day.afternoon, ...day.evening]) {
           const card = resolveSlotEntry(se, live, tags);
           if (!card || bookableTier(card, tags) === null) continue;
+          // KNOWN NARROWING: Viator products only. `isBoatOuting` takes a
+          // ViatorItem, and two curated locals are tier-1 BOATS
+          // (`antilla-wreck-dive`, `boca-catalina-snorkel`), so one of those
+          // placed here would slip through. Measured: neither reaches this
+          // persona on either seed, in either arm. Closing it needs a predicate
+          // that reads a CardEntry rather than an item.
           const boat = card.kind === 'group' && isBoatOuting(card.bestSeller);
           expect(boat, `day ${day.day} booked a boat for a seasick traveller`).toBe(false);
         }

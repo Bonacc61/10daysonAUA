@@ -534,8 +534,6 @@ function isRevisitableBeach(e: CardEntry): boolean {
     && parseActivityCost(e.activity.cost) === 0;
 }
 
-
-
 const LOCAL_OFFROAD = /jeep|safari|4x4|4wd|off.?road|utv|atv|natural pool|conchi/i;
 // Kayaking is one experience on this island, not a category: every kayak
 // product paddles the same sheltered south-coast water — Mangel Halto, Spanish
