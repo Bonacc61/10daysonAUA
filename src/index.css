@@ -941,6 +941,15 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 @media (max-width: 900px) {
   .container-1280 { padding: 0 20px; }
 
+  /* The logo keeps its old 38px from here down. The desktop bump to 44px
+     (Nav.tsx) is a DESKTOP change: the nav row cannot shrink below logo +
+     links, and widening the logo widened that floor from 799px to 836px —
+     which swallowed the two commonest iPad portrait widths (834 and 820) and
+     clipped the Log in button off the right edge. Swept 1440 down to 320:
+     clipping ran from 834px to 641px at 44px, and none of it at 38px.
+     This block sits ABOVE the 640px one, so the phone override still wins. */
+  .nav-logo { height: 38px !important; }
+
   /* Hero typography shrinks */
   .hero-title { font-size: 44px !important; }
 

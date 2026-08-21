@@ -95,7 +95,9 @@ export default function Nav({ page, setPage, onLogin, canSeeItinerary }: Props) 
             src="/logo-horizontal.png?v=20260621"
             alt="10 days on Aruba"
             /* 44 = 38 x 1.15, rounded up off 43.7 so the raster lands on a whole
-               pixel. The mobile override in index.css scales with it. */
+               pixel. DESKTOP ONLY: index.css holds this at 38px below 900px and
+               30px below 640px, because the nav row cannot shrink past logo +
+               links and a wider logo pushes Log in off the right edge. */
             style={{ height: 44, width: 'auto', display: 'block' }}
           />
         </button>

@@ -1006,9 +1006,10 @@ function mayBook(ctx: Ctx, day: number): boolean {
 // only governs the whitelisted things we do recommend.
 //
 // `e.kind === 'group'` used to be the whole gate. The 26 curated locals are
-// hand-picked editorial, and three of them cost money without being advance
-// bookings: the $11 Arikok park gate, the $25 optional Oranjestad guide and the
-// $125 Flamingo pass. Those must stay placeable — the Arikok gate is the most
+// hand-picked editorial, and TWO of them cost money without being advance
+// bookings: the $11 Arikok park gate and the $125 Flamingo pass. (The Oranjestad
+// guide was a third until 2026-08-21, when it was named on the whitelist and
+// stopped being auto-placed.) Those two must stay placeable — the Arikok gate is the most
 // adventurous near-free item in the whole curated set at adventure 55, and the
 // point of keeping it off the whitelist was to stop it SPENDING a booking
 // slot, not to delete it.
@@ -2844,8 +2845,9 @@ export function generatePlan(
       if (bookableTier(e, ctx.tags) !== null && !mayBook(ctx, d)) return 'booking-cap';
       // A paid Viator product that never made the whitelist is not auto-placed at
       // all — see isExcludedPaidProduct. Curated locals (kind 'activity') are
-      // exempt: Arikok's gate, the Oranjestad guide and the Flamingo pass stay
-      // placeable, they just never spend a booking slot.
+      // exempt UNLESS the whitelist names them: Arikok's gate and the Flamingo
+      // pass stay placeable and never spend a booking slot, while
+      // `oranjestad-walking` is named and so is refused here like any product.
       if (isExcludedPaidProduct(e, ctx.tags)) return 'excluded-product';
       return outingsToday < MAX_ACTIVITIES_PER_DAY ? null : 'day-shape';
     };

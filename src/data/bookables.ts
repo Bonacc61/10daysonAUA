@@ -118,10 +118,16 @@ export const SUBMARINE_ID = '2455SUB';
 export const DE_PALM_ISLAND_ID = '2455P18';
 
 // Curated locals carry no Viator kind, so the paid ones are named. Absent from
-// this set and therefore NOT bookables: `arikok-hiking` ($11 park gate) and
-// `oranjestad-walking` ($25 optional guide), which are fees rather than advance
-// bookings, and `flamingo-renaissance`, which no Viator product sells at all
-// (zero of 328 titles name it) — it keeps its card and gains a direct link.
+// this set and therefore NOT bookables: `arikok-hiking` ($11 park gate), a fee
+// rather than an advance booking, and `flamingo-renaissance`, which no Viator
+// product sells at all (zero of 328 titles name it) — it keeps its card and
+// gains a direct link.
+//
+// `oranjestad-walking` was listed here on the same "optional guide is a fee"
+// reasoning until 2026-08-21. It is now named in
+// CONDITIONALLY_BOOKABLE_LOCAL_IDS instead and never auto-placed: the live
+// match turned it into a $39 Viator tour with a Book now button, which is not
+// a fee.
 //
 // Keeping the Arikok gate out matters more than its price suggests: at
 // adventure 55 it is the most adventurous near-free item in the curated set.
@@ -190,6 +196,10 @@ export function bookableTier(e: CardEntry, tags: Set<MatchTag>): BookableTier | 
     // Explore, the Swap shelf and add-from-shortlist never consult the
     // whitelist, so the card is still there for a traveller who wants it — it
     // just stops taking a slot in a plan nobody asked it for.
+    // Documentary, not load-bearing: the `return null` below already covers it.
+    // Written out because the behaviour change lives in the SET membership above
+    // and nothing at this line would fail if it were deleted — a reader looking
+    // for "why is the walking tour gone" should find it where they look first.
     if (e.activity.id === 'oranjestad-walking') return null;
     return null;
   }
