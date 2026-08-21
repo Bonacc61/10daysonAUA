@@ -682,6 +682,67 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
    actually see takes input. */
 .flip-card:not(.flipped) .flip-back { pointer-events: none; }
 
+/* The same flip on Explore's tiles, which are a different shape.
+
+   `.flip-card`'s 284px floor and the matching floor on `.flip-inner` are tuned
+   for the ITINERARY card — wide, and sized against a layout Explore does not
+   have. An Explore tile is narrow and tall (a 180px photo plus its text), so the
+   floor never binds and the two faces simply agree on whatever the front comes
+   out at. Released here rather than raised, because the front is the only thing
+   that should decide this card's height.
+
+   `.a-card` carries the border, radius and offset shadow. That shadow must sit
+   on the FACES, not on the flipping container: on the container it stays put
+   while the card turns, so a card mid-rotation trails a hard black rectangle at
+   the old angle. The back is `.chunky`, which already draws the same border and
+   shadow, so both faces match without restating either.
+
+   overflow:hidden on `.a-card` is what keeps the photo inside the rounded
+   corners; it is left alone. The BACK is allowed to scroll instead — CardBack
+   trims its text to budgets measured against the itinerary card's width, and a
+   narrower column turns the same characters into more lines. Trimming again per
+   surface would mean two sets of magic numbers; letting the overflow scroll
+   costs nothing and cannot clip a sentence out of existence. */
+/* `min-width: 0` is not cosmetic here. The tile used to BE the grid item; it is
+   now wrapped, and a grid item's default `min-width: auto` refuses to shrink
+   below its content's min-content width — which the wrapper passes straight
+   through from the card inside it. At 390px that pushed the whole grid to 392px
+   and gave the page a sideways scroll it has never had. Measured against the
+   live build, which does not overflow. */
+.explore-flip { min-height: 0; height: 100%; min-width: 0; }
+.explore-flip .a-card { min-width: 0; }
+.explore-flip .flip-inner { min-height: 0; height: 100%; }
+.explore-flip .a-card { height: 100%; }
+.explore-flip .flip-back { overflow-y: auto; }
+/* CardBack lays its two blocks side by side, which is right on the itinerary
+   card and wrong here: at 280px a two-column grid gives each block a ~100px
+   ribbon, and an Overview set one word per line runs off the bottom. The mobile
+   rules below already stack it for exactly this reason — an Explore tile is
+   always that narrow, so it stacks at every width. */
+.explore-flip .itin-card-back-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
+.explore-flip .itin-card-back { padding: 14px !important; }
+/* No control cluster over this corner here, so the title gets the full width —
+   and wraps to two lines rather than losing its ending to an ellipsis, which a
+   nowrap title does almost immediately at this width. */
+.explore-flip .card-back-head { padding-right: 0 !important; }
+.explore-flip .card-back-title {
+  white-space: normal !important; font-size: 16px !important;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+/* The tile lifts on hover; the flipped card must not, or the shadow detaches
+   from the face that is actually facing you. */
+.explore-flip.flipped .a-card:hover { transform: none; box-shadow: 5px 5px 0 var(--ink); }
+
+/* "Opens Viator ↗" — the photo keeps the affiliate click the whole tile used to
+   carry, and without a word there is nothing to say so once the text beside it
+   started doing something else. Bottom-right, clear of the rating chip. */
+.explore-book-hint {
+  position: absolute; bottom: 10px; right: 10px;
+  background: rgba(26,26,26,0.85); color: var(--cream);
+  font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 999px;
+  pointer-events: none;
+}
+
 /* Top↕bottom swap flip — single smooth arc rather than a zig-zag keyframe
    chain (the latter reads as robotic). The browser interpolates the
    rotateX from 0 → −100° → 0 along a single ease-in-out-cubic curve, with

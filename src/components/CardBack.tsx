@@ -277,8 +277,11 @@ export default function CardBack(props: Props) {
     <div className="chunky flip-face flip-back itin-card-back"
          style={{ borderWidth: 2, height: '100%', padding: '16px 18px',
                   display: 'flex', flexDirection: 'column' }}>
-      <div style={{ marginBottom: 10, paddingRight: 112 }}>
-        <h3 className="font-display" style={{ fontSize: 18, margin: 0, color: 'var(--ink)',
+      {/* The padding clears the Itinerary card's control cluster, which sits over
+          this corner. Explore has no cluster, so it takes the space back — hence
+          a class to hang that override on rather than a second component. */}
+      <div className="card-back-head" style={{ marginBottom: 10, paddingRight: 112 }}>
+        <h3 className="font-display card-back-title" style={{ fontSize: 18, margin: 0, color: 'var(--ink)',
                                               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {title}
         </h3>

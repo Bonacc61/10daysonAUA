@@ -4,6 +4,7 @@ import { ChillEnd, AdrenalineEnd, FreeEnd, SplurgeEnd } from '../components/Slid
 import AddButton from '../components/AddButton';
 import SearchBar from '../components/SearchBar';
 import DepartureNote from '../components/DepartureNote';
+import CardBack from '../components/CardBack';
 import RatingChip from '../components/RatingChip';
 import Footer from '../components/Footer';
 import { useShortlist } from '../lib/shortlist';
@@ -482,17 +483,52 @@ function openItem(url: string, e: MouseEvent) {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
+
+/**
+ * A click inside the card's TEXT means "tell me more", not "take me to Viator".
+ *
+ * The whole tile used to be one affiliate link, so reading the description and
+ * leaving the site were the same gesture — a traveller who wanted to know what
+ * a thing actually was got thrown to a booking page to find out. The text now
+ * flips the card to the same back the Itinerary page shows; the PHOTO keeps the
+ * old behaviour, so the affiliate path is still a large target rather than only
+ * the Book now button.
+ *
+ * Interactive children are exempt, the same rule `openItem` already applies:
+ * Book now is an `<a>` and Add is a `<button>`, and neither should flip a card
+ * out from under the thing you just pressed.
+ */
+function flipOnText(e: MouseEvent, toggle: () => void) {
+  if ((e.target as HTMLElement).closest('a, button')) return;
+  toggle();
+}
+
 function ItemTile({ item, section, sectionUrl: _sectionUrl, region, bookNow, added, onAdd }: { item: ViatorItem; section: string; sectionUrl: string | null; region: string; bookNow: { url: string; affiliate: boolean } | null; added: boolean; onAdd: () => void }) {
   const url = item.viator_item_url ? viatorLink(item.viator_item_url) : null;
+  const [flipped, setFlipped] = useState(false);
+  // Mounted on the FIRST flip, then kept. Explore renders ~350 tiles; giving
+  // every one of them a card back up front means 350 rating histograms and 350
+  // "What to expect" lookups built for cards nobody has asked about — and it put
+  // each activity's title in the document twice, which is a real ambiguity for
+  // anything reading the page, tests included. Kept rather than unmounted on the
+  // way back, because the return rotation still has to have something to turn.
+  const [everFlipped, setEverFlipped] = useState(false);
+  const flip = (to: boolean) => { if (to) setEverFlipped(true); setFlipped(to); };
   const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span>{isLocalPickItem(item.id) && <LocalMark />}</>;
   return (
-    <div className="a-card fade-in" style={{ cursor: url ? 'pointer' : 'default' }} onClick={url ? (e) => openItem(url, e) : undefined}>
+    <div className={`flip-card explore-flip fade-in${flipped ? ' flipped' : ''}`}
+         onClick={flipped ? (e) => flipOnText(e, () => flip(false)) : undefined}>
+      <div className="flip-inner" style={{ height: '100%' }}>
+    <div className="a-card flip-face">
       <div className="card-header-band">{headerInner}</div>
-      <div className="a-img">
+      <div className="a-img" style={{ cursor: url ? 'pointer' : 'default' }}
+           onClick={url ? (e) => openItem(url, e) : undefined}>
         <img src={item.image_url} alt={item.title} loading="lazy" />
         <RatingChip rating={item.rating} reviewCount={item.review_count} size={12} />
+        {url && <span className="explore-book-hint">Opens Viator ↗</span>}
       </div>
-      <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column', cursor: 'pointer' }}
+           onClick={(e) => flipOnText(e, () => flip(true))}>
         <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{item.title}</h3>
         {region && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--sand-500)', fontSize: 12, marginBottom: 10 }}>
@@ -517,20 +553,33 @@ function ItemTile({ item, section, sectionUrl: _sectionUrl, region, bookNow, add
         <div style={{ marginTop: 'auto' }}><CardActions bookNow={bookNow} free={item.price_usd === 0} added={added} onAdd={onAdd} /></div>
       </div>
     </div>
+        {everFlipped && <CardBack kind="group" bestSeller={item} onFlip={() => flip(false)} />}
+      </div>
+    </div>
   );
 }
 
 function ActivityTile({ a, section, sectionUrl: _sectionUrl, bookNow, added, onAdd }: { a: Activity; section: string; sectionUrl: string | null; bookNow: { url: string; affiliate: boolean } | null; added: boolean; onAdd: () => void }) {
   const url = bookUrlForActivity(a)?.url ?? null;
+  const [flipped, setFlipped] = useState(false);
+  // See ItemTile: the back is built on first flip, not for all ~350 tiles.
+  const [everFlipped, setEverFlipped] = useState(false);
+  const flip = (to: boolean) => { if (to) setEverFlipped(true); setFlipped(to); };
   const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><LocalMark /></>;
   return (
-    <div className="a-card fade-in" style={{ cursor: url ? 'pointer' : 'default' }} onClick={url ? (e) => openItem(url, e) : undefined}>
+    <div className={`flip-card explore-flip fade-in${flipped ? ' flipped' : ''}`}
+         onClick={flipped ? (e) => flipOnText(e, () => flip(false)) : undefined}>
+      <div className="flip-inner" style={{ height: '100%' }}>
+    <div className="a-card flip-face">
       <div className="card-header-band">{headerInner}</div>
-      <div className="a-img">
+      <div className="a-img" style={{ cursor: url ? 'pointer' : 'default' }}
+           onClick={url ? (e) => openItem(url, e) : undefined}>
         <img src={a.image} alt={a.title} loading="lazy" />
         {a.ratingSource === 'viator' && <RatingChip rating={a.rating} reviewCount={a.reviewCount} size={12} />}
+        {url && <span className="explore-book-hint">Opens Viator ↗</span>}
       </div>
-      <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column', cursor: 'pointer' }}
+           onClick={(e) => flipOnText(e, () => flip(true))}>
         <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{a.title}</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--sand-500)', fontSize: 12, marginBottom: 10 }}>
           <MapPin size={12} /><span>{a.location}</span>
@@ -543,6 +592,9 @@ function ActivityTile({ a, section, sectionUrl: _sectionUrl, bookNow, added, onA
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Dollar size={11} /> {a.cost}</span>
         </div>
         <div style={{ marginTop: 'auto' }}><CardActions bookNow={bookNow} free={parseActivityCost(a.cost) === 0} added={added} onAdd={onAdd} /></div>
+      </div>
+    </div>
+        {everFlipped && <CardBack kind="activity" activity={a} onFlip={() => flip(false)} />}
       </div>
     </div>
   );
