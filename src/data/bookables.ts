@@ -1,5 +1,6 @@
 import type { CardEntry, MatchTag } from '../types';
-import { activityKind, isPhotoService } from './itemFit';
+import { activityKind, isPhotoService, HORSEBACK_TITLE } from './itemFit';
+
 import { parseActivityCost } from './matcher';
 
 // === What a traveller must BOOK, as opposed to merely pay for ==============
@@ -104,9 +105,6 @@ const TWO_WHEELER_TITLE = /\b(e[\s-]?bikes?|bikes?|biking|bicycles?|cycling|mope
 // same commit: require POSITIVE evidence, and do not let one word in a title
 // decide what a tour is.
 const FOUR_WHEELER_TITLE = /\b(utv|atv|quads?|buggy|buggies|jeeps?|4x4|4wd)\b/i;
-// A horse is not a vehicle, and two of the island's rides are Viator-tagged
-// off-road — see the matching note in itineraryGenerator.ts.
-const HORSEBACK_TITLE = /\b(horseback|horse ?riding|horse ?back)\b/i;
 // Positive evidence that a `hike`-kind product is actually a walk.
 const HIKE_TITLE = /\b(hik(?:e|ing)|trek(?:king)?|nature walk)\b/i;
 const WATER_TITLE = /\b(snorkel(?:l?ing)?|catamaran|sail|cruise|boat|charter|seabob|reef|wreck|sea scooter|island|day pass)\b/i;
@@ -192,7 +190,16 @@ export function bookableTier(e: CardEntry, tags: Set<MatchTag>): BookableTier | 
   // Owner's ruling 2026-08-21: horseback is for trips where the standard
   // curated activities are already depleted, which on a 10-day trip they are
   // not. Tier 2 keeps it off the days the must-do set wants; `long-trip` keeps
-  // it off short trips entirely, so a 10-day plan is unchanged.
+  // it off short trips entirely.
+  //
+  // "So a 10-day plan is unchanged" is what this said, and it is not quite
+  // true. The row is unconditional in its NEGATIVE direction, so on a trip of
+  // 10 days or fewer it also REMOVES something: "Horseback Riding and Natural
+  // Pool Adventure in Aruba" ($189, 56 reviews) used to clear the off-road row
+  // — JEEP_TITLE matches `natural pool` — and is now tier 1 -> null there.
+  // Measured across 8 personas x {7,10} days x 3 seeds, no plan placed it
+  // either way, so there is no observed regression; the eligibility change is
+  // real all the same and this is the honest statement of it.
   //
   // Tested by TITLE and placed ABOVE the off-road row on purpose: Viator files
   // "Aruba Horseback Riding Tour For Advanced Riders" and "Horseback Riding and

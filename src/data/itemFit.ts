@@ -701,6 +701,29 @@ export function offroadAdrenalineBonus(item: ViatorItem, tags: Set<MatchTag>): n
 // vehicle. It also covers the middle of the slider, which the adrenaline nudge
 // leaves alone (`low-adventure` only).
 const UTV_TITLE = /\b(utv|atv|quads?|buggy|buggies|dune ?buggy|side[\s-]?by[\s-]?side)\b/i;
+// --- Title predicates shared by the generator, the whitelist and plan-diff ---
+//
+// They live in itemFit because it is a LEAF: bookables.ts and
+// itineraryGenerator.ts both import it and it imports neither, so a shared
+// definition here cannot create the cycle that putting them in the generator
+// did. Copying them instead is what tools/plan-diff.ts did twice, and the
+// second time it silently reported 20 violations that were not violations.
+
+/**
+ * A title that names a LAND VEHICLE. Used to veto the sail family for a jeep
+ * tour Viator has tagged as snorkelling, and mirrored by plan-diff's sail rule.
+ * Deliberately NOT the natural-pool words — including them would force a pool
+ * HIKE back into the off-road family and undo the 2026-08-21 split.
+ */
+export const VEHICLE_TITLE = /\b(jeeps?|4x4|4wd|utv|atv|buggy|buggies|quads?|off.?road|safari)\b/i;
+
+/**
+ * A title that names a horseback ride. Matched on the title as well as the kind
+ * because Viator files two of the island's rides under `offroad`, so a
+ * kind-only test leaves them competing with the jeep safari.
+ */
+export const HORSEBACK_TITLE = /\b(horseback|horse ?riding|horse ?back)\b/i;
+
 const JEEP_VEHICLE_TITLE = /\b(jeeps?|4x4|4wd|safari)\b/i;
 // A PREFERENCE, not a guarantee, and the magnitude says so. Two points sits
 // below every scoring signal that expresses genuine fit — an interest or

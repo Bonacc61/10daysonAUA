@@ -148,6 +148,7 @@ export type SailFacet = 'morning' | 'afternoon' | 'sunset' | 'food' | 'cocktails
 const GROUP_TAXONOMY_TO_CATEGORY: Record<string, Category> = {
   'adventure-tours': 'Activities',
   'watersports': 'Watersports',
+  'diving': 'Watersports',
   'sailing-cruises': 'Tours',
   'food-drink-experiences': 'Food',
   'sightseeing-tours': 'Tours',

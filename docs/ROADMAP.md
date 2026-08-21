@@ -52,16 +52,20 @@ feeds the engine is in `docs/matching-engine/geography.md`:
   Free local beaches becoming revisitable after a clear day
   (`REVISITABLE_MIN_DAY_GAP = 2`) got a 14-day trip to 0 open slots on all five
   trace personas, measured 2026-08-03. The 2026-08-05 curation rules (one kayak, one sail and one
-  off-road tour per trip up to 7 days; from 8 days each family scales with
-  length — 2 at 8-12, 3 at 13-14 — with day-sail and evening-cruise counted
-  separately at 8+; two outings and one meal per day) traded that back deliberately: **roughly 300-350 of 1,260 slots open** —
+  off-road tour per trip up to 7 days; from 8 days the kayak and off-road
+  families scale with length — 2 at 8-12, 3 at 13-14 — while the sails stay at
+  one of each kind, day-sail and evening-cruise counted separately from 8 days;
+  two outings and one meal per day) traded that back deliberately: **roughly 300-350 of 1,260 slots open** —
   the five personas from `tools/itinerary-trace.ts` at 14 days, seeds 0-5,
   measured 2026-08-05 (301 before these rules; 304 after, and it moved between
   343 and 349 within an hour as the catalog and rules churned, so treat the
   precision as noise and the order of magnitude as the point). That figure now
-  predates TWO uncounted changes, not one: it was taken before the paid cap, and
-  before the 2026-08-21 family budgets, which add 2-3 placed cards to a 14-day
-  plan and therefore consume open slots. Most of those open slots are the CAP, not a shortage: a day that
+  predates TWO uncounted changes, not one: the paid cap, and the 2026-08-21
+  curation batch. Measured at 14 days on the trace personas, seeds 0-2, the
+  family budgets ALONE added nothing — five of seven plans are byte-identical,
+  because the exemption that stops two sails removed the only thing the budget
+  was buying. The extra cards that do appear (foodie 2->4 Viator, family 2->3)
+  come from the natural-pool and horseback rules instead. Most of those open slots are the CAP, not a shortage: a day that
   has had its two outings is finished by design — and since 2026-08-15 a day
   that has had its one PAID outing is finished for anything else that costs
   money. **These 2026-08-05 slot figures predate that cap and have not been
@@ -81,8 +85,8 @@ feeds the engine is in `docs/matching-engine/geography.md`:
   so a full day does not lose its dinner for a stop that then cannot land. It
   still does not check DAY_CAP_MIN, which is the open half of this item.
 - **Pre-pass ORDER is load-bearing and undocumented in the code's structure.**
-  Pins → balanced template (mid-slider personas only) → premium splurge →
-  staples → fill ladder. Whichever pass runs first claims from a route family's
+  Pins → balanced template (mid-slider personas only) → natural pool →
+  premium splurge → staples → fill ladder. Whichever pass runs first claims from a route family's
   budget, and the later ones stand down once that budget is spent. That ordering is the
   only reason a money-no-object traveller gets the yacht instead of the
   catamaran staple (2026-08-05). Reordering these passes changes which products

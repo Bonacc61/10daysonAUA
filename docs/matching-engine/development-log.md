@@ -23,7 +23,9 @@ answersToTags(answers)
   → isAutoFillExcluded + championsByExperience   // one well-reviewed champion per experience
   → pin pre-pass                          // claim slots for `opts.pinned` (see note)
   → balanced template pre-pass            // mid-slider personas only
-  → natural pool pre-pass                 // above budget-conscious, 5+ days;
+  → natural pool pre-pass                 // 5+ days, every tier, priced
+                                          //   against the tier's average
+                                          //   daily spend;
                                           //   before the splurge and staples,
                                           //   which is what decides who spends
                                           //   the trip's booking budget
@@ -50,7 +52,7 @@ Accumulates trip-wide state across the day loop:
 | `usedClusterIds` | embedding clusters placed; a hit is conclusive, a miss falls through |
 | `usedTagSets` | tag arrays of placed items; trip-wide Jaccard at 0.35 |
 | `dayTagSets` | tag arrays placed TODAY, reset per day; stricter Jaccard at 0.08 |
-| `usedRouteFamilies` | a `RouteFamilyLedger` of family → count placed, against a per-family budget of `Math.max(1, Math.round(nDays / DAYS_PER_ROUTE_FAMILY))` — 5 days per family, so 1 up to 7 days, 2 at 8-12, 3 at 13-14 (2026-08-21). Applies to `offroad`, `kayak` and the sail families, which are LENGTH-DEPENDENT since 2026-08-12: collapsed to one `sail` below 8 days, split into `day-sail` + `evening-cruise` at 8+. `natural-pool` is a family again since 2026-08-21 — a DESTINATION with a fixed budget of 1, held *in addition to* an entry's activity family, so a pool jeep is both `offroad` and `natural-pool` while a pool hike is only the latter. See `tripRouteFamilies`. |
+| `usedRouteFamilies` | a `RouteFamilyLedger` of family → count placed, against a per-family budget of `Math.max(1, Math.round(nDays / DAYS_PER_ROUTE_FAMILY))` — 5 days per family, so 1 up to 7 days, 2 at 8-12, 3 at 13-14 (2026-08-21). The scaled budget applies to `offroad`, `kayak` and `horseback`. The sail families are LENGTH-DEPENDENT since 2026-08-12 — collapsed to one `sail` below 8 days, split into `day-sail` + `evening-cruise` at 8+ — but each is capped at 1 however long the trip, alongside `natural-pool` (see `UNSCALED_FAMILIES`). `natural-pool` is a family again since 2026-08-21 — a DESTINATION with a fixed budget of 1, held *in addition to* an entry's activity family, so a pool jeep is both `offroad` and `natural-pool` while a pool hike is only the latter. See `tripRouteFamilies`. |
 | `lastFamilyDay` | family → last day used; enforces FAMILY_MIN_DAY_GAP (boat outings) |
 | `usedGroupIds` | last-resort group dedup; only for items with neither tags nor a cluster |
 | `dayFamilies` | families placed TODAY; hard cap of one boat outing per day |

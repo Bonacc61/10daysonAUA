@@ -90,6 +90,13 @@ const GROUP_SECTION: Record<string, Section> = {
   'adventure-tours':        'adventures-outdoor',
   'watersports':            'cruises-water',
   'sailing-cruises':        'cruises-water',
+  // Added with the `diving` anchor group (viator-cards/groups.ts, 2026-08-21).
+  // WITHOUT this line the group is emptied before it renders: `groupSection`
+  // returns undefined, the early return below never fires, and every dive is
+  // re-filed into whichever cruises-water group has the lowest display_order.
+  // A new anchor group needs this line and the one in exploreItems.ts, or the
+  // deploy ships a section that is always empty.
+  'diving':                 'cruises-water',
   'food-drink-experiences': 'food-drink',
   'sightseeing-tours':      'tours-sightseeing',
   'art-culture-history':    'culture-history',

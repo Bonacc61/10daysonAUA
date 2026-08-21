@@ -13,7 +13,7 @@ import Footer from '../components/Footer';
 import ItineraryCard from '../components/ItineraryCard';
 import CollapsedDaySummary from '../components/CollapsedDaySummary';
 import { resolveSlotEntry } from '../data/activitySource';
-import { claimedRouteFamilies, withoutClaimedFamilies, hasClaimedFamily, tripRouteFamilies } from '../data/itineraryGenerator';
+import { claimedRouteFamilies, withoutClaimedFamilies, hasClaimedFamily, tripRouteFamilies, routeFamilyBudget } from '../data/itineraryGenerator';
 import { useCatalog } from '../data/useCatalog';
 import { matchPool, blendPools, entryPrice, parseActivityCost } from '../data/matcher';
 import { constrainByEdit, CHIP_CONSTRAINTS, describeConstraint, satisfiableByRotation } from '../data/editConstraint';
@@ -69,6 +69,11 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
     // its activity family, so a pool jeep is both 'offroad' and 'natural-pool'.
     // Its label is back with it; without one the badge prints the raw token.
     offroad: 'off-road tour', kayak: 'kayak trip', 'natural-pool': 'natural pool trip',
+    // 20 live products return this since 2026-08-21. Reachable without the
+    // generator: `onAddItem` applies no family filter, so a traveller adding a
+    // second ride from an Other-suggestions row would otherwise be shown the
+    // raw token.
+    horseback: 'horseback ride',
   };
 
   // Build the initial itinerary from the answers + the live catalog (Viator
@@ -555,11 +560,19 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   //
   // Derived from the plan rather than recorded when a card is added, so it holds
   // however the duplicate got there — the shortlist picker, a drag between days,
-  // a restored trip saved before the rule existed. The generator cannot produce
-  // one and swap will not return one, so anything flagged here was a deliberate
-  // choice; the badge says so rather than blocking it.
+  // a restored trip saved before the rule existed. Anything flagged here is a
+  // deliberate choice; the badge says so rather than blocking it.
+  //
+  // Counted against the family's BUDGET, not against "seen once". This used to
+  // say "the generator cannot produce one", and on 2026-08-21 that stopped being
+  // true: `routeFamilyBudget('offroad', 14)` is 3, so a fortnight may legitimately
+  // hold a UTV run on day 3 and a jeep safari on day 9. Measured before this fix,
+  // 30 of 900 generated plans carried two off-road cards and every one of them
+  // rendered "2nd off-road tour this trip" on a plan the engine had deliberately
+  // built. The budget is imported from the same source the generator and
+  // plan-diff use rather than mirrored here.
   const duplicateFamilyUids = useMemo(() => {
-    const firstSeen = new Set<string>();
+    const seen = new Map<string, number>();
     const dupes = new Map<string, string>();
     for (const d of plan) {
       for (const s of ['morning', 'afternoon', 'evening'] as const) {
@@ -570,8 +583,9 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
           // natural-pool outing has to earn the badge even when the two cards
           // are a jeep and a hike, which share no activity family.
           for (const fam of tripRouteFamilies(resolved, answers.days)) {
-            if (firstSeen.has(fam)) dupes.set(c.uid, FAMILY_LABEL[fam] ?? fam);
-            else firstSeen.add(fam);
+            const n = (seen.get(fam) ?? 0) + 1;
+            seen.set(fam, n);
+            if (n > routeFamilyBudget(fam, answers.days)) dupes.set(c.uid, FAMILY_LABEL[fam] ?? fam);
           }
         }
       }

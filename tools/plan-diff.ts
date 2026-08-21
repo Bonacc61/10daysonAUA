@@ -23,7 +23,7 @@
  */
 import { generatePlan, isBoatOuting, isSailOuting, isPaidOuting, MAX_PAID_OUTINGS_PER_DAY, SECOND_SAIL_MIN_DAYS, routeFamilyBudget } from '../src/data/itineraryGenerator';
 import { loadCatalog } from '../src/data/activitySource';
-import { activityKind, isFullDayProduct, isEveningItem } from '../src/data/itemFit';
+import { activityKind, isFullDayProduct, isEveningItem, VEHICLE_TITLE } from '../src/data/itemFit';
 import { parseActivityCost } from '../src/data/matcher';
 import { LUNCHSPOTS } from '../src/data/lunchspots';
 import { bookableTier, bookingDays } from '../src/data/bookables';
@@ -146,7 +146,6 @@ function checkInvariants(plan: Day[], catalog: Catalog, tags: Set<MatchTag>): Vi
   // without it the B&H "Safari Jeep Tour" counts against the sail budget here
   // while the engine files it elsewhere, which is the same mirror drift the
   // budget import twenty lines above just fixed.
-  const VEHICLE_TITLE = /\b(jeeps?|4x4|4wd|utv|atv|buggy|buggies|quads?|off.?road|safari)\b/i;
   const sailItems = all.filter((i) => isSailOuting(i) && !isFullDayProduct(i)
     && !KAYAK_RE.test(i.title) && !VEHICLE_TITLE.test(i.title));
   const daySails = sailItems.filter((i) => !isEveningItem(i)).length;

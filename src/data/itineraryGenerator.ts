@@ -18,7 +18,7 @@ import type { Activity, Day } from './activities';
 import type { CardEntry, MatchTag, Region, Section, Slot, SlotEntry, ViatorItem, ViatorGroup } from '../types';
 import { SECTIONS } from './itineraryPlan';
 import { matchPool, entryPrice, parseActivityCost } from './matcher';
-import { fitItem, budgetCap, budgetAvgCap, activityKind, adventureCapForFlags, isEveningItem, isWaterBased, isCrowdPleaser, isAutoFillExcluded, isKidsOriented, isCouplesOriented, isFullDayProduct, titleTimeOfDay, isNaturalPool, offroadAdrenalineBonus, contentCreatorBonus, itemSlotOkForFill, itemAdventure } from './itemFit';
+import { fitItem, budgetCap, budgetAvgCap, activityKind, VEHICLE_TITLE, HORSEBACK_TITLE, adventureCapForFlags, isEveningItem, isWaterBased, isCrowdPleaser, isAutoFillExcluded, isKidsOriented, isCouplesOriented, isFullDayProduct, titleTimeOfDay, isNaturalPool, offroadAdrenalineBonus, contentCreatorBonus, itemSlotOkForFill, itemAdventure } from './itemFit';
 import { primarySection } from './exploreItems';
 import { answersToTags } from './answerTags';
 import { effectiveFlags } from './notesFlags';
@@ -534,15 +534,8 @@ function isRevisitableBeach(e: CardEntry): boolean {
     && parseActivityCost(e.activity.cost) === 0;
 }
 
-// Land vehicles ONLY — no pool words, see the use site in routeFamilyOf.
-const VEHICLE_TITLE = /\b(jeeps?|4x4|4wd|utv|atv|buggy|buggies|quads?|off.?road|safari)\b/i;
-// A horse is not a vehicle. Matched on the TITLE as well as the kind because
-// Viator's tags put two of the island's horseback tours in the off-road bucket
-// — "Aruba Horseback Riding Tour For Advanced Riders" and "Horseback Riding and
-// Natural Pool Adventure in Aruba" both come back `activityKind === 'offroad'`,
-// so a kind-only test would leave them retiring the trip's jeep safari and
-// being retired by it. Owner's ruling 2026-08-21: keep them separate.
-const HORSEBACK_TITLE = /\b(horseback|horse ?riding|horse ?back)\b/i;
+
+
 const LOCAL_OFFROAD = /jeep|safari|4x4|4wd|off.?road|utv|atv|natural pool|conchi/i;
 // Kayaking is one experience on this island, not a category: every kayak
 // product paddles the same sheltered south-coast water — Mangel Halto, Spanish

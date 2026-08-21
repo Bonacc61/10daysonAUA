@@ -56,6 +56,53 @@ export const GROUPS: GroupConfig[] = [
     viator_group_url: `https://www.viator.com/Aruba/d28-ttd?pid=${PID}`,
   },
   {
+    // Added 2026-08-21 on the owner's curation request. The immediate cause was
+    // one product — "Guided Padi Discover Scuba Diving for Non-Certified
+    // Divers" (250774P5, $120, rating 5.0, 50 reviews), the best-rated
+    // non-certified dive on the island, which was absent from the site while
+    // being live on Viator. It carries none of the six anchors above, so no
+    // amount of matcher work could reach it: the ingest searches BY TAG, and
+    // nothing was asking for diving.
+    //
+    // It is not alone. Tag 12021 returns 14 Aruba products; we already hold 8
+    // of them through other anchors, so this adds SIX, and the five with real
+    // review counts are all well reviewed: 8936P3 "Aruba Certified Scuba
+    // Diving" (320), 2785DIVE (220), 106422P1 "Small-Group Aruba Scuba Diving
+    // for Non-Certified Divers" (208), 2785RESORT (103) and 250774P5 (50).
+    //
+    // CLAIM ORDER, stated accurately: this sits after `sailing-cruises` (21701)
+    // and `watersports` (20255), and all 13 dives already in the catalog are
+    // claimed by `sailing-cruises`. So this group adds the six it alone reaches
+    // and does NOT gather the island's established dives — "Diving" will hold 6
+    // while 13 more sit under Sailing & Cruises. That is a curation decision,
+    // and the alternative (moving this above `sailing-cruises`, which would
+    // pull all 19 together and take 13 cards out of Sailing & Cruises) is a
+    // visible Explore change that should be made on purpose rather than as a
+    // side effect of reaching one product.
+    //
+    // An earlier draft of this comment claimed the opposite. It was written
+    // from intent rather than from the array order, and the group was in fact
+    // placed after both broad anchors.
+    //
+    // Note for whoever measures the effect: `bookableTier` still returns null
+    // for every dive, by the "Diving is deliberately out" ruling in
+    // docs/superpowers/specs/2026-08-18-bookable-density-design.md. Ingesting
+    // them puts them in Explore and on the Swap shelf; it does NOT auto-place
+    // them. Auto-placement is a separate, narrower rule the owner scoped to
+    // adventure travellers on trips longer than 10 days.
+    id: 'diving',
+    name: 'Diving',
+    // 7, not 3: `sailing-cruises` already holds 3. `regroupItems` breaks ties
+    // for a shared section on LOWEST display_order, so a collision decides
+    // which group is canonical for cruises-water by accident.
+    displayOrder: 7,
+    tagIds: [12021], // Scuba Diving (14 Aruba products)
+    matched_by: ['adventure', 'high-adventure', 'watersports'],
+    region: 'islandwide',
+    allowed_slots: ['morning', 'afternoon'],
+    viator_group_url: `https://www.viator.com/Aruba/d28-ttd?pid=${PID}`,
+  },
+  {
     id: 'adventure-tours',
     name: 'Adventure Tours',
     displayOrder: 1,

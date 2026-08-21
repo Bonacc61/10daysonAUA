@@ -673,9 +673,13 @@ describe.skipIf(!ANON_KEY)('bookable density — the live catalog', () => {
   // signature excursion rather than a consolation prize. So this traveller books
   // on day 3 instead of not at all.
   //
-  // The test is INVERTED rather than deleted: what it guarded is still worth
-  // guarding, just from the other side. The second assertion keeps its original
-  // job of stopping the first pass vacuously.
+  // The test is INVERTED rather than deleted, but inverting it cost the
+  // guarantee it originally carried. `books nothing` implied "and therefore is
+  // never booked onto a boat"; `books something` does not, and the version
+  // shipped first asserted `.length > 0` on BOTH arms — which an implementation
+  // ignoring `no-boats` entirely would pass. So the seasick guarantee is now
+  // asserted directly, on every bookable the plan actually places rather than
+  // on the pre-pass's pick alone.
   it('books a boat-free natural pool for a budget, low-adventure traveller who cannot take a boat', (ctx) => {
     if (!reachable) { ctx.skip(); return; }
     const live: Catalog = { activities: ACTIVITIES, groups, items };
@@ -695,16 +699,28 @@ describe.skipIf(!ANON_KEY)('bookable density — the live catalog', () => {
       }
       return out;
     };
-    const pool = naturalPoolFor(live, answersToTags(seasick));
+    const tags = answersToTags(seasick);
+    const pool = naturalPoolFor(live, tags);
     expect(pool).toBeDefined();
     // Inside the tier's AVERAGE daily spend, not merely its per-item ceiling —
     // $60 against $110. That is the whole rule; no id is hardcoded to reach it.
-    expect(pool!.bestSeller.price_usd).toBeLessThanOrEqual(budgetAvgCap(answersToTags(seasick)));
-    // Boat-free, which is what makes it reachable for THIS traveller at all.
+    expect(pool!.bestSeller.price_usd).toBeLessThanOrEqual(budgetAvgCap(tags));
     expect(isBoatOuting(pool!.bestSeller)).toBe(false);
+
+    // Every bookable the plan places, not just the pre-pass's pick. This is the
+    // assertion that survives the inversion: a seasick traveller may now be
+    // booked, and must still never be booked onto a boat.
     for (let seed = 0; seed < 2; seed += 1) {
-      expect(bookedOn(seasick, seed).length).toBeGreaterThan(0);
-      expect(bookedOn({ ...seasick, flags: [] }, seed).length).toBeGreaterThan(0);
+      const days = bookedOn(seasick, seed);
+      expect(days.length).toBeGreaterThan(0);
+      for (const day of generatePlan(seasick, live, { seed })) {
+        for (const se of [...day.morning, ...day.afternoon, ...day.evening]) {
+          const card = resolveSlotEntry(se, live, tags);
+          if (!card || bookableTier(card, tags) === null) continue;
+          const boat = card.kind === 'group' && isBoatOuting(card.bestSeller);
+          expect(boat, `day ${day.day} booked a boat for a seasick traveller`).toBe(false);
+        }
+      }
     }
   });
 });

@@ -369,3 +369,43 @@ describe('mergeLocalMatches — price and duration come from the matched product
     expect(parseActivityCost(out.cost)).toBe(99);
   });
 });
+
+// ── Every anchor group needs a GROUP_SECTION entry ───────────────────────────
+// Adding a group to `viator-cards/groups.ts` is a two-sided change: the edge
+// function starts ingesting under a new group id, and the client has to know
+// which Explore section that id belongs to. Miss the client half and the group
+// is emptied before it ever renders — `groupSection` returns undefined, the
+// cross-section early return in `regroupItems` never fires, and every item is
+// re-filed into whichever group of that section has the lowest display_order.
+//
+// That is exactly what happened to the `diving` group on 2026-08-21: zero
+// survivors, no crash, a section that simply never appeared. This test is the
+// thing that would have caught it, and it is written against the RULE rather
+// than against 'diving' so it also covers the next group.
+describe('regroupItems — a group the client does not recognise is emptied', () => {
+  const grp = (id: string, display_order: number, taxonomy: string): ViatorGroup => ({
+    id, name: id, tagline: '', viator_taxonomy: taxonomy, viator_group_url: '',
+    display_order, matched_by: [], region: 'islandwide', allowed_slots: [],
+  });
+  // Viator tag 11912 is snorkelling, which `matchingSection` resolves to
+  // cruises-water — the section both the known and the unknown group sit in.
+  const item = (id: string, group_id: string): ViatorItem => ({
+    id, group_id, title: `Dive ${id}`, image_url: '', price_usd: 120, duration: '3 hrs',
+    rating: 4.8, review_count: 100, viator_item_url: '', is_best_seller: false,
+    display_order: 0, tags: [11912], experience_cluster_id: `c-${id}`,
+  });
+
+  it('keeps items in a group it DOES recognise', () => {
+    const groups = [grp('watersports', 2, '20255'), grp('diving', 7, '12021')];
+    const kept = regroupItems(groups, [item('a', 'diving')]);
+    expect(kept[0].group_id).toBe('diving');
+  });
+
+  it('drains a group with no GROUP_SECTION entry into the canonical one', () => {
+    const groups = [grp('watersports', 2, '20255'), grp('not-mapped', 7, '99999')];
+    const drained = regroupItems(groups, [item('a', 'not-mapped')]);
+    // Silent, and that is the danger: no error, just an Explore section that is
+    // permanently empty.
+    expect(drained[0].group_id).toBe('watersports');
+  });
+});
