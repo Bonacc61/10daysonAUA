@@ -529,7 +529,15 @@ function ItemTile({ item, section, sectionUrl: _sectionUrl, region, bookNow, add
       </div>
       <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column', cursor: 'pointer' }}
            onClick={(e) => flipOnText(e, () => flip(true))}>
-        <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{item.title}</h3>
+        <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>
+          {/* The keyboard's way in. The surrounding text block cannot be the
+              button — it contains Book now and Add, and interactive elements do
+              not nest — but the title has no such children, so it can be a real
+              one. `flipOnText` exempts buttons, so a click here fires this
+              handler only and does not toggle twice. */}
+          <button type="button" className="explore-flip-btn" aria-expanded={flipped}
+                  onClick={() => flip(!flipped)}>{item.title}</button>
+        </h3>
         {region && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--sand-500)', fontSize: 12, marginBottom: 10 }}>
             <MapPin size={12} /><span>{region}</span>
@@ -580,7 +588,11 @@ function ActivityTile({ a, section, sectionUrl: _sectionUrl, bookNow, added, onA
       </div>
       <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column', cursor: 'pointer' }}
            onClick={(e) => flipOnText(e, () => flip(true))}>
-        <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>{a.title}</h3>
+        <h3 className="font-display" style={{ fontSize: 18, lineHeight: 1.15, margin: '0 0 4px', color: 'var(--ink)' }}>
+          {/* See ItemTile: the title is the focusable flip trigger. */}
+          <button type="button" className="explore-flip-btn" aria-expanded={flipped}
+                  onClick={() => flip(!flipped)}>{a.title}</button>
+        </h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--sand-500)', fontSize: 12, marginBottom: 10 }}>
           <MapPin size={12} /><span>{a.location}</span>
         </div>

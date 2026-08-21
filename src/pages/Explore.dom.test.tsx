@@ -274,3 +274,66 @@ describe('Explore — the Good for kids filter is gone', () => {
     expect(screen.queryByLabelText('Good for kids')).not.toBeInTheDocument();
   });
 });
+
+/**
+ * The card flip, added 2026-08-21.
+ *
+ * Before it, the whole tile was one affiliate link. Splitting that — text
+ * flips, photo books — is a revenue-shaped decision, so the split itself is
+ * what these pin: not that a flip animation exists, but that the photo still
+ * goes to Viator and that the controls beside the text are not swallowed.
+ *
+ * There is a second reason to have them. The back is mounted lazily, and the
+ * four search tests above pass ONLY because of that: eager-mounting it puts
+ * every title in the document twice and they fail with "found multiple
+ * elements", which names the symptom and not the cause. These name the cause.
+ */
+describe('Explore — the card flip', () => {
+  // Found via the front's BUTTON, not by text: once a card is flipped its title
+  // is on both faces, and `getByText` then has two matches. That ambiguity is
+  // the whole reason the back is mounted lazily.
+  const titleBtn = (title: string) => screen.getByRole('button', { name: title });
+  const tile = (title: string) => titleBtn(title).closest('.explore-flip') as HTMLElement;
+
+  it('starts unflipped, with no card back built', () => {
+    expect(tile('Catamaran Sunset Sail').classList.contains('flipped')).toBe(false);
+    // Lazily mounted: nothing has been asked for yet, so nothing is built.
+    expect(document.querySelectorAll('.itin-card-back').length).toBe(0);
+  });
+
+  it('flips when the title is pressed, and builds the back then', () => {
+    fireEvent.click(titleBtn('Catamaran Sunset Sail'));
+    expect(tile('Catamaran Sunset Sail').classList.contains('flipped')).toBe(true);
+    expect(document.querySelectorAll('.itin-card-back').length).toBe(1);
+  });
+
+  it('flips a local pick too, not only a Viator product', () => {
+    fireEvent.click(titleBtn('Eagle Beach Morning Session'));
+    expect(tile('Eagle Beach Morning Session').classList.contains('flipped')).toBe(true);
+  });
+
+  it('is reachable from a keyboard, and says whether it is open', () => {
+    // The whole point of the title being a button rather than a div: a mouse is
+    // not the only way in. `all: unset` makes it look like the heading it
+    // replaced, which is exactly why a render test has to assert the semantics.
+    const btn = titleBtn('Catamaran Sunset Sail');
+    expect(btn.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(btn);
+    expect(btn.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('presses again to come back', () => {
+    const btn = titleBtn('Catamaran Sunset Sail');
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    expect(tile('Catamaran Sunset Sail').classList.contains('flipped')).toBe(false);
+  });
+
+  it('does NOT flip when Add is pressed — the control row is not a flip target', () => {
+    const card = tile('Catamaran Sunset Sail');
+    const add = card.querySelector('button[aria-label*="shortlist" i]') as HTMLElement;
+    expect(add).toBeTruthy();
+    fireEvent.click(add);
+    expect(card.classList.contains('flipped')).toBe(false);
+  });
+});

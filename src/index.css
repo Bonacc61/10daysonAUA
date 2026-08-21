@@ -714,6 +714,26 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 .explore-flip .flip-inner { min-height: 0; height: 100%; }
 .explore-flip .a-card { height: 100%; }
 .explore-flip .flip-back { overflow-y: auto; }
+/* A hidden face must leave the TAB ORDER, not just stop taking clicks.
+   `pointer-events: none` (above, for the itinerary card) does neither: with the
+   back mounted, a keyboard user tabbing through Explore fell into the links on
+   a face nobody can see — the gear-rental "sell masks, snorkels" and "Their
+   rates" links, on any tile that has them. `visibility: hidden` removes it from
+   the tab order outright.
+
+   Delayed by the length of the flip so it is still visible while it rotates
+   AWAY; applied instantly on the way in so the face you are turning towards is
+   there when it arrives. */
+.explore-flip:not(.flipped) .flip-back { visibility: hidden; transition: visibility 0s linear 0.55s; }
+.explore-flip.flipped .flip-back { visibility: visible; transition: visibility 0s linear 0s; }
+
+/* The title is a button so it can be reached and pressed from a keyboard; it
+   must still look exactly like the heading it replaced. */
+.explore-flip-btn {
+  all: unset; cursor: pointer; display: block; width: 100%;
+  font: inherit; color: inherit; text-align: left;
+}
+.explore-flip-btn:focus-visible { outline: 3px solid var(--red); outline-offset: 3px; border-radius: 4px; }
 /* CardBack lays its two blocks side by side, which is right on the itinerary
    card and wrong here: at 280px a two-column grid gives each block a ~100px
    ribbon, and an Overview set one word per line runs off the bottom. The mobile
