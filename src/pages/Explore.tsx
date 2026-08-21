@@ -11,7 +11,7 @@ import { useShortlist } from '../lib/shortlist';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
 import { isLocalPickItem } from '../data/localPickItems';
-import { filterExploreEntries, sortEntries, bookUrlForEntry, viatorLink, bookUrlForActivity, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, poolPass, sailPass } from '../data/exploreItems';
+import { filterExploreEntries, sortEntries, bookUrlForEntry, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, poolPass, sailPass } from '../data/exploreItems';
 import type { DurationBand, Provenance, SortKey, PoolMode, SailFacet } from '../data/exploreItems';
 import { searchEntries } from '../lib/entrySearch';
 import { answersToTags } from '../data/answerTags';
@@ -471,16 +471,11 @@ function CardActions({ bookNow, free, added, onAdd }: { bookNow: { url: string; 
         <a href={bookNow.url} target="_blank" rel="noopener noreferrer"
            style={{ flex: 1, padding: '9px 12px', fontSize: 13, fontWeight: 700, textDecoration: 'none', textAlign: 'center', display: 'inline-block', borderRadius: 12, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '3px 3px 0 var(--ink)' }}>Book now</a>
       ) : free ? (
-        <span style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '9px 12px', fontSize: 13, fontWeight: 700, borderRadius: 12, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '3px 3px 0 var(--ink)' }}>✓ Free</span>
+        <span data-noflip style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '9px 12px', fontSize: 13, fontWeight: 700, borderRadius: 12, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '3px 3px 0 var(--ink)' }}>✓ Free</span>
       ) : null}
       <AddButton added={added} onAdd={onAdd} fill={!bookNow && !free} />
     </div>
   );
-}
-
-function openItem(url: string, e: MouseEvent) {
-  if ((e.target as HTMLElement).closest('a, button')) return;
-  window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 
@@ -489,22 +484,28 @@ function openItem(url: string, e: MouseEvent) {
  *
  * The whole tile used to be one affiliate link, so reading the description and
  * leaving the site were the same gesture — a traveller who wanted to know what
- * a thing actually was got thrown to a booking page to find out. The text now
- * flips the card to the same back the Itinerary page shows; the PHOTO keeps the
- * old behaviour, so the affiliate path is still a large target rather than only
- * the Book now button.
+ * a thing actually was got thrown to a booking page to find out. Worse, the
+ * description is clipped at three lines, so the card where the text runs out is
+ * exactly the card someone wants to finish reading.
  *
- * Interactive children are exempt, the same rule `openItem` already applies:
- * Book now is an `<a>` and Add is a `<button>`, and neither should flip a card
+ * The text flips to the same back the Itinerary page shows. The photo does
+ * nothing at all: it carried the redirect for a while, and a picture that
+ * navigates away mid-read is the same defect in a smaller box. Leaving is Book
+ * now's job, and only Book now's.
+ *
+ * Interactive children are exempt: Book now is an `<a>`, Add is a `<button>`,
+ * and the ✓ Free badge is marked `data-noflip`. None of them should flip a card
  * out from under the thing you just pressed.
  */
 function flipOnText(e: MouseEvent, toggle: () => void) {
-  if ((e.target as HTMLElement).closest('a, button')) return;
+  // `[data-noflip]` is the ✓ Free badge: the one thing in the control row that
+  // is neither a link nor a button, and so the one thing there that used to
+  // flip the card when pressed.
+  if ((e.target as HTMLElement).closest('a, button, [data-noflip]')) return;
   toggle();
 }
 
 function ItemTile({ item, section, sectionUrl: _sectionUrl, region, bookNow, added, onAdd }: { item: ViatorItem; section: string; sectionUrl: string | null; region: string; bookNow: { url: string; affiliate: boolean } | null; added: boolean; onAdd: () => void }) {
-  const url = item.viator_item_url ? viatorLink(item.viator_item_url) : null;
   const [flipped, setFlipped] = useState(false);
   // Mounted on the FIRST flip, then kept. Explore renders ~350 tiles; giving
   // every one of them a card back up front means 350 rating histograms and 350
@@ -521,11 +522,9 @@ function ItemTile({ item, section, sectionUrl: _sectionUrl, region, bookNow, add
       <div className="flip-inner" style={{ height: '100%' }}>
     <div className="a-card flip-face">
       <div className="card-header-band">{headerInner}</div>
-      <div className="a-img" style={{ cursor: url ? 'pointer' : 'default' }}
-           onClick={url ? (e) => openItem(url, e) : undefined}>
+      <div className="a-img">
         <img src={item.image_url} alt={item.title} loading="lazy" />
         <RatingChip rating={item.rating} reviewCount={item.review_count} size={12} />
-        {url && <span className="explore-book-hint">Opens Viator ↗</span>}
       </div>
       <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column', cursor: 'pointer' }}
            onClick={(e) => flipOnText(e, () => flip(true))}>
@@ -568,7 +567,6 @@ function ItemTile({ item, section, sectionUrl: _sectionUrl, region, bookNow, add
 }
 
 function ActivityTile({ a, section, sectionUrl: _sectionUrl, bookNow, added, onAdd }: { a: Activity; section: string; sectionUrl: string | null; bookNow: { url: string; affiliate: boolean } | null; added: boolean; onAdd: () => void }) {
-  const url = bookUrlForActivity(a)?.url ?? null;
   const [flipped, setFlipped] = useState(false);
   // See ItemTile: the back is built on first flip, not for all ~350 tiles.
   const [everFlipped, setEverFlipped] = useState(false);
@@ -580,11 +578,9 @@ function ActivityTile({ a, section, sectionUrl: _sectionUrl, bookNow, added, onA
       <div className="flip-inner" style={{ height: '100%' }}>
     <div className="a-card flip-face">
       <div className="card-header-band">{headerInner}</div>
-      <div className="a-img" style={{ cursor: url ? 'pointer' : 'default' }}
-           onClick={url ? (e) => openItem(url, e) : undefined}>
+      <div className="a-img">
         <img src={a.image} alt={a.title} loading="lazy" />
         {a.ratingSource === 'viator' && <RatingChip rating={a.rating} reviewCount={a.reviewCount} size={12} />}
-        {url && <span className="explore-book-hint">Opens Viator ↗</span>}
       </div>
       <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column', cursor: 'pointer' }}
            onClick={(e) => flipOnText(e, () => flip(true))}>

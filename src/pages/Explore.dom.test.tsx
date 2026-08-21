@@ -278,10 +278,14 @@ describe('Explore — the Good for kids filter is gone', () => {
 /**
  * The card flip, added 2026-08-21.
  *
- * Before it, the whole tile was one affiliate link. Splitting that — text
- * flips, photo books — is a revenue-shaped decision, so the split itself is
- * what these pin: not that a flip animation exists, but that the photo still
- * goes to Viator and that the controls beside the text are not swallowed.
+ * Before it, the whole tile was one affiliate link. What these pin is the split
+ * that replaced it — text flips, Book now leaves, the photo does neither — and
+ * that the controls beside the text are not swallowed by the flip.
+ *
+ * The photo earns a test of its own despite doing nothing, because "does
+ * nothing" is the whole change and is invisible to every other assertion here:
+ * re-add a handler, or nest the photo inside the text div, and without it the
+ * suite stays green.
  *
  * There is a second reason to have them. The back is mounted lazily, and the
  * four search tests above pass ONLY because of that: eager-mounting it puts
@@ -327,6 +331,29 @@ describe('Explore — the card flip', () => {
     fireEvent.click(btn);
     fireEvent.click(btn);
     expect(tile('Catamaran Sunset Sail').classList.contains('flipped')).toBe(false);
+  });
+
+  it('the photo neither navigates nor flips', () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const card = tile('Catamaran Sunset Sail');
+    const photo = card.querySelector('.a-img') as HTMLElement;
+    expect(photo).toBeTruthy();
+    fireEvent.click(photo);
+    expect(open).not.toHaveBeenCalled();
+    expect(card.classList.contains('flipped')).toBe(false);
+    open.mockRestore();
+  });
+
+  it('does NOT flip when the ✓ Free badge is pressed', () => {
+    // The badge is a <span>, so unlike Book now (<a>) and Add (<button>) it is
+    // not exempt by element type — it carries `data-noflip` instead. A free
+    // card has no booking link at all, so the badge is the largest thing in its
+    // control row and the easiest to hit by accident.
+    const card = tile('Eagle Beach Morning Session');
+    const badge = [...card.querySelectorAll('span')].find((el) => el.textContent?.trim() === '✓ Free');
+    expect(badge).toBeTruthy();
+    fireEvent.click(badge as HTMLElement);
+    expect(card.classList.contains('flipped')).toBe(false);
   });
 
   it('does NOT flip when Add is pressed — the control row is not a flip target', () => {

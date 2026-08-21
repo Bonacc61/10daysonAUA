@@ -753,16 +753,6 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
    from the face that is actually facing you. */
 .explore-flip.flipped .a-card:hover { transform: none; box-shadow: 5px 5px 0 var(--ink); }
 
-/* "Opens Viator ↗" — the photo keeps the affiliate click the whole tile used to
-   carry, and without a word there is nothing to say so once the text beside it
-   started doing something else. Bottom-right, clear of the rating chip. */
-.explore-book-hint {
-  position: absolute; bottom: 10px; right: 10px;
-  background: rgba(26,26,26,0.85); color: var(--cream);
-  font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 999px;
-  pointer-events: none;
-}
-
 /* Top↕bottom swap flip — single smooth arc rather than a zig-zag keyframe
    chain (the latter reads as robotic). The browser interpolates the
    rotateX from 0 → −100° → 0 along a single ease-in-out-cubic curve, with
