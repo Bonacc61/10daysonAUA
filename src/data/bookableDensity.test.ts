@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { readFileSync } from 'fs';
-import { generatePlan } from './itineraryGenerator';
+import { generatePlan, naturalPoolFor, isBoatOuting } from './itineraryGenerator';
+import { budgetAvgCap } from './itemFit';
 import {
   bookableTier, bookingDays, isPaidOuting,
   ANIMAL_SANCTUARY_ID, JET_SKI_ID, SUBMARINE_ID, DE_PALM_ISLAND_ID,
@@ -660,7 +661,22 @@ describe.skipIf(!ANON_KEY)('bookable density — the live catalog', () => {
   // fails. The second assertion is what stops the first passing vacuously:
   // the same traveller with the flag cleared books normally, so a zero above
   // is the flag's doing and not a dead engine.
-  it('books nothing for a budget, low-adventure traveller who cannot take a boat', (ctx) => {
+  // SUPERSEDED 2026-08-21, and by exactly the mechanism the note above asked
+  // for. It said the alternatives were "inventing a boat-free bookable family or
+  // relaxing the budget/adventure gates, and both are product calls". The owner
+  // made the second call: a budget-conscious traveller now gets a natural pool
+  // excursion whenever the catalogue has one inside their average daily spend.
+  //
+  // The catalogue's answer is a HIKE — "Private Aruba National Park Hiking &
+  // Natural Pool Swimming", $60, 161 reviews — which is boat-free, sits at
+  // adventure 55 (inside the low band's ceiling of 60), and is the island's
+  // signature excursion rather than a consolation prize. So this traveller books
+  // on day 3 instead of not at all.
+  //
+  // The test is INVERTED rather than deleted: what it guarded is still worth
+  // guarding, just from the other side. The second assertion keeps its original
+  // job of stopping the first pass vacuously.
+  it('books a boat-free natural pool for a budget, low-adventure traveller who cannot take a boat', (ctx) => {
     if (!reachable) { ctx.skip(); return; }
     const live: Catalog = { activities: ACTIVITIES, groups, items };
     const seasick: Answers = {
@@ -679,8 +695,15 @@ describe.skipIf(!ANON_KEY)('bookable density — the live catalog', () => {
       }
       return out;
     };
+    const pool = naturalPoolFor(live, answersToTags(seasick));
+    expect(pool).toBeDefined();
+    // Inside the tier's AVERAGE daily spend, not merely its per-item ceiling —
+    // $60 against $110. That is the whole rule; no id is hardcoded to reach it.
+    expect(pool!.bestSeller.price_usd).toBeLessThanOrEqual(budgetAvgCap(answersToTags(seasick)));
+    // Boat-free, which is what makes it reachable for THIS traveller at all.
+    expect(isBoatOuting(pool!.bestSeller)).toBe(false);
     for (let seed = 0; seed < 2; seed += 1) {
-      expect(bookedOn(seasick, seed)).toEqual([]);
+      expect(bookedOn(seasick, seed).length).toBeGreaterThan(0);
       expect(bookedOn({ ...seasick, flags: [] }, seed).length).toBeGreaterThan(0);
     }
   });

@@ -907,14 +907,53 @@ export function naturalPoolFor(
 export function naturalPoolCandidatesFor(
   catalog: Catalog, tags: Set<MatchTag>,
 ): Extract<CardEntry, { kind: 'group' }>[] {
-  if (tags.has('budget')) return [];
+  // A budget-conscious traveller used to get NO natural pool at all — this
+  // function opened with `if (tags.has('budget')) return []`. The island's
+  // signature excursion was simply absent from the cheapest plans.
+  //
+  // Owner's ruling, 2026-08-21: they get one when the catalogue can supply it
+  // inside their AVERAGE DAILY SPEND. That is the honest test — a $139 jeep
+  // safari really is out of reach on a $60/day budget, but a hike to the same
+  // pool is not. So the ceiling is applied to every tier rather than special-
+  // casing one, which on today's catalogue changes only this tier: mid-range
+  // allows $200 and the dearest pool jeep it would pick is $139.
+  //
+  // What the catalogue answers with is the whole point, and no id is hardcoded
+  // to get it. The only natural-pool products at or under $60 with enough
+  // reviews to be placed are the two the owner curated:
+  //   $59, 116 reviews — "Sunrise Hike & Swim in Natural Pool"
+  //   $60, 161 reviews — "Private Aruba National Park Hiking & Natural Pool
+  //                       Swimming"
+  // The next cheapest is a $78 jeep. Both are hikes, which is what makes them
+  // the budget-friendly equivalent of the vehicle run rather than a lesser
+  // version of it — and both are only REACHABLE because the same day's
+  // NATURAL_POOL_FAMILY split stopped a pool hike being retired by a pool jeep.
+  const avgCap = budgetAvgCap(tags);
   const premium = tags.has('treat-yourself') || tags.has('money-no-object');
   // A private variant is a money-no-object entitlement and not merely a
   // question of affording one — settled 2026-08-19, and asserted by
   // `bookableDensity.test.ts` ("leaves a treat-yourself traveller on the
   // standard one, though they could afford it"). Treat-yourself still spends
   // its tier (dearest-first), it just spends it on the dearest SHARED tour.
-  const privateOk = tags.has('money-no-object');
+  //
+  // Amended 2026-08-21 with a PRICE exception, on the owner's reasoning that
+  // the rule is about exclusivity being a luxury purchase, and a product this
+  // cheap is not one. It exists because the title test is a proxy that misreads
+  // exactly one live listing: "Private Aruba National Park Hiking & Natural Pool
+  // Swimming" costs $60 and is the best-reviewed thing a budget traveller can
+  // reach, and PRIVATE_TITLE_RE was hiding it on the strength of one word.
+  //
+  // The threshold is the CHEAPEST tier's daily spend, not the traveller's own.
+  // Writing it as `price <= avgCap` was the obvious form and it was wrong: at
+  // treat-yourself that cap is $400, so it handed the premium tiers the private
+  // variant the 2026-08-19 ruling reserves for money-no-object, and
+  // bookableDensity's "leaves a treat-yourself traveller on the standard one"
+  // caught it. A single low threshold cannot leak upward: above it the word
+  // "private" still means what it says, at or below it the product is cheap by
+  // any tier's standard.
+  const cheapEnoughToNotBeALuxury = budgetAvgCap(new Set<MatchTag>(['budget']));
+  const privateOk = (i: ViatorItem): boolean =>
+    tags.has('money-no-object') || i.price_usd <= cheapEnoughToNotBeALuxury;
   // The adventure band is a PREFERENCE, not a filter: it sorts ahead of price
   // and popularity, but an off-band candidate still wins an empty band. "Every
   // traveller above budget-conscious is offered one" is the requirement, and a
@@ -928,7 +967,8 @@ export function naturalPoolCandidatesFor(
   };
   return catalog.items
     .filter((i) => isNaturalPool(i)
-      && (privateOk || !PRIVATE_TITLE_RE.test(i.title))
+      && i.price_usd <= avgCap
+      && (privateOk(i) || !PRIVATE_TITLE_RE.test(i.title))
       && (i.review_count ?? 0) >= MIN_CHAMPION_REVIEWS
       && !fitItem(i, tags).rejected)
     // Tiebreak on id so two equal candidates resolve the same way whatever

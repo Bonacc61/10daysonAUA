@@ -3397,8 +3397,47 @@ describe('naturalPoolFor — selection by budget and adventure', () => {
   const tags = (...t: MatchTag[]) => new Set<MatchTag>(['couple', ...t]);
   const pickedId = (t: Set<MatchTag>) => naturalPoolFor(cat, t)?.bestSeller.id;
 
-  it('offers no natural pool excursion to a budget-conscious traveller', () => {
+  // The two products the owner curated on 2026-08-21 as the budget-friendly
+  // equivalent of the vehicle run. Live values; both are natural-pool HIKES,
+  // and one of them carries the word that used to hide it.
+  const POOL_HIKE      = mkItem('299932P2', 'Sunrise Hike & Swim in Natural Pool: Escape the Crowds and Heat', 59, 55, 116);
+  const POOL_HIKE_PRIV = mkItem('446074P1', 'Private Aruba National Park Hiking & Natural Pool Swimming', 60, 55, 161);
+  const withHikes: Catalog = {
+    activities: [],
+    groups: [...items, POOL_HIKE, POOL_HIKE_PRIV].map((i) => mkGroup(i.group_id)),
+    items: [...items, POOL_HIKE, POOL_HIKE_PRIV],
+  };
+
+  // Renamed 2026-08-21. It used to read "offers no natural pool excursion to a
+  // budget-conscious traveller", which described a hard `return []` at the top
+  // of the function. That ban is gone; what remains is a PRICE test, and this
+  // fixture's cheapest pool product is $95 against a $60 daily spend. Same
+  // assertion, but now it passes for the reason the rule actually gives.
+  it('offers a budget-conscious traveller nothing when every pool trip is over their daily spend', () => {
     expect(naturalPoolFor(cat, tags('budget', 'med-adventure'))).toBeUndefined();
+  });
+
+  it('offers the budget-conscious traveller a pool trip that DOES fit their daily spend', () => {
+    const picked = naturalPoolFor(withHikes, tags('budget', 'med-adventure'));
+    expect(picked).toBeDefined();
+    expect(picked!.bestSeller.price_usd).toBeLessThanOrEqual(60);
+  });
+
+  // The price exception to the private-title rule. Without it the $60 listing is
+  // hidden by one word in its name and the traveller drops to the $59 one — so
+  // asserting "a hike was picked" would pass either way. Picking the DEARER of
+  // the two is what proves the exception fired: they are ranked by reviews at
+  // this tier, and the private one has more.
+  it('does not hide a $60 PRIVATE pool trip from a budget traveller over one word', () => {
+    expect(naturalPoolFor(withHikes, tags('budget', 'med-adventure'))!.bestSeller.id).toBe('446074P1');
+  });
+
+  // ...and the exception must not leak upward. A treat-yourself traveller can
+  // afford the $600 private outright, and the 2026-08-19 ruling still says the
+  // private variant is a money-no-object entitlement rather than a purchase.
+  it('still withholds an EXPENSIVE private pool trip from a traveller who could afford it', () => {
+    expect(naturalPoolFor(withHikes, tags('treat-yourself', 'med-adventure'))?.bestSeller.id).not.toBe('441143P5');
+    expect(naturalPoolFor(withHikes, tags('money-no-object', 'med-adventure'))?.bestSeller.id).toBe('441143P5');
   });
 
   it('gives a mid-range traveller the best-known excursion inside the tier cap', () => {
