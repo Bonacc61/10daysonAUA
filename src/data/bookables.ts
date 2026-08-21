@@ -127,18 +127,31 @@ export const DE_PALM_ISLAND_ID = '2455P18';
 // adventure 55 it is the most adventurous near-free item in the curated set.
 const BOOKABLE_LOCAL_IDS = new Set(['antilla-wreck-dive', 'boca-catalina-snorkel', 'natural-pool-jeep']);
 
-// Curated locals the whitelist names CONDITIONALLY — bookable for some
-// travellers, tier null for others — as opposed to the three above (always
-// tier 1) or the locals the whitelist never names at all (arikok-hiking,
-// oranjestad-walking, flamingo-renaissance), which must stay placeable for
-// everyone regardless of tags. `isExcludedPaidProduct` in
-// itineraryGenerator.ts reads this set to draw exactly that line: a local
-// listed here is refused when its condition fails, one absent from both this
-// set and BOOKABLE_LOCAL_IDS is never refused. `kitesurfing-lesson` is the
-// only one today (tier 1 for family-teens + high-adventure, or for an
-// adventurous splurge traveller on a trip longer than 10 days; null otherwise)
-// — a second conditional local is added here, not inferred from bookableTier.
-export const CONDITIONALLY_BOOKABLE_LOCAL_IDS = new Set(['kitesurfing-lesson']);
+// Curated locals the whitelist has an OPINION about, as opposed to the three
+// above (always tier 1) or the locals it never names at all (arikok-hiking,
+// flamingo-renaissance), which stay placeable for everyone regardless of tags.
+// `isExcludedPaidProduct` in itineraryGenerator.ts reads this set to draw
+// exactly that line: a local listed here is refused whenever its tier is null,
+// one absent from both this set and BOOKABLE_LOCAL_IDS is never refused.
+//
+// Two members, and the opinion differs in kind:
+//
+//   kitesurfing-lesson  — CONDITIONAL. Tier 1 for family-teens + high-adventure,
+//                         or an adventurous splurge traveller on a trip longer
+//                         than 10 days; null otherwise.
+//   oranjestad-walking  — ALWAYS null, i.e. never auto-placed. Owner's ruling,
+//                         2026-08-21. It was exempt on the reasoning that $25
+//                         for an optional guide is a fee rather than an advance
+//                         booking. `mergeLocalMatches` then matched it to a live
+//                         Viator product and it started rendering as "Aruba
+//                         Downtown Historic and Cultural Walking Tour, $39 pp"
+//                         with a Book now button — a bookable in everything but
+//                         the whitelist's opinion of it, and not one of the
+//                         few outings the owner wants a plan to spend a slot on.
+//
+// A local's exemption depends on whether the whitelist has an opinion at all,
+// not on its `kind`; a third member is added here, never inferred.
+export const CONDITIONALLY_BOOKABLE_LOCAL_IDS = new Set(['kitesurfing-lesson', 'oranjestad-walking']);
 
 export type BookableTier = 1 | 2;
 
@@ -171,6 +184,13 @@ export function bookableTier(e: CardEntry, tags: Set<MatchTag>): BookableTier | 
   if (e.kind === 'activity') {
     if (BOOKABLE_LOCAL_IDS.has(e.activity.id)) return 1;
     if (e.activity.id === 'kitesurfing-lesson') return teensAdventurous || adventurousSplurge ? 1 : null;
+    // Never auto-placed, for anyone. See the note on
+    // CONDITIONALLY_BOOKABLE_LOCAL_IDS: this returns null so
+    // `isExcludedPaidProduct` refuses it, which reaches the GENERATOR only.
+    // Explore, the Swap shelf and add-from-shortlist never consult the
+    // whitelist, so the card is still there for a traveller who wants it — it
+    // just stops taking a slot in a plan nobody asked it for.
+    if (e.activity.id === 'oranjestad-walking') return null;
     return null;
   }
 

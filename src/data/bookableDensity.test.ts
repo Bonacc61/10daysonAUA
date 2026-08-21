@@ -355,11 +355,23 @@ describe('bookable density — a curated local named conditionally is excluded w
     ...DEFAULT_ANSWERS, days: 10, groupType: 'Solo', budget: 'Budget-conscious',
     interests: ['Nature & hiking', 'Culture & history'], adventureLevel: 55,
   };
-  it('still places the Arikok park gate and the Oranjestad guide', () => {
+  // NARROWED 2026-08-21, and only for `oranjestad-walking`. The carve-out was
+  // reasoned from the card's own text — $25 for an optional guide is a fee, not
+  // an advance booking — and that reasoning stopped describing the card:
+  // `mergeLocalMatches` matched it to a live Viator product, so it now renders
+  // as "Aruba Downtown Historic and Cultural Walking Tour, $39 pp" with a Book
+  // now button. The owner's ruling is that a plan's few paid slots go to
+  // stronger outings than a downtown walk.
+  //
+  // `arikok-hiking` is untouched and still asserted here, which is the point of
+  // keeping the two in one test: the carve-out itself survives, one member left
+  // it. The generator is the ONLY surface affected — Explore, the Swap shelf
+  // and add-from-shortlist never consult the whitelist.
+  it('still places the Arikok park gate, and no longer the Oranjestad guide', () => {
     for (let seed = 0; seed < 4; seed += 1) {
       const placed = placedLocalIdsOn(LOCALS_ONLY_CATALOG, CARVE_OUT, seed);
       expect(placed).toContain('arikok-hiking');
-      expect(placed).toContain('oranjestad-walking');
+      expect(placed).not.toContain('oranjestad-walking');
     }
   });
 });
