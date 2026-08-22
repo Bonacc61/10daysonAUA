@@ -87,8 +87,61 @@ launch — a traveller will not know it was meant to be earlier.
 
 ## Status
 
-- [ ] 1. Traffic measurement
-- [ ] 2. `/code-review ultra` — YOURS
+- [x] 1a. **Cookieless beacon BUILT** (`142cd42`) — ships dark, see below
+- [ ] 1b. Turn it on — needs three things from you
+- [ ] 2. `/code-review ultra` — YOURS, I cannot start it
 - [ ] 3. AI switches confirmed — YOURS
 - [ ] 4. `viator-cards` deploy — YOURS
-- [ ] 5. Kitesurfing placement — optional
+- [ ] 5. Kitesurfing placement — optional, cosmetic
+
+---
+
+## Turning the beacon on (the only launch-blocking work left)
+
+Three steps, in this order. It is inert until all three are done.
+
+    # 1. the table
+    supabase db push                      # 20260822090000_web_events.sql
+
+    # 2. the salt — same shape as RATE_LIMIT_SALT
+    supabase secrets set ANALYTICS_SALT="$(openssl rand -hex 32)"
+
+    # 3. the function
+    supabase functions deploy collect
+
+Then add to `.env.production` and push:
+
+    VITE_COLLECT_FN_URL=https://<project>.supabase.co/functions/v1/collect
+
+Verify by opening the site and checking `web_events` has a `pageview` row.
+
+### Tag your Reddit post
+
+Post the link as `https://10daysonaruba.com/?ref=reddit-aruba-aug` (or any
+`[a-z0-9-]` up to 32 chars). That is how "this post sent N people" becomes
+answerable. Referrer host is captured anyway, but a ref you control survives
+clients that strip referrers.
+
+### What it will and will not tell you
+
+- **Will:** visitors per day, pages, referring sites, campaign, device, and
+  clicks out to Viator with the product code.
+- **Will not:** bookings or revenue. Viator returns no signal — unchanged.
+- **Will not:** monthly unique visitors. The visitor code is daily *by design*;
+  summing 30 days is not a monthly unique and must never be quoted as one.
+- **Not yet:** country. Written NULL. See the gap below.
+
+### The gap that cannot wait quietly
+
+`country` is NULL. It needs an `ip_country` CIDR table in our own Postgres — a
+US geo API would reintroduce the sub-processor problem the design exists to
+avoid — and picking the dataset is a **licence** decision (DB-IP Lite,
+IP2Location LITE and GeoLite2 differ materially). Because the IP is never
+stored, **rows written without a country can never be backfilled.** Every day
+this waits is a day of permanently geography-less history.
+
+### The deadline to write down now
+
+Raw rows purge at 12 months. An anonymous nightly rollup (`web_daily`) must
+exist **before 2027-08** or the first year of pitch history deletes itself.
+Nothing is lost in the first 12 months, which is exactly why it gets forgotten.
