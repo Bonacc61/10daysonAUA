@@ -26,17 +26,33 @@ import type { MatchTag, Slot } from '../types';
  * auto-placed paths. Both were removed; Eagle Beach keeps day 6 morning.
  *
  * Six disagreements remain (re-measured 2026-08-13) and are tolerated because
- * the card text does not name a time: baby-beach-snorkel d3, arashi-beach d4,
- * mangel-halto d8 (morning cards in afternoons), palm-beach-strip d5 and
+ * the card text does not name a time: baby-beach-snorkel d7, arashi-beach d4,
+ * malmok-beach d8 (morning cards in afternoons), palm-beach-strip d5 and
  * divi-beach d10 (afternoon cards in mornings), and california-dunes-sunset d6.
  * That last one is the closest to the line — an Evening card titled "at Sunset"
  * sitting in an afternoon — and is the first to revisit if this comes up again.
  *
- * Repeats are intentional and legal: Palm Beach on 5/9, Mangel Halto on 3/8,
- * Druif on 1/10. Free local beaches may be revisited after a clear day (see
- * REVISITABLE_MIN_DAY_GAP) — you do go back to a beach. That gap is on YOU
- * here: the template places by construction and never passes the fill ladder
- * that enforces it, so a repeat added a day apart will ship unchallenged.
+ * Repeats are intentional and legal: Palm Beach on 5/9 and Druif on 1/10. Free
+ * local beaches may be revisited after a clear day (see REVISITABLE_MIN_DAY_GAP)
+ * — you do go back to a beach. That gap is on YOU here: the template places by
+ * construction and never passes the fill ladder that enforces it, so a repeat
+ * added a day apart will ship unchallenged.
+ *
+ * Two more rules are on you for the same reason, both added 2026-08-22 and both
+ * enforced on the fill path only (itineraryGenerator.ts):
+ *   - CORE_BEACHES each get a turn before ANY beach repeats. In THIS TABLE the
+ *     six are down by day 9 morning and the Palm Beach and Druif repeats above
+ *     are the only ones, both falling after it. That is a statement about the
+ *     table, not about the finished plan: because these rows register trip-wide
+ *     before the day loop starts, `coreBeachesPending` is already false on day
+ *     1, and the fill ladder may legitimately repeat a beach earlier than day 9
+ *     (measured: california-lighthouse-sunset on days 3 and 5). The six are all
+ *     in the plan, which is what the rule guarantees — but a traveller reading
+ *     top-to-bottom can still meet a repeat before a first visit.
+ *   - The San Nicolas cluster gets one slot per SAN_NICOLAS_MIN_DAY_GAP days and
+ *     Baby Beach opens it. Here that is one card, day 7. Adding a second
+ *     southern beach to this table would need seven clear days either side.
+ * `balancedTemplate.test.ts` checks the table against both.
  *
  * Gaps are intentional too. Day 5 afternoon (a sunset sail) and day 8
  * morning are left to the engine: the sail has no curated card, and the
@@ -132,7 +148,22 @@ export const BALANCED_TEMPLATE: TemplateEntry[] = [
     alternatives: [{ type: 'kids', activity: 'Half-Day Aruba Animal Sanctuary Guided Tour', itemId: '7389P10' }] },
   { day: 3,  slot: 'morning',   id: 'mangel-halto',
     alternatives: [{ type: 'highBudget', activity: 'Private snorkel sail', privateUpgrade: true }] },
-  { day: 3,  slot: 'afternoon', id: 'baby-beach-snorkel' },
+  // Was baby-beach-snorkel until 2026-08-22, when the San Nicolas rules moved it
+  // to day 7 beside the murals.
+  //
+  // Backfilled rather than left to the engine. The original reason was that an
+  // empty slot here took divi-beach on 30 of 30 seeds, a THIRD Druif alongside
+  // days 1 and 10; that is no longer what happens, because the placement-cap fix
+  // in the same commit (see the template pre-pass in itineraryGenerator.ts) now
+  // stops the third. Re-measured with the row removed and the fix in place, the
+  // slot simply comes back EMPTY on every seed. So the row earns its place on
+  // fill, not on repetition: balanced-10 open slots 26.7% -> 23.3% with it.
+  //
+  // Zeerovers is the card that fits: Savaneta, the same village as the Mangel
+  // Halto morning above and the tightest geographic pair in the table; a genuine
+  // Afternoon card in an afternoon; and at $8-15 it puts no pressure on the
+  // budget pool or the booking schedule.
+  { day: 3,  slot: 'afternoon', id: 'zeerovers-fresh-catch' },
   // PROMOTED 2026-08-21. This row is no longer template-only: `naturalPoolFor`
   // and the natural pool pre-pass in itineraryGenerator.ts give a Conchi
   // excursion to every traveller above budget-conscious ON A TRIP OF 5+ DAYS,
@@ -167,9 +198,21 @@ export const BALANCED_TEMPLATE: TemplateEntry[] = [
   { day: 6,  slot: 'afternoon', id: 'california-dunes-sunset' },
   { day: 7,  slot: 'morning',   id: 'san-nicolas-murals',
     alternatives: [{ type: 'kids', activity: 'Atlantis Submarine', itemId: '2455SUB' }] },
-  { day: 7,  slot: 'afternoon', id: 'rodgers-beach' },
+  // Was rodgers-beach. Changed 2026-08-22: Baby Beach and Rodger's are the same
+  // hour's drive to the same headland, and the table sent travellers down there
+  // on day 3 AND day 7 — a gap of four, against a cluster rule of seven
+  // (SAN_NICOLAS_MIN_DAY_GAP). Baby Beach is the one that earns the drive, so it
+  // takes the slot and pairs with the murals morning: one southern day, not two.
+  { day: 7,  slot: 'afternoon', id: 'baby-beach-snorkel' },
   // day 8 morning — free in the template
-  { day: 8,  slot: 'afternoon', id: 'mangel-halto' },
+  // Was a second Mangel Halto (3/8). Changed 2026-08-22: boca-catalina-shore had
+  // not appeared yet on day 9, so this repeated a beach while one of the core
+  // six was still unshown — the thing `coreBeachesPending` now forbids on the
+  // fill path, and which this table has to honour by construction. Malmok is
+  // unused, free, and turns days 8-9 into one tight Malmok run (Malmok → Boca
+  // Catalina → Palm Beach) instead of a south-coast detour between two northern
+  // days.
+  { day: 8,  slot: 'afternoon', id: 'malmok-beach' },
   { day: 9,  slot: 'morning',   id: 'boca-catalina-shore' },
   // Eagle Beach was here until 2026-08-12 and keeps its one correct placement on
   // day 6 morning. Left empty at first, which was a mistake: the fill ladder

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generatePlan, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies, hasClaimedFamily, isPaidOuting, isBoatOuting, dayCapFamilyOf, gapFamilyOf, routeFamilyOf, tripRouteFamilies, routeFamilyBudget, RouteFamilyLedger, naturalPoolFor } from './itineraryGenerator';
+import { generatePlan, SAN_NICOLAS_BEACHES, SAN_NICOLAS_MIN_DAY_GAP, SAN_NICOLAS_FIRST, CORE_BEACHES, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies, hasClaimedFamily, isPaidOuting, isBoatOuting, dayCapFamilyOf, gapFamilyOf, routeFamilyOf, tripRouteFamilies, routeFamilyBudget, RouteFamilyLedger, naturalPoolFor } from './itineraryGenerator';
 import type { TraceEvent } from './itineraryGenerator';
 import { getCatalog } from './activitySource';
 import { DEFAULT_ANSWERS } from '../App';
@@ -3706,5 +3706,134 @@ describe('generatePlan — the natural pool pass never spends the trip\'s only b
     const ids = idsFor(5);
     expect(ids).toContain('sail');
     expect(ids).toContain('conchi');
+  });
+});
+
+// --- Beach rotation rules (owner's call 2026-08-22) --------------------------
+// Two rules on top of the existing revisit ladder:
+//   1. San Nicolas is an hour south of the resort strip. At most one of its
+//      beaches per rolling 7 days, and Baby Beach is the one that earns the
+//      drive — it goes first or the others do not go at all.
+//   2. The six the island is known for each get a turn before ANY beach repeats.
+// Both gates read the traveller's FILTERED pool, not a hardcoded list: a no-car
+// traveller loses 5 of the 6 and all 3 San Nicolas beaches, and a gate built on
+// the raw list would deadlock them.
+describe('beach rotation', () => {
+  // Day numbers (1-based) each activity id appears on, in order.
+  const daysById = (plan: Day[]) => {
+    const m = new Map<string, number[]>();
+    plan.forEach((d, i) => {
+      for (const e of [...d.morning, ...d.afternoon, ...d.evening]) {
+        if (e.kind !== 'activity') continue;
+        m.set(e.id, [...(m.get(e.id) ?? []), i + 1]);
+      }
+    });
+    return m;
+  };
+
+  const SEEDS = [0, 1, 2, 3, 4, 5, 6, 7];
+
+  it('never places two San Nicolas beaches within 7 days of each other', () => {
+    for (const seed of SEEDS) {
+      const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, catalog, { seed });
+      const byId = daysById(plan);
+      const visits = SAN_NICOLAS_BEACHES
+        .flatMap((id) => (byId.get(id) ?? []).map((day) => ({ id, day })))
+        .sort((a, b) => a.day - b.day);
+      for (let k = 1; k < visits.length; k += 1) {
+        expect(
+          visits[k].day - visits[k - 1].day,
+          `seed ${seed}: ${visits[k - 1].id} d${visits[k - 1].day} → ${visits[k].id} d${visits[k].day}`,
+        ).toBeGreaterThanOrEqual(SAN_NICOLAS_MIN_DAY_GAP);
+      }
+    }
+  });
+
+  it('sends nobody to Rodgers or Boca Grandi before Baby Beach', () => {
+    for (const seed of SEEDS) {
+      const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, catalog, { seed });
+      const byId = daysById(plan);
+      const first = (id: string) => byId.get(id)?.[0] ?? Infinity;
+      const baby = first(SAN_NICOLAS_FIRST);
+      for (const id of SAN_NICOLAS_BEACHES.filter((x) => x !== SAN_NICOLAS_FIRST)) {
+        expect(first(id), `seed ${seed}: ${id} without Baby Beach first`).toBeGreaterThan(baby);
+      }
+    }
+  });
+
+  it('repeats no beach while a reachable core beach is still unplaced', () => {
+    for (const seed of SEEDS) {
+      const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, catalog, { seed });
+      const byId = daysById(plan);
+      // DEFAULT_ANSWERS carries no Q8 flags, so the traveller's filtered pool IS
+      // the whole catalogue here and all six are reachable. Asserted rather than
+      // assumed: if one stopped being placed, `allCoreDown` would go Infinity and
+      // every later assertion would pass vacuously instead of failing.
+      const inPool = new Set(catalog.activities.map((a) => a.id));
+      const core = CORE_BEACHES.filter((id) => inPool.has(id));
+      expect(core).toHaveLength(CORE_BEACHES.length);
+      const firstSeen = core.map((id) => byId.get(id)?.[0] ?? Infinity);
+      expect(firstSeen.filter((d) => d === Infinity)).toEqual([]);
+      const allCoreDown = Math.max(...firstSeen);
+      for (const [id, days] of byId) {
+        if (days.length < 2) continue;
+        const a = catalog.activities.find((x) => x.id === id);
+        if (!a || a.category !== 'Beaches') continue;
+        expect(
+          days[1],
+          `seed ${seed}: ${id} repeated on d${days[1]} before the core six were down (d${allCoreDown})`,
+        ).toBeGreaterThanOrEqual(allCoreDown);
+      }
+    }
+  });
+
+  // MAX_REVISITABLE_PLACEMENTS is a cap on the PLAN, not on the fill ladder.
+  // It read as the latter until 2026-08-22 because template rows dated
+  // themselves in `lastUsedDay` without counting themselves in `placements`:
+  // Druif sat on days 1 and 10 by construction, the fill ladder saw a count of
+  // zero and added a third from the template's own day-5 gap, on 30 of 30 seeds.
+  // A beach three times over while others go unshown is the exact complaint the
+  // rotation rules exist to answer, so it is guarded here rather than left to
+  // the two rules above — neither of which would have caught it.
+  it('shows no beach more than twice, template rows included', () => {
+    // Deliberately NOT no-car. That persona loses every requires_car beach, and
+    // its starved pool sends the blank-day rescue — which bypasses the cap by
+    // design — to four placements of one beach. Measured at 4 both before and
+    // after this rule, so it is the rescue working as documented, not a
+    // regression. Adding no-car here would be asserting against that decision.
+    const personas: Array<[string, Answers]> = [
+      ['balanced', { ...DEFAULT_ANSWERS, days: 10, budget: 'Mid-range', adventureLevel: 50 }],
+      ['default-10', { ...DEFAULT_ANSWERS, days: 10 }],
+      ['default-14', { ...DEFAULT_ANSWERS, days: 14 }],
+    ];
+    for (const [name, answers] of personas) {
+      for (const seed of SEEDS) {
+        const byId = daysById(generatePlan(answers, catalog, { seed }));
+        for (const [id, days] of byId) {
+          const a = catalog.activities.find((x) => x.id === id);
+          if (a?.category !== 'Beaches') continue;
+          expect(days.length, `${name} seed ${seed}: ${id} on days ${days.join(',')}`)
+            .toBeLessThanOrEqual(2);
+        }
+      }
+    }
+  });
+
+  it('still fills a no-car plan, where most of these beaches are unreachable', () => {
+    const plan = generatePlan(
+      { ...DEFAULT_ANSWERS, days: 10, flags: ['no-car'] }, catalog, { seed: 0 },
+    );
+    // The gates must not deadlock into blank days when the pool cannot satisfy
+    // them: every core beach and every San Nicolas beach is requires_car.
+    const carless = new Set(
+      catalog.activities.filter((a) => a.requires_car).map((a) => a.id),
+    );
+    for (const [i, d] of plan.entries()) {
+      const cards = [...d.morning, ...d.afternoon, ...d.evening];
+      expect(cards.length, `day ${i + 1} came back blank`).toBeGreaterThan(0);
+      for (const e of cards) {
+        if (e.kind === 'activity') expect(carless.has(e.id), `${e.id} needs a car`).toBe(false);
+      }
+    }
   });
 });

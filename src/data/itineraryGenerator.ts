@@ -378,6 +378,8 @@ export type TraceRejectReason =
   | 'day-shape'           // one paid outing a day, a day pass owning its day,
                           // the meal cap, the per-day card and outing ceilings
   | 'same-kind-today'     // variety pass only; relaxed on the second run
+  | 'beach-rotation'      // sanNicolasOk — the San Nicolas cluster's weekly slot
+                          // is spent, or Baby Beach has not opened it yet
   | 'over-budget';        // price > maxPrice for this slot
 
 export type TraceRejection = {
@@ -456,6 +458,13 @@ type Ctx = {
   // was it last used"; this answers "how often", which is what caps a
   // revisitable beach at MAX_REVISITABLE_PLACEMENTS.
   placements: Map<string, number>;
+  // The beach-rotation rules, narrowed ONCE to what this traveller can actually
+  // reach. Both are CORE_BEACHES/SAN_NICOLAS_BEACHES intersected with the filled
+  // catalogue, because a no-car traveller loses 5 of the 6 and all 3 of the
+  // San Nicolas cluster (`requires_car`) — a gate holding out for a card that
+  // was filtered away would never open again.
+  coreBeachPool: Set<string>;
+  sanNicolasPool: Set<string>;
   // Set only when generatePlan was given an onTrace callback. Undefined in the
   // app, which is what keeps this whole mechanism zero-cost in production.
   trace?: (ev: SlotTrace) => void;
@@ -528,6 +537,27 @@ export const REVISITABLE_MIN_DAY_GAP = 2;   // at least one clear day before ret
 // A revisitable beach may appear at most this many times in one trip. With 13
 // curated beaches, a 14-day plan should be working through them, not looping.
 const MAX_REVISITABLE_PLACEMENTS = 2;
+
+// --- Beach rotation (owner's call 2026-08-22) --------------------------------
+// San Nicolas is an hour south of the resort strip. Going down there twice in a
+// week reads as filler rather than as a plan, so the whole cluster shares ONE
+// slot per rolling 7 days — the gap is measured between DIFFERENT ids, which is
+// what makes this a separate rule from REVISITABLE_MIN_DAY_GAP above (that one
+// spaces a card from ITSELF).
+export const SAN_NICOLAS_BEACHES = ['baby-beach-snorkel', 'rodgers-beach', 'boca-grandi'];
+export const SAN_NICOLAS_MIN_DAY_GAP = 7;
+// Baby Beach is the one that earns the drive: the shallow lagoon everyone comes
+// south for. Rodger's and Boca Grandi are what you add on a SECOND trip down,
+// so neither may be the first San Nicolas beach a traveller is sent to.
+export const SAN_NICOLAS_FIRST = 'baby-beach-snorkel';
+// The six the island is actually known for. No beach repeats until every one of
+// these that the traveller can reach has had a turn — see `coreBeachPool`.
+// Exported so the balanced template is tested against this list rather than a
+// copy of it, exactly as REVISITABLE_MIN_DAY_GAP is.
+export const CORE_BEACHES = [
+  'arashi-beach', 'mangel-halto', 'eagle-beach-morning',
+  'tres-trapi', 'boca-catalina-shore', 'divi-beach',
+];
 function isRevisitableBeach(e: CardEntry): boolean {
   return e.kind === 'activity'
     && e.activity.category === 'Beaches'
@@ -1220,6 +1250,45 @@ function bumpPlacement(ctx: Ctx, id: string): void {
   ctx.placements.set(id, (ctx.placements.get(id) ?? 0) + 1);
 }
 
+// Both gates below read `lastUsedDay` rather than `placements`. That is not a
+// style choice. Two placement sites write lastUsedDay without calling
+// bumpPlacement — the premium splurge pass and the template-bookable revert —
+// and, more decisively, the template and pin passes register their cards
+// trip-wide BEFORE the day loop starts. lastUsedDay is the only ledger that sees
+// every card in the plan from day 1.
+
+/** Rule 2: is a core beach this traveller can reach still waiting for its turn? */
+function coreBeachesPending(ctx: Ctx): boolean {
+  for (const id of ctx.coreBeachPool) if (!ctx.lastUsedDay.has(id)) return true;
+  return false;
+}
+
+/**
+ * Rule 1: the San Nicolas cluster shares ONE slot per rolling 7 days, and Baby
+ * Beach is what opens it.
+ *
+ * The gap is |ctx.day - last|, not ctx.day - last, and the absolute value is
+ * load-bearing. The template registers its cards up front, so while the loop is
+ * filling day 2 the ledger may already hold a day-7 San Nicolas placement; a
+ * signed difference reads that as "five days ago" and waves the candidate
+ * through. Every other gap rule here compares against the PAST only, which is
+ * why this one looks different.
+ */
+function sanNicolasOk(ctx: Ctx, e: CardEntry): boolean {
+  const id = entryId(e);
+  if (!ctx.sanNicolasPool.has(id)) return true;
+  const placedDays = [...ctx.sanNicolasPool]
+    .map((other) => ctx.lastUsedDay.get(other))
+    .filter((d): d is number => d !== undefined);
+  if (placedDays.some((d) => Math.abs(ctx.day - d) < SAN_NICOLAS_MIN_DAY_GAP)) return false;
+  // Baby Beach first — but only while Baby Beach is reachable at all. Without
+  // that second clause a no-car traveller loses Rodger's and Boca Grandi to a
+  // gate waiting on a card their catalogue no longer contains.
+  return !(id !== SAN_NICOLAS_FIRST
+    && placedDays.length === 0
+    && ctx.sanNicolasPool.has(SAN_NICOLAS_FIRST));
+}
+
 function ranked(ctx: Ctx, cands: CardEntry[], anchor: Region | undefined, anchorCoord: Coord | undefined, themeGroupId?: string): CardEntry[] {
   const themeBonus = (e: CardEntry) => themeGroupId && e.kind === 'group' && e.group.id === themeGroupId ? THEME_BONUS : 0;
   // A beach already placed this trip ranks below every unvisited candidate.
@@ -1284,6 +1353,11 @@ function pickForSlot(
     // A free local beach may come back after a clear day; nothing else may.
     if (ctx.pinnedIds.has(entryId(e))) return false;   // an explicit choice, placed once
     if (!isRevisitableBeach(e) || ctx.day - last < REVISITABLE_MIN_DAY_GAP) return false;
+    // ...and never while a core beach the traveller can still reach has not had
+    // its turn (rule 2, 2026-08-22). This sits ABOVE the placement cap on
+    // purpose: the six are the point of a beach-leaning plan, and a second look
+    // at one of them is worth less than a first look at another.
+    if (coreBeachesPending(ctx)) return false;
     // ...and only so many times. Without a cap the gap rule alone let one beach
     // return every other day forever: a 14-day beach-leaning plan came back
     // manchebo x7, eagle x6, and days 9-14 were a literal two-day cycle. The
@@ -1374,7 +1448,11 @@ function pickForSlot(
   // on-theme → over-budget widened. `kindOk` gates every tier by same-day kind
   // variety. When nothing remains, we return null and the slot stays open.
   const runLadder = (kindOk: (e: CardEntry) => boolean): { pick: CardEntry; tier: TraceTier } | null => {
-    const ok = (list: CardEntry[]) => list.filter(kindOk).filter(notSimilar).filter(feasible);
+    const ok = (list: CardEntry[]) =>
+      // `sanNicolasOk` cannot live in `unused`: that returns true for a
+      // never-placed card before any of its own checks run, and rule 1 has to
+      // reject a San Nicolas beach the trip has never shown.
+      list.filter(kindOk).filter(notSimilar).filter(feasible).filter((e) => sanNicolasOk(ctx, e));
     const t1 = ok(matched).find(unused);
     if (t1) return { pick: t1, tier: 'affordable+on-theme' };
     const t2 = ok(widened).find(unused);
@@ -1443,7 +1521,9 @@ function pickForSlot(
   //
   // What it bypasses, named individually because each is a separate rule with its
   // own tests: `kindOk` (same-day variety), `unused` (no repeats), and via
-  // `unused` also REVISITABLE_MIN_DAY_GAP and MAX_REVISITABLE_PLACEMENTS — so a
+  // `unused` also REVISITABLE_MIN_DAY_GAP, MAX_REVISITABLE_PLACEMENTS and the
+  // core-six rule (`coreBeachesPending`); plus `beachRotationOk`, so the San
+  // Nicolas weekly slot and the Baby-Beach-first rule are off here too — so a
   // rescue may re-place yesterday's beach, and may be that card's third
   // appearance. Measured on a starved catalogue: day 5 takes the card placed on
   // day 4, as its 3rd placement. Deliberate. A repeated beach beats a blank page,
@@ -1523,6 +1603,18 @@ function pickForSlot(
         rejections.push({ id, title, reason: 'similar-to-placed', detail: sim });
       } else if (!feasible(e)) {
         rejections.push({ id, title, reason: feasibleReason(e) ?? 'day-time-budget' });
+      } else if (!sanNicolasOk(ctx, e)) {
+        rejections.push({
+          id, title, reason: 'beach-rotation',
+          // Baby Beach can only ever be refused on the gap, never on its own
+          // first-mover rule — reporting otherwise sent a reader after the
+          // wrong clause.
+          detail: id !== SAN_NICOLAS_FIRST
+            && ctx.sanNicolasPool.has(SAN_NICOLAS_FIRST)
+            && !ctx.lastUsedDay.has(SAN_NICOLAS_FIRST)
+            ? 'Baby Beach has not opened the San Nicolas cluster yet'
+            : "San Nicolas' weekly slot is already spent",
+        });
       } else if (!kindOk(e)) {
         rejections.push({ id, title, reason: 'same-kind-today', detail: `kind "${entryKind(e)}" already placed today` });
       } else if ((maxPrice === 0 || ctx.tags.has('budget')) && !affordable(e)) {
@@ -1797,7 +1889,9 @@ export function generatePlan(
     // random food day on the opposite coast by normal fill.
     activities: filteredCatalog.activities.filter((a) => !dupedLocal(a) && !foodPlaceKey(a.id)),
   };
-  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), placements: new Map(), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], dayTagSets: [], day: 0, nDays, lastFamilyDay: new Map(), dayFamilies: new Set(), pinnedIds: new Set(), usedRouteFamilies: new RouteFamilyLedger(nDays), bookingDaySet: new Set<number>(), bookedDays: new Set<number>() };
+  const ctx: Ctx = { catalog: fillCatalog, tags, prefSections, rand: rng(seed + 1), lastUsedDay: new Map(), placements: new Map(),
+    coreBeachPool: new Set(CORE_BEACHES.filter((id) => fillCatalog.activities.some((a) => a.id === id))),
+    sanNicolasPool: new Set(SAN_NICOLAS_BEACHES.filter((id) => fillCatalog.activities.some((a) => a.id === id))), groupById: new Map(fillCatalog.groups.map((g) => [g.id, g])), usedGroupIds: new Set(), usedClusterIds: new Set(), usedTagSets: [], dayTagSets: [], day: 0, nDays, lastFamilyDay: new Map(), dayFamilies: new Set(), pinnedIds: new Set(), usedRouteFamilies: new RouteFamilyLedger(nDays), bookingDaySet: new Set<number>(), bookedDays: new Set<number>() };
 
   // Trip-wide budget pool: keeps the AVERAGE daily activity spend within the
   // tier's average cap (budget-conscious ≈ $60/day on average), letting days
@@ -2035,6 +2129,12 @@ export function generatePlan(
       // reaches the template's day. `lastUsedDay` holds the LATEST day a card is
       // used, which is what the revisit gap is measured against.
       ctx.lastUsedDay.set(entryId(entry), day);
+      // Counted as a placement, not just dated. Without this the template's rows
+      // are invisible to MAX_REVISITABLE_PLACEMENTS, and the cap silently means
+      // "twice on the FILL path" rather than "twice in the plan": Druif sat on
+      // days 1 and 10 by construction, the engine added a third on day 5 from
+      // the template's own gap, and it did so on 30 of 30 seeds.
+      bumpPlacement(ctx, entryId(entry));
       ctx.usedRouteFamilies.claim(tripRouteFamilies(entry, nDays));
       if (!templateSlots.has(day)) templateSlots.set(day, new Map());
       templateSlots.get(day)!.set(slot, {
@@ -3002,14 +3102,22 @@ export function generatePlan(
       const autoPlaced = premium ?? template ?? stapleSlots.get(d)?.get(slot);
       if (autoPlaced) {
         const { cardEntry: pick, slotEntry } = autoPlaced;
+        const preplacedSource = premium ? 'premium' : template ? 'template' : 'staple';
         emit?.({
           type: 'preplaced', day: d, slot,
-          source: premium ? 'premium' : template ? 'template' : 'staple',
+          source: preplacedSource,
           id: entryId(pick), title: entryTitle(pick),
         });
         budgetLeft -= entryPrice(pick);
         ctx.lastUsedDay.set(entryId(pick), d);
-        bumpPlacement(ctx, entryId(pick));
+        // Template rows were counted in the template pre-pass, where they HAVE to
+        // be: the ladder consults the cap while filling day 5 for a row this loop
+        // will not reach until day 10. Counting again here would spend a cap of 2
+        // on a single row, which reads as "once per plan" and costs real fill.
+        // (Premium and pin rows are double-counted the same way and have been
+        // since before this rule existed — left alone deliberately; it is a
+        // separate bug in a path that has nothing to do with beaches.)
+        if (preplacedSource !== 'template') bumpPlacement(ctx, entryId(pick));
         { const et = entryTags(pick); if (et.length) ctx.dayTagSets.push(et); }
       { const gf = gapFamilyOf(pick); if (gf) ctx.lastFamilyDay.set(gf, d); }
       { const df = dayCapFamilyOf(pick); if (df) ctx.dayFamilies.add(df); }

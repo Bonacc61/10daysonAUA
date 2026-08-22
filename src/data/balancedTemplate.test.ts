@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generatePlan, REVISITABLE_MIN_DAY_GAP } from './itineraryGenerator';
+import { generatePlan, REVISITABLE_MIN_DAY_GAP, SAN_NICOLAS_BEACHES, SAN_NICOLAS_MIN_DAY_GAP, CORE_BEACHES } from './itineraryGenerator';
 import { getCatalog } from './activitySource';
 import { DEFAULT_ANSWERS } from '../App';
 import { BALANCED_TEMPLATE, isBalancedTraveller, resolveBalancedTemplate } from './balancedTemplate';
@@ -130,6 +130,52 @@ describe('template slots never contradict the card text', () => {
       ));
     });
     expect(tooClose).toEqual([]);
+  });
+
+  // The two beach-rotation rules (2026-08-22). Same reason the clear-day test
+  // above exists: the template places by construction and never passes the fill
+  // ladder that enforces these, so its guard has to live here.
+  it('spends the San Nicolas cluster once, and opens it with Baby Beach', () => {
+    const visits = BALANCED_TEMPLATE
+      .filter((e) => SAN_NICOLAS_BEACHES.includes(e.id))
+      .sort((a, b) => a.day - b.day);
+    expect(visits.length, 'no San Nicolas beach in the template at all').toBeGreaterThan(0);
+    expect(visits[0].id, 'the first trip south must be Baby Beach').toBe('baby-beach-snorkel');
+    const tooClose = visits.slice(1).flatMap((e, i) => (
+      e.day - visits[i].day < SAN_NICOLAS_MIN_DAY_GAP
+        ? [`${visits[i].id} day ${visits[i].day} then ${e.id} day ${e.day}`] : []
+    ));
+    expect(tooClose).toEqual([]);
+  });
+
+  it('gives every core beach a turn before repeating any beach', () => {
+    const catalog = getCatalog();
+    const byId = new Map(catalog.activities.map((a) => [a.id, a]));
+    // The day each core beach first appears. A core beach the template never
+    // places at all fails here rather than vacuously passing — the six ARE the
+    // curated plan's beach spine, and one silently dropped from the table is the
+    // regression this test is for.
+    const firstSeen = CORE_BEACHES.map((id) => {
+      const days = BALANCED_TEMPLATE.filter((e) => e.id === id).map((e) => e.day);
+      return { id, day: days.length ? Math.min(...days) : Infinity };
+    });
+    expect(firstSeen.filter((x) => x.day === Infinity).map((x) => x.id)).toEqual([]);
+    // Zero margin by construction: allCoreDown is 9 (boca-catalina-shore, day 9
+    // morning) and palm-beach-strip's second appearance is also day 9, so this
+    // passes on `9 < 9` being false. Moving either row by one day flips it —
+    // which is the point, but means a failure here is a real conflict and not a
+    // rounding artefact.
+    const allCoreDown = Math.max(...firstSeen.map((x) => x.day));
+
+    const days = new Map<string, number[]>();
+    for (const e of BALANCED_TEMPLATE) days.set(e.id, [...(days.get(e.id) ?? []), e.day]);
+    const early = [...days.entries()].flatMap(([id, ds]) => {
+      if (ds.length < 2 || byId.get(id)?.category !== 'Beaches') return [];
+      const second = [...ds].sort((a, b) => a - b)[1];
+      return second < allCoreDown
+        ? [`${id} repeats on day ${second}, before the core six are down (day ${allCoreDown})`] : [];
+    });
+    expect(early).toEqual([]);
   });
 
   it('never places a card whose title names a time of day into a conflicting slot', () => {

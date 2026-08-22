@@ -47,7 +47,7 @@ Accumulates trip-wide state across the day loop:
 
 | Field | Purpose |
 |---|---|
-| `lastUsedDay` | item-id → day number; no id repeats, except a free local `Beaches` activity, which may return after ONE clear day (`REVISITABLE_MIN_DAY_GAP` = 2 is a gap of two day NUMBERS, so day 5 → day 7) — unless the traveller pinned it. One further exception since 2026-08-17: the blank-day rescue's last-resort rung never calls `unused` at all, so ANY free card may repeat there — no day gap, no placement cap — to stop a day rendering blank. It never considers a paid one. |
+| `lastUsedDay` | item-id → day number; no id repeats, except a free local `Beaches` activity, which may return after ONE clear day (`REVISITABLE_MIN_DAY_GAP` = 2 is a gap of two day NUMBERS, so day 5 → day 7) — unless the traveller pinned it. One further exception since 2026-08-17: the blank-day rescue's last-resort rung never calls `unused` at all, so ANY free card may repeat there — no day gap, no placement cap — to stop a day rendering blank. It never considers a paid one. Since 2026-08-22 a revisit is also refused while any core beach the traveller can reach is still unplaced — see `coreBeachPool`. |
 | `pinnedIds` | ids the traveller pinned; exempt from the beach-revisit allowance, so a pinned pick is placed exactly once BY THE LADDER. The blank-day last-resort rung does not consult `unused`, so a free pinned card is the one way a pin can appear twice (theoretical — the pin path is not live). |
 | `usedClusterIds` | embedding clusters placed; a hit is conclusive, a miss falls through |
 | `usedTagSets` | tag arrays of placed items; trip-wide Jaccard at 0.35 |
@@ -59,6 +59,8 @@ Accumulates trip-wide state across the day loop:
 | `day` / `nDays` | current day and trip length; day-level eligibility (Conchi avoids the first and last day on trips longer than 2 days) |
 | `trace?` | opt-in diagnostic callback; undefined in the app |
 | `groupById` | group lookup for per-item candidates |
+| `coreBeachPool` | `CORE_BEACHES` (Arashi, Mangel Halto, Eagle, Tres Trapi, Boca Catalina, Druif) intersected with the FILTERED catalogue. While any member is unplaced, `unused` refuses every beach revisit, so the six get a turn before anything loops. Intersected rather than hardcoded because a `no-car` traveller loses five of the six and the gate would otherwise never open. Note the template registers its rows trip-wide before day 1, so for a balanced traveller this is already false on day 1. |
+| `sanNicolasPool` | `SAN_NICOLAS_BEACHES` (Baby Beach, Rodger's, Boca Grandi) intersected with the filtered catalogue. The cluster shares ONE slot per `SAN_NICOLAS_MIN_DAY_GAP` = 7 days, and `SAN_NICOLAS_FIRST` (Baby Beach) must open it — the others are refused until it has been placed, unless it is not in the pool at all. |
 
 **Note on pins:** the pre-pass and `opts.pinned` are intact and still covered by
 tests, but **no caller passes them since 2026-08-05**. The shortlist used to be fed
@@ -70,8 +72,9 @@ in mind" only — the traveller drops it into a slot from the empty-slot picker 
 
 Four tiers, best → worst, plus a fifth rung below them that only the blank-day
 rescue may unlock. Every one of the FOUR tiers is gated by `unused` (no id
-repeats, except a free local beach after a 2-day gap),
-`notSimilar` (semantic dedup) and `feasible` — the day/evening time budget AND
+repeats, except a free local beach after a 2-day gap, and none at all while a
+core beach is still unplaced), `sanNicolasOk` (the San Nicolas cluster's 7-day
+slot, and Baby Beach first), `notSimilar` (semantic dedup) and `feasible` — the day/evening time budget AND
 the day shape (<=3 cards a day INCLUDING the meal, <=2 outings, <=1 meal, and a
 full-day pass alone on its day); tiers 3-4 are skipped when
 `maxPrice === 0` (the free-only arrival day) or the traveller is
@@ -85,7 +88,9 @@ variety-introducing picks first, then relaxes for same-kind picks:
 5. **Last resort** (`lastResortPick`, trace tier `last-resort`) — FREE cards only
    (`entryPrice === 0`), still gated by `notSimilar` and `feasible`, but it
    ignores `unused` and the same-day variety gate, and with `unused` also the
-   revisit day-gap and placement cap. Reachable ONLY via the `lastResort` flag,
+   revisit day-gap, the placement cap and the core-six rule; `sanNicolasOk` is
+   off here too, so the cluster's weekly slot and the Baby-Beach-first rule do
+   not bind a rescue. Reachable ONLY via the `lastResort` flag,
    which only the day loop sets, and only for a day that has no card at all.
 
 When all FOUR tiers are exhausted the slot stays open ("Drop an activity here") —
