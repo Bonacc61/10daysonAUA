@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { trackPageview, trackOutbound } from './lib/beacon';
 import type { Section } from './types';
 import Nav from './components/Nav';
 import Landing from './pages/Landing';
@@ -151,6 +152,45 @@ function AppShell() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, [page]);
+
+  // --- Cookieless traffic beacon (src/lib/beacon.ts) ------------------------
+  //
+  // Deliberately NOT alongside the PostHog calls: this pipe writes nothing to
+  // the device, so it runs on legitimate interest and counts everyone, while
+  // PostHog is consent-gated and counts the consented share. The two must not
+  // be merged — see the header of beacon.ts.
+  //
+  // Keyed on `page` rather than on pathname because this is a single-page app:
+  // `setPage` pushes history without a navigation, so there is no load event to
+  // hang a pageview on after the first one.
+  useEffect(() => {
+    trackPageview(window.location.pathname);
+  }, [page]);
+
+  // ONE DELEGATED LISTENER rather than a handler on each link. There are six
+  // render sites for a Book now link today (ItineraryCard, GroupCard, Explore,
+  // Dashboard x3) and the seventh is the one that would silently not be
+  // measured. Capture phase, so it still fires if something downstream stops
+  // propagation, and `closest('a')` so a click on the label inside the anchor
+  // counts.
+  //
+  // The product code is parsed from OUR OWN affiliate URL (`/d28-62666P1?...`),
+  // never from anything a traveller typed.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.('a');
+      if (!a) return;
+      const href = a.getAttribute('href') ?? '';
+      if (!/^https?:\/\//.test(href)) return;
+      let host = '';
+      try { host = new URL(href).hostname.replace(/^www\./, ''); } catch { return; }
+      if (!/(^|\.)viator\.com$/.test(host)) return;
+      const product = href.match(/\/d\d+-([A-Za-z0-9]+)/)?.[1];
+      trackOutbound(href, product);
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, []);
 
   // Gate the itinerary: a visitor who hasn't completed the questionnaire is sent
   // there first. Shared links are exempt; wait for auth so a signed-in user on a

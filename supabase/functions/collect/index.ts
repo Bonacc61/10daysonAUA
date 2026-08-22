@@ -1,0 +1,93 @@
+// Cookieless traffic beacon.
+// Spec: docs/superpowers/specs/2026-08-14-internal-analytics-dashboard-design.md
+//
+// Accepts a tiny fixed body, derives identity from headers, writes one row.
+// The client sends NO identifier — no cookie, no localStorage, no session id.
+// That is what lets this run on legitimate interest and count 100% of traffic
+// instead of the consented share (see the note in the web_events migration).
+//
+// FAILURES ARE SILENT AND ALWAYS 204. A traveller's page must never be affected
+// by analytics, so there is no error surface a caller could act on anyway — and
+// a beacon that returns 500 to a browser is a beacon that shows up in someone's
+// console on launch day.
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { BOT_RE, normalisePath, referrerHost, campaign, deviceClass } from './normalise.ts';
+
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+const noContent = () => new Response(null, { status: 204, headers: CORS });
+
+// --- visitor identity -------------------------------------------------------
+// The DATE IS INSIDE THE DIGEST, so the key rotates itself at midnight UTC:
+// there is no rotation job, no old-salt store, and no way to link a visitor
+// across days. Unique visitors is therefore a DAILY figure and nothing else.
+async function visitorDayHash(ip: string, ua: string, salt: string): Promise<string> {
+  const day = new Date().toISOString().slice(0, 10);
+  const bytes = new TextEncoder().encode(`v:${day}:${ip}:${ua}:${salt}`);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// LAST x-forwarded-for entry, not the first. The leftmost value is whatever the
+// client sent, so keying on it hands out a fresh identity per spoofed IP — the
+// same rule, and the same reasoning, as itinerary-edit's callerHash.
+function clientIp(req: Request): string {
+  const xff = req.headers.get('x-forwarded-for')?.split(',') ?? [];
+  return xff[xff.length - 1]?.trim() || 'unknown';
+}
+
+const trim = (v: unknown, n: number): string | null =>
+  typeof v === 'string' && v ? v.slice(0, n) : null;
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: CORS });
+
+  try {
+    const ua = req.headers.get('user-agent') ?? '';
+    // Empty UA is dropped too — a real browser always sends one.
+    if (!ua || BOT_RE.test(ua)) return noContent();
+
+    const salt = Deno.env.get('ANALYTICS_SALT');
+    // No salt means no unlinkable identity, and writing a raw-ish key would be
+    // worse than writing nothing. Fail closed.
+    if (!salt) return noContent();
+
+    const body = await req.json().catch(() => null);
+    const name = body?.name;
+    if (name !== 'pageview' && name !== 'outbound' && name !== 'milestone') return noContent();
+
+    const db = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { persistSession: false } },
+    );
+
+    await db.from('web_events').insert({
+      name,
+      visitor_day_hash: await visitorDayHash(clientIp(req), ua, salt),
+      path: normalisePath(body?.path),
+      // Stamped on the ARRIVING pageview only. Later events in the visit carry
+      // neither, and they are still reachable: within one UTC day the visitor
+      // hash joins a visit's pageview to its outbound clicks. Across days it is
+      // not — any cross-day campaign claim is unsupported by this schema.
+      referrer_host: name === 'pageview' ? referrerHost(body?.ref) : null,
+      campaign: name === 'pageview' ? campaign(body?.campaign) : null,
+      country: null,   // see the migration: needs an ip_country table first
+      device: deviceClass(ua),
+      product_code: name === 'outbound' ? trim(body?.product, 32) : null,
+      destination_host: name === 'outbound' ? referrerHost(body?.href) : null,
+      milestone: name === 'milestone' ? trim(body?.milestone, 32) : null,
+    });
+
+    return noContent();
+  } catch {
+    // Silent by design — see the header note.
+    return noContent();
+  }
+});

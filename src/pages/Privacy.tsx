@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import type { PageId } from '../App';
+import { NO_ANALYTICS_KEY } from '../lib/beacon';
 import Footer from '../components/Footer';
 
 type Props = { setPage: (p: PageId) => void };
@@ -41,6 +43,7 @@ export default function Privacy({ setPage }: Props) {
                   ['Your IP address, hashed (AI features only)', 'Rate-limiting, so nobody can run up our costs', 'Legitimate interest', '24 hours'],
                   ['A scrambled fingerprint of a search phrase, its numeric form, and a short structured reading of it — for example “no boats” (only if you use search-by-meaning)', 'So a repeat search costs nothing and is not sent abroad again, and so we can rule out activities you asked us to rule out', 'Legitimate interest', '30 days'],
                   ['Which activities you swap, add, remove or move, against a random id stored in your browser', 'To learn which suggestions actually work and improve the matching for everyone', 'Consent — only if you accept', '24 months'],
+                  ['Which page you opened and which booking links you clicked, against a daily code worked out from your network address and browser — never stored, and different tomorrow', 'To count how many people visit and how many we send to a booking partner', 'Legitimate interest — you can object below', '12 months'],
                 ].map(([what, why, basis, kept]) => (
                   <tr key={what} style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
                     <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>{what}</td>
@@ -51,7 +54,7 @@ export default function Privacy({ setPage }: Props) {
                 ))}
               </tbody>
             </table>
-            <p style={{ fontSize: 14, margin: '16px 0 0', opacity: 0.6 }}>No advertising trackers. No third-party analytics.</p>
+            <p style={{ fontSize: 14, margin: '16px 0 0', opacity: 0.6 }}>No advertising trackers. No third-party analytics — the visitor count in that last row is worked out on our own servers in the EU and shared with nobody.</p>
             <p style={{ fontSize: 14, margin: '10px 0 0', opacity: 0.6 }}>
               That last row is the only thing we watch you do, and it happens only if you accepted
               the cookie banner. Decline, or simply never answer it, and nothing is recorded and no
@@ -60,6 +63,29 @@ export default function Privacy({ setPage }: Props) {
               When you tell us <em>why</em> you swapped something we record which of the fixed reasons
               you picked &mdash; never anything you typed in your own words.
             </p>
+          </Section>
+
+          <Section title="Counting visitors">
+            <p style={{ fontSize: 14, lineHeight: 1.7, margin: 0 }}>
+              We count how many people open the site and how many click through to a booking
+              partner. That is the only way to know whether any of this is working, and it is the
+              number a partner asks for.
+            </p>
+            <p style={{ fontSize: 14, lineHeight: 1.7, margin: '12px 0 0' }}>
+              <strong>Nothing is stored on your device for this.</strong> No cookie, no id, nothing
+              kept between visits. Instead our own server works out a code from your network address
+              and browser for the current day, and stores only that code &mdash; never the address
+              itself. The date is baked into the code, so tomorrow you are a different, unconnected
+              visitor. That also means we can count how many people came <em>today</em>, and can
+              never work out how many distinct people came this month.
+            </p>
+            <p style={{ fontSize: 14, lineHeight: 1.7, margin: '12px 0 0' }}>
+              We record which page you opened &mdash; from a fixed list of our own pages, never the
+              web address itself, so a search you typed or a plan you shared can never end up in it
+              &mdash; which site sent you (just the site, for example <em>reddit.com</em>, never the
+              page), and which activity you clicked through to book.
+            </p>
+            <OptOut />
           </Section>
 
           <Section title="Third parties">
@@ -154,6 +180,44 @@ export default function Privacy({ setPage }: Props) {
       </div>
       <Footer setPage={setPage} />
     </>
+  );
+}
+
+/**
+ * GDPR Article 21 — the right to object to processing based on legitimate
+ * interest. Without this control the visitor count has no lawful basis, so it
+ * ships together with the beacon or not at all.
+ *
+ * Writing the key IS storage on the device, and it needs no consent: keeping a
+ * record of someone's own objection is strictly necessary for honouring it,
+ * which is the same exemption a cookie banner relies on to remember "no".
+ */
+function OptOut() {
+  const [off, setOff] = useState<boolean>(() => {
+    try { return localStorage.getItem(NO_ANALYTICS_KEY) === 'true'; } catch { return false; }
+  });
+  const toggle = () => {
+    const next = !off;
+    setOff(next);
+    // Removed rather than set to 'false', so declining and then changing your
+    // mind leaves nothing behind.
+    try {
+      if (next) localStorage.setItem(NO_ANALYTICS_KEY, 'true');
+      else localStorage.removeItem(NO_ANALYTICS_KEY);
+    } catch { /* private mode: the beacon fails closed, which is the safe way */ }
+  };
+  return (
+    <div style={{ marginTop: 16, padding: '14px 16px', border: '2px solid var(--ink)',
+                  borderRadius: 10, background: 'var(--cream)' }}>
+      <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', fontSize: 14 }}>
+        <input type="checkbox" checked={off} onChange={toggle} style={{ marginTop: 3 }} />
+        <span>
+          <strong>Don&rsquo;t count my visits.</strong>{' '}
+          {off ? 'You are not being counted. This preference is kept on this device only.'
+               : 'Tick this and we stop counting you straight away, on this device.'}
+        </span>
+      </label>
+    </div>
   );
 }
 
