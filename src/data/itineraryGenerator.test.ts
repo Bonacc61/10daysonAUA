@@ -3761,9 +3761,20 @@ describe('beach rotation', () => {
     }
   });
 
-  it('repeats no beach while a reachable core beach is still unplaced', () => {
+  // Parametrised over personas since 2026-08-22, and `balanced` is the reason.
+  // The gate used to ask "is every core beach ANYWHERE in the trip", which the
+  // template answered yes to on day 1 by registering all six up front — so it
+  // opened before the traveller had seen one. This test passed anyway, because
+  // the only persona it ran was DEFAULT_ANSWERS/14, which gets no template.
+  // Balanced measured 1.00 early repeats per plan at the time: on 15 of 15
+  // seeds, california-lighthouse-sunset on days 3 and 5 while
+  // boca-catalina-shore did not appear until day 9.
+  it.each([
+    ['default-14', { ...DEFAULT_ANSWERS, days: 14 }],
+    ['balanced-10', { ...DEFAULT_ANSWERS, days: 10, budget: 'Mid-range' as const, adventureLevel: 50 }],
+  ])('repeats no beach while a reachable core beach is still unplaced (%s)', (_name, answers) => {
     for (const seed of SEEDS) {
-      const plan = generatePlan({ ...DEFAULT_ANSWERS, days: 14 }, catalog, { seed });
+      const plan = generatePlan(answers, catalog, { seed });
       const byId = daysById(plan);
       // DEFAULT_ANSWERS carries no Q8 flags, so the traveller's filtered pool IS
       // the whole catalogue here and all six are reachable. Asserted rather than

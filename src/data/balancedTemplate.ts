@@ -40,15 +40,18 @@ import type { MatchTag, Slot } from '../types';
  *
  * Two more rules are on you for the same reason, both added 2026-08-22 and both
  * enforced on the fill path only (itineraryGenerator.ts):
- *   - CORE_BEACHES each get a turn before ANY beach repeats. In THIS TABLE the
- *     six are down by day 9 morning and the Palm Beach and Druif repeats above
- *     are the only ones, both falling after it. That is a statement about the
- *     table, not about the finished plan: because these rows register trip-wide
- *     before the day loop starts, `coreBeachesPending` is already false on day
- *     1, and the fill ladder may legitimately repeat a beach earlier than day 9
- *     (measured: california-lighthouse-sunset on days 3 and 5). The six are all
- *     in the plan, which is what the rule guarantees — but a traveller reading
- *     top-to-bottom can still meet a repeat before a first visit.
+ *   - CORE_BEACHES each get a turn before ANY beach repeats. In this table the
+ *     six are down by day 9 morning, and the Palm Beach and Druif repeats above
+ *     are the only ones, both falling after it.
+ *
+ *     Until 2026-08-22 that held for the table but not for the finished plan:
+ *     these rows register trip-wide before the day loop starts, so a plan-wide
+ *     `coreBeachesPending` was already false on day 1 and the ladder repeated
+ *     california-lighthouse-sunset on days 3 and 5 while boca-catalina-shore
+ *     waited until day 9. The gate now asks the question as at TODAY, so a
+ *     beach this table schedules for a later day counts as unseen until the
+ *     loop reaches it. Measured after the change: 0 early repeats per plan,
+ *     with open slots, distinct beaches and core coverage all unmoved.
  *   - The San Nicolas cluster gets one slot per SAN_NICOLAS_MIN_DAY_GAP days and
  *     Baby Beach opens it. Here that is one card, day 7. Adding a second
  *     southern beach to this table would need seven clear days either side.

@@ -1257,9 +1257,29 @@ function bumpPlacement(ctx: Ctx, id: string): void {
 // trip-wide BEFORE the day loop starts. lastUsedDay is the only ledger that sees
 // every card in the plan from day 1.
 
-/** Rule 2: is a core beach this traveller can reach still waiting for its turn? */
+/**
+ * Rule 2: is a core beach this traveller can reach still waiting for its turn?
+ *
+ * Asked as at TODAY, not as at the finished plan, and the difference is the
+ * whole point. The template and pin pre-passes register their cards trip-wide
+ * before day 1, so a plan-wide reading ("is it anywhere in the trip") answered
+ * "all six are down" on day 1 for a balanced traveller — and the gate opened
+ * before they had seen a single one. Measured on 15 of 15 seeds:
+ * california-lighthouse-sunset repeated on days 3 and 5 while
+ * boca-catalina-shore did not appear until day 9. All six were in the plan, so
+ * the rule's letter held; what the traveller read top-to-bottom did not.
+ *
+ * A beach scheduled only for a LATER day therefore counts as unseen. Slight
+ * conservatism on one edge: a card with two template rows (Druif on days 1 and
+ * 10) carries the later day in `lastUsedDay` until the loop reaches the first,
+ * so it reads as unseen during day 1's earlier slots. That errs toward holding
+ * the gate shut, which is the safe direction for this rule.
+ */
 function coreBeachesPending(ctx: Ctx): boolean {
-  for (const id of ctx.coreBeachPool) if (!ctx.lastUsedDay.has(id)) return true;
+  for (const id of ctx.coreBeachPool) {
+    const day = ctx.lastUsedDay.get(id);
+    if (day === undefined || day > ctx.day) return true;
+  }
   return false;
 }
 
