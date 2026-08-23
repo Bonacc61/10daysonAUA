@@ -13,12 +13,21 @@
 // footnotes — see the tiles they sit on. Both exist to stop a number being
 // quoted as something it is not.
 //
-// Chart colours come from the validated categorical order (dataviz skill,
-// `node scripts/validate_palette.js "#2a78d6,#eb6834,#1baf7a,#eda100" --mode
-// light --surface "#FFFBF0"` -> ALL CHECKS PASS). They are NOT the brand palette:
-// brand coral against brand green is ΔE 3.4 under deuteranopia, i.e. the same
-// colour to a red-green colourblind reader. Do not "fix" these back to the brand
-// hues without re-running that script. Assigned in fixed order, never cycled.
+// Chart colours ARE brand tokens — --blue, --red, --green from src/index.css —
+// but only after the validator agreed to them:
+//
+//   node scripts/validate_palette.js "#3B82F6,#E63946,#22C55E" \
+//     --mode light --surface "#FAF7F2"     -> ALL CHECKS PASS
+//
+// The surface argument matters and is the card background, not the page's cream:
+// an earlier run used #FFFBF0, which the charts never sit on. Two brand pairings
+// were tried and REJECTED for colourblindness before this one: coral+green is
+// ΔE 3.4 under deuteranopia (the same colour to a red-green colourblind reader),
+// and blue+red+yellow fails the same check. Green carries a contrast WARN at
+// 2.13:1, discharged the way the skill requires — every categorical mark on this
+// page is directly labelled in text.
+//
+// So: re-run that script before changing a hue, and keep the order fixed.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PageId } from '../App';
 import { useAuth } from '../lib/auth';
@@ -41,7 +50,11 @@ type Summary = {
 };
 
 // Fixed order. A fifth category folds into "Other" rather than inventing a hue.
-const SERIES = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100'] as const;
+// Hex, not var(--blue): these are handed to SVG presentation attributes
+// (stroke=, fill=), and var() substitution does not apply there — the lines
+// would silently lose their colour. Same values as --blue / --red / --green in
+// src/index.css; if those tokens move, move these and re-run the validator.
+const SERIES = ['#3B82F6', '#E63946', '#22C55E'] as const;
 const INK = 'var(--ink)';
 const GRID = 'rgba(26,26,26,0.10)';
 
@@ -134,13 +147,8 @@ export default function Stats({ setPage }: Props) {
               onClick={() => setDays(w)}
               aria-pressed={days === w}
               aria-label={`Last ${w} days`}
-              style={{
-                fontFamily: 'inherit', fontSize: 13, cursor: 'pointer', padding: '0 18px',
-                minHeight: 44, minWidth: 56,
-                borderRadius: 999, border: '1px solid var(--sand-200)',
-                background: days === w ? INK : 'transparent',
-                color: days === w ? 'var(--cream)' : INK,
-              }}
+              className={days === w ? 'nav-login' : 'btn-ghost'}
+              style={{ minHeight: 44, minWidth: 58, padding: '0 16px' }}
             >{w}d</button>
           ))}
         </div>
@@ -148,7 +156,7 @@ export default function Stats({ setPage }: Props) {
 
       {empty ? (
         <section style={{ ...card, marginTop: 24 }}>
-          <h2 style={h2}>Nothing recorded yet</h2>
+          <h2 className="font-display" style={h2}>Nothing recorded yet</h2>
           <p style={{ ...muted, marginBottom: 0 }}>
             No events in this window. The beacon went live on 23 August 2026, so an empty
             page here means nothing has arrived yet — not that a query failed. If it is
@@ -273,7 +281,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section style={{ ...card, marginTop: 24 }}>
-      <h2 style={h2}>{title}</h2>
+      <h2 className="font-display" style={h2}>{title}</h2>
       {children}
     </section>
   );
@@ -282,8 +290,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Tile({ label, value, sub }: { label: string; value: number; sub?: string }) {
   return (
     <div style={{ ...card, flex: '1 1 180px', margin: 0 }}>
-      <div style={{ fontSize: 12, letterSpacing: 0.3, opacity: 0.55, marginBottom: 6 }}>{label}</div>
-      <div className="font-display" style={{ fontSize: 32, lineHeight: 1 }}>{value.toLocaleString('en-GB')}</div>
+      <div style={{ fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase', fontWeight: 700, opacity: 0.6, marginBottom: 8 }}>{label}</div>
+      <div className="font-display" style={{ fontSize: 36, lineHeight: 1 }}>{value.toLocaleString('en-GB')}</div>
       {sub && <div style={{ fontSize: 12, opacity: 0.5, marginTop: 6 }}>{sub}</div>}
     </div>
   );
@@ -425,10 +433,10 @@ function BarList({ rows, color, unit }: { rows: { label: string; n: number; sub?
               overflowWrap handles the other case — a product code is one long
               token with nowhere to break. */}
           <span style={{ overflowWrap: 'anywhere' }} title={r.label}>{r.label}</span>
-          <span style={{ background: 'rgba(26,26,26,0.05)', borderRadius: 3, height: 14, position: 'relative' }}>
+          <span style={{ background: 'var(--sand-100)', borderRadius: 4, height: 16, border: '1px solid var(--sand-200)' }}>
             <span style={{
               display: 'block', height: '100%', width: `${Math.max((r.n / max) * 100, 1.5)}%`,
-              background: color, borderRadius: '0 3px 3px 0',
+              background: color, borderRadius: 3,
             }} />
           </span>
           <span style={{ fontVariantNumeric: 'tabular-nums', opacity: 0.75, whiteSpace: 'nowrap' }}>
@@ -494,9 +502,9 @@ function Devices({ d }: { d: Record<string, number> }) {
   const total = rows.reduce((s, r) => s + r.n, 0);
   return (
     <>
-      <div style={{ display: 'flex', gap: 2, height: 18, marginBottom: 10 }}>
+      <div style={{ display: 'flex', gap: 2, height: 22, marginBottom: 12, border: '2px solid var(--ink)', borderRadius: 8, overflow: 'hidden', background: 'var(--sand-100)' }}>
         {rows.map((r) => (
-          <span key={r.label} title={`${r.label}: ${r.n}`} style={{ width: `${(r.n / total) * 100}%`, background: r.color, borderRadius: 3 }} />
+          <span key={r.label} title={`${r.label}: ${r.n}`} style={{ width: `${(r.n / total) * 100}%`, background: r.color }} />
         ))}
       </div>
       <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 13 }}>
@@ -510,17 +518,20 @@ function Devices({ d }: { d: Record<string, number> }) {
 
 /* ----------------------------------------------------------------- style --- */
 
+// `.chunky` in src/index.css is the house card: cream on cream, held by a 2px
+// ink border and a hard offset shadow rather than by a fill. Written out here
+// rather than using the class because these need their own padding.
 const card: React.CSSProperties = {
-  background: 'var(--sand-50)', border: '1px solid var(--sand-200)',
-  borderRadius: 12, padding: '18px 20px',
+  background: 'var(--sand-50)', border: '2px solid var(--ink)',
+  borderRadius: 16, boxShadow: '4px 4px 0 var(--ink)', padding: '20px 22px',
 };
-const tileRow: React.CSSProperties = { display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 24 };
-const h2: React.CSSProperties = { fontSize: 15, margin: '0 0 14px', letterSpacing: 0.2 };
+const tileRow: React.CSSProperties = { display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 28 };
+const h2: React.CSSProperties = { fontSize: 20, margin: '0 0 16px' };
 const h3: React.CSSProperties = { fontSize: 13, margin: '16px 0 8px', opacity: 0.7 };
 const muted: React.CSSProperties = { fontSize: 13, color: 'var(--ink)', opacity: 0.55, margin: '0 0 12px' };
 const warn: React.CSSProperties = {
-  fontSize: 13, lineHeight: 1.6, margin: '0 0 14px', padding: '10px 12px',
-  background: 'rgba(235,104,52,0.08)', border: '1px solid rgba(235,104,52,0.35)', borderRadius: 8,
+  fontSize: 13, lineHeight: 1.6, margin: '0 0 16px', padding: '12px 14px',
+  background: 'rgba(230,57,70,0.07)', border: '2px solid var(--red)', borderRadius: 12,
 };
 const linkBtn: React.CSSProperties = {
   background: 'none', border: 'none', cursor: 'pointer', fontSize: 13,
