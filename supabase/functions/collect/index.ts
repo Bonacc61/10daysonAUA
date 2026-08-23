@@ -33,12 +33,31 @@ async function visitorDayHash(ip: string, ua: string, salt: string): Promise<str
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// LAST x-forwarded-for entry, not the first. The leftmost value is whatever the
-// client sent, so keying on it hands out a fresh identity per spoofed IP — the
-// same rule, and the same reasoning, as itinerary-edit's callerHash.
+// The FIRST x-forwarded-for entry, and this is a correction — measured against
+// the deployed function on 2026-08-23, not reasoned about.
+//
+// This read the LAST entry, on the usual and normally correct rule that the
+// leftmost value is whatever the client sent and keying on it hands out a fresh
+// identity per spoofed IP. That rule assumes the platform appends nothing after
+// the client's chain. Supabase does. Six beacons from one machine, one browser
+// string, one day produced SIX different visitor hashes and all six rows came
+// back FR, while the machine's real address (46.225.208.161, stable across six
+// checks) is DE in our own ip_country. The last entry is a Supabase edge hop in
+// their EU region, drawn from a pool.
+//
+// Unfixed that is not a small error. Every visitor is France, and every event is
+// a brand-new visitor — so "unique visitors" becomes an event count and the
+// funnel can never join a pageview to the outbound click that followed it. Both
+// numbers stay plausible-looking while being wrong, which is the worst way for a
+// metric to fail when the point of it is to quote it to a partner.
+//
+// x-real-ip first because Supabase sets it to the client address; the head of
+// the forwarded chain is the fallback.
 function clientIp(req: Request): string {
+  const real = req.headers.get('x-real-ip')?.trim();
+  if (real) return real;
   const xff = req.headers.get('x-forwarded-for')?.split(',') ?? [];
-  return xff[xff.length - 1]?.trim() || 'unknown';
+  return xff[0]?.trim() || 'unknown';
 }
 
 const trim = (v: unknown, n: number): string | null =>
