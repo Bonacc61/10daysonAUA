@@ -89,7 +89,6 @@ describe('stock photography is tracked, not forgotten', () => {
     'tres-trapi',
   ];
 
-
   /**
    * Stock photography we now serve ourselves. Being generic was only half the
    * problem: a URL on someone else's host can also vanish. Pexels deleted photo
@@ -108,11 +107,28 @@ describe('stock photography is tracked, not forgotten', () => {
     expect(tracked.filter((c) => !c.image?.startsWith('/')).map((c) => c.id)).toEqual([]);
   });
 
+  /**
+   * The stub catalog is the larger half of the surface and rots the same way:
+   * two of the three URLs this file's docblocks describe as deleted upstream
+   * were stub entries, not cards. Tracked by id for the same reason.
+   */
+  const STUB_AWAITING_REAL_PHOTO = [
+    'atv-quad', 'beach-dinner', 'cooking-class', 'dolphin-watch', 'food-tour',
+    'horseback-beach', 'jeep-arikok', 'jetski-rental', 'lunch-cruise',
+    'paddleboard-tour', 'pirate-cruise', 'private-charter', 'rum-tasting',
+    'scuba-discovery', 'snorkel-catamaran', 'sunset-sail', 'wine-dinner',
+    'ziplining',
+  ];
+
+  const isStock = (src: string | undefined) => /images\.(pexels|unsplash)\.com/.test(src ?? '');
+
   it('has no stock image beyond the cards awaiting a real photo', () => {
-    const stock = cards
-      .filter((c) => /images\.(pexels|unsplash)\.com/.test(c.image ?? ''))
-      .map((c) => c.id)
-      .sort();
+    const stock = cards.filter((c) => isStock(c.image)).map((c) => c.id).sort();
     expect(stock).toEqual([...AWAITING_REAL_PHOTO].sort());
+  });
+
+  it('has no stock image in the stub catalog beyond the ones tracked', () => {
+    const stock = VIATOR_ITEMS.filter((i) => isStock(i.image_url)).map((i) => i.id).sort();
+    expect(stock).toEqual([...STUB_AWAITING_REAL_PHOTO].sort());
   });
 });
