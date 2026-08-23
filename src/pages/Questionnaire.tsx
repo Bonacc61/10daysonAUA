@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { Chev } from '../components/Icons';
 import { flagAppliesTo } from '../data/notesFlags';
 import type { PageId, Answers } from '../App';
+import { trackMilestoneOnce } from '../lib/beacon';
 
 type Props = {
   setPage: (p: PageId) => void;
@@ -65,7 +66,14 @@ export default function Questionnaire({ setPage, answers, setAnswers, onComplete
   const total = QUESTIONS.length;
   const q = QUESTIONS[step - 1];
 
-  const update = <K extends keyof Answers>(k: K, v: Answers[K]) => setAnswers({ ...answers, [k]: v });
+  // The funnel's second step. Fired on the first ANSWER rather than on opening
+  // the page, because opening it is already counted as a pageview — what this
+  // measures is somebody actually starting to plan. trackMilestoneOnce dedupes
+  // for the rest of the page session, so the other five answers cost nothing.
+  const update = <K extends keyof Answers>(k: K, v: Answers[K]) => {
+    trackMilestoneOnce('questionnaire_started');
+    setAnswers({ ...answers, [k]: v });
+  };
 
   const canAdvance = () => {
     if (q.id === 'q1') return answers.days >= 1;

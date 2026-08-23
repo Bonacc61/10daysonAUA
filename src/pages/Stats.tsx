@@ -414,6 +414,31 @@ export default function Stats({ setPage }: Props) {
           )}
 
 
+          <Section title="Clicks sent to booking partners">
+            {/* REQUIRED LABEL — spec. This one exists so a figure from this page
+                is never repeated to a partner as a booking. */}
+            <p style={warn}>
+              <strong>Clicks sent, not bookings.</strong> Viator returns no signal about what converts,
+              so this page cannot show bookings, revenue, or a conversion rate — and no number on
+              it should ever be described as one. A partner who checks their own figures against
+              an inflated claim costs more than the deal is worth.
+            </p>
+            {data.products.length > 0 && (
+              <BarList
+                rows={data.products.map((p) => ({ label: p.product, n: p.clicks, sub: `${p.visitors} visitor${p.visitors === 1 ? '' : 's'}` }))}
+                color={SERIES[0]}
+                unit="clicks"
+              />
+            )}
+            {data.partners.length > 0 && (
+              <>
+                <h3 style={h3}>By destination</h3>
+                <BarList rows={data.partners.map((p) => ({ label: p.host, n: p.clicks }))} color={SERIES[0]} unit="clicks" />
+              </>
+            )}
+            {data.products.length === 0 && data.partners.length === 0 && <p style={muted}>No outbound clicks in this window.</p>}
+          </Section>
+
           <Section title="Where they came from">
             <div style={{ display: 'grid', gap: 28, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
               <div>
@@ -490,33 +515,9 @@ export default function Stats({ setPage }: Props) {
           </Section>
 
           <Section title="What people did">
-            <Funnel f={data.funnel} oneDay={isOneDay} />
+            <Funnel f={data.funnel} oneDay={isOneDay} since={data.firstEvent} />
           </Section>
 
-          <Section title="Clicks sent to booking partners">
-            {/* REQUIRED LABEL — spec. This one exists so a figure from this page
-                is never repeated to a partner as a booking. */}
-            <p style={warn}>
-              <strong>Clicks sent, not bookings.</strong> Viator returns no signal about what converts,
-              so this page cannot show bookings, revenue, or a conversion rate — and no number on
-              it should ever be described as one. A partner who checks their own figures against
-              an inflated claim costs more than the deal is worth.
-            </p>
-            {data.products.length > 0 && (
-              <BarList
-                rows={data.products.map((p) => ({ label: p.product, n: p.clicks, sub: `${p.visitors} visitor${p.visitors === 1 ? '' : 's'}` }))}
-                color={SERIES[0]}
-                unit="clicks"
-              />
-            )}
-            {data.partners.length > 0 && (
-              <>
-                <h3 style={h3}>By destination</h3>
-                <BarList rows={data.partners.map((p) => ({ label: p.host, n: p.clicks }))} color={SERIES[0]} unit="clicks" />
-              </>
-            )}
-            {data.products.length === 0 && data.partners.length === 0 && <p style={muted}>No outbound clicks in this window.</p>}
-          </Section>
 
 
         </>
@@ -915,23 +916,23 @@ function BarList({ rows, color, unit }: { rows: { label: string; n: number; sub?
  * meaning. Steps can legitimately widen: a visitor may click out without ever
  * generating an itinerary, so this is a set of counts, not a strict nesting.
  */
-function Funnel({ f, oneDay }: { f: Summary['funnel']; oneDay: boolean }) {
-  // MEASURED steps only. The three middle steps of the designed funnel —
-  // questionnaire_started, itinerary_generated, itinerary_kept — have NO
-  // instrumentation behind them: trackMilestone() exists in src/lib/beacon.ts
-  // and is called from nowhere, so stats_summary counts zero of each, forever.
-  //
-  // Rendering them as "0 visitors · 0%" would not read as "not measured", it
-  // would read as nobody starting the questionnaire — a catastrophic-looking
-  // product instead of a missing beacon. So they are named as unmeasured
-  // instead. Wiring the three calls is plan Task 9 (docs/superpowers/plans/
-  // 2026-08-14-internal-analytics.md) and ROADMAP item 25; when they land, move
-  // them out of NOT_YET and delete this note.
+function Funnel({ f, oneDay, since }: { f: Summary['funnel']; oneDay: boolean; since?: string | null }) {
+  // All five steps are instrumented as of 2026-08-23 (plan Task 9). The three
+  // middle ones fire from Questionnaire.tsx and Itinerary.tsx via
+  // trackMilestoneOnce, so they are counted per visitor rather than per action.
   const steps = [
     ['Visited', f.visitors],
+    ['Started the questionnaire', f.questionnaire],
+    ['Generated an itinerary', f.generated],
+    ['Saved or shared it', f.kept],
     ['Clicked out to a partner', f.clickedOut],
   ] as const;
-  const NOT_YET = ['Started the questionnaire', 'Generated an itinerary', 'Saved or shared it'];
+  // The milestones were wired at this instant; visits before it produced
+  // pageviews and outbound clicks but no middle steps, so a window spanning the
+  // change shows a dip that is instrumentation rather than behaviour. Said out
+  // loud until the window no longer reaches back past it.
+  const WIRED_AT = Date.parse('2026-08-23T19:00:00Z');
+  const spansTheGap = !!since && Date.parse(since) < WIRED_AT;
   return (
     <>
       <BarList rows={steps.map(([label, n]) => ({
@@ -939,11 +940,13 @@ function Funnel({ f, oneDay }: { f: Summary['funnel']; oneDay: boolean }) {
         n,
         sub: f.visitors > 0 ? `${Math.round((n / f.visitors) * 100)}%` : undefined,
       }))} color={SERIES[0]} unit={oneDay ? 'unique' : 'visits'} />
-      <p style={{ ...warn, marginTop: 14 }}>
-        <strong>Three steps are not measured yet.</strong> {NOT_YET.join(', ')} — the beacon
-        for these was never wired up, so there is no data behind them. They are left out
-        rather than drawn as zero, because a zero here would look like nobody doing it.
-      </p>
+      {spansTheGap && (
+        <p style={{ ...warn, marginTop: 14 }}>
+          <strong>The middle three steps start on 23 August.</strong> They were wired up that
+          evening, so anyone who visited before it is counted in the first and last rows only.
+          Expect those three to look low until this window no longer reaches back that far.
+        </p>
+      )}
       <p style={{ ...muted, fontSize: 12, marginBottom: 0 }}>
         {oneDay
           ? 'Each step counts unique visitors. Steps are counts, not a strict funnel — a visitor can click out without generating anything.'

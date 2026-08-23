@@ -142,18 +142,34 @@ describe('Stats — the numbers', () => {
     expect(document.body.textContent).toMatch(/Unique visitors \(daily\)/i);
   });
 
-  it('names the three uninstrumented funnel steps instead of drawing them as zero', async () => {
-    // trackMilestone() has no call sites, so questionnaire/generated/kept are
-    // structurally always 0. Rendering "0 visitors · 0%" would read as nobody
-    // doing it rather than as nothing measuring it.
+  it('draws all five funnel steps, now that the middle three are instrumented', async () => {
+    // They were wired on 2026-08-23; before that trackMilestone had no call
+    // sites and the page named them as unmeasured rather than drawing zeros.
     vi.stubGlobal('fetch', okFetch());
     render(<Stats setPage={() => {}} />);
     await screen.findByText(/What people did/i);
-    expect(document.body.textContent).toMatch(/Three steps are not measured yet/i);
-    // The two that ARE measured still render as bars.
-    expect(document.body.textContent).toMatch(/Clicked out to a partner/);
-    // And the unmeasured ones carry no percentage of their own.
-    expect(document.body.textContent).not.toMatch(/Generated an itinerary\s*·/);
+    const text = document.body.textContent ?? '';
+    for (const step of ['Visited', 'Started the questionnaire', 'Generated an itinerary',
+                        'Saved or shared it', 'Clicked out to a partner']) {
+      expect(text).toContain(step);
+    }
+    expect(text).not.toMatch(/not measured yet/i);
+  });
+
+  it('warns while the window still reaches back before the milestones existed', async () => {
+    // A window spanning the change shows a dip that is instrumentation, not
+    // behaviour. Saying so beats letting it read as a collapse in engagement.
+    vi.stubGlobal('fetch', okFetch({ ...SUMMARY, firstEvent: '2026-08-23T16:33:04Z' }));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/What people did/i);
+    expect(document.body.textContent).toMatch(/middle three steps start on 23 August/i);
+  });
+
+  it('drops that warning once the window starts after the milestones were wired', async () => {
+    vi.stubGlobal('fetch', okFetch({ ...SUMMARY, firstEvent: '2026-09-01T00:00:00Z' }));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/What people did/i);
+    expect(document.body.textContent).not.toMatch(/middle three steps start/i);
   });
 
   it('counts outbound clicks from the partner totals, not the product subset', async () => {

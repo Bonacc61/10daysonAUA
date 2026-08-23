@@ -93,3 +93,20 @@ export function trackOutbound(href: string, product?: string): void {
 export function trackMilestone(milestone: string): void {
   send({ name: 'milestone', path: window.location.pathname, milestone });
 }
+
+// Fired at most once per page session.
+//
+// The funnel counts DISTINCT visitors per milestone, so a repeat could not
+// change a number — it would only add rows. Module scope rather than a ref in
+// each component, because the guard has to survive a component unmounting and
+// remounting: this app swaps pages without a reload, so navigating away from
+// the itinerary and back would re-arm a per-component guard on every visit.
+// Resets on a real page load, which is the right unit — a fresh load is a fresh
+// visit as far as the visitor code is concerned.
+const sentMilestones = new Set<string>();
+
+export function trackMilestoneOnce(milestone: string): void {
+  if (sentMilestones.has(milestone)) return;
+  sentMilestones.add(milestone);
+  trackMilestone(milestone);
+}

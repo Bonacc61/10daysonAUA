@@ -42,6 +42,7 @@ import {
 import { suggestLunchspot, cardRegion, isLunchspot, LUNCHSPOTS } from '../data/lunchspots';
 import type { CardEntry, SlotEntry, Slot, SwapReason, ViatorItem, Section } from '../types';
 import { DEFAULT_ANSWERS, type PageId, type Answers } from '../App';
+import { trackMilestoneOnce } from '../lib/beacon';
 
 type Props = { setPage: (p: PageId) => void; answers: Answers; setAnswers: (a: Answers) => void; onLogin: () => void; shareId: string | null; onNavigateToExplore?: (section: Section) => void };
 
@@ -85,6 +86,16 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
   // the empty-slot picker below. (The generator still supports `opts.pinned`;
   // nothing feeds it from the shortlist since 2026-08-05.)
   const [plan, setPlan] = useState<PlannedDay[]>(() => seedPlan(generatePlan(answers, catalog)));
+
+  // The funnel's third step. NOT fired for a shared itinerary: opening somebody
+  // else's link is not this visitor generating a plan, and counting it would
+  // make the step read higher than the questionnaire above it. An effect rather
+  // than a call inside the useState initialiser, because React may invoke that
+  // initialiser more than once and a beacon is a side effect.
+  useEffect(() => {
+    if (shareId || plan.length === 0) return;
+    trackMilestoneOnce('itinerary_generated');
+  }, [shareId, plan.length]);
 
   const tripDays = plan.length;
 
@@ -178,6 +189,8 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
       url = `${window.location.origin}/i/${id}`;
       setShareUrl(url);
       capture('itinerary_shared', { via: 'link' });
+      // "Saved OR shared" is one step in the funnel; sharing is keeping.
+      trackMilestoneOnce('itinerary_kept');
     }
     // Native OS share sheet on mobile; the desktop popover otherwise. If
     // navigator.share throws for a reason other than a user cancel — e.g. iOS
@@ -351,6 +364,10 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
         }
         setAutosaveFailed(false);
         capture('itinerary_saved', { trigger: 'auto' });
+        // The ungated twin of the line above. PostHog keeps its consent-gated
+        // event; this counts everyone. The two will legitimately disagree, and
+        // that gap is itself the measure of what the consent gate costs.
+        trackMilestoneOnce('itinerary_kept');
       // A rejected link would poison every write after it, so the chain is
       // always handed back resolved.
       }).catch(() => { setAutosaveFailed(true); });
@@ -446,6 +463,7 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
       setSavedAsNew(created);
       setAutosaveFailed(false);   // an explicit save that worked clears the warning
       capture('itinerary_saved', { trigger: 'manual', created_copy: created });
+      trackMilestoneOnce('itinerary_kept');
       setSaveTripStatus('saved');
       window.setTimeout(() => setSaveTripOpen(false), 1600);
     } else {

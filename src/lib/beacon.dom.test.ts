@@ -69,3 +69,42 @@ describe('beacon — what actually reaches the browser', () => {
     expect(sent).toHaveLength(0);
   });
 });
+
+describe('beacon — milestones fire once per page session', () => {
+  const FN = 'https://example.test/functions/v1/collect';
+  let sent: string[];
+
+  beforeEach(() => {
+    sent = [];
+    localStorage.clear();
+    vi.resetModules();
+    vi.stubEnv('VITE_COLLECT_FN_URL', FN);
+    vi.stubGlobal('navigator', {
+      ...navigator,
+      sendBeacon: (_u: string, blob: Blob) => { void blob.text().then((t) => sent.push(t)); return true; },
+    });
+  });
+
+  it('sends a milestone once however many times it is asked', async () => {
+    // The guard is module-scoped rather than a ref per component, because this
+    // app swaps pages without reloading: navigating away from the itinerary and
+    // back would re-arm a per-component guard on every visit.
+    const { trackMilestoneOnce } = await import('./beacon');
+    trackMilestoneOnce('questionnaire_started');
+    trackMilestoneOnce('questionnaire_started');
+    trackMilestoneOnce('questionnaire_started');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sent).toHaveLength(1);
+    expect(JSON.parse(sent[0])).toMatchObject({ name: 'milestone', milestone: 'questionnaire_started' });
+  });
+
+  it('keeps the three milestones independent of one another', async () => {
+    const { trackMilestoneOnce } = await import('./beacon');
+    for (const m of ['questionnaire_started', 'itinerary_generated', 'itinerary_kept', 'itinerary_kept']) {
+      trackMilestoneOnce(m);
+    }
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sent.map((b) => JSON.parse(b).milestone))
+      .toEqual(['questionnaire_started', 'itinerary_generated', 'itinerary_kept']);
+  });
+});
