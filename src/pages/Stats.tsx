@@ -416,6 +416,12 @@ export default function Stats({ setPage }: Props) {
             <div style={{ display: 'grid', gap: 28, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
               <div>
                 <h3 style={h3}>Referrers</h3>
+                <Explain>
+                  The site a visitor was on immediately before arriving here, as their browser
+                  reported it. Anyone typing the address, opening a bookmark or following a link
+                  from an app has no referrer at all and is not listed — so this is a partial
+                  picture, not a full breakdown of where traffic comes from.
+                </Explain>
                 {/* Visitors, not pageviews: the browser keeps a referrer across
                     in-app navigation, so counting rows made one visit from
                     Reddit look like five. Our own domain is filtered out in the
@@ -424,18 +430,33 @@ export default function Stats({ setPage }: Props) {
               </div>
               <div>
                 <h3 style={h3}>Campaigns</h3>
+                <Explain>
+                  Links you tag yourself. Post <code>10daysonaruba.com/?ref=reddit-aruba-aug</code> and
+                  everyone arriving through it is counted under that name — so you can tell which post
+                  or which channel actually sent people, even when the browser reports no referrer.
+                  You choose the name; it must be lower-case letters, numbers and dashes.
+                </Explain>
                 <BarList rows={data.campaigns.map((c) => ({ label: c.campaign, n: c.n }))} color={SERIES[0]} unit={isOneDay ? 'unique' : 'visits'} />
                 <p style={{ ...muted, fontSize: 12 }}>
-                  From <code>?ref=</code> links you control. A campaign's clicks can only be joined to its
-                  visitors within a single UTC day — across days the link does not exist.
+                  A campaign's outbound clicks can only be joined to its visitors within a single UTC
+                  day — across days that link does not exist.
                 </p>
               </div>
               <div>
                 <h3 style={h3}>Countries</h3>
+                <Explain>
+                  Worked out from the visitor's network address on our own servers, which is then
+                  discarded. Right about 95–99% of the time; a VPN reports wherever it exits.
+                </Explain>
                 <BarList rows={data.countries.map((c) => ({ label: c.country, n: c.n }))} color={SERIES[0]} unit="visitors" />
               </div>
               <div>
                 <h3 style={h3}>Pages</h3>
+                <Explain>
+                  Which pages were opened, counting every open rather than every person.{' '}
+                  <code>/i/:slug</code> is a shared itinerary — all of them pooled, so a page view can
+                  never be tied to one traveller's plan.
+                </Explain>
                 <BarList rows={data.topPaths.map((p) => ({ label: p.path, n: p.n }))} color={SERIES[0]} unit="pageviews" />
               </div>
             </div>
@@ -585,6 +606,23 @@ function SignIn() {
         </form>
       )}
     </div>
+  );
+}
+
+/**
+ * A short "what this is" under a sub-heading.
+ *
+ * These read as clutter until somebody asks what a column means — which is
+ * exactly what happened with Referrers, where a row saying "10daysonaruba.com"
+ * looked like an acquisition source and was a page refresh. The dashboard is
+ * read by two people a few times a week, not memorised, so the definition
+ * belongs beside the number rather than in a document nobody opens.
+ */
+function Explain({ children }: { children: React.ReactNode }) {
+  return (
+    <p style={{ fontSize: 12, lineHeight: 1.55, margin: '0 0 10px', color: 'var(--ink)', opacity: 0.62 }}>
+      {children}
+    </p>
   );
 }
 

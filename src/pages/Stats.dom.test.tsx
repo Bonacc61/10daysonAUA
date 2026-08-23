@@ -470,3 +470,21 @@ describe('Stats — referrers count people, not page opens', () => {
     expect(text).not.toMatch(/reddit\.com\s*7 pageviews/i);
   });
 });
+
+describe('Stats — each column says what it is', () => {
+  it('defines referrers and campaigns on the page, not in a document', async () => {
+    // Asked twice what these columns meant. A definition that lives in a doc
+    // nobody opens is not a definition; the dashboard is read a few times a
+    // week by two people and never memorised.
+    vi.stubGlobal('fetch', okFetch());
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Where they came from/i);
+    const text = document.body.textContent ?? '';
+    // Referrers: what it is, AND the gap that makes it partial.
+    expect(text).toMatch(/immediately before arriving/i);
+    expect(text).toMatch(/no referrer at all and is not listed/i);
+    // Campaigns: what it is, and how to make one.
+    expect(text).toMatch(/\?ref=/);
+    expect(text).toMatch(/Links you tag yourself/i);
+  });
+});
