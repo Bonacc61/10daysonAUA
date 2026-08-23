@@ -146,40 +146,42 @@ export default function Stats({ setPage }: Props) {
   const empty = data.daily.length === 0 && totalViews === 0;
 
   return (
-    <Shell>
-      <div aria-busy={busy} style={{ opacity: busy ? 0.55 : 1, transition: 'opacity 0.15s' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-        <div>
-          <h1 className="font-display" style={{ fontSize: 34, margin: '0 0 4px' }}>Traffic</h1>
-          {/* The window comes back from the FUNCTION, not from local state: if a
-              request were ever clamped or defaulted server-side, this label has
-              to say what was actually measured, not what was asked for. */}
-          <p style={muted}>Last {data.days} days · bots excluded by user-agent</p>
-        </div>
-        <div role="group" aria-label="Reporting window" style={{ display: 'flex', gap: 4 }}>
+    <Shell hero={
+      <div className="container-1280" style={{ padding: '36px 36px 32px', maxWidth: 1000 }}>
+        <h1 className="font-display" style={{ fontSize: 46, margin: '0 0 6px', color: 'var(--ink)' }}>Traffic.</h1>
+        {/* The window comes back from the FUNCTION, not from local state: if a
+            request were ever clamped or defaulted server-side, this line has to
+            say what was actually measured, not what was asked for. */}
+        <p style={{ fontStyle: 'italic', fontSize: 15, margin: 0, color: 'var(--ink)', opacity: 0.85 }}>
+          Last {data.days} days &mdash; bots excluded by user-agent, and visitors who objected are not counted.
+        </p>
+        <div role="group" aria-label="Reporting window" style={{ display: 'flex', gap: 8, marginTop: 18, flexWrap: 'wrap' }}>
           {WINDOWS.map((w) => (
             <button
               key={w}
               onClick={() => setDays(w)}
               aria-pressed={days === w}
               aria-label={`Last ${w} days`}
-              className={days === w ? 'nav-login' : 'btn-ghost'}
-              style={{ minHeight: 44, minWidth: 58, padding: '0 16px' }}
-            >{w}d</button>
+              className={`filter-pill${days === w ? ' active' : ''}`}
+              // The app's pills are 11px tall by design; this one keeps their look
+              // but meets the 44px target the rest of the site uses for controls.
+              style={{ minHeight: 44, minWidth: 60, justifyContent: 'center', fontSize: 13 }}
+            >{w} days</button>
           ))}
         </div>
       </div>
+    }>
+      <div aria-busy={busy} style={{ opacity: busy ? 0.55 : 1, transition: 'opacity 0.15s' }}>
 
       {empty ? (
-        <section style={{ ...card, marginTop: 24 }}>
-          <h2 className="font-display" style={h2}>Nothing recorded yet</h2>
+        <Section title="Nothing recorded yet">
           <p style={{ ...muted, marginBottom: 0 }}>
             No events in this window. The beacon went live on 23 August 2026, so an empty
             page here means nothing has arrived yet — not that a query failed. If it is
             still empty after a day of real traffic, the likely cause is ad-blockers
             dropping requests to the analytics endpoint rather than a fault in collection.
           </p>
-        </section>
+        </Section>
       ) : (
         <>
           <div style={tileRow}>
@@ -287,19 +289,28 @@ export default function Stats({ setPage }: Props) {
 
 /* ---------------------------------------------------------------- chrome --- */
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({ hero, children }: { hero?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="bleed" style={{ background: 'var(--cream)', minHeight: '90vh' }}>
-      <div className="container-1280" style={{ padding: '48px 36px 80px', maxWidth: 980 }}>{children}</div>
-    </div>
+    <>
+      {/* The amber bleed band every section page on this site opens with — see
+          Explore. Without it the dashboard reads as a different product. */}
+      {hero && <div className="bleed" style={{ background: 'var(--yellow-bg)' }}>{hero}</div>}
+      <div className="bleed" style={{ background: 'var(--cream)', minHeight: '80vh' }}>
+        <div className="container-1280" style={{ padding: hero ? '28px 36px 80px' : '48px 36px 80px', maxWidth: 1000 }}>{children}</div>
+      </div>
+    </>
   );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section style={{ ...card, marginTop: 24 }}>
-      <h2 className="font-display" style={h2}>{title}</h2>
-      {children}
+    <section style={{ ...card, padding: 0, marginTop: 22, overflow: 'hidden' }}>
+      <h2 className="card-header-band" style={{ margin: 0 }}>
+        {/* .chb-title is nowrap+ellipsis because activity titles are one line on
+            a card; a section heading here would truncate on a phone, so it wraps. */}
+        <span className="chb-title" style={{ fontSize: 14, whiteSpace: 'normal', overflow: 'visible' }}>{title}</span>
+      </h2>
+      <div style={{ padding: '18px 20px 20px' }}>{children}</div>
     </section>
   );
 }
@@ -542,7 +553,7 @@ const card: React.CSSProperties = {
   background: 'var(--sand-50)', border: '2px solid var(--ink)',
   borderRadius: 16, boxShadow: '4px 4px 0 var(--ink)', padding: '20px 22px',
 };
-const tileRow: React.CSSProperties = { display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 28 };
+const tileRow: React.CSSProperties = { display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 4 };
 const h2: React.CSSProperties = { fontSize: 20, margin: '0 0 16px' };
 const h3: React.CSSProperties = { fontSize: 13, margin: '16px 0 8px', opacity: 0.7 };
 const muted: React.CSSProperties = { fontSize: 13, color: 'var(--ink)', opacity: 0.55, margin: '0 0 12px' };
