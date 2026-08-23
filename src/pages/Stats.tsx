@@ -41,6 +41,13 @@ type Summary = {
   window?: 'today' | 'days';
   /** Oldest row in web_events, or null when nothing has been recorded. */
   firstEvent?: string | null;
+  /** The same headline figures, unwindowed. visitorDays is NOT people. */
+  allTime?: {
+    views: number;
+    visitorDays: number;
+    outbound: number;
+    busiestDay: { day: string; visitors: number } | null;
+  };
   daily: Daily[];
   topPaths: (Counted & { path: string })[];
   referrers: (Counted & { host: string })[];
@@ -332,6 +339,26 @@ export default function Stats({ setPage }: Props) {
             <Tile label="Visitors who clicked out" value={data.funnel.clickedOut} sub={isOneDay ? 'unique, today' : 'visitor-days'} />
           </div>
 
+          {data.allTime && (
+            <>
+              <p style={{ ...muted, margin: '26px 0 8px', fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase' }}>
+                Since counting began{data.firstEvent ? ` · ${fmtDay(data.firstEvent.slice(0, 10))}` : ''}
+              </p>
+              <div style={{ ...tileRow, marginTop: 0 }}>
+                <Tile label="Pageviews" value={data.allTime.views} sub="all time" />
+                {/* visitor-DAYS, and it says so. This is the largest number on
+                    the page and therefore the worst one to let read as people. */}
+                <Tile label="Visitor-days" value={data.allTime.visitorDays} sub="not unique people" />
+                <Tile
+                  label="Best day"
+                  value={data.allTime.busiestDay?.visitors ?? 0}
+                  sub={data.allTime.busiestDay ? `${fmtDay(data.allTime.busiestDay.day)}, unique` : '—'}
+                />
+                <Tile label="Clicks sent out" value={data.allTime.outbound} sub="all time" />
+              </div>
+            </>
+          )}
+
           {/* Moved up, directly under the headline figures: it answers "who are
               these people on" before any of the deeper breakdowns. */}
           <Section title="Devices">
@@ -345,19 +372,26 @@ export default function Stats({ setPage }: Props) {
           <Section title="Unique visitors, by day — most recent 14">
             {/* REQUIRED LABEL — spec, and it is on the tile rather than in a
                 tooltip on purpose. This is the figure someone quotes. */}
+            {/* REQUIRED LABEL — spec. Kept to the one guarantee it has to make:
+                each bar is exact, the bars do not add up. The reasoning behind
+                that, and what to say instead, lives in the section note below
+                rather than in the reader's way. */}
             <p style={warn}>
-              <strong>Each day is a true unique count. The days cannot be added up.</strong> The
-              visitor code is rebuilt from scratch every midnight UTC, so one person visiting on
-              five days is five — that is what makes this countable without storing anything on
-              their device, and it is also why a monthly unique figure does not exist here. If a
-              partner asks &ldquo;how many people last month&rdquo;, the honest answers are the
-              busiest day, the average day, and the total visits — never the sum of these bars.
+              <strong>Each bar is an exact count of people. The bars cannot be added up.</strong>{' '}
+              The visitor code is rebuilt at midnight, so one person visiting on five days is five.
             </p>
             <BarList
               rows={data.daily.slice(-14).map((d) => ({ label: fmtDay(d.day), n: d.visitors }))}
               color={SERIES[1]}
               unit="unique"
             />
+            <p style={{ ...muted, fontSize: 12, margin: '12px 0 0' }}>
+              Asked &ldquo;how many people last month&rdquo;, the answerable figures are the best
+              day, the average day and total visits. A monthly unique count does not exist here:
+              recognising someone across days needs an identifier kept on their device, which is
+              the thing this design avoids in order to count everyone rather than only those who
+              accept cookies.
+            </p>
           </Section>
 
           <Section title="What people did">

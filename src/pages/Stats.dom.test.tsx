@@ -20,6 +20,7 @@ import Stats from './Stats';
 
 const SUMMARY = {
   days: 30,
+  allTime: { views: 900, visitorDays: 402, outbound: 55, busiestDay: { day: '2026-08-22', visitors: 81 } },
   daily: [
     { day: '2026-08-21', views: 40, visitors: 22 },
     { day: '2026-08-22', views: 120, visitors: 81 },
@@ -98,7 +99,7 @@ describe('Stats — the labels that stop a number being misquoted', () => {
     render(<Stats setPage={() => {}} />);
     await screen.findByText(/Traffic over time/i);
     expect(document.body.textContent).toMatch(/cannot be added up/i);
-    expect(document.body.textContent).toMatch(/monthly unique figure does not exist/i);
+    expect(document.body.textContent).toMatch(/monthly unique count does not exist/i);
   });
 
   it('says outbound clicks are not bookings, on the page', async () => {
@@ -206,6 +207,32 @@ describe('Stats — staying current', () => {
   });
 });
 
+describe('Stats — the cumulative row', () => {
+  it('shows all-time totals alongside the window, and never calls them people', async () => {
+    vi.stubGlobal('fetch', okFetch());
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Since counting began/i);
+    const text = document.body.textContent ?? '';
+    expect(text).toMatch(/900/);                      // pageviews, all time
+    expect(text).toMatch(/55/);                       // clicks, all time
+    // Label, value and caption ADJACENT, so this pins the all-time tile rather
+    // than matching the windowed one that happens to share a phrase — a looser
+    // assertion here passed while the label said "Visitors", which is the exact
+    // mistake it exists to catch.
+    expect(text).toMatch(/Visitor-days\s*402\s*not unique people/i);
+  });
+
+  it('omits the row entirely when the endpoint does not send it', async () => {
+    // An older function version, or a deploy skew: better to show nothing than
+    // a row of zeros that reads as "no traffic ever".
+    const { allTime, ...withoutAllTime } = SUMMARY;
+    vi.stubGlobal('fetch', okFetch(withoutAllTime));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Traffic over time/i);
+    expect(screen.queryByText(/Since counting began/i)).toBeNull();
+  });
+});
+
 describe('Stats — when the network does not answer', () => {
   it('gives up and explains itself instead of saying "Loading" forever', async () => {
     // The reported bug, reproduced: a blocker that black-holes *.supabase.co
@@ -244,7 +271,9 @@ describe('Stats — unique visitors are named for what they are', () => {
     render(<Stats setPage={() => {}} />);
     await screen.findByText(/Traffic over time/i);
     expect(document.body.textContent).toMatch(/Unique visitors\s*10\s*so far today/i);
-    expect(document.body.textContent).not.toMatch(/Visitor-days/i);
+    // The all-time row legitimately says visitor-days whatever the window; what
+    // must NOT appear is the WINDOWED variant, which carries "see below".
+    expect(document.body.textContent).not.toMatch(/not unique people — see below/i);
   });
 
   it('calls them VISITOR-DAYS over more than one day, because they are not people', async () => {
