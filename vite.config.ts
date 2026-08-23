@@ -24,6 +24,21 @@ export default defineConfig({
     // read as broken while the real suite (952) was green, and it is how
     // .claude/CLAUDE.md came to claim the wrong test count. Excluded here so the
     // number `npm test` prints is the number that means something.
-    exclude: ['**/node_modules/**', '**/dist/**', '**/.claude/worktrees/**'],
+    // The Deno edge-function tests under supabase/functions/ are a mixed bag on
+    // purpose: three of them (search/parse, viator-cards/normalize,
+    // viator-cards/suitability) import from 'vitest' and belong to THIS suite.
+    // contact-notify/messages.test.ts is the one real Deno-runtime test — it
+    // calls Deno.test and imports from https://deno.land, which Node's ESM
+    // loader refuses ("Only URLs with a scheme in: file and data"). That single
+    // file failing to load is why `npm test` exited non-zero while all 1,159
+    // in-scope tests passed, which made "the tests pass" meaningless as a gate.
+    // Excluded here and run by `npm run test:deno` instead — it holds 5 tests,
+    // one of them the HTML-escaping guard on contact form input.
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.claude/worktrees/**',
+      'supabase/functions/contact-notify/messages.test.ts',
+    ],
   },
 });

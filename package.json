@@ -13,6 +13,7 @@
     "audit:coords": "node tools/run-audit.cjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:deno": "deno test --allow-net --no-npm supabase/functions/contact-notify/messages.test.ts",
     "enrich": "node tools/run-enrich.cjs",
     "drift": "node tools/run-drift.cjs",
     "plan-diff": "node tools/run-plan-diff.cjs",
