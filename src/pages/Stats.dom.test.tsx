@@ -488,3 +488,31 @@ describe('Stats — each column says what it is', () => {
     expect(text).toMatch(/Links you tag yourself/i);
   });
 });
+
+describe('Stats — how much history backs the numbers', () => {
+  const withFirst = (ms: number) => okFetch({ ...SUMMARY, firstEvent: new Date(Date.now() - ms).toISOString() });
+
+  it('says how long counting has been running, beside the date', async () => {
+    // The date alone does not say how much history there is — and by next month
+    // "23 Aug" reads as a long time ago. This is the same fact the greyed-out
+    // window tabs express, said in words.
+    vi.stubGlobal('fetch', withFirst(5 * 3_600_000));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Since counting began/i);
+    expect(document.body.textContent).toMatch(/5 hours of data/i);
+  });
+
+  it('scales the unit rather than reporting 400 hours', async () => {
+    vi.stubGlobal('fetch', withFirst(9 * 86_400_000));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Since counting began/i);
+    expect(document.body.textContent).toMatch(/9 days of data/i);
+  });
+
+  it('reads sensibly in the first hour, which is when it will first be seen', async () => {
+    vi.stubGlobal('fetch', withFirst(1 * 60_000));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Since counting began/i);
+    expect(document.body.textContent).toMatch(/1 minute of data/i);
+  });
+});

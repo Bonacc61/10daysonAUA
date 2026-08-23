@@ -379,7 +379,9 @@ export default function Stats({ setPage }: Props) {
           {data.allTime && (
             <>
               <p style={{ ...muted, margin: '26px 0 8px', fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase' }}>
-                Since counting began{data.firstEvent ? ` · ${fmtDay(data.firstEvent.slice(0, 10))}` : ''}
+                Since counting began{data.firstEvent
+                  ? ` · ${fmtDay(data.firstEvent.slice(0, 10))} · ${elapsedSince(data.firstEvent)}`
+                  : ''}
               </p>
               <div style={{ ...tileRow, marginTop: 0 }}>
                 <FlipTile
@@ -999,6 +1001,25 @@ const linkBtn: React.CSSProperties = {
   background: 'none', border: 'none', cursor: 'pointer', fontSize: 13,
   color: 'var(--ink)', opacity: 0.5, padding: 0, fontFamily: 'inherit',
 };
+
+/**
+ * How long the record covers, in the largest unit that is not a lie.
+ *
+ * Sits next to the date because the date alone does not say how much history
+ * backs these figures — and that is the same fact the greyed-out window tabs
+ * are expressing. "23 Aug" reads as a long time ago by next month; "5 hours of
+ * data" cannot.
+ */
+function elapsedSince(iso: string, now = Date.now()): string {
+  const mins = Math.max(0, Math.floor((now - Date.parse(iso)) / 60_000));
+  if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} of data`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 48) return `${hours} hour${hours === 1 ? '' : 's'} of data`;
+  const days = Math.floor(hours / 24);
+  if (days < 14) return `${days} days of data`;
+  const weeks = Math.floor(days / 7);
+  return weeks < 9 ? `${weeks} weeks of data` : `${Math.floor(days / 30)} months of data`;
+}
 
 function fmtDay(iso: string): string {
   const d = new Date(`${iso}T00:00:00Z`);
