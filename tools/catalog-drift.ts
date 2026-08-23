@@ -45,6 +45,9 @@ const MIN_CHAMPION_REVIEWS = 25;   // mirrors itineraryGenerator.ts
 type Metrics = Record<string, number>;
 
 function measure(items: Parameters<typeof activityKind>[0][]): Metrics {
+  // `activityKind` consults KIND_BY_TAG first, then enriched_kind, so this
+  // counts BOTH layers — it was labelled 'from Viator tags' until 2026-08-20,
+  // which made the enrichment run of 08-16 read as a tag-layer shift.
   const generic = items.filter((i) => activityKind(i).startsWith('sec:')).length;
   return {
     items: items.length,
@@ -61,7 +64,7 @@ function measure(items: Parameters<typeof activityKind>[0][]): Metrics {
 
 const LABEL: Record<string, string> = {
   items: 'catalog items',
-  kindResolved: 'kind resolved from Viator tags',
+  kindResolved: 'kind resolved (tags, then enrichment)',
   genericBucket: 'items in a generic sec: bucket',
   distinctAdventure: 'distinct adventure values',
   noTags: 'items with no tags',
