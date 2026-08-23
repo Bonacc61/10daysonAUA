@@ -157,3 +157,52 @@ describe('Stats — the numbers', () => {
     await waitFor(() => expect(document.body.textContent).toMatch(/ad-blockers/i));
   });
 });
+
+describe('Stats — staying current', () => {
+  it('re-asks on a timer, and again as soon as the tab is looked at', async () => {
+    vi.useFakeTimers();
+    const f = okFetch();
+    vi.stubGlobal('fetch', f);
+    render(<Stats setPage={() => {}} />);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(f).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(61_000);
+    expect(f).toHaveBeenCalledTimes(2);
+
+    // A hidden tab must not poll — those are invocations spent on nobody.
+    Object.defineProperty(document, 'hidden', { value: true, configurable: true });
+    await vi.advanceTimersByTimeAsync(61_000);
+    expect(f).toHaveBeenCalledTimes(2);
+
+    // Looking at it again asks straight away rather than waiting out the timer.
+    Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(10);
+    expect(f).toHaveBeenCalledTimes(3);
+    vi.useRealTimers();
+  });
+});
+
+describe('Stats — when the network does not answer', () => {
+  it('gives up and explains itself instead of saying "Loading" forever', async () => {
+    // The reported bug, reproduced: a blocker that black-holes *.supabase.co
+    // leaves the request PENDING rather than rejecting it. An aborted request
+    // already showed the error state; a hanging one showed "Loading" until the
+    // tab was closed, which reads as broken and offers nothing to act on.
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => new Promise(() => {})));
+    render(<Stats setPage={() => {}} />);
+    expect(document.body.textContent).toMatch(/Loading/i);
+
+    await vi.advanceTimersByTimeAsync(16_000);
+
+    expect(document.body.textContent).toMatch(/Stats unavailable/i);
+    // Names the likely cause rather than shrugging.
+    expect(document.body.textContent).toMatch(/ad-blocker|supabase\.co/i);
+    // And says the counting is unaffected, which is the thing worth knowing.
+    expect(document.body.textContent).toMatch(/Nothing is wrong with the counting/i);
+    expect(screen.getByRole('button', { name: /Try again/i })).toBeTruthy();
+    vi.useRealTimers();
+  });
+});

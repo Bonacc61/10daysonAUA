@@ -62,14 +62,57 @@ const GRID = 'rgba(26,26,26,0.10)';
 
 const WINDOWS = [7, 30, 90] as const;
 
+// A request that never settles must not become a page that never resolves. A
+// blocker that black-holes *.supabase.co instead of refusing outright, a captive
+// proxy, or a slow network all produce a pending promise rather than an error —
+// and the page sat on "Loading…" indefinitely, which reads as broken and gives
+// the reader nothing to act on. Measured: an aborted request showed the error
+// state correctly; a hanging one showed "Loading" forever.
+const TIMEOUT_MS = 15_000;
+
+// The numbers are computed per request, so an open tab is the only thing that
+// can go stale. Re-ask every minute, and again the moment the tab is looked at.
+//
+// NOT Supabase Realtime, which is the obvious answer and the wrong one here.
+// Realtime enforces RLS, and web_events has RLS with NO policies — service role
+// only. A browser subscription would mean adding a policy that hands raw visitor
+// rows (day hashes, paths, countries) to the client, which is the exact
+// invariant this design is built on. Polling an aggregate the database computes
+// costs one small request a minute and exposes nothing.
+const REFRESH_MS = 60 * 1000;
+
 export default function Stats({ setPage }: Props) {
   const { session, loading } = useAuth();
   const [days, setDays] = useState<number>(30);
   const [data, setData] = useState<Summary | null>(null);
   const [state, setState] = useState<'loading' | 'ok' | 'denied' | 'error'>('loading');
   const [busy, setBusy] = useState(false);
+  // Bumping this re-runs the fetch: the hourly tick and the retry button both
+  // use it, so there is one path that asks again rather than two.
+  const [attempt, setAttempt] = useState(0);
+  const [lastAt, setLastAt] = useState<Date | null>(null);
 
   const token = session?.access_token;
+
+  // Auth itself can hang for the same reason — getSession() may go to the
+  // network to refresh a token. Without a ceiling the page waits on it forever.
+  const [authStalled, setAuthStalled] = useState(false);
+  useEffect(() => {
+    if (!loading) { setAuthStalled(false); return; }
+    const t = setTimeout(() => setAuthStalled(true), TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [loading]);
+
+  // Re-ask on a timer, but only while the tab is actually being looked at — a
+  // background tab polling all night is invocations spent on nobody. Coming back
+  // to the tab asks immediately, so what you see when you look is current.
+  useEffect(() => {
+    const tick = () => { if (!document.hidden) setAttempt((n) => n + 1); };
+    const id = setInterval(tick, REFRESH_MS);
+    const onVisible = () => { if (!document.hidden) setAttempt((n) => n + 1); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVisible); };
+  }, []);
 
   useEffect(() => {
     // Still resolving the session: hold, or a signed-in admin sees "Not
@@ -86,6 +129,17 @@ export default function Stats({ setPage }: Props) {
     if (!url || !anon) { setState('error'); return; }
 
     let live = true;
+    const ctl = new AbortController();
+    // The timer sets the state ITSELF rather than relying on the abort to reject
+    // the promise. Aborting is the tidy path, but the guarantee that matters is
+    // "this page never sits on Loading past the timeout", and that must not
+    // depend on a fetch implementation propagating the signal.
+    const timer = setTimeout(() => {
+      ctl.abort();
+      if (!live) return;
+      setBusy(false);
+      setState((prev) => (prev === 'ok' ? 'ok' : 'error'));
+    }, TIMEOUT_MS);
     // Only blank the page when there is nothing to show. Re-fetching for a new
     // window used to unmount the entire dashboard — scroll jumped to the top and
     // the window buttons disappeared mid-flight, so you could not change your
@@ -94,15 +148,18 @@ export default function Stats({ setPage }: Props) {
     setBusy(true);
     fetch(`${url}?days=${days}`, {
       headers: { apikey: anon, Authorization: `Bearer ${token}` },
+      signal: ctl.signal,
     })
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then((d: Summary) => { if (live) { setData(d); setState('ok'); } })
+      .then((d: Summary) => { if (live) { setData(d); setState('ok'); setLastAt(new Date()); } })
       .catch((s) => { if (live) setState(s === 401 || s === 403 ? 'denied' : 'error'); })
-      .finally(() => { if (live) setBusy(false); });
-    return () => { live = false; };
-  }, [token, loading, days]);
+      .finally(() => { clearTimeout(timer); if (live) setBusy(false); });
+    return () => { live = false; clearTimeout(timer); ctl.abort(); };
+  }, [token, loading, days, attempt]);
 
-  if (loading || state === 'loading') return <Shell><p style={muted}>Loading…</p></Shell>;
+  if ((loading || state === 'loading') && !authStalled) {
+    return <Shell><p style={muted}>Loading…</p></Shell>;
+  }
 
   // Signed out, signed in as a traveller, or the endpoint said no — all the same
   // page. No login prompt: an invitation to try is an invitation to try.
@@ -116,12 +173,26 @@ export default function Stats({ setPage }: Props) {
     );
   }
 
-  if (state === 'error' || !data) {
+  if (state === 'error' || authStalled || !data) {
     return (
       <Shell>
         <h1 className="font-display" style={{ fontSize: 32, margin: '0 0 8px' }}>Stats unavailable</h1>
-        <p style={muted}>The stats service did not answer. Nothing is wrong with collection — the beacon writes independently of this page.</p>
-        <button onClick={() => setPage('landing')} style={linkBtn}>← Back to the site</button>
+        <p style={muted}>
+          The stats service did not answer within {Math.round(TIMEOUT_MS / 1000)} seconds. The usual
+          cause is something between this browser and our servers — an ad-blocker or privacy
+          extension that blocks requests to <code>supabase.co</code>, a VPN, or an office network.
+          Try again, or open this page in a private window with extensions off.
+        </p>
+        <p style={muted}>
+          <strong>Nothing is wrong with the counting.</strong> Visits are recorded by a separate
+          service that does not depend on this page, so nothing is being lost while this is broken.
+        </p>
+        <button
+          className="filter-pill active"
+          style={{ minHeight: 44, padding: '0 20px', fontSize: 13 }}
+          onClick={() => { setState('loading'); setAttempt((n) => n + 1); }}
+        >Try again</button>
+        <div><button onClick={() => setPage('landing')} style={{ ...linkBtn, marginTop: 20 }}>← Back to the site</button></div>
       </Shell>
     );
   }
@@ -154,6 +225,14 @@ export default function Stats({ setPage }: Props) {
             say what was actually measured, not what was asked for. */}
         <p style={{ fontStyle: 'italic', fontSize: 15, margin: 0, color: 'var(--ink)', opacity: 0.85 }}>
           Last {data.days} days &mdash; bots excluded by user-agent, and visitors who objected are not counted.
+        </p>
+        {/* Says when these numbers were fetched, because the page refreshes
+            itself hourly and a figure with no timestamp invites a wrong guess
+            about how fresh it is. */}
+        <p style={{ fontSize: 12, margin: '6px 0 0', color: 'var(--ink)', opacity: 0.65 }}>
+          {busy ? 'Updating…' : lastAt
+            ? `Updated ${lastAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · refreshes every minute`
+            : 'refreshes every minute'}
         </p>
         <div role="group" aria-label="Reporting window" style={{ display: 'flex', gap: 8, marginTop: 18, flexWrap: 'wrap' }}>
           {WINDOWS.map((w) => (
