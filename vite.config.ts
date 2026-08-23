@@ -30,8 +30,8 @@ export default defineConfig({
     // contact-notify/messages.test.ts is the one real Deno-runtime test — it
     // calls Deno.test and imports from https://deno.land, which Node's ESM
     // loader refuses ("Only URLs with a scheme in: file and data"). That single
-    // file failing to load is why `npm test` exited non-zero while all 1,159
-    // in-scope tests passed, which made "the tests pass" meaningless as a gate.
+    // file failing to load is why `npm test` exited non-zero while every
+    // in-scope test passed, which made "the tests pass" meaningless as a gate.
     // Excluded here and run by `npm run test:deno` instead — it holds 5 tests,
     // one of them the HTML-escaping guard on contact form input.
     exclude: [

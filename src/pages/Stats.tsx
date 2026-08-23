@@ -50,10 +50,12 @@ type Summary = {
 };
 
 // Fixed order. A fifth category folds into "Other" rather than inventing a hue.
-// Hex, not var(--blue): these are handed to SVG presentation attributes
-// (stroke=, fill=), and var() substitution does not apply there — the lines
-// would silently lose their colour. Same values as --blue / --red / --green in
-// src/index.css; if those tokens move, move these and re-run the validator.
+// Hex rather than var(--blue), but NOT because var() fails in SVG — it works
+// fine in presentation attributes, and this file relies on that a few lines
+// down where var(--ink) reaches fill= and var(--sand-50) reaches stroke=. The
+// reason is the validator: it takes literal colours, so the values it checked
+// have to be the values that render. Same as --blue / --red / --green in
+// src/index.css; if those tokens move, move these and re-run the script.
 const SERIES = ['#3B82F6', '#E63946', '#22C55E'] as const;
 const INK = 'var(--ink)';
 const GRID = 'rgba(26,26,26,0.10)';
@@ -65,6 +67,7 @@ export default function Stats({ setPage }: Props) {
   const [days, setDays] = useState<number>(30);
   const [data, setData] = useState<Summary | null>(null);
   const [state, setState] = useState<'loading' | 'ok' | 'denied' | 'error'>('loading');
+  const [busy, setBusy] = useState(false);
 
   const token = session?.access_token;
 
@@ -83,13 +86,19 @@ export default function Stats({ setPage }: Props) {
     if (!url || !anon) { setState('error'); return; }
 
     let live = true;
-    setState('loading');
+    // Only blank the page when there is nothing to show. Re-fetching for a new
+    // window used to unmount the entire dashboard — scroll jumped to the top and
+    // the window buttons disappeared mid-flight, so you could not change your
+    // mind. Stale numbers stay up instead, dimmed, until the new ones land.
+    setState((prev) => (prev === 'ok' ? 'ok' : 'loading'));
+    setBusy(true);
     fetch(`${url}?days=${days}`, {
       headers: { apikey: anon, Authorization: `Bearer ${token}` },
     })
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((d: Summary) => { if (live) { setData(d); setState('ok'); } })
-      .catch((s) => { if (live) setState(s === 401 || s === 403 ? 'denied' : 'error'); });
+      .catch((s) => { if (live) setState(s === 401 || s === 403 ? 'denied' : 'error'); })
+      .finally(() => { if (live) setBusy(false); });
     return () => { live = false; };
   }, [token, loading, days]);
 
@@ -117,21 +126,28 @@ export default function Stats({ setPage }: Props) {
     );
   }
 
-  const totalViews = data.daily.reduce((s, d) => s + d.views, 0);
+  const totalViews = (data.daily ?? []).reduce((s, d) => s + d.views, 0);
   const busiest = data.daily.reduce<Daily | null>((b, d) => (!b || d.visitors > b.visitors ? d : b), null);
   // The PARTNERS sum, not the products sum, and `||` between them was a bug
-  // rather than a fallback. stats_summary builds `products` from outbound rows
-  // that have a product_code and truncates at 50; `partners` groups every
-  // outbound row by destination host. A direct-operator link from the map popup
-  // carries a host and no product code, so the moment one product-attributed
-  // click existed, `||` stopped counting all the others — and this tile could
-  // show fewer clicks than the "visitors who clicked out" tile beside it, which
-  // is impossible on its face.
-  const outboundClicks = data.partners.reduce((s, p) => s + p.clicks, 0);
+  // rather than a fallback. stats_summary builds `products` only from outbound
+  // rows that carry a product_code; `partners` groups every outbound row by
+  // destination host. A Viator URL whose shape does not match the /d<n>-<code>
+  // pattern yields a null product_code, so the moment one product-attributed
+  // click existed, `||` stopped counting the rest — and this tile could show
+  // fewer clicks than the "visitors who clicked out" tile beside it, which is
+  // impossible on its face.
+  //
+  // (Not, as an earlier comment here claimed, because of direct-operator links:
+  // App.tsx filters outbound tracking to viator.com, so destination_host can
+  // only be viator.com today. `partners` is capped at 20 hosts by the query,
+  // which is a truncated list to build a total from — harmless while there is
+  // one host, and worth remembering if that ever changes.)
+  const outboundClicks = (data.partners ?? []).reduce((s, p) => s + p.clicks, 0);
   const empty = data.daily.length === 0 && totalViews === 0;
 
   return (
     <Shell>
+      <div aria-busy={busy} style={{ opacity: busy ? 0.55 : 1, transition: 'opacity 0.15s' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
           <h1 className="font-display" style={{ fontSize: 34, margin: '0 0 4px' }}>Traffic</h1>
@@ -264,6 +280,7 @@ export default function Stats({ setPage }: Props) {
         licensed <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer noopener" style={{ color: 'inherit' }}>CC&nbsp;BY&nbsp;4.0</a>.
       </p>
       <button onClick={() => setPage('landing')} style={{ ...linkBtn, marginTop: 24 }}>← Back to the site</button>
+      </div>
     </Shell>
   );
 }

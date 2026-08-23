@@ -55,9 +55,11 @@ function send(payload: Payload): void {
       navigator.sendBeacon(FN_URL, new Blob([body], { type: 'text/plain' }));
       return;
     }
-    // keepalive is the fetch equivalent for the same reason.
+    // keepalive is the fetch equivalent for the same reason. text/plain here
+    // too: this path is rare, but sending application/json would re-create the
+    // preflight the line above exists to avoid.
     void fetch(FN_URL, { method: 'POST', body, keepalive: true,
-      headers: { 'content-type': 'application/json' } }).catch(() => {});
+      headers: { 'content-type': 'text/plain' } }).catch(() => {});
   } catch { /* analytics must never affect the page */ }
 }
 

@@ -76,6 +76,29 @@ const headers = {
 };
 
 /**
+ * Compares two addresses of the SAME family.
+ *
+ * The v6 half has to expand '::' before padding, and that is not fussiness: the
+ * first version split on ':' and padded each piece, which gives a 16-character
+ * string for '2001:610::1' and a 32-character one for an uncompressed address,
+ * so the comparison comes out arbitrary. It rejected exactly one legitimate row
+ * out of 706,484 — a check that silently drops good data is worse than no check,
+ * and it only surfaced because the dry-run count moved by one.
+ */
+function cmpIp(a, b) {
+  const expand6 = (ip) => {
+    const [head, tail] = ip.split('::');
+    const h = head ? head.split(':') : [];
+    const t = tail === undefined ? null : (tail ? tail.split(':') : []);
+    const groups = t === null ? h : [...h, ...Array(8 - h.length - t.length).fill('0'), ...t];
+    return groups.map((g) => g.padStart(4, '0')).join('');
+  };
+  const norm = (ip) => (ip.includes(':') ? expand6(ip) : ip.split('.').map((o) => o.padStart(3, '0')).join(''));
+  const [x, y] = [norm(a), norm(b)];
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+
+/**
  * One CSV line → one row, or null if it is not usable.
  *
  * ZZ IS KEPT, NOT SKIPPED. The published ranges are non-overlapping and cover
@@ -100,6 +123,11 @@ function parseLine(line) {
   // country_for_ip relies on v4 sorting below v6, so a mixed row could return a
   // country for an address in the other family entirely.
   if (start_ip.includes(':') !== end_ip.includes(':')) return null;
+  // A reversed range passes every check above and then silently matches
+  // nothing: country_for_ip finds it by start_ip and then requires
+  // end_ip >= ip, which a reversed row can never satisfy. Cheap to reject,
+  // invisible if kept.
+  if (cmpIp(start_ip, end_ip) > 0) return null;
   return { start_ip, end_ip, country };
 }
 

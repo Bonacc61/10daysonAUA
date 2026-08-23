@@ -1,7 +1,7 @@
 // The one real DENO-runtime test in this repo: `npm run test:deno`, not `npm test`.
 // Vitest excluded it on 2026-08-20 (see vite.config.ts) because Node's ESM loader
 // refuses the https: import below, and that single load failure made `npm test`
-// exit non-zero while all 1,159 in-scope tests passed. The runner passes --no-npm
+// exit non-zero while every in-scope test passed. The runner passes --no-npm
 // so deno does not rewrite deno.lock's npm section on every run; the lock's 33
 // std@0.224.0 integrity hashes still apply to the import below.
 import {

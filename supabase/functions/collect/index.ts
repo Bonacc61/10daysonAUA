@@ -24,10 +24,23 @@ import { BOT_RE, normalisePath, referrerHost, campaign, deviceClass, lookupIp } 
 // The other functions in this project keep the wildcard on purpose. They are
 // called with fetch(), whose credentials mode is 'same-origin' by default, so
 // the wildcard is legal there and echoing would be pointless churn.
+// Pinned, not reflected. Echoing whatever Origin arrives — with
+// Allow-Credentials: true — is not exploitable here (the response is an empty
+// 204, no auth header is permitted, and the function reads no cookie), but it
+// is a bad shape to leave in a repo for someone to copy into an endpoint where
+// it would matter. An unlisted origin simply gets no header back: the POST is a
+// CORS-simple request and is still SENT, so the row is still written; only the
+// reply is opaque, and a beacon never reads its reply.
+const ALLOWED_ORIGINS = [
+  'https://10daysonaruba.com',
+  'https://www.10daysonaruba.com',
+];
+
 function cors(req: Request): Record<string, string> {
   const origin = req.headers.get('origin');
+  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : '';
   return {
-    'Access-Control-Allow-Origin': origin ?? '*',
+    ...(allowed ? { 'Access-Control-Allow-Origin': allowed } : {}),
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Allow-Headers': 'content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
