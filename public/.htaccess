@@ -15,7 +15,26 @@
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 </IfModule>
 
-# Cache hashed build assets for a year (filenames change on every build)
+# Cache hashed build assets for a year (filenames change on every build).
+#
+# THIS WAS SILENTLY DOING NOTHING. The rules below used to live only in an
+# <IfModule mod_expires.c> block, and mod_expires is not loaded on this host —
+# an IfModule guard that does not match is skipped without a word. Measured on
+# 2026-08-23: the main bundle came back with NO cache-control header at all, so
+# every visitor re-downloaded 418 KB gzipped (3.1 MB of assets in total) on
+# every page load. mod_headers IS loaded — the index.html rule below has been
+# working — so the same job is done with Header, and mod_expires is kept only as
+# a bonus if the host ever gains it.
+#
+# Safe because Vite fingerprints every filename: index-CZLjywM4.js changes on
+# each build, so a year-long cache can never serve a stale bundle. index.html
+# itself is excluded and stays no-cache, which is what makes a deploy visible.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(js|css|woff2?|png|jpe?g|gif|svg|webp|ico)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+
 <IfModule mod_expires.c>
   ExpiresActive On
   ExpiresByType text/css "access plus 1 year"

@@ -68,7 +68,7 @@ const WINDOWS = [7, 30, 90] as const;
 // and the page sat on "Loading…" indefinitely, which reads as broken and gives
 // the reader nothing to act on. Measured: an aborted request showed the error
 // state correctly; a hanging one showed "Loading" forever.
-const TIMEOUT_MS = 15_000;
+const TIMEOUT_MS = 30_000;
 
 // The numbers are computed per request, so an open tab is the only thing that
 // can go stale. Re-ask every minute, and again the moment the tab is looked at.
@@ -158,7 +158,9 @@ export default function Stats({ setPage }: Props) {
   }, [token, loading, days, attempt]);
 
   if ((loading || state === 'loading') && !authStalled) {
-    return <Shell><p style={muted}>Loading…</p></Shell>;
+    // Counts up, because a bare "Loading…" that sits there gives no way to tell
+    // slow from stuck — which is exactly the complaint that led here.
+    return <Shell><LoadingNote /></Shell>;
   }
 
   // Signed out, signed in as a traveller, or the endpoint said no — all the same
@@ -367,6 +369,21 @@ export default function Stats({ setPage }: Props) {
 }
 
 /* ---------------------------------------------------------------- chrome --- */
+
+/** "Loading…" with the seconds visible, so slow is distinguishable from frozen. */
+function LoadingNote() {
+  const [secs, setSecs] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setSecs((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <p style={muted}>
+      Loading…{secs >= 4 && ` ${secs}s`}
+      {secs >= 10 && ' — this is slower than usual; it gives up at 30s.'}
+    </p>
+  );
+}
 
 function Shell({ hero, children }: { hero?: React.ReactNode; children: React.ReactNode }) {
   return (

@@ -194,8 +194,11 @@ describe('Stats — when the network does not answer', () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation(() => new Promise(() => {})));
     render(<Stats setPage={() => {}} />);
     expect(document.body.textContent).toMatch(/Loading/i);
+    // Slow must be distinguishable from stuck while it waits.
+    await vi.advanceTimersByTimeAsync(11_000);
+    expect(document.body.textContent).toMatch(/slower than usual/i);
 
-    await vi.advanceTimersByTimeAsync(16_000);
+    await vi.advanceTimersByTimeAsync(31_000);
 
     expect(document.body.textContent).toMatch(/Stats unavailable/i);
     // Names the likely cause rather than shrugging.
