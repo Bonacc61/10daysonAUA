@@ -351,26 +351,6 @@ export default function Stats({ setPage }: Props) {
             <Tile label="Visitors who clicked out" value={data.funnel.clickedOut} sub={isOneDay ? 'unique, today' : 'visitor-days'} />
           </div>
 
-          {data.allTime && (
-            <>
-              <p style={{ ...muted, margin: '26px 0 8px', fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase' }}>
-                Since counting began{data.firstEvent ? ` · ${fmtDay(data.firstEvent.slice(0, 10))}` : ''}
-              </p>
-              <div style={{ ...tileRow, marginTop: 0 }}>
-                <Tile label="Pageviews" value={data.allTime.views} sub="all time" />
-                {/* visitor-DAYS, and it says so. This is the largest number on
-                    the page and therefore the worst one to let read as people. */}
-                <Tile label="Visitor-days" value={data.allTime.visitorDays} sub="not unique people" />
-                <Tile
-                  label="Best day"
-                  value={data.allTime.busiestDay?.visitors ?? 0}
-                  sub={data.allTime.busiestDay ? `${fmtDay(data.allTime.busiestDay.day)}, unique` : '—'}
-                />
-                <Tile label="Clicks sent out" value={data.allTime.outbound} sub="all time" />
-              </div>
-            </>
-          )}
-
           {/* Moved up, directly under the headline figures: it answers "who are
               these people on" before any of the deeper breakdowns. */}
           <Section title="Devices">
@@ -379,6 +359,62 @@ export default function Stats({ setPage }: Props) {
 
           <Section title={byHour ? 'Traffic through the day' : 'Traffic over time'}>
             <TimeChart points={points} byHour={byHour} />
+          </Section>
+
+          {data.allTime && (
+            <>
+              <p style={{ ...muted, margin: '26px 0 8px', fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase' }}>
+                Since counting began{data.firstEvent ? ` · ${fmtDay(data.firstEvent.slice(0, 10))}` : ''}
+              </p>
+              <div style={{ ...tileRow, marginTop: 0 }}>
+                <FlipTile
+                  label="Pageviews" value={data.allTime.views} sub="all time"
+                  back="Every page opened, repeat visits included. One person opening four pages counts four. Activity, not people."
+                />
+                {/* visitor-DAYS, and the back says so at length. This is the
+                    largest number on the page and the one most likely to be
+                    repeated to somebody as "visitors". */}
+                <FlipTile
+                  label="Visitor-days" value={data.allTime.visitorDays} sub="not unique people"
+                  back="One count per person per day — three days is three. Always larger than the number of people; never quote it as one."
+                />
+                <FlipTile
+                  label="Best day" value={data.allTime.busiestDay?.visitors ?? 0}
+                  sub={data.allTime.busiestDay ? `${fmtDay(data.allTime.busiestDay.day)}, unique` : '—'}
+                  back="The most visitors in a single day. Within one day the count is exact, so this is a true number of people."
+                />
+                <FlipTile
+                  label="Clicks sent out" value={data.allTime.outbound} sub="all time"
+                  back="Every click on a booking link. Clicks SENT, never bookings — the partner tells us nothing about what follows."
+                />
+              </div>
+            </>
+          )}
+
+
+          <Section title="Where they came from">
+            <div style={{ display: 'grid', gap: 28, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
+              <div>
+                <h3 style={h3}>Referrers</h3>
+                <BarList rows={data.referrers.map((r) => ({ label: r.host, n: r.n }))} color={SERIES[0]} unit="pageviews" />
+              </div>
+              <div>
+                <h3 style={h3}>Campaigns</h3>
+                <BarList rows={data.campaigns.map((c) => ({ label: c.campaign, n: c.n }))} color={SERIES[0]} unit="pageviews" />
+                <p style={{ ...muted, fontSize: 12 }}>
+                  From <code>?ref=</code> links you control. A campaign's clicks can only be joined to its
+                  visitors within a single UTC day — across days the link does not exist.
+                </p>
+              </div>
+              <div>
+                <h3 style={h3}>Countries</h3>
+                <BarList rows={data.countries.map((c) => ({ label: c.country, n: c.n }))} color={SERIES[0]} unit="visitors" />
+              </div>
+              <div>
+                <h3 style={h3}>Pages</h3>
+                <BarList rows={data.topPaths.map((p) => ({ label: p.path, n: p.n }))} color={SERIES[0]} unit="pageviews" />
+              </div>
+            </div>
           </Section>
 
           <Section title="Unique visitors, by day — most recent 14">
@@ -435,30 +471,6 @@ export default function Stats({ setPage }: Props) {
             {data.products.length === 0 && data.partners.length === 0 && <p style={muted}>No outbound clicks in this window.</p>}
           </Section>
 
-          <Section title="Where they came from">
-            <div style={{ display: 'grid', gap: 28, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
-              <div>
-                <h3 style={h3}>Referrers</h3>
-                <BarList rows={data.referrers.map((r) => ({ label: r.host, n: r.n }))} color={SERIES[0]} unit="pageviews" />
-              </div>
-              <div>
-                <h3 style={h3}>Campaigns</h3>
-                <BarList rows={data.campaigns.map((c) => ({ label: c.campaign, n: c.n }))} color={SERIES[0]} unit="pageviews" />
-                <p style={{ ...muted, fontSize: 12 }}>
-                  From <code>?ref=</code> links you control. A campaign's clicks can only be joined to its
-                  visitors within a single UTC day — across days the link does not exist.
-                </p>
-              </div>
-              <div>
-                <h3 style={h3}>Countries</h3>
-                <BarList rows={data.countries.map((c) => ({ label: c.country, n: c.n }))} color={SERIES[0]} unit="visitors" />
-              </div>
-              <div>
-                <h3 style={h3}>Pages</h3>
-                <BarList rows={data.topPaths.map((p) => ({ label: p.path, n: p.n }))} color={SERIES[0]} unit="pageviews" />
-              </div>
-            </div>
-          </Section>
 
         </>
       )}
@@ -595,6 +607,51 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+/**
+ * A tile that turns over to explain itself.
+ *
+ * Uses the site's own flip — `.flip-card` / `.flip-inner` / `.flip-back` from
+ * index.css, the same 0.55s rotateY the itinerary and explore cards use — rather
+ * than a second animation that would be almost but not quite the same.
+ *
+ * The back matters more here than on an activity card: every figure in this row
+ * is a count of something subtly different, and "visitor-days" in particular is
+ * the number most likely to be repeated to somebody as "visitors".
+ */
+function FlipTile({ label, value, sub, back }: { label: string; value: number; sub?: string; back: string }) {
+  const [flipped, setFlipped] = useState(false);
+  const face: React.CSSProperties = { ...card, margin: 0, height: '100%', boxSizing: 'border-box' };
+  return (
+    <div className={`flip-card stat-flip${flipped ? ' flipped' : ''}`} // The back is position:absolute inset:0, so it can never grow the card — the
+      // front sets the height and the copy has to fit it. Measured at this width:
+      // about five lines. Longer text clips rather than expanding.
+      style={{ flex: '1 1 210px', minHeight: 200 }}>
+      <div className="flip-inner">
+        <div className="flip-face" style={face}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+            <div style={{ fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase', fontWeight: 700, opacity: 0.6, marginBottom: 8 }}>{label}</div>
+            <button
+              onClick={() => setFlipped(true)}
+              aria-label={`How to read: ${label}`}
+              title={`How to read: ${label}`}
+              style={infoBtn}
+            >i</button>
+          </div>
+          <div className="font-display" style={{ fontSize: 36, lineHeight: 1 }}>{value.toLocaleString('en-GB')}</div>
+          {sub && <div style={{ fontSize: 12, opacity: 0.5, marginTop: 6 }}>{sub}</div>}
+        </div>
+        <div className="flip-face flip-back" style={face}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+            <div style={{ fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase', fontWeight: 700, opacity: 0.6 }}>{label}</div>
+            <button onClick={() => setFlipped(false)} aria-label="Back" title="Back" style={infoBtn}>×</button>
+          </div>
+          <p style={{ fontSize: 12.5, lineHeight: 1.55, margin: '8px 0 0' }}>{back}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Tile({ label, value, sub }: { label: string; value: number; sub?: string }) {
   return (
     <div style={{ ...card, flex: '1 1 180px', margin: 0 }}>
@@ -635,7 +692,7 @@ function TimeChart({ points: daily, byHour }: { points: Point[]; byHour: boolean
     return () => ro.disconnect();
   }, []);
 
-  const H = 220, PAD_L = 40, PAD_B = 26, PAD_T = 12, PAD_R = 10;
+  const H = 220, PAD_L = 40, PAD_B = 26, PAD_T = 22, PAD_R = 10;
   const max = Math.max(1, ...daily.map((d) => Math.max(d.views, d.visitors)));
   const plotW = w - PAD_L - PAD_R, plotH = H - PAD_T - PAD_B;
   const x = (i: number) => PAD_L + (daily.length === 1 ? plotW / 2 : (i / (daily.length - 1)) * plotW);
@@ -645,6 +702,10 @@ function TimeChart({ points: daily, byHour }: { points: Point[]; byHour: boolean
   // Deduped: with max === 1 the three ticks collapse to [0, 1, 1], which draws a
   // doubled gridline and hands React two children with the same key.
   const ticks = useMemo(() => [...new Set([0, Math.round(max / 2), max])], [max]);
+  // Above this the numbers collide into an unreadable band; the dataviz rule is
+  // selective labels, never one on every point. 14 fits the widths this page
+  // renders at, and covers a day of hours and a fortnight of days.
+  const labelled = daily.length > 1 && daily.length <= 14;
 
   // ONE overlay rather than a hit rect per point. Per-point targets are 2.5px
   // wide at 390px with a 90-day window — untappable, and unhittable with a mouse
@@ -691,14 +752,26 @@ function TimeChart({ points: daily, byHour }: { points: Point[]; byHour: boolean
         ))}
         <path d={path('views')} fill="none" stroke={SERIES[0]} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         <path d={path('visitors')} fill="none" stroke={SERIES[1]} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-        {/* A single bucket has no line to draw — one moveto strokes nothing — so
-            it is marked instead of silently disappearing. */}
-        {daily.length === 1 && (
-          <>
-            <circle cx={x(0)} cy={y(daily[0].views)} r={5} fill={SERIES[0]} stroke="var(--sand-50)" strokeWidth={2} />
-            <circle cx={x(0)} cy={y(daily[0].visitors)} r={5} fill={SERIES[1]} stroke="var(--sand-50)" strokeWidth={2} />
-          </>
-        )}
+        {/* Dots and their values, drawn only when the series is short enough to
+            read. A number above every point across ninety days is a smear, so
+            past the threshold the line speaks for itself and the hover readout
+            gives the exact figure. A single bucket ALWAYS gets its dot — one
+            moveto strokes nothing, and that is how this chart came to render
+            completely empty. */}
+        {(labelled || daily.length === 1) && daily.map((d, i) => (
+          <g key={`pt-${d.key}`}>
+            <circle cx={x(i)} cy={y(d.views)} r={4} fill={SERIES[0]} stroke="var(--sand-50)" strokeWidth={2} />
+            <circle cx={x(i)} cy={y(d.visitors)} r={4} fill={SERIES[1]} stroke="var(--sand-50)" strokeWidth={2} />
+            {labelled && (
+              <>
+                {/* Views above their dot, visitors below theirs, so the two
+                    never land on each other when the lines converge. */}
+                <text x={x(i)} y={y(d.views) - 10} textAnchor="middle" fontSize={11} fontWeight={700} fill={INK}>{d.views}</text>
+                <text x={x(i)} y={y(d.visitors) + 18} textAnchor="middle" fontSize={11} fontWeight={700} fill={INK} opacity={0.75}>{d.visitors}</text>
+              </>
+            )}
+          </g>
+        ))}
         {hover !== null && daily[hover] && (
           <>
             <line x1={x(hover)} x2={x(hover)} y1={PAD_T} y2={PAD_T + plotH} stroke={INK} strokeWidth={1} opacity={0.25} />
@@ -765,7 +838,7 @@ function BarList({ rows, color, unit }: { rows: { label: string; n: number; sub?
                 first, which this app has never defined as a class, so it
                 rendered inline and produced "66 · 100% of visitors visitors".
                 Reading the rendered page is what caught it. */}
-            {r.n.toLocaleString('en-GB')} {unit}{r.sub ? ` · ${r.sub}` : ''}
+            {r.n.toLocaleString('en-GB')} {r.n === 1 ? unit.replace(/s$/, '') : unit}{r.sub ? ` · ${r.sub}` : ''}
           </span>
         </li>
       ))}
@@ -854,6 +927,12 @@ const warn: React.CSSProperties = {
   fontSize: 13, lineHeight: 1.6, margin: '0 0 16px', padding: '12px 14px',
   background: 'rgba(230,57,70,0.07)', border: '2px solid var(--red)', borderRadius: 12,
 };
+const infoBtn: React.CSSProperties = {
+  flexShrink: 0, width: 26, height: 26, borderRadius: 999, cursor: 'pointer',
+  border: '2px solid var(--ink)', background: 'var(--cream)', color: 'var(--ink)',
+  fontFamily: 'inherit', fontSize: 13, fontWeight: 700, lineHeight: 1, padding: 0,
+};
+
 const linkBtn: React.CSSProperties = {
   background: 'none', border: 'none', cursor: 'pointer', fontSize: 13,
   color: 'var(--ink)', opacity: 0.5, padding: 0, fontFamily: 'inherit',

@@ -219,7 +219,10 @@ describe('Stats — the cumulative row', () => {
     // than matching the windowed one that happens to share a phrase — a looser
     // assertion here passed while the label said "Visitors", which is the exact
     // mistake it exists to catch.
-    expect(text).toMatch(/Visitor-days\s*402\s*not unique people/i);
+    // The `i` is the info button that sits between label and value on these
+    // tiles; everything else must stay adjacent, or this stops pinning the
+    // all-time tile and starts matching the windowed one.
+    expect(text).toMatch(/Visitor-days\s*i?\s*402\s*not unique people/i);
   });
 
   it('omits the row entirely when the endpoint does not send it', async () => {
@@ -349,5 +352,75 @@ describe('Stats — the chart plots something', () => {
     render(<Stats setPage={() => {}} />);
     expect(await screen.findByLabelText(/daily unique visitors over time/i)).toBeTruthy();
     expect(document.body.textContent).toMatch(/Unique visitors \(daily\)/i);
+  });
+});
+
+describe('Stats — the cumulative tiles explain themselves', () => {
+  it('turns over to say how to read the figure, and back again', async () => {
+    vi.stubGlobal('fetch', okFetch());
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Since counting began/i);
+
+    // The explanation is in the DOM either way — a CSS 3D flip renders both
+    // faces — so what is asserted is the control, not visibility.
+    const info = screen.getByRole('button', { name: /How to read: Visitor-days/i });
+    expect(info).toBeTruthy();
+
+    const cardOf = (el: HTMLElement) => el.closest('.flip-card')!;
+    expect(cardOf(info).className).not.toMatch(/flipped/);
+    fireEvent.click(info);
+    expect(cardOf(info).className).toMatch(/flipped/);
+
+    // And the back carries the warning that matters most about this figure.
+    expect(document.body.textContent).toMatch(/Do not quote this as a number of people/i);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Back' })[1]);
+    expect(cardOf(info).className).not.toMatch(/flipped/);
+  });
+
+  it('gives every cumulative tile its own explanation', async () => {
+    vi.stubGlobal('fetch', okFetch());
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Since counting began/i);
+    for (const label of ['Pageviews', 'Visitor-days', 'Best day', 'Clicks sent out']) {
+      expect(screen.getByRole('button', { name: new RegExp(`How to read: ${label}`, 'i') })).toBeTruthy();
+    }
+  });
+});
+
+describe('Stats — the chart shows its numbers', () => {
+  const hourly = [
+    { hour: '2026-08-23T16:00:00+00:00', views: 6, visitors: 4 },
+    { hour: '2026-08-23T17:00:00+00:00', views: 15, visitors: 6 },
+    { hour: '2026-08-23T18:00:00+00:00', views: 1, visitors: 1 },
+  ];
+
+  it('floats each value above its dot on a short series', async () => {
+    vi.stubGlobal('fetch', okFetch({ ...SUMMARY, window: 'today', hourly }));
+    const { container } = render(<Stats setPage={() => {}} />);
+    await screen.findByLabelText(/by hour/i);
+    const svg = container.querySelector('svg[role="img"]')!;
+    const texts = [...svg.querySelectorAll('text')].map((t) => t.textContent);
+    // Both series labelled at every point, plus a dot each.
+    for (const v of ['6', '15', '1', '4']) expect(texts).toContain(v);
+    expect(svg.querySelectorAll('circle').length).toBe(hourly.length * 2);
+  });
+
+  it('drops the labels once the series is too long to read them', async () => {
+    // A number above every point across ninety days is a smear. Past the
+    // threshold the line speaks for itself and the hover readout gives exact
+    // figures — the dataviz rule is selective labels, never one per point.
+    const many = Array.from({ length: 40 }, (_, i) => ({
+      day: `2026-07-${String((i % 28) + 1).padStart(2, '0')}`, views: 100 + i, visitors: 50 + i,
+    }));
+    vi.stubGlobal('fetch', okFetch({ ...SUMMARY, hourly: [], daily: many }));
+    const { container } = render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Traffic over time/i);
+    const svg = container.querySelector('svg[role="img"]')!;
+    expect(svg.querySelectorAll('circle').length).toBe(0);
+    // Only the axis furniture remains: three gridline values and two date ends.
+    // (Not asserted by value — the series maximum doubles as the top tick, and
+    // picking a number that collides with it is how this test first failed.)
+    expect(svg.querySelectorAll('text').length).toBeLessThanOrEqual(6);
   });
 });

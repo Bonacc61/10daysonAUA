@@ -1733,3 +1733,14 @@ body:has(.cookie-banner) .map-page { padding-bottom: 72px; }
 @media (max-width: 640px) {
   .dash-filter-row { grid-template-columns: 1fr; gap: 12px; }
 }
+
+/* The same 3D flip on the /stats cumulative tiles.
+
+   `.flip-card`'s 284px floor is tuned for the ITINERARY card and would leave a
+   stat tile mostly empty, so it is released here the way `.explore-flip` does —
+   the front decides the height and the back agrees with it. The back holds a
+   short paragraph explaining how to read the figure, which can run longer than
+   the front on a narrow column, so it scrolls rather than clipping. */
+.stat-flip { min-height: 0; height: 100%; }
+.stat-flip .flip-inner { min-height: 0; height: 100%; }
+.stat-flip .flip-back { overflow-y: auto; }
