@@ -7,6 +7,7 @@ interface ImportMetaEnv {
   readonly VITE_VIATOR_FN_URL?: string;
   readonly VITE_SUPABASE_URL?: string;
   readonly VITE_SUPABASE_ANON_KEY?: string;
+  readonly VITE_STATS_FN_URL?: string;
 }
 
 interface ImportMeta {

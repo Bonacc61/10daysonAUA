@@ -15,9 +15,10 @@ import SignedInToast from './components/SignedInToast';
 import LoginModal from './components/LoginModal';
 import CookieBanner from './components/CookieBanner';
 import TripMap from './pages/Map';
+import Stats from './pages/Stats';
 import { AuthProvider, useAuth } from './lib/auth';
 
-export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary' | 'map' | 'privacy' | 'terms' | 'surprise' | 'dashboard' | 'preview';
+export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary' | 'map' | 'privacy' | 'terms' | 'surprise' | 'dashboard' | 'preview' | 'stats';
 
 export type Answers = {
   days: number;
@@ -54,6 +55,7 @@ const PATH_TO_PAGE: Record<string, PageId> = {
   '/surprise': 'surprise',
   '/dashboard': 'dashboard',
   '/preview': 'preview',
+  '/stats': 'stats',
 };
 const PAGE_TO_PATH: Record<PageId, string> = {
   landing: '/',
@@ -66,6 +68,7 @@ const PAGE_TO_PATH: Record<PageId, string> = {
   surprise: '/surprise',
   dashboard: '/dashboard',
   preview: '/preview',
+  stats: '/stats',
 };
 
 function pageFromUrl(): PageId {
@@ -164,6 +167,10 @@ function AppShell() {
   // `setPage` pushes history without a navigation, so there is no load event to
   // hang a pageview on after the first one.
   useEffect(() => {
+    // /stats is the operator's own dashboard, not traffic. Counting it would put
+    // every visit to the numbers into the numbers — as an 'other' pageview,
+    // since it is deliberately absent from the beacon's path allowlist.
+    if (page === 'stats') return;
     trackPageview(window.location.pathname);
   }, [page]);
 
@@ -216,6 +223,7 @@ function AppShell() {
       {page === 'surprise'      && <SurpriseMe    setPage={setPage} answers={answers} />}
       {page === 'dashboard'     && <Dashboard     setPage={setPage} onLogin={() => setLoginOpen(true)} answers={answers} />}
       {page === 'preview'       && <DashboardPreview setPage={setPage} />}
+      {page === 'stats'         && <Stats           setPage={setPage} />}
     </>
   );
 }
