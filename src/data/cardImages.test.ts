@@ -84,7 +84,6 @@ describe('stock photography is tracked, not forgotten', () => {
   const AWAITING_REAL_PHOTO = [
     'antilla-wreck-dive',
     'boca-catalina-snorkel',
-    'lunch-bingo',
     'oranjestad-walking',
     'tres-trapi',
   ];

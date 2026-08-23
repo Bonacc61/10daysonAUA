@@ -29,7 +29,7 @@ export const LUNCHSPOTS: Activity[] = [
   spot('lunch-oniels', "O'Niels Caribbean Kitchen", 'San Nicolaas', 'san-nicolas', 'Hearty Caribbean plates in the colorful art town of San Nicolas.', '$10–20 pp', "/O'Niel Caribbean Kitchen.jpeg"),
   spot('lunch-willems-pancakes', 'Willems Pancakes', 'Noord', 'noord', 'Dutch pancakes, sweet and savory — a relaxed family favorite.', '$10–18 pp', '/Willems Pancakes.webp'),
   spot('lunch-lindas-pancakes', "Linda's Dutch Pancakes", 'Noord', 'noord', 'Classic Dutch pannenkoeken with dozens of toppings.', '$10–18 pp', "/Linda's Dutch Pancakes.webp"),
-  spot('lunch-bingo', 'Bingo!', 'Noord', 'noord', 'Laid-back spot for burgers, bowls and fresh smoothies.', '$8–16 pp', 'https://images.pexels.com/photos/1267320/pexels-photo-1267320.jpeg?auto=compress&cs=tinysrgb&w=800'),
+  spot('lunch-bingo', 'Bingo!', 'Noord', 'noord', 'Laid-back spot for burgers, bowls and fresh smoothies.', '$8–16 pp', '/Bingo.webp'),
 ];
 
 // Best-effort map from a free-text location to one of the lunch-spot regions.
