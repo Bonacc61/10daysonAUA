@@ -450,3 +450,23 @@ describe('Stats — the all-time tile is named for what it currently is', () => 
     expect(document.body.textContent).toMatch(/one per person, per day/i);
   });
 });
+
+describe('Stats — referrers count people, not page opens', () => {
+  it('labels referrers and campaigns as visitors rather than pageviews', async () => {
+    // The browser keeps document.referrer across in-app navigation, so one visit
+    // from Reddit that opened five pages used to record five reddit.com rows and
+    // the list read as sources while measuring page opens. The query now counts
+    // distinct visitors; the unit has to say so or the fix is invisible.
+    vi.stubGlobal('fetch', okFetch({
+      ...SUMMARY, window: 'today',
+      daily: [{ day: '2026-08-23', views: 21, visitors: 10 }],
+      referrers: [{ host: 'reddit.com', n: 7 }],
+      campaigns: [{ campaign: 'reddit-aruba-aug', n: 7 }],
+    }));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Where they came from/i);
+    const text = document.body.textContent ?? '';
+    expect(text).toMatch(/reddit\.com\s*7 unique/i);
+    expect(text).not.toMatch(/reddit\.com\s*7 pageviews/i);
+  });
+});

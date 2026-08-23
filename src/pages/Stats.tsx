@@ -416,11 +416,15 @@ export default function Stats({ setPage }: Props) {
             <div style={{ display: 'grid', gap: 28, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
               <div>
                 <h3 style={h3}>Referrers</h3>
-                <BarList rows={data.referrers.map((r) => ({ label: r.host, n: r.n }))} color={SERIES[0]} unit="pageviews" />
+                {/* Visitors, not pageviews: the browser keeps a referrer across
+                    in-app navigation, so counting rows made one visit from
+                    Reddit look like five. Our own domain is filtered out in the
+                    query — a self-referral is a refresh, not a source. */}
+                <BarList rows={data.referrers.map((r) => ({ label: r.host, n: r.n }))} color={SERIES[0]} unit={isOneDay ? 'unique' : 'visits'} />
               </div>
               <div>
                 <h3 style={h3}>Campaigns</h3>
-                <BarList rows={data.campaigns.map((c) => ({ label: c.campaign, n: c.n }))} color={SERIES[0]} unit="pageviews" />
+                <BarList rows={data.campaigns.map((c) => ({ label: c.campaign, n: c.n }))} color={SERIES[0]} unit={isOneDay ? 'unique' : 'visits'} />
                 <p style={{ ...muted, fontSize: 12 }}>
                   From <code>?ref=</code> links you control. A campaign's clicks can only be joined to its
                   visitors within a single UTC day — across days the link does not exist.

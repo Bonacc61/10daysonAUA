@@ -169,10 +169,18 @@ Deno.serve(async (req) => {
       name,
       visitor_day_hash: await visitorDayHash(ip, ua, salt),
       path: normalisePath(body?.path),
-      // Stamped on the ARRIVING pageview only. Later events in the visit carry
-      // neither, and they are still reachable: within one UTC day the visitor
-      // hash joins a visit's pageview to its outbound clicks. Across days it is
-      // not — any cross-day campaign claim is unsupported by this schema.
+      // Stamped on PAGEVIEWS, not on outbound or milestone events — which is
+      // narrower than "the arriving pageview only", as this comment used to
+      // claim. The browser keeps document.referrer across in-app navigation, so
+      // every pageview of one visit carries the same value and the raw rows
+      // count page opens rather than arrivals. stats_summary_since therefore
+      // counts DISTINCT VISITORS for this column (20260823220000) instead of
+      // rows, and filters our own host out as a self-referral.
+      //
+      // Outbound and milestone events carry neither, and are still reachable:
+      // within one UTC day the visitor hash joins a visit's pageview to its
+      // clicks. Across days it does not — any cross-day campaign claim is
+      // unsupported by this schema.
       referrer_host: name === 'pageview' ? referrerHost(body?.ref) : null,
       campaign: name === 'pageview' ? campaign(body?.campaign) : null,
       country,
