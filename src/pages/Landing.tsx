@@ -99,12 +99,26 @@ export default function Landing({ setPage, answers, setAnswers, onPlanClick }: P
                     so a yellow fill (tried first) reads as a hole punched in the
                     background rather than as a button. Cream separates from the
                     band and leaves red as the single primary. */}
-                <button
-                  className="btn-hero-alt"
-                  onClick={() => setPage('explore')}
-                >
-                  Explore!
-                </button>
+                {/* The connective the two buttons had lost. Without it they read
+                    as two unrelated commands; with it the pair reads as one
+                    sentence with a choice at the end. Not a button and not
+                    clickable — deliberately quieter than either. */}
+                {/* The connective and its button wrap as ONE unit. Left as
+                    siblings of the row they wrapped independently: on a phone
+                    "or just simply" stayed on line one after the red button and
+                    "Explore!" dropped alone to line two, which reads as two
+                    fragments rather than a sentence. */}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12, flexWrap: 'nowrap' }}>
+                  <span className="hero-cta-or" style={{ fontStyle: 'italic', fontSize: 15, color: 'var(--ink)', opacity: 0.75, whiteSpace: 'nowrap' }}>
+                    or just simply
+                  </span>
+                  <button
+                    className="btn-hero-alt"
+                    onClick={() => setPage('explore')}
+                  >
+                    Explore!
+                  </button>
+                </span>
                 <svg className="hero-arrow" width="46" height="56" viewBox="0 0 60 80" style={{ flexShrink: 0 }}>
                   <path d="M 6 6 Q 50 16, 40 56 Q 36 68, 28 74" stroke="var(--ink)" strokeWidth="2.5" fill="none" strokeLinecap="round" />
                   <path d="M 22 68 L 28 76 L 36 70" stroke="var(--ink)" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
