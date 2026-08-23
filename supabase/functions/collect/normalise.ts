@@ -60,3 +60,31 @@ export function deviceClass(ua: string): 'mobile' | 'tablet' | 'desktop' {
   if (/mobi|iphone|ipod|android|blackberry|iemobile|opera mini/i.test(ua)) return 'mobile';
   return 'desktop';
 }
+
+// The only header value ever handed to the database, so it is checked here
+// rather than trusted. Postgres would reject malformed `inet` input anyway, but
+// the round trip is spent per beacon to learn nothing — and clientIp's own
+// fallback is the literal string 'unknown', which arrives on every request
+// without an x-forwarded-for header.
+//
+// Hand-written rather than `new URL('http://[' + ip + ']')`, which validates
+// IPv6 for free: that would put a Node URL parser in the test and a Deno one in
+// production, and a check that disagrees between the two runtimes is worse than
+// no check. Postgres remains the real validator; this only decides whether to
+// ask it.
+const V4 = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
+// Hex groups joined by colons, with at most one '::' elision.
+const V6 = /^(?=.*:)(?!.*::.*::)(?:[0-9a-f]{1,4})?(?::(?:[0-9a-f]{1,4})?){1,7}$/i;
+
+export function lookupIp(raw: string): string | null {
+  if (typeof raw !== 'string' || !raw || raw.length > 45) return null;
+  // An IPv4-mapped address (::ffff:145.100.0.1) is returned UNMAPPED. Some
+  // proxies emit that form, and inet would accept it happily — but it sorts into
+  // IPv6 space, where the dataset's first range is the ZZ block covering ::/3,
+  // so every mapped address would resolve to no country at all. Silently, and
+  // for every visitor behind such a proxy.
+  const unmapped = raw.replace(/^::ffff:/i, '');
+  if (V4.test(unmapped)) return unmapped;
+  if (V6.test(raw)) return raw;
+  return null;
+}

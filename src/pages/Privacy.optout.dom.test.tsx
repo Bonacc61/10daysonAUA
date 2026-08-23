@@ -31,6 +31,19 @@ describe('Privacy — the right to object to visit counting', () => {
     expect(document.body.textContent).toMatch(/different, unconnected\s+visitor/i);
   });
 
+  it('discloses the country, since deriving one from an address is new collection', () => {
+    // The row said "which page you opened and which booking links you clicked"
+    // before country resolution shipped. A derived country is still collected
+    // data, and the project rule is that collection is disclosed where it
+    // happens — the table — not only in a design document.
+    show();
+    const table = document.body.textContent ?? '';
+    expect(table).toMatch(/your country/i);
+    // And that the address it came from does not survive the lookup, which is
+    // the whole reason this can run without consent.
+    expect(table).toMatch(/discarded/i);
+  });
+
   it('starts unticked and writes nothing until asked', () => {
     show();
     const box = screen.getByRole('checkbox') as HTMLInputElement;

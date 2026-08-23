@@ -7,7 +7,7 @@
 // Vitest, not Deno.test, matching viator-cards/normalize.test.ts: these are pure
 // functions with no Deno runtime surface, so they belong to `npm test`.
 import { describe, it, expect } from 'vitest';
-import { normalisePath, referrerHost, campaign, deviceClass, BOT_RE } from './normalise';
+import { normalisePath, referrerHost, campaign, deviceClass, lookupIp, BOT_RE } from './normalise';
 
 describe('collect — path normalisation is an allowlist', () => {
   it('keeps the app\'s own routes', () => {
@@ -100,5 +100,51 @@ describe('collect — device class', () => {
     // Android tablets omit "Mobile"; that absence is the only signal there is.
     expect(deviceClass('Mozilla/5.0 (Linux; Android 13; SM-X200) AppleWebKit/537.36 Chrome/120 Safari/537.36')).toBe('tablet');
     expect(deviceClass('Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36')).toBe('mobile');
+  });
+});
+
+describe('collect — only a real address is sent to the country lookup', () => {
+  it('accepts the two address families', () => {
+    for (const ip of [
+      '145.100.0.1',
+      '85.10.159.81',
+      '2001:610::1',
+      '2001:4860:4860::8888',
+      '::1',
+    ]) expect(lookupIp(ip), ip).toBe(ip);
+  });
+
+  it('rejects "unknown", which is what clientIp returns with no forwarded header', () => {
+    // Not hypothetical: clientIp falls back to the literal string 'unknown'
+    // whenever x-forwarded-for is absent. Postgres would reject it as invalid
+    // inet input, and the round trip would be spent to learn nothing.
+    expect(lookupIp('unknown')).toBe(null);
+  });
+
+  it('rejects anything that is not an address, since this value comes from a header', () => {
+    for (const junk of [
+      '', ' ', 'localhost', '999.1.1.1', '1.2.3', '1.2.3.4.5',
+      '145.100.0.1; drop table web_events',
+      '2001:610::1 ',
+      'g001:610::1',
+      '../../etc/passwd',
+      'x'.repeat(200),
+    ]) expect(lookupIp(junk), JSON.stringify(junk)).toBe(null);
+  });
+
+  it('unmaps an IPv4-mapped address instead of passing it through', () => {
+    // ::ffff:145.100.0.1 is a valid inet value, so this is not about rejection.
+    // It sorts into IPv6 space, where the dataset's first range is the ZZ block
+    // covering ::/3 — so passed through as-is it resolves to NO country, for
+    // every visitor behind a proxy that emits this form, silently.
+    expect(lookupIp('::ffff:145.100.0.1')).toBe('145.100.0.1');
+    expect(lookupIp('::FFFF:85.10.159.81')).toBe('85.10.159.81');
+    // Still junk once unmapped.
+    expect(lookupIp('::ffff:999.1.1.1')).toBe(null);
+  });
+
+  it('does not accept a CIDR block or a port, which are not single addresses', () => {
+    expect(lookupIp('145.100.0.0/16')).toBe(null);
+    expect(lookupIp('145.100.0.1:443')).toBe(null);
   });
 });

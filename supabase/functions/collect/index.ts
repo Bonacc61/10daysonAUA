@@ -12,7 +12,7 @@
 // console on launch day.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { BOT_RE, normalisePath, referrerHost, campaign, deviceClass } from './normalise.ts';
+import { BOT_RE, normalisePath, referrerHost, campaign, deviceClass, lookupIp } from './normalise.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -68,9 +68,35 @@ Deno.serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
+    // One read of the header, used twice. The HASH takes the raw value,
+    // 'unknown' fallback and all, because identity must stay stable for a
+    // caller the lookup cannot place; only the country lookup insists on a real
+    // address.
+    const ip = clientIp(req);
+
+    // --- country ---------------------------------------------------------
+    // Resolved at WRITE TIME, from a CIDR table in this same EU database, and
+    // then thrown away. The IP reaches no column of web_events — which is why a
+    // row written today can never be given a country tomorrow, and why
+    // ip_country had to be loaded before this function was ever deployed.
+    //
+    // A geo API would have been less work and is the thing not to do: it would
+    // send every visitor's IP to a US sub-processor and undo the point of a
+    // cookieless beacon.
+    //
+    // A failed lookup costs the country, never the row: .rpc() resolves with an
+    // { error } rather than throwing, so nothing here can reach the catch below
+    // and lose the insert.
+    let country: string | null = null;
+    const addr = lookupIp(ip);
+    if (addr) {
+      const { data, error } = await db.rpc('country_for_ip', { ip: addr });
+      if (!error && typeof data === 'string') country = data;
+    }
+
     await db.from('web_events').insert({
       name,
-      visitor_day_hash: await visitorDayHash(clientIp(req), ua, salt),
+      visitor_day_hash: await visitorDayHash(ip, ua, salt),
       path: normalisePath(body?.path),
       // Stamped on the ARRIVING pageview only. Later events in the visit carry
       // neither, and they are still reachable: within one UTC day the visitor
@@ -78,7 +104,7 @@ Deno.serve(async (req) => {
       // not — any cross-day campaign claim is unsupported by this schema.
       referrer_host: name === 'pageview' ? referrerHost(body?.ref) : null,
       campaign: name === 'pageview' ? campaign(body?.campaign) : null,
-      country: null,   // see the migration: needs an ip_country table first
+      country,
       device: deviceClass(ua),
       product_code: name === 'outbound' ? trim(body?.product, 32) : null,
       destination_host: name === 'outbound' ? referrerHost(body?.href) : null,
