@@ -6,9 +6,15 @@
 //
 //   analytics.ts (PostHog)  writes an identifier to the device -> needs consent
 //                           -> counts only the consented share of traffic.
-//   beacon.ts    (here)     writes NOTHING to the device; identity is derived
-//                           server-side from ip+ua+date and discarded
+//   beacon.ts    (here)     writes nothing OF OURS to the device; identity is
+//                           derived server-side from ip+ua+date and discarded
 //                           -> runs on legitimate interest -> counts everyone.
+//
+// "Nothing of ours" is the honest form, and the qualifier was earned: Cloudflare
+// sits in front of the edge function and attaches its own __cf_bm bot-management
+// cookie to the response. Measured in a real browser, nothing was stored — it is
+// third-party to this site and Chromium dropped it — but it is not ours to
+// promise about, so the Privacy Policy names it rather than rounding it to zero.
 //
 // The second property is the whole point: it is what makes "we sent you N
 // people" a number you can put in front of a partner. Sending an id from here,

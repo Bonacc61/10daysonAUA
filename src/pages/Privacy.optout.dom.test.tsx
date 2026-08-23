@@ -24,11 +24,25 @@ describe('Privacy — the right to object to visit counting', () => {
   it('discloses the counting, its purpose and its basis', () => {
     show();
     expect(screen.getByText(/Counting visitors/i)).toBeTruthy();
-    expect(screen.getByText(/Nothing is stored on your device for this/i)).toBeTruthy();
+    expect(screen.getByText(/We store nothing on your device for this/i)).toBeTruthy();
     // The basis has to be nameable, not implied.
     expect(document.body.textContent).toMatch(/Legitimate interest/i);
     // And the daily-only property, because it is the figure someone will quote.
     expect(document.body.textContent).toMatch(/different, unconnected\s+visitor/i);
+  });
+
+  it('does not round the hosting provider\'s own cookie down to "nothing"', () => {
+    // The beacon stores nothing OF OURS, but Cloudflare attaches a __cf_bm
+    // bot-management cookie to the response. Measured in a real browser it was
+    // not stored — third-party to this site — but it is not ours to promise
+    // about, and this project already decided once (aruba.session, 2026-08-13)
+    // that device storage is judged on what happens, not on whose code did it.
+    show();
+    const text = document.body.textContent ?? '';
+    expect(text).toMatch(/security layer/i);
+    expect(text).toMatch(/short-lived cookie/i);
+    // And the claim it qualifies is still the claim being made.
+    expect(text).toMatch(/no cookie of ours/i);
   });
 
   it('discloses the country, since deriving one from an address is new collection', () => {

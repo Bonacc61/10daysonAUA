@@ -72,12 +72,19 @@ export default function Privacy({ setPage }: Props) {
               number a partner asks for.
             </p>
             <p style={{ fontSize: 14, lineHeight: 1.7, margin: '12px 0 0' }}>
-              <strong>Nothing is stored on your device for this.</strong> No cookie, no id, nothing
-              kept between visits. Instead our own server works out a code from your network address
+              <strong>We store nothing on your device for this.</strong> No cookie of ours, no id,
+              nothing kept between visits. Instead our own server works out a code from your network address
               and browser for the current day, and stores only that code &mdash; never the address
               itself. The date is baked into the code, so tomorrow you are a different, unconnected
               visitor. That also means we can count how many people came <em>today</em>, and can
               never work out how many distinct people came this month.
+            </p>
+            <p style={{ fontSize: 14, lineHeight: 1.7, margin: '12px 0 0' }}>
+              To be exact about &ldquo;nothing&rdquo;: the count is sent to our servers in the EU, and
+              the security layer in front of them may set a short-lived cookie of its own to tell real
+              browsers from bots. It is not ours to read, it says nothing about you or where you went,
+              and most browsers discard it because it belongs to a different site than this one. We
+              would rather mention it than let the word &ldquo;nothing&rdquo; do work it cannot.
             </p>
             <p style={{ fontSize: 14, lineHeight: 1.7, margin: '12px 0 0' }}>
               We record which page you opened &mdash; from a fixed list of our own pages, never the

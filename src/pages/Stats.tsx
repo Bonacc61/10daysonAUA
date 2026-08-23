@@ -270,8 +270,8 @@ export default function Stats({ setPage }: Props) {
       )}
 
       <p style={{ ...muted, fontSize: 12, marginTop: 40, paddingTop: 16, borderTop: `1px solid ${GRID}` }}>
-        Counted without storing anything on a visitor's device, so this is all traffic rather than
-        the share who accept cookies. Visitors who have objected under the Privacy Policy are not
+        Counted without storing anything of ours on a visitor's device, so this is all traffic
+        rather than the share who accept cookies. Visitors who have objected under the Privacy Policy are not
         counted at all.
         {' '}
         {/* CC BY 4.0 requires attribution wherever the data is shown. Not optional,
