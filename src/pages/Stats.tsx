@@ -239,6 +239,18 @@ export default function Stats({ setPage }: Props) {
   // Hours when the window is short enough for them to exist, days otherwise. A
   // single day plotted as days is ONE point, and a path with one moveto and no
   // lineto strokes nothing — the chart rendered gridlines and no data at all.
+  // How many UTC days the record spans. While that is one, "visitor-days" and
+  // "unique visitors" are arithmetically the SAME number — the sum of one day is
+  // that day — and showing them side by side under two names reads as a bug
+  // rather than as a distinction. So the all-time tile is named for what it
+  // currently is, and renames itself once a second day makes the two diverge.
+  const daysSpanned = data.firstEvent
+    ? Math.floor((Date.now() - Date.parse(`${data.firstEvent.slice(0, 10)}T00:00:00Z`)) / 86_400_000) + 1
+    : 0;
+  // EXACTLY one, not "one or fewer". With no firstEvent the span is unknown, and
+  // unknown must not read as "one day" — the conservative label under-claims,
+  // which is the right way to be wrong about this particular number.
+  const oneDayOnly = daysSpanned === 1;
   const byHour = (data.hourly?.length ?? 0) > 0;
   const points: Point[] = byHour
     ? data.hourly!.map((h) => ({ key: h.hour, label: `${h.hour.slice(11, 16)}`, views: h.views, visitors: h.visitors }))
@@ -334,21 +346,24 @@ export default function Stats({ setPage }: Props) {
           {/* UNIQUE VISITORS, named honestly.
               Over ONE day, distinct visitor codes ARE unique visitors — that is
               exactly what the code is for. Over more than one day it is the sum
-              of daily figures, because the code is rebuilt at midnight, so it
-              counts visitor-DAYS and calling it "visitors" overstates reach to
-              whoever reads it. The tiles change wording with the window rather
-              than leaving one label to mean two things. */}
+              of daily figures, because the code is rebuilt at midnight, so
+              calling it "visitors" overstates reach to whoever reads it.
+              It is called VISITS there instead: one per person per day. Not a
+              precise word for a session, but it does not claim unique people,
+              and it errs by under-stating sessions rather than over-stating
+              reach — the safe direction for a number headed for a pitch.
+              ("Visitor-days" was accurate and nobody could read it.) */}
           <div style={tileRow}>
             <Tile label="Pageviews" value={totalViews} />
             {isOneDay
               ? <Tile label="Unique visitors" value={data.funnel.visitors} sub="so far today" />
               : <>
-                  <Tile label="Visitor-days" value={data.funnel.visitors} sub="not unique people — see below" />
+                  <Tile label="Visits" value={data.funnel.visitors} sub="one per person, per day" />
                   <Tile label="Busiest day" value={busiest?.visitors ?? 0} sub={busiest ? `${fmtDay(busiest.day)}, unique` : '—'} />
                   <Tile label="Average day" value={avgPerDay} sub="unique visitors" />
                 </>}
             <Tile label="Clicks sent out" value={outboundClicks} />
-            <Tile label="Visitors who clicked out" value={data.funnel.clickedOut} sub={isOneDay ? 'unique, today' : 'visitor-days'} />
+            <Tile label="Visitors who clicked out" value={data.funnel.clickedOut} sub={isOneDay ? 'unique, today' : 'visits'} />
           </div>
 
           {/* Moved up, directly under the headline figures: it answers "who are
@@ -374,10 +389,15 @@ export default function Stats({ setPage }: Props) {
                 {/* visitor-DAYS, and the back says so at length. This is the
                     largest number on the page and the one most likely to be
                     repeated to somebody as "visitors". */}
-                <FlipTile
-                  label="Visitor-days" value={data.allTime.visitorDays} sub="not unique people"
-                  back="One count per person per day — three days is three. Always larger than the number of people; never quote it as one."
-                />
+                {oneDayOnly
+                  ? <FlipTile
+                      label="Unique visitors" value={data.allTime.visitorDays} sub="all time — one day so far"
+                      back="Counting began today, so this is an exact count of people. From a second day on it becomes visitor-days: one count per person per DAY, which is always larger."
+                    />
+                  : <FlipTile
+                      label="Visits" value={data.allTime.visitorDays} sub="one per person, per day"
+                      back="One count per person per day, so somebody who came on three days counts three times. Larger than the number of people — for that, use Best day."
+                    />}
                 <FlipTile
                   label="Best day" value={data.allTime.busiestDay?.visitors ?? 0}
                   sub={data.allTime.busiestDay ? `${fmtDay(data.allTime.busiestDay.day)}, unique` : '—'}
@@ -874,7 +894,7 @@ function Funnel({ f, oneDay }: { f: Summary['funnel']; oneDay: boolean }) {
         label,
         n,
         sub: f.visitors > 0 ? `${Math.round((n / f.visitors) * 100)}%` : undefined,
-      }))} color={SERIES[0]} unit={oneDay ? 'unique' : 'visitor-days'} />
+      }))} color={SERIES[0]} unit={oneDay ? 'unique' : 'visits'} />
       <p style={{ ...warn, marginTop: 14 }}>
         <strong>Three steps are not measured yet.</strong> {NOT_YET.join(', ')} — the beacon
         for these was never wired up, so there is no data behind them. They are left out

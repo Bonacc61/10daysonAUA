@@ -222,7 +222,7 @@ describe('Stats — the cumulative row', () => {
     // The `i` is the info button that sits between label and value on these
     // tiles; everything else must stay adjacent, or this stops pinning the
     // all-time tile and starts matching the windowed one.
-    expect(text).toMatch(/Visitor-days\s*i?\s*402\s*not unique people/i);
+    expect(text).toMatch(/Visits\s*i?\s*402\s*one per person, per day/i);
   });
 
   it('omits the row entirely when the endpoint does not send it', async () => {
@@ -276,18 +276,18 @@ describe('Stats — unique visitors are named for what they are', () => {
     expect(document.body.textContent).toMatch(/Unique visitors\s*10\s*so far today/i);
     // The all-time row legitimately says visitor-days whatever the window; what
     // must NOT appear is the WINDOWED variant, which carries "see below".
-    expect(document.body.textContent).not.toMatch(/not unique people — see below/i);
+    expect(document.body.textContent).not.toMatch(/Visits\s*i?\s*163/i);
   });
 
-  it('calls them VISITOR-DAYS over more than one day, because they are not people', async () => {
+  it('calls them VISITS over more than one day, because they are not people', async () => {
     // The code is rebuilt at midnight, so across days this is the sum of daily
     // uniques. Labelling that "visitors" overstates reach to whoever reads it —
     // and this is the number someone would quote to a partner.
     vi.stubGlobal('fetch', withWindow({ window: 'days' }));
     render(<Stats setPage={() => {}} />);
     await screen.findByText(/Traffic over time/i);
-    expect(document.body.textContent).toMatch(/Visitor-days/i);
-    expect(document.body.textContent).toMatch(/not unique people/i);
+    expect(document.body.textContent).toMatch(/Visits/);
+    expect(document.body.textContent).toMatch(/one per person, per day/i);
     // And offers the two figures that ARE honest over a long window.
     expect(document.body.textContent).toMatch(/Busiest day/i);
     expect(document.body.textContent).toMatch(/Average day/i);
@@ -363,7 +363,7 @@ describe('Stats — the cumulative tiles explain themselves', () => {
 
     // The explanation is in the DOM either way — a CSS 3D flip renders both
     // faces — so what is asserted is the control, not visibility.
-    const info = screen.getByRole('button', { name: /How to read: Visitor-days/i });
+    const info = screen.getByRole('button', { name: /How to read: Visits/i });
     expect(info).toBeTruthy();
 
     const cardOf = (el: HTMLElement) => el.closest('.flip-card')!;
@@ -372,7 +372,7 @@ describe('Stats — the cumulative tiles explain themselves', () => {
     expect(cardOf(info).className).toMatch(/flipped/);
 
     // And the back carries the warning that matters most about this figure.
-    expect(document.body.textContent).toMatch(/never quote it as one/i);
+    expect(document.body.textContent).toMatch(/somebody who came on three days counts three times/i);
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Back' })[1]);
     expect(cardOf(info).className).not.toMatch(/flipped/);
@@ -382,7 +382,7 @@ describe('Stats — the cumulative tiles explain themselves', () => {
     vi.stubGlobal('fetch', okFetch());
     render(<Stats setPage={() => {}} />);
     await screen.findByText(/Since counting began/i);
-    for (const label of ['Pageviews', 'Visitor-days', 'Best day', 'Clicks sent out']) {
+    for (const label of ['Pageviews', 'Visits', 'Best day', 'Clicks sent out']) {
       expect(screen.getByRole('button', { name: new RegExp(`How to read: ${label}`, 'i') })).toBeTruthy();
     }
   });
@@ -422,5 +422,31 @@ describe('Stats — the chart shows its numbers', () => {
     // (Not asserted by value — the series maximum doubles as the top tick, and
     // picking a number that collides with it is how this test first failed.)
     expect(svg.querySelectorAll('text').length).toBeLessThanOrEqual(6);
+  });
+});
+
+describe('Stats — the all-time tile is named for what it currently is', () => {
+  const today = new Date().toISOString();
+
+  it('says UNIQUE VISITORS while only one day has been collected', async () => {
+    // With one day on record, "visitor-days" and "unique visitors" are the SAME
+    // number — the sum of one day is that day. Two tiles showing one figure
+    // under two names reads as a bug, not as a distinction.
+    vi.stubGlobal('fetch', okFetch({ ...SUMMARY, firstEvent: today }));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Since counting began/i);
+    expect(document.body.textContent).toMatch(/one day so far/i);
+    expect(screen.getByRole('button', { name: /How to read: Unique visitors/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /How to read: Visits/i })).toBeNull();
+  });
+
+  it('renames itself to VISITS once a second day makes them diverge', async () => {
+    vi.stubGlobal('fetch', okFetch({
+      ...SUMMARY, firstEvent: new Date(Date.now() - 3 * 86_400_000).toISOString(),
+    }));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Since counting began/i);
+    expect(screen.getByRole('button', { name: /How to read: Visits/i })).toBeTruthy();
+    expect(document.body.textContent).toMatch(/one per person, per day/i);
   });
 });
