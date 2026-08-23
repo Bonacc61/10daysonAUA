@@ -81,6 +81,23 @@ export function parseActivityCost(cost: string): number {
   return m ? parseInt(m[0], 10) : 0;
 }
 
+/**
+ * Does this activity's card earn a "✓ Free" tag?
+ *
+ * A free BEACH does not. Nobody is surprised that a beach costs nothing, so the
+ * tag carries no information there — it just occupies the slot where a paid card
+ * says "Book now" and adds a green chip to every beach in the plan. A free TOUR
+ * or chapel walk is genuinely worth flagging, so those keep it.
+ *
+ * Deliberately keyed on the CATEGORY rather than a per-activity opt-out: a new
+ * free beach added to activities.ts should inherit this without anyone
+ * remembering. Viator products are unaffected — a free Viator listing is not a
+ * beach and keeps its tag (GroupCard, Dashboard's item branch).
+ */
+export function showsFreeTag(a: Pick<Activity, 'cost' | 'category'>): boolean {
+  return parseActivityCost(a.cost) === 0 && a.category !== 'Beaches';
+}
+
 export function entryPrice(e: CardEntry): number {
   return e.kind === 'group' ? e.bestSeller.price_usd : parseActivityCost(e.activity.cost);
 }

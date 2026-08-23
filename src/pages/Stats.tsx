@@ -54,7 +54,7 @@ type Summary = {
   daily: Daily[];
   /** Present only for windows under three days; empty otherwise. */
   hourly?: Hourly[];
-  topPaths: (Counted & { path: string })[];
+  topPaths: (Counted & { path: string; visitors?: number })[];
   referrers: (Counted & { host: string })[];
   campaigns: (Counted & { campaign: string })[];
   countries: (Counted & { country: string })[];
@@ -236,6 +236,10 @@ export default function Stats({ setPage }: Props) {
   // One day is the only window over which "distinct visitor codes" and "unique
   // people" are the same thing.
   const isOneDay = data.window === 'today' || (data.daily ?? []).length <= 1;
+  // The denominator for "what share of visitors reached this page". The funnel's
+  // first step is the same distinct count over the same window, so the shares
+  // add up against a figure already on the page rather than a second one.
+  const allVisitors = data.funnel.visitors;
   // Hours when the window is short enough for them to exist, days otherwise. A
   // single day plotted as days is ONE point, and a path with one moveto and no
   // lineto strokes nothing — the chart rendered gridlines and no data at all.
@@ -523,11 +527,25 @@ export default function Stats({ setPage }: Props) {
               <div>
                 <h3 style={h3}>Pages</h3>
                 <Explain>
-                  Which pages were opened, counting every open rather than every person.{' '}
+                  How many {isOneDay ? 'people' : 'visits'} reached each page, and what share of all
+                  of them that is — so &ldquo;a fifth of visitors got to Explore&rdquo; is readable
+                  rather than something to work out. Opens are shown after it, which is a different
+                  number: one person opening a page three times is three opens and one visitor.{' '}
                   <code>/i/:slug</code> is a shared itinerary — all of them pooled, so a page view can
                   never be tied to one traveller's plan.
                 </Explain>
-                <BarList rows={data.topPaths.map((p) => ({ label: p.path, n: p.n }))} color={SERIES[0]} unit="pageviews" />
+                <BarList
+                  rows={data.topPaths.map((p) => ({
+                    label: p.path,
+                    n: p.visitors ?? p.n,
+                    sub: `${p.n} open${p.n === 1 ? '' : 's'}`
+                      + (allVisitors > 0 && p.visitors !== undefined
+                        ? ` · ${Math.round((p.visitors / allVisitors) * 100)}% of all`
+                        : ''),
+                  }))}
+                  color={SERIES[0]}
+                  unit={isOneDay ? 'unique' : 'visits'}
+                />
               </div>
             </div>
           </Section>

@@ -26,7 +26,7 @@ const SUMMARY = {
     { day: '2026-08-22', views: 120, visitors: 81 },
     { day: '2026-08-23', views: 95, visitors: 60 },
   ],
-  topPaths: [{ path: '/', n: 130 }, { path: '/explore', n: 74 }],
+  topPaths: [{ path: '/', n: 130, visitors: 90 }, { path: '/explore', n: 74, visitors: 34 }],
   referrers: [{ host: 'reddit.com', n: 96 }],
   campaigns: [{ campaign: 'reddit-aruba-aug', n: 96 }],
   countries: [{ country: 'US', n: 71 }, { country: 'NL', n: 48 }],
@@ -587,5 +587,35 @@ describe('Stats — the clock on the chart is the reader\'s', () => {
     render(<Stats setPage={() => {}} />);
     await screen.findByLabelText(/by hour/i);
     expect(document.body.textContent).not.toMatch(/\d{1,2}:\d{2}\s*(AM|PM)/i);
+  });
+});
+
+describe('Stats — the share of visitors that reached a page', () => {
+  it('leads with visitors and shows the share, not just opens', async () => {
+    // The question this list is actually read for is "what percentage of
+    // visitors got to Explore". Counting opens cannot answer it — one person
+    // opening a page three times is three — and there was no denominator on the
+    // page to divide by either.
+    vi.stubGlobal('fetch', okFetch({
+      ...SUMMARY,
+      funnel: { ...SUMMARY.funnel, visitors: 100 },
+      topPaths: [{ path: '/explore', n: 74, visitors: 21 }],
+    }));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Where they came from/i);
+    const text = document.body.textContent ?? '';
+    expect(text).toMatch(/21 visits/);        // the visitor count leads
+    expect(text).toMatch(/74 opens/);         // opens are still there, secondary
+    expect(text).toMatch(/21% of all/);       // and the share is computed for you
+  });
+
+  it('falls back to opens if the endpoint has not been migrated yet', async () => {
+    // Deploy skew: an older stats_summary_since returns no `visitors` key. Show
+    // the open count rather than a blank bar.
+    vi.stubGlobal('fetch', okFetch({ ...SUMMARY, topPaths: [{ path: '/explore', n: 74 }] }));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Where they came from/i);
+    expect(document.body.textContent).toMatch(/74/);
+    expect(document.body.textContent).not.toMatch(/% of all/);
   });
 });

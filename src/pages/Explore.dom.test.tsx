@@ -44,7 +44,12 @@ const CATALOG: Catalog = {
     // reads (adventure, sections), so every control has something to separate.
     item('sub', 'Submarine Dive', { price_usd: 250, duration: '8 hrs', flags: ['PRIVATE_TOUR'], adventure: 90, sections: ['adventures-outdoor'], kids: { min_age: 16, baby_ok: false } }),
   ],
-  activities: [activity('eagle', 'Eagle Beach Morning Session')],
+  // category 'Activities', not 'Beaches', and that is load-bearing for the
+  // badge test below: a free BEACH no longer renders "✓ Free"
+  // (matcher.showsFreeTag), so a beach fixture could not exercise the badge's
+  // no-flip behaviour at all. Adding a second fixture instead was worse — four
+  // other tests assert this catalogue's exact contents.
+  activities: [activity('eagle', 'Eagle Beach Morning Session', { category: 'Activities' })],
 };
 
 vi.mock('../data/useCatalog', () => ({ useCatalog: () => ({ catalog: CATALOG, loading: false }) }));

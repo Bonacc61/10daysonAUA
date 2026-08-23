@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matchPool, blendPools, parseActivityCost, entryPrice } from './matcher';
+import { matchPool, blendPools, parseActivityCost, entryPrice, showsFreeTag } from './matcher';
 import type { Activity } from './activities';
 import type { ViatorGroup, ViatorItem, MatchTag } from '../types';
 import { DEFAULT_ANSWERS } from '../App';
@@ -118,3 +118,29 @@ describe('parseActivityCost', () => {
   });
 });
 
+
+
+describe('showsFreeTag — a free beach does not need telling', () => {
+  const card = (cost: string, category: string) =>
+    ({ cost, category } as Parameters<typeof showsFreeTag>[0]);
+
+  it('drops the tag on a free beach', () => {
+    // Nobody is surprised that a beach is free, so the chip carries no
+    // information — it just fills the slot a paid card uses for "Book now".
+    expect(showsFreeTag(card('Free', 'Beaches'))).toBe(false);
+    expect(showsFreeTag(card('Free + $16 gear', 'Beaches'))).toBe(false);
+  });
+
+  it('keeps it on anything else that is free', () => {
+    // A free tour or a free walk IS worth flagging — that is the case the tag
+    // was added for, and removing it everywhere would lose it.
+    expect(showsFreeTag(card('Free', 'Activities'))).toBe(true);
+    expect(showsFreeTag(card('Free', 'Tours'))).toBe(true);
+    expect(showsFreeTag(card('Free', 'Food'))).toBe(true);
+  });
+
+  it('never claims a paid card is free, beach or not', () => {
+    expect(showsFreeTag(card('$65 guided', 'Activities'))).toBe(false);
+    expect(showsFreeTag(card('$40', 'Beaches'))).toBe(false);
+  });
+});

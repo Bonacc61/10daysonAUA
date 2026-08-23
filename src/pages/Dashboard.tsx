@@ -24,7 +24,7 @@ import { readActiveTripId, writeActiveTripId, markTripOpened } from '../lib/acti
 import ShareEmailModal from '../components/ShareEmailModal';
 import { matchingSection } from '../data/itemFit';
 import CopyLinkRow, { SHARE_MENU_ROW } from '../components/CopyLinkRow';
-import { matchPool, blendPools, parseActivityCost } from '../data/matcher';
+import { matchPool, blendPools, parseActivityCost, showsFreeTag } from '../data/matcher';
 import { productUrlFor, sectionLabel, bookUrlForActivity } from '../data/exploreItems';
 import type { PageId, Answers } from '../App';
 import type { Activity } from '../data/activities';
@@ -409,7 +409,7 @@ function StarredActivityCard({ entry, added, onAdd }: { entry: ExploreEntry & { 
                style={{ flex: 1, padding: '8px 12px', fontSize: 12, fontWeight: 700, textDecoration: 'none', textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '2px 2px 0 var(--ink)' }}>
               Book now
             </a>
-          ) : parseActivityCost(a.cost) === 0 ? (
+          ) : showsFreeTag(a) ? (
             <span style={{ flex: 1, padding: '8px 12px', fontSize: 12, fontWeight: 700, textAlign: 'center', borderRadius: 10, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)' }}>✓ Free</span>
           ) : null}
           <AddButton added={added} onAdd={onAdd} fill={!book && parseActivityCost(a.cost) !== 0} />

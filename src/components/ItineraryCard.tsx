@@ -7,7 +7,7 @@ import GroupCard from './GroupCard';
 import CardBack from './CardBack';
 import SwapReasons, { type SwapTextProps } from './SwapReasons';
 import { productUrlFor, primarySection, bookUrlForActivity } from '../data/exploreItems';
-import { parseActivityCost } from '../data/matcher';
+import { parseActivityCost, showsFreeTag } from '../data/matcher';
 
 type Props = {
   entry: CardEntry;
@@ -232,7 +232,7 @@ function ActivityCardFront({
                 <a href={bookUrl} target="_blank" rel="noopener noreferrer" className="itin-book-btn">
                   Book now ↗
                 </a>
-              ) : parseActivityCost(a.cost) === 0 ? (
+              ) : showsFreeTag(a) ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '8px 13px', fontSize: 13, fontWeight: 700, borderRadius: 10, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)' }}>✓ Free</span>
               ) : null}
               {onSwap && (

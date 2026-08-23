@@ -17,7 +17,7 @@ import type { DurationBand, Provenance, SortKey, PoolMode, SailFacet } from '../
 import { searchEntries } from '../lib/entrySearch';
 import { answersToTags } from '../data/answerTags';
 import { useSearchBox } from '../lib/useSearchBox';
-import { parseActivityCost } from '../data/matcher';
+import { parseActivityCost, showsFreeTag } from '../data/matcher';
 import type { Section } from '../types';
 import type { ViatorItem } from '../types';
 import type { Answers } from '../App';
@@ -647,7 +647,7 @@ function ActivityTile({ a, section, sectionUrl: _sectionUrl, bookNow, added, onA
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Clock size={11} /> {a.duration}</span>
           <span className="chip-outline" style={{ fontSize: 11, padding: '3px 10px', background: 'var(--sand-50)' }}><Dollar size={11} /> {a.cost}</span>
         </div>
-        <div style={{ marginTop: 'auto' }}><CardActions bookNow={bookNow} free={parseActivityCost(a.cost) === 0} added={added} onAdd={onAdd} /></div>
+        <div style={{ marginTop: 'auto' }}><CardActions bookNow={bookNow} free={showsFreeTag(a)} added={added} onAdd={onAdd} /></div>
       </div>
     </div>
         {everFlipped && <CardBack kind="activity" activity={a} onFlip={() => flip(false)} />}

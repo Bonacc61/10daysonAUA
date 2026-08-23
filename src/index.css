@@ -1016,16 +1016,6 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
      on a phone. */
   .hero-cta-row .btn-red,
   .hero-cta-row .btn-hero-alt { font-size: 14px !important; padding: 11px 16px !important; }
-  /* Keep the hand-drawn arrow visible on mobile — pointing from slider card
-     down to the CTA. Shrink it and let it sit on its own line so it doesn't
-     overflow the CTA row. */
-  .hero-arrow {
-    width: 36px !important;
-    height: 44px !important;
-    margin-left: 4px !important;
-    margin-top: -4px !important;
-    transform: rotate(8deg);
-  }
   .hero-reddit-pill { font-size: 12px !important; }
 
   /* SSO section tightens on phone (buttons already stack via base styles) */

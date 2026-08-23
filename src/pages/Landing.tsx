@@ -119,10 +119,6 @@ export default function Landing({ setPage, answers, setAnswers, onPlanClick }: P
                     Explore!
                   </button>
                 </span>
-                <svg className="hero-arrow" width="46" height="56" viewBox="0 0 60 80" style={{ flexShrink: 0 }}>
-                  <path d="M 6 6 Q 50 16, 40 56 Q 36 68, 28 74" stroke="var(--ink)" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-                  <path d="M 22 68 L 28 76 L 36 70" stroke="var(--ink)" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
               </div>
 
             </div>
