@@ -450,7 +450,7 @@ export default function Stats({ setPage }: Props) {
                   Worked out from the visitor's network address on our own servers, which is then
                   discarded. Right about 95–99% of the time; a VPN reports wherever it exits.
                 </Explain>
-                <BarList rows={data.countries.map((c) => ({ label: c.country, n: c.n }))} color={SERIES[0]} unit="visitors" />
+                <BarList rows={data.countries.map((c) => ({ label: countryName(c.country), n: c.n }))} color={SERIES[0]} unit="visitors" />
               </div>
               <div>
                 <h3 style={h3}>Pages</h3>
@@ -1020,6 +1020,22 @@ function elapsedSince(iso: string, now = Date.now()): string {
   const weeks = Math.floor(days / 7);
   return weeks < 9 ? `${weeks} weeks of data` : `${Math.floor(days / 30)} months of data`;
 }
+
+/**
+ * "AW" -> "Aruba".
+ *
+ * Intl.DisplayNames is built into the browser, so the whole ISO-3166 list costs
+ * nothing to ship — a hand-kept map would be ~250 lines that slowly goes stale.
+ * Falls back to the raw code if the runtime lacks it or the code is unknown,
+ * because a two-letter code is a worse label than a name but a far better one
+ * than nothing.
+ */
+const countryName: (code: string) => string = (() => {
+  try {
+    const dn = new Intl.DisplayNames(['en'], { type: 'region' });
+    return (code) => { try { return dn.of(code) ?? code; } catch { return code; } };
+  } catch { return (code) => code; }
+})();
 
 function fmtDay(iso: string): string {
   const d = new Date(`${iso}T00:00:00Z`);

@@ -516,3 +516,27 @@ describe('Stats — how much history backs the numbers', () => {
     expect(document.body.textContent).toMatch(/1 minute of data/i);
   });
 });
+
+describe('Stats — countries read as places, not codes', () => {
+  it('spells the country out', async () => {
+    vi.stubGlobal('fetch', okFetch({
+      ...SUMMARY,
+      countries: [{ country: 'US', n: 9 }, { country: 'AW', n: 2 }, { country: 'NL', n: 1 }],
+    }));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Where they came from/i);
+    const text = document.body.textContent ?? '';
+    expect(text).toMatch(/United States/);
+    expect(text).toMatch(/Aruba/);
+    expect(text).toMatch(/Netherlands/);
+  });
+
+  it('falls back to the code rather than showing nothing', async () => {
+    // ZZ is the dataset's "unknown" and is stored as null, but a code the
+    // runtime does not recognise must still render as something.
+    vi.stubGlobal('fetch', okFetch({ ...SUMMARY, countries: [{ country: 'QQ', n: 3 }] }));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Where they came from/i);
+    expect(document.body.textContent).toMatch(/QQ\s*3 visitors/i);
+  });
+});
