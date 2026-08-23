@@ -1,10 +1,13 @@
 import type { Activity } from './activities';
 import type { CardEntry, Region } from '../types';
 
-// Curated lunch spots, surfaced via the afternoon "Suggest lunchspot" button.
-// Deliberately kept OUT of the main ACTIVITIES catalog (so they never show up in
-// Explore or the swap pool) — resolveSlotEntry resolves them by id, so once
-// added to a day they render as ordinary activity cards.
+// Curated lunch spots, surfaced via the afternoon "Suggest lunchspot" button
+// and, since 2026-08-23 (owner's call), as ordinary tiles in Explore —
+// `baseExploreEntries` adds them there.
+// Still deliberately OUT of the main ACTIVITIES catalog, which is now the swap
+// pool alone: a pastechi counter should not compete with a catamaran for an
+// afternoon slot. resolveSlotEntry resolves them by id, so one added from
+// Explore renders on a day like any other activity card.
 function spot(
   id: string, title: string, location: string, region: Region,
   description: string, cost: string, image: string,
@@ -31,6 +34,25 @@ export const LUNCHSPOTS: Activity[] = [
   spot('lunch-lindas-pancakes', "Linda's Dutch Pancakes", 'Noord', 'noord', 'Classic Dutch pannenkoeken with dozens of toppings.', '$10–18 pp', "/Linda's Dutch Pancakes.webp"),
   spot('lunch-bingo', 'Bingo!', 'Noord', 'noord', 'Laid-back spot for burgers, bowls and fresh smoothies.', '$8–16 pp', '/Bingo.webp'),
 ];
+
+/**
+ * Lunch spots that are the SAME VENUE as an entry in `ACTIVITIES`, and so must
+ * not get a second tile once Explore shows both lists.
+ *
+ * Zeerover is the one: `zeerovers-fresh-catch` ("Zeerovers Fish Fry") and
+ * `lunch-zeerover` are one fish shack in Savaneta, down to sharing
+ * /Zeerover.webp. Both entries are wanted — the activity is a plan card in the
+ * generator's swap pool, the lunch spot is what "Suggest lunch spot" offers —
+ * but two tiles for one restaurant is exactly the duplicate `keepsOwnTile`
+ * exists to prevent, so Explore keeps the ACTIVITIES one.
+ *
+ * Keyed by lunch-spot id, valued by the activity id it duplicates. Explicit
+ * rather than inferred from the shared image path: Antilla and Tres Trapi also
+ * share a photo and are genuinely two different places.
+ */
+export const LUNCHSPOT_ACTIVITY_DUPES: Record<string, string> = {
+  'lunch-zeerover': 'zeerovers-fresh-catch',
+};
 
 // Best-effort map from a free-text location to one of the lunch-spot regions.
 // Only the four regions that actually have lunch spots need rules; anything else

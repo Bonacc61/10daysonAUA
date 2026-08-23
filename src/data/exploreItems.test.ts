@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   itemCategory,
+  exploreCatalogCounts,
   advValue,
   keywordAdventure,
   vibePass,
@@ -31,6 +32,7 @@ import {
   type ExploreEntry,
 } from './exploreItems';
 import { getCatalog, type Catalog } from './activitySource';
+import { LUNCHSPOTS, LUNCHSPOT_ACTIVITY_DUPES } from './lunchspots';
 import type { Activity } from './activities';
 import type { MatchTag, ViatorGroup, ViatorItem } from '../types';
 import { fitItem } from './itemFit';
@@ -282,15 +284,52 @@ describe('primarySection', () => {
   });
 });
 
+// Lunch spots ride in `catalog.lunchspots`, not `catalog.activities` — that
+// second list is the generator's swap pool and deliberately excludes them.
+// Explore shows both, so "every activity" means both here.
+const localTiles = (c: Catalog) => {
+  const ids = new Set(c.activities.map((a) => a.id));
+  const spots = (c.lunchspots ?? []).filter((l) => {
+    const dupe = LUNCHSPOT_ACTIVITY_DUPES[l.id];
+    return !dupe || !ids.has(dupe);
+  });
+  return c.activities.length + spots.length;
+};
+
 // --- filterExploreEntries (integration against the real stub catalog) ------
 describe('filterExploreEntries', () => {
   const catalog: Catalog = getCatalog();
   const ALL = { section: 'All', search: '', vibe: 50, price: 50 };
 
+
   test('at default slider positions, every item and activity appears (nothing silently dropped)', () => {
     const out = filterExploreEntries(catalog, ALL);
     expect(out.filter((e) => e.kind === 'item').length).toBe(catalog.items.length);
-    expect(out.filter((e) => e.kind === 'activity').length).toBe(catalog.activities.length);
+    expect(out.filter((e) => e.kind === 'activity').length).toBe(localTiles(catalog));
+  });
+
+  test('every curated lunch spot gets a tile, except one that IS an activity', () => {
+    const out = filterExploreEntries(catalog, ALL);
+    const ids = new Set(out.flatMap((e) => (e.kind === 'activity' ? [e.activity.id] : [])));
+    expect(LUNCHSPOTS.length).toBeGreaterThan(0);
+    const absent = LUNCHSPOTS.filter((l) => !ids.has(l.id)).map((l) => l.id);
+    // Exact set: a new same-venue pair has to be declared, not silently doubled.
+    expect(absent.sort()).toEqual(Object.keys(LUNCHSPOT_ACTIVITY_DUPES).sort());
+  });
+
+  test('one restaurant, one tile — Zeerover does not appear twice', () => {
+    const out = filterExploreEntries(catalog, ALL);
+    const zeerover = out.filter((e) => e.kind === 'activity' && /zeerover/i.test(e.activity.title));
+    expect(zeerover).toHaveLength(1);
+    expect(zeerover[0].kind === 'activity' && zeerover[0].activity.id).toBe('zeerovers-fresh-catch');
+  });
+
+  // The header used to count `catalog.items` + `catalog.activities` while the
+  // grid counted the deduped entry list, so it advertised 355 tiles over a page
+  // showing 351 — the four picks `keepsOwnTile` folds into their product.
+  test('the header counts agree with the grid, exactly', () => {
+    const { items, localPicks } = exploreCatalogCounts(catalog);
+    expect(items + localPicks).toBe(filterExploreEntries(catalog, ALL).length);
   });
 
   test('Chill + Free shows only free, low-adventure activities (beaches/walks)', () => {
@@ -891,7 +930,7 @@ describe('filterExploreEntries — stars, reviews, duration, provenance', () => 
 
   test('a stars bar keeps every local pick and drops the products under it', () => {
     const out = filterExploreEntries(catalog, { ...ALL, minStars: 4.7 });
-    expect(out.filter((e) => e.kind === 'activity').length).toBe(catalog.activities.length);
+    expect(out.filter((e) => e.kind === 'activity').length).toBe(localTiles(catalog));
     for (const e of out) if (e.kind === 'item') expect(e.item.rating).toBeGreaterThanOrEqual(4.7);
     expect(out.filter((e) => e.kind === 'item').length).toBeLessThan(catalog.items.length);
   });
@@ -1217,5 +1256,32 @@ describe('filterExploreEntries — a matched local pick and its product are one 
   test('the pick stays dropped even when a filter removes its product', () => {
     const out = filterExploreEntries(catalogWith({}), { ...ALL, section: 'beaches' });
     expect(out).toHaveLength(0);
+  });
+});
+
+// Explore's "Local picks" button must cover lunch spots too — they are the most
+// hand-written thing on the page. Asserted here rather than through the UI: the
+// chip is a filter over `provenancePass`, and this is what it filters.
+describe('lunch spots under the Local picks filter', () => {
+  const catalog: Catalog = getCatalog();
+
+  test('every lunch spot with a tile survives provenance: local', () => {
+    const local = filterExploreEntries(catalog, {
+      section: 'All', search: '', vibe: 50, price: 50, provenance: 'local',
+    });
+    const ids = new Set(local.flatMap((e) => (e.kind === 'activity' ? [e.activity.id] : [])));
+    const expected = (catalog.lunchspots ?? [])
+      .filter((l) => !LUNCHSPOT_ACTIVITY_DUPES[l.id])
+      .map((l) => l.id);
+    expect(expected.length).toBeGreaterThan(0);
+    expect(expected.filter((id) => !ids.has(id))).toEqual([]);
+  });
+
+  test('and none of them survives provenance: bookable', () => {
+    const bookable = filterExploreEntries(catalog, {
+      section: 'All', search: '', vibe: 50, price: 50, provenance: 'bookable',
+    });
+    const ids = new Set(bookable.flatMap((e) => (e.kind === 'activity' ? [e.activity.id] : [])));
+    expect((catalog.lunchspots ?? []).filter((l) => ids.has(l.id))).toEqual([]);
   });
 });

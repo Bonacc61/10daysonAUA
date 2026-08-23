@@ -12,6 +12,19 @@ export type Catalog = {
   activities: Activity[];
   groups: ViatorGroup[];
   items: ViatorItem[];
+  /**
+   * Curated lunch spots, for Explore only.
+   *
+   * A field of its own rather than a slice of `activities`, because
+   * `activities` IS the generator's swap pool — putting a pastechi counter in
+   * it would let one compete with a catamaran for an afternoon slot. Explore
+   * reads it through `baseExploreEntries`; the generator never looks.
+   *
+   * Optional so the many synthetic catalogs in the tests stay minimal: a
+   * hand-built `{ activities, groups, items }` gets no lunch spots, which is
+   * what a test asserting an exact tile count wants.
+   */
+  lunchspots?: Activity[];
 };
 
 // Transportation-only Viator products (airport transfers, shuttles, private
@@ -168,6 +181,7 @@ export function getCatalog(): Catalog {
       activities: ACTIVITIES,
       groups: VIATOR_GROUPS,
       items: normalizePopularity(regroupItems(VIATOR_GROUPS, VIATOR_ITEMS.filter((i) => !isExcludedFromCatalog(i)))),
+      lunchspots: LUNCHSPOTS,
     };
   }
   return stubCatalog;
@@ -287,6 +301,9 @@ export function loadCatalog(): Promise<Catalog> {
       liveCatalog = {
         groups,
         items: mergedItems,
+        // Explore-only, and never merged with a Viator product: a lunch spot is
+        // not a bookable listing, so there is nothing to match it against.
+        lunchspots: LUNCHSPOTS,
         // Passed the POST-exclusion list on purpose: if a matched product was
         // dropped from the catalog, the pick has no live price to adopt and
         // keeps both its editorial cost and (per filterExploreEntries) its own

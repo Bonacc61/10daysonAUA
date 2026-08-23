@@ -11,7 +11,7 @@ import { useShortlist } from '../lib/shortlist';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
 import { isLocalPickItem } from '../data/localPickItems';
-import { filterExploreEntries, sortEntries, bookUrlForEntry, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, poolPass, sailPass, type ExploreEntry } from '../data/exploreItems';
+import { filterExploreEntries, exploreCatalogCounts, sortEntries, bookUrlForEntry, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, poolPass, sailPass, type ExploreEntry } from '../data/exploreItems';
 import { matchingSection } from '../data/itemFit';
 import type { DurationBand, Provenance, SortKey, PoolMode, SailFacet } from '../data/exploreItems';
 import { searchEntries } from '../lib/entrySearch';
@@ -338,6 +338,9 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   // it through `buildPool` to DEMOTE unknowns rather than drop them, which is
   // the softer promise a checkbox could not make. `splitByFacet` itself now has
   // no caller outside its own test; left in place for the v2 wiring.
+  // Counted off the same unfiltered list the grid renders, never off the raw
+  // catalog: those disagreed by the four picks `keepsOwnTile` dedupes away.
+  const counts = useMemo(() => exploreCatalogCounts(catalog), [catalog]);
   const substringHits = filterExploreEntries(catalog, { section, search, vibe, price, ...extra });
 
   // Semantic blending + typed contraindications, shared with the Personalized
@@ -379,7 +382,7 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
         <div className="container-1280 explore-head" style={{ padding: '36px 36px 24px' }}>
           <h1 className="font-display" style={{ fontSize: 44, margin: '0 0 6px', color: 'var(--ink)', lineHeight: 1 }}>Explore Aruba.</h1>
           <p style={{ fontStyle: 'italic', fontSize: 15, color: 'rgba(0,0,0,0.75)', margin: 0 }}>
-            {catalog.items.length} activities + {catalog.activities.length} local picks — filter by vibe, price, and duration.
+            {counts.items} activities + {counts.localPicks} local picks — filter by vibe, price, and duration.
           </p>
 
           <SearchBar box={box} addedByMeaning={addedByMeaning} placeholder="Search beaches, activities, food…" style={{ marginTop: 22 }} />

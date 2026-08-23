@@ -7,6 +7,7 @@ import { isWaterBased, adventureCapForFlags, fitItem, activityKind } from './ite
 import { startTimesFor } from './startTimes';
 import { isLocalPickItem } from './localPickItems';
 import { activityTags } from './answerTags';
+import { LUNCHSPOT_ACTIVITY_DUPES } from './lunchspots';
 
 // Content bucket for a tile — CATEGORIES without the 'All' filter sentinel.
 // Retained only as the last-resort input to the adventure (vibe) proxy.
@@ -1024,10 +1025,26 @@ export function sortEntries(
   }
 }
 
-// Build every tile from the catalog, apply category/search + the vibe/price
-// graded filters, and sort. Every item/activity is a candidate — only an
-// explicit filter removes one.
-export function filterExploreEntries(catalog: Catalog, opts: ExploreFilters): ExploreEntry[] {
+/**
+ * Every tile Explore can show, before a single filter runs.
+ *
+ * One list, because the page used to derive its headline count from a
+ * DIFFERENT one: the header read `catalog.items.length` +
+ * `catalog.activities.length` and advertised "329 activities + 26 local
+ * picks", while the grid below counted this list and reported 351. The four
+ * missing were the picks `keepsOwnTile` dedupes away — the header was
+ * counting tiles that Explore had never intended to render. `exploreCatalogCounts`
+ * now reads the same list the grid does, so the two cannot disagree again.
+ *
+ * `catalog.lunchspots` is folded in here and nowhere else. Lunch spots were
+ * absent from Explore until 2026-08-23 (owner's call to surface them), and
+ * they stay out of `catalog.activities` because that list IS the generator's
+ * swap pool — a pastechi counter should not compete with a catamaran for an
+ * afternoon slot. `resolveSlotEntry` already falls back to `LUNCHSPOTS` by id,
+ * so one added from Explore to the shortlist resolves on a day like any other
+ * card.
+ */
+function baseExploreEntries(catalog: Catalog): ExploreEntry[] {
   /**
    * Is this local pick still worth its own tile?
    *
@@ -1050,13 +1067,22 @@ export function filterExploreEntries(catalog: Catalog, opts: ExploreFilters): Ex
    * happened to remove its product, which is the duplicate returning under a
    * section tab.
    */
+  // A lunch spot that IS an activity (Zeerover) would otherwise be two tiles
+  // for one restaurant. Checked against the live list, not the constant, so a
+  // pick dropped from the catalog hands its tile back to the lunch spot.
+  const activityIds = new Set(catalog.activities.map((a) => a.id));
+  const notAnActivityAlready = (a: Activity): boolean => {
+    const dupe = LUNCHSPOT_ACTIVITY_DUPES[a.id];
+    return !dupe || !activityIds.has(dupe);
+  };
+
   const catalogItemIds = new Set(catalog.items.map((i) => i.id));
   const keepsOwnTile = (a: Activity): boolean => {
     const code = viatorProductCode(a.viator_item_url);
     return !code || !catalogItemIds.has(code);
   };
 
-  const entries: ExploreEntry[] = [
+  return [
     ...catalog.items.map((item): ExploreEntry => ({
       kind: 'item',
       item,
@@ -1065,7 +1091,7 @@ export function filterExploreEntries(catalog: Catalog, opts: ExploreFilters): Ex
       // Editorial sections (stub) win; live items derive from their Viator tags.
       sections: item.sections ?? sectionsForTags(item.tags),
     })),
-    ...catalog.activities.filter(keepsOwnTile).map((activity): ExploreEntry => ({
+    ...[...catalog.activities, ...(catalog.lunchspots ?? []).filter(notAnActivityAlready)].filter(keepsOwnTile).map((activity): ExploreEntry => ({
       kind: 'activity',
       activity,
       category: activity.category as Category,
@@ -1073,6 +1099,22 @@ export function filterExploreEntries(catalog: Catalog, opts: ExploreFilters): Ex
       sections: activity.sections ?? ['tours-sightseeing'],
     })),
   ];
+}
+
+/** The unfiltered tile counts the Explore header reports, split by kind. */
+export function exploreCatalogCounts(catalog: Catalog): { items: number; localPicks: number } {
+  const base = baseExploreEntries(catalog);
+  return {
+    items: base.filter((e) => e.kind === 'item').length,
+    localPicks: base.filter((e) => e.kind === 'activity').length,
+  };
+}
+
+// Build every tile from the catalog, apply category/search + the vibe/price
+// graded filters, and sort. Every item/activity is a candidate — only an
+// explicit filter removes one.
+export function filterExploreEntries(catalog: Catalog, opts: ExploreFilters): ExploreEntry[] {
+  const entries = baseExploreEntries(catalog);
 
   const s = opts.search.trim().toLowerCase();
   const matchSearch = (e: ExploreEntry): boolean => {

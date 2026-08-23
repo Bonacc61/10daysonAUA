@@ -157,7 +157,7 @@ function ActivityCardFront({
                     it multiplied card height by the same 1.7. Measured at 1440:
                     the O'Niels card went 337px -> 540px, ~370px of it empty
                     space above Swap this, because that photo is portrait (0.67).
-                    Five of the six sub-1.4 aspect images in public/ are food
+                    Seven of the thirteen sub-1.4 aspect images in public/ are food
                     photos, i.e. the lunch or dinner slot of most days.
                     Positioning it out of flow gives the button a definite box to
                     stretch into and lets cover do the cropping it was there for. */
