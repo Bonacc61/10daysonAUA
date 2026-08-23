@@ -619,3 +619,33 @@ describe('Stats — the share of visitors that reached a page', () => {
     expect(document.body.textContent).not.toMatch(/% of all/);
   });
 });
+
+describe('Stats — the bars mean their numbers', () => {
+  it('scales the Pages bars to ALL visitors, not to the biggest row', async () => {
+    // The bug: at row-relative scale the top row is always a FULL bar however
+    // small its share, so a row printing "20% of all" sat beside a bar drawn as
+    // if it were the whole thing. The length has to match the number.
+    vi.stubGlobal('fetch', okFetch({
+      ...SUMMARY,
+      funnel: { ...SUMMARY.funnel, visitors: 100 },
+      topPaths: [{ path: '/', n: 200, visitors: 50 }, { path: '/explore', n: 40, visitors: 10 }],
+    }));
+    const { container } = render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Where they came from/i);
+    const fills = [...container.querySelectorAll('li > span:nth-child(2) > span')]
+      .map((el) => (el as HTMLElement).style.width);
+    // 50 of 100 draws half the track, not all of it.
+    expect(fills).toContain('50%');
+    expect(fills).toContain('10%');
+  });
+
+  it('states the denominator, because the pages do not add up to it', async () => {
+    // A visitor appears on every page they opened and not everyone starts on
+    // the home page, so the rows neither sum to the total nor contain it.
+    vi.stubGlobal('fetch', okFetch({ ...SUMMARY, funnel: { ...SUMMARY.funnel, visitors: 30 } }));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Where they came from/i);
+    expect(document.body.textContent).toMatch(/Share of the 30/);
+    expect(document.body.textContent).toMatch(/do not add up/i);
+  });
+});

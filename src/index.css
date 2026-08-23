@@ -1753,3 +1753,15 @@ body:has(.cookie-banner) .map-page { padding-bottom: 72px; }
 }
 .btn-hero-alt:hover  { background: #fff; }
 .btn-hero-alt:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
+
+/* /stats bar rows: label | track | value on a wide screen.
+
+   On a phone that does not fit — a 27ch value column beside a label leaves the
+   track about 2px wide and pushes the row into a horizontal scroll. Measured at
+   390px before this rule. So below 600px the row becomes label | value with the
+   track on its own line underneath, full width, where its length is still
+   comparable between rows because every track is the same width again. */
+@media (max-width: 600px) {
+  .stat-bar-row { grid-template-columns: 1fr auto !important; row-gap: 4px; }
+  .stat-bar-row > span:nth-child(2) { grid-column: 1 / -1; order: 3; }
+}

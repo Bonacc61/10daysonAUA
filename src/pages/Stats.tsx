@@ -524,7 +524,7 @@ export default function Stats({ setPage }: Props) {
                 </Explain>
                 <BarList rows={data.countries.map((c) => ({ label: countryName(c.country), n: c.n }))} color={SERIES[0]} unit="visitors" />
               </div>
-              <div>
+              <div style={{ gridColumn: '1 / -1' }}>
                 <h3 style={h3}>Pages</h3>
                 <Explain>
                   How many {isOneDay ? 'people' : 'visits'} reached each page, and what share of all
@@ -545,7 +545,19 @@ export default function Stats({ setPage }: Props) {
                   }))}
                   color={SERIES[0]}
                   unit={isOneDay ? 'unique' : 'visits'}
+                  // The bar is the share of ALL visitors, so its length matches
+                  // the percentage printed beside it. Scaled to the biggest row
+                  // instead, the home page would always draw a full bar however
+                  // small its share and the picture would contradict the number.
+                  scaleTo={allVisitors}
+                  valueWidth="27ch"
                 />
+                <p style={{ ...muted, fontSize: 12, margin: '8px 0 0' }}>
+                  Share of the {allVisitors} {isOneDay ? 'visitors' : 'visits'} counted in this
+                  window. They do not add up to that: a visitor appears on every page they opened,
+                  and not everyone starts on the home page — some arrive straight on a shared
+                  itinerary.
+                </p>
               </div>
             </div>
           </Section>
@@ -943,30 +955,57 @@ function Key({ color, label }: { color: string; label: string }) {
  * Every bar is directly labelled, which is also what discharges the validator's
  * contrast warning for the lighter series colours.
  */
-function BarList({ rows, color, unit }: { rows: { label: string; n: number; sub?: string }[]; color: string; unit: string }) {
+function BarList({ rows, color, unit, scaleTo, valueWidth = '11.5ch' }: {
+  rows: { label: string; n: number; sub?: string }[];
+  color: string;
+  unit: string;
+  /**
+   * Denominator for the bar length. Omitted, bars are relative to the biggest
+   * row — right for a ranking, where the question is "which is largest".
+   * Supplied, the bar is that share of the WHOLE, which is what a row claiming
+   * "20% of all" has to look like: at row-relative scale the top row is always
+   * a full bar however small its share, and the picture contradicts the number
+   * printed beside it.
+   */
+  scaleTo?: number;
+  /** Width of the value column. Fixed so every bar track is identical. */
+  valueWidth?: string;
+}) {
   if (rows.length === 0) return <p style={muted}>Nothing in this window.</p>;
-  const max = Math.max(...rows.map((r) => r.n), 1);
+  const denom = scaleTo && scaleTo > 0 ? scaleTo : Math.max(...rows.map((r) => r.n), 1);
   return (
     <ul style={{ listStyle: 'none', margin: '0 0 4px', padding: 0, display: 'grid', gap: 6 }}>
       {rows.map((r) => (
-        <li key={r.label} style={{ display: 'grid', gridTemplateColumns: 'minmax(90px, 30%) 1fr auto', alignItems: 'center', gap: 10, fontSize: 13 }}>
-          {/* Wraps rather than ellipsising. On a phone the label column is about
-              90px, and "Started the questionnaire" truncated to "Started the …"
+        // FIXED value column, not `auto`. With `auto` the column took whatever
+        // its text needed, so a long value ("24 unique · 47 opens · 80% of all")
+        // squeezed the bar track while a short one ("1 unique · 3%") left it
+        // wide — every row measured against a different track, and the bars came
+        // out backwards: 24 visitors drew a sliver, 1 visitor drew a wider bar.
+        // A fixed column makes every track identical, which is the only way the
+        // lengths mean anything.
+        <li key={r.label} className="stat-bar-row" style={{ display: 'grid', gridTemplateColumns: `minmax(76px, 26%) 1fr ${valueWidth}`, alignItems: 'center', gap: 10, fontSize: 13 }}>
+          {/* Wraps rather than ellipsising. On a phone the label column is
+              narrow, and "Started the questionnaire" truncated to "Started the …"
               loses the only thing that made the funnel row mean anything.
               overflowWrap handles the other case — a product code is one long
               token with nowhere to break. */}
           <span style={{ overflowWrap: 'anywhere' }} title={r.label}>{r.label}</span>
           <span style={{ background: 'var(--sand-100)', borderRadius: 4, height: 16, border: '1px solid var(--sand-200)' }}>
             <span style={{
-              display: 'block', height: '100%', width: `${Math.max((r.n / max) * 100, 1.5)}%`,
+              display: 'block', height: '100%',
+              // Clamped: a share can exceed the denominator in edge cases, and a
+              // bar wider than its track escapes the row.
+              width: `${Math.min(Math.max((r.n / denom) * 100, 1.5), 100)}%`,
               background: color, borderRadius: 3,
             }} />
           </span>
-          <span style={{ fontVariantNumeric: 'tabular-nums', opacity: 0.75, whiteSpace: 'nowrap' }}>
+          <span
+            style={{ fontVariantNumeric: 'tabular-nums', opacity: 0.75, textAlign: 'right', whiteSpace: 'nowrap' }}
+            title={r.sub ? `${r.n} ${unit} — ${r.sub}` : `${r.n} ${unit}`}
+          >
             {/* The unit is VISIBLE, not screen-reader-only. It was `sr-only`
                 first, which this app has never defined as a class, so it
-                rendered inline and produced "66 · 100% of visitors visitors".
-                Reading the rendered page is what caught it. */}
+                rendered inline and produced "66 · 100% of visitors visitors". */}
             {r.n.toLocaleString('en-GB')} {r.n === 1 ? unit.replace(/s$/, '') : unit}{r.sub ? ` · ${r.sub}` : ''}
           </span>
         </li>
