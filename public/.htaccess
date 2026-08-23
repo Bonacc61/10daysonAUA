@@ -1,27 +1,3 @@
-# FIRST-PARTY PATH TO THE EDGE FUNCTIONS.
-#
-# Requests to *.supabase.co are on the common ad-blocker filter lists, and a
-# blocker that black-holes rather than refuses turns them into multi-minute
-# hangs — which is how the stats page came to sit on "Loading" and the login box
-# on "Sending…" for two minutes, while the same calls answered in under a second
-# from elsewhere. Routing them through this domain removes the third-party
-# hostname entirely: same origin as the page, nothing for a filter list to match.
-#
-# It also closes the analytics undercount the design flagged as an open risk —
-# beacons that blockers were dropping now go to 10daysonaruba.com.
-#
-# If mod_proxy is not available on this host these paths return 500 and nothing
-# else is affected; the app falls back to the direct URL.
-#
-# MUST STAY ABOVE THE SPA FALLBACK. That rule matches anything that is not a
-# file on disk and ends with [L], so placed after it these paths were swallowed
-# and served index.html with a 200 — which looks like a working proxy until you
-# read the body.
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteRule ^api/fn/([a-z-]+)$ https://mrfblzsihpecockhsnqe.supabase.co/functions/v1/$1 [P,L]
-</IfModule>
-
 # SPA fallback: send unknown paths to index.html so client-side routing works
 <IfModule mod_rewrite.c>
   RewriteEngine On

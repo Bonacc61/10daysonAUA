@@ -1,21 +1,25 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { trackPageview, trackOutbound } from './lib/beacon';
 import type { Section } from './types';
 import Nav from './components/Nav';
 import Landing from './pages/Landing';
-import Explore from './pages/Explore';
-import Questionnaire from './pages/Questionnaire';
-import Itinerary from './pages/Itinerary';
-import Privacy from './pages/Privacy';
-import Terms from './pages/Terms';
-import SurpriseMe from './pages/SurpriseMe';
-import Dashboard from './pages/Dashboard';
-import DashboardPreview from './pages/DashboardPreview';
+// Every page except Landing is split out of the initial bundle. One chunk used
+// to carry all of them, so opening /stats downloaded Explore, the questionnaire,
+// the itinerary and the dashboard as well — 418 KB gzipped before the page could
+// render. Landing stays eager because it IS the first paint for most visitors.
+const Explore = lazy(() => import('./pages/Explore'));
+const Questionnaire = lazy(() => import('./pages/Questionnaire'));
+const Itinerary = lazy(() => import('./pages/Itinerary'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const Terms = lazy(() => import('./pages/Terms'));
+const SurpriseMe = lazy(() => import('./pages/SurpriseMe'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const DashboardPreview = lazy(() => import('./pages/DashboardPreview'));
 import SignedInToast from './components/SignedInToast';
 import LoginModal from './components/LoginModal';
 import CookieBanner from './components/CookieBanner';
-import TripMap from './pages/Map';
-import Stats from './pages/Stats';
+const TripMap = lazy(() => import('./pages/Map'));
+const Stats = lazy(() => import('./pages/Stats'));
 import { AuthProvider, useAuth } from './lib/auth';
 
 export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary' | 'map' | 'privacy' | 'terms' | 'surprise' | 'dashboard' | 'preview' | 'stats';
@@ -213,6 +217,11 @@ function AppShell() {
       <SignedInToast />
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
       <Nav page={page} setPage={setPage} onLogin={() => setLoginOpen(true)} canSeeItinerary={canSeeItinerary} />
+      {/* One boundary around the lot. The fallback is deliberately a plain
+          coloured block rather than a spinner: chunks are same-origin and
+          fingerprinted, so on any normal connection it is gone within a frame,
+          and a spinner that flashes for 40ms reads as jank. */}
+      <Suspense fallback={<div style={{ background: 'var(--cream)', minHeight: '70vh' }} />}>
       {page === 'landing'       && <Landing       setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onPlanClick={() => { setQInitialStep(2); setPage('questionnaire'); }} />}
       {page === 'questionnaire' && <Questionnaire setPage={setPage} answers={answers} setAnswers={saveAndSetAnswers} onComplete={markQuestionnaireDone} initialStep={qInitialStep} />}
       {page === 'explore'       && <Explore       setPage={setPage} answers={answers} canSeeItinerary={canSeeItinerary} initialSection={initialExploreSection ?? undefined} />}
@@ -224,6 +233,7 @@ function AppShell() {
       {page === 'dashboard'     && <Dashboard     setPage={setPage} onLogin={() => setLoginOpen(true)} answers={answers} />}
       {page === 'preview'       && <DashboardPreview setPage={setPage} />}
       {page === 'stats'         && <Stats           setPage={setPage} />}
+      </Suspense>
     </>
   );
 }
