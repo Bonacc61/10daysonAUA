@@ -35,6 +35,9 @@ import { useAuth } from '../lib/auth';
 type Props = { setPage: (p: PageId) => void };
 
 type Daily = { day: string; views: number; visitors: number };
+type Hourly = { hour: string; views: number; visitors: number };
+/** What the chart actually plots, whichever bucket it came from. */
+type Point = { key: string; label: string; views: number; visitors: number };
 type Counted = { n: number };
 type Summary = {
   days: number;
@@ -49,6 +52,8 @@ type Summary = {
     busiestDay: { day: string; visitors: number } | null;
   };
   daily: Daily[];
+  /** Present only for windows under three days; empty otherwise. */
+  hourly?: Hourly[];
   topPaths: (Counted & { path: string })[];
   referrers: (Counted & { host: string })[];
   campaigns: (Counted & { campaign: string })[];
@@ -231,6 +236,13 @@ export default function Stats({ setPage }: Props) {
   // One day is the only window over which "distinct visitor codes" and "unique
   // people" are the same thing.
   const isOneDay = data.window === 'today' || (data.daily ?? []).length <= 1;
+  // Hours when the window is short enough for them to exist, days otherwise. A
+  // single day plotted as days is ONE point, and a path with one moveto and no
+  // lineto strokes nothing — the chart rendered gridlines and no data at all.
+  const byHour = (data.hourly?.length ?? 0) > 0;
+  const points: Point[] = byHour
+    ? data.hourly!.map((h) => ({ key: h.hour, label: `${h.hour.slice(11, 16)}`, views: h.views, visitors: h.visitors }))
+    : (data.daily ?? []).map((d) => ({ key: d.day, label: fmtDay(d.day), views: d.views, visitors: d.visitors }));
   const avgPerDay = (data.daily ?? []).length
     ? Math.round((data.daily.reduce((s, d) => s + d.visitors, 0) / data.daily.length))
     : 0;
@@ -365,8 +377,8 @@ export default function Stats({ setPage }: Props) {
             <Devices d={data.devices} />
           </Section>
 
-          <Section title="Traffic over time">
-            <TimeChart daily={data.daily} />
+          <Section title={byHour ? 'Traffic through the day' : 'Traffic over time'}>
+            <TimeChart points={points} byHour={byHour} />
           </Section>
 
           <Section title="Unique visitors, by day — most recent 14">
@@ -603,7 +615,7 @@ function Tile({ label, value, sub }: { label: string; value: number; sub?: strin
  * pageviews, so the visitor line sitting under the pageview line is the true
  * relationship rather than an artefact of scaling.
  */
-function TimeChart({ daily }: { daily: Daily[] }) {
+function TimeChart({ points: daily, byHour }: { points: Point[]; byHour: boolean }) {
   const [hover, setHover] = useState<number | null>(null);
   const box = useRef<HTMLDivElement | null>(null);
   // MEASURED width, drawn 1:1. A fixed viewBox scaled with width:100% scales the
@@ -648,7 +660,7 @@ function TimeChart({ daily }: { daily: Daily[] }) {
     setHover(Math.max(0, Math.min(daily.length - 1, Math.round(rel / step))));
   };
 
-  if (daily.length === 0) return <p style={muted}>No days with traffic in this window.</p>;
+  if (daily.length === 0) return <p style={muted}>Nothing recorded in this window yet.</p>;
 
   const shown = hover !== null && daily[hover] ? daily[hover] : daily[daily.length - 1];
 
@@ -658,11 +670,13 @@ function TimeChart({ daily }: { daily: Daily[] }) {
           by colour alone. */}
       <div style={{ display: 'flex', gap: 18, marginBottom: 8, fontSize: 12, flexWrap: 'wrap' }}>
         <Key color={SERIES[0]} label="Pageviews" />
-        <Key color={SERIES[1]} label="Unique visitors (daily)" />
+        {/* Hourly uniques are distinct codes seen WITHIN that hour, and summing
+            the hours over-counts the same way summing days does. Named so. */}
+        <Key color={SERIES[1]} label={byHour ? 'Unique visitors (in that hour)' : 'Unique visitors (daily)'} />
       </div>
       <svg
         width={w} height={H} viewBox={`0 0 ${w} ${H}`}
-        role="img" aria-label="Pageviews and daily unique visitors over time"
+        role="img" aria-label={byHour ? 'Pageviews and unique visitors by hour' : 'Pageviews and daily unique visitors over time'}
         style={{ display: 'block', touchAction: 'pan-y' }}
         onMouseMove={(e) => pick(e.clientX)}
         onMouseLeave={() => setHover(null)}
@@ -677,6 +691,14 @@ function TimeChart({ daily }: { daily: Daily[] }) {
         ))}
         <path d={path('views')} fill="none" stroke={SERIES[0]} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         <path d={path('visitors')} fill="none" stroke={SERIES[1]} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+        {/* A single bucket has no line to draw — one moveto strokes nothing — so
+            it is marked instead of silently disappearing. */}
+        {daily.length === 1 && (
+          <>
+            <circle cx={x(0)} cy={y(daily[0].views)} r={5} fill={SERIES[0]} stroke="var(--sand-50)" strokeWidth={2} />
+            <circle cx={x(0)} cy={y(daily[0].visitors)} r={5} fill={SERIES[1]} stroke="var(--sand-50)" strokeWidth={2} />
+          </>
+        )}
         {hover !== null && daily[hover] && (
           <>
             <line x1={x(hover)} x2={x(hover)} y1={PAD_T} y2={PAD_T + plotH} stroke={INK} strokeWidth={1} opacity={0.25} />
@@ -685,16 +707,19 @@ function TimeChart({ daily }: { daily: Daily[] }) {
             <circle cx={x(hover)} cy={y(daily[hover].visitors)} r={4} fill={SERIES[1]} stroke="var(--sand-50)" strokeWidth={2} />
           </>
         )}
-        <text x={PAD_L} y={H - 6} fontSize={11} fill={INK} opacity={0.55}>{fmtDay(daily[0].day)}</text>
+        <text x={PAD_L} y={H - 6} fontSize={11} fill={INK} opacity={0.55}>{daily[0].label}</text>
         {daily.length > 1 && (
-          <text x={w - PAD_R} y={H - 6} textAnchor="end" fontSize={11} fill={INK} opacity={0.55}>{fmtDay(daily[daily.length - 1].day)}</text>
+          <text x={w - PAD_R} y={H - 6} textAnchor="end" fontSize={11} fill={INK} opacity={0.55}>{daily[daily.length - 1].label}</text>
         )}
       </svg>
       {/* Always rendered, never conditionally. Mounting this on hover grew the
           figure by ~24px and shunted every section below it up and down. */}
       <div style={{ fontSize: 12, marginTop: 6, minHeight: 18, opacity: hover === null ? 0.55 : 1 }}>
-        <strong>{fmtDay(shown.day)}</strong> — {shown.views} pageviews, {shown.visitors} visitors
-        {hover === null && <span style={{ opacity: 0.7 }}> (latest day; hover or tap the chart for another)</span>}
+        <strong>{shown.label}</strong> — {shown.views} pageview{shown.views === 1 ? '' : 's'},{' '}
+        {shown.visitors} visitor{shown.visitors === 1 ? '' : 's'}
+        {hover === null && (
+          <span style={{ opacity: 0.7 }}> (latest {byHour ? 'hour' : 'day'}; hover or tap the chart for another)</span>
+        )}
       </div>
     </figure>
   );

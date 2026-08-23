@@ -310,3 +310,44 @@ describe('Stats — unique visitors are named for what they are', () => {
     expect((screen.getByRole('button', { name: /Last 90 days/i }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
+
+describe('Stats — the chart plots something', () => {
+  it('draws hours when the window is short enough to have them', async () => {
+    vi.stubGlobal('fetch', okFetch({
+      ...SUMMARY, window: 'today',
+      daily: [{ day: '2026-08-23', views: 22, visitors: 11 }],
+      hourly: [
+        { hour: '2026-08-23T16:00:00+00:00', views: 6, visitors: 4 },
+        { hour: '2026-08-23T17:00:00+00:00', views: 15, visitors: 6 },
+        { hour: '2026-08-23T18:00:00+00:00', views: 1, visitors: 1 },
+      ],
+    }));
+    render(<Stats setPage={() => {}} />);
+    expect(await screen.findByLabelText(/by hour/i)).toBeTruthy();
+    expect(document.body.textContent).toMatch(/Traffic through the day/i);
+    // Hourly uniques are per-hour, and summing them over-counts. Say so.
+    expect(document.body.textContent).toMatch(/in that hour/i);
+    expect(document.body.textContent).toMatch(/16:00/);
+  });
+
+  it('draws SOMETHING for a single bucket rather than an empty box', async () => {
+    // The reported fault: one day of data plotted as days is one point, and an
+    // SVG path with a single moveto and no lineto strokes nothing at all. The
+    // box rendered gridlines, axis labels and no data — the only version of
+    // this chart that had ever been seen, since collection began that morning.
+    vi.stubGlobal('fetch', okFetch({
+      ...SUMMARY, hourly: [], daily: [{ day: '2026-08-23', views: 22, visitors: 11 }],
+    }));
+    const { container } = render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Traffic over time/i);
+    const svg = container.querySelector('svg[role="img"]')!;
+    expect(svg.querySelectorAll('circle').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('falls back to days when the window is too long for hours', async () => {
+    vi.stubGlobal('fetch', okFetch({ ...SUMMARY, hourly: [] }));
+    render(<Stats setPage={() => {}} />);
+    expect(await screen.findByLabelText(/daily unique visitors over time/i)).toBeTruthy();
+    expect(document.body.textContent).toMatch(/Unique visitors \(daily\)/i);
+  });
+});
