@@ -12,6 +12,7 @@ import type { PageId, Answers } from '../App';
 import type { Activity } from '../data/activities';
 import type { ViatorGroup, ViatorItem, Slot } from '../types';
 import type { Catalog } from '../data/activitySource';
+import { LUNCHSPOTS } from '../data/lunchspots';
 
 type Props = { setPage: (p: PageId) => void; answers: Answers };
 
@@ -61,7 +62,10 @@ function resolvePool(shortlist: Set<string>, catalog: Catalog): Suggestion[] {
         });
       }
     } else {
-      const activity = catalog.activities.find((a) => a.id === sid);
+      // LUNCHSPOTS too — Explore can shortlist one, and a pool that ignores it
+      // disagrees with the store it is reading.
+      const activity = catalog.activities.find((a) => a.id === sid)
+        ?? LUNCHSPOTS.find((l) => l.id === sid);
       if (activity) {
         pool.push({
           kind: 'activity', id: sid, activity,

@@ -1786,7 +1786,13 @@ export function resolvePinId(rawId: string, catalog: Catalog): CardEntry | null 
     const others = catalog.items.filter((i) => i.group_id === group.id && i.id !== item.id);
     return { kind: 'group', group, bestSeller: item, others };
   }
-  const activity = catalog.activities.find((a) => a.id === rawId);
+  // LUNCHSPOTS too, and not as a nicety: since 2026-08-23 Explore lists lunch
+  // spots, so "+ Add" writes one of these ids to the shortlist. Resolving only
+  // against catalog.activities made the picker silently drop it — shortlisted,
+  // visible under My Aruba, and impossible to place on a day. Same fallback as
+  // resolveSlotEntry (activitySource.ts) and localActivity (entryLinks.ts).
+  const activity = catalog.activities.find((a) => a.id === rawId)
+    ?? LUNCHSPOTS.find((l) => l.id === rawId);
   if (!activity) return null;
   return { kind: 'activity', activity };
 }

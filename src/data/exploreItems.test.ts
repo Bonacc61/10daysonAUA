@@ -32,7 +32,8 @@ import {
   type ExploreEntry,
 } from './exploreItems';
 import { getCatalog, type Catalog } from './activitySource';
-import { LUNCHSPOTS, LUNCHSPOT_ACTIVITY_DUPES } from './lunchspots';
+import { LUNCHSPOTS, LUNCHSPOT_ACTIVITY_DUPES, isLunchspot } from './lunchspots';
+import { resolvePinId } from './itineraryGenerator';
 import type { Activity } from './activities';
 import type { MatchTag, ViatorGroup, ViatorItem } from '../types';
 import { fitItem } from './itemFit';
@@ -1283,5 +1284,34 @@ describe('lunch spots under the Local picks filter', () => {
     });
     const ids = new Set(bookable.flatMap((e) => (e.kind === 'activity' ? [e.activity.id] : [])));
     expect((catalog.lunchspots ?? []).filter((l) => ids.has(l.id))).toEqual([]);
+  });
+});
+
+/**
+ * The shortlist round-trip, end to end.
+ *
+ * Explore's "+ Add" writes a raw id to `10doa:starred`; the itinerary's
+ * empty-slot picker maps every stored id through `resolvePinId`. Those two
+ * resolvers disagreed the moment Explore started listing lunch spots: the id
+ * was storable but not placeable, so a shortlisted lunch spot showed up under
+ * My Aruba and never in the picker. Shipped 2026-08-23 in ef107db, caught by
+ * review, fixed the same night. `resolveSlotEntry` renders an entry ALREADY in
+ * a plan and had the fallback all along — which is why checking it "verified"
+ * nothing.
+ */
+describe('a shortlisted lunch spot can actually reach a day', () => {
+  const catalog: Catalog = getCatalog();
+
+  test('resolvePinId resolves every lunch spot Explore can shortlist', () => {
+    const shortlistable = filterExploreEntries(catalog, { section: 'All', search: '', vibe: 50, price: 50 })
+      .flatMap((e) => (e.kind === 'activity' && isLunchspot(e.activity.id) ? [e.activity.id] : []));
+    expect(shortlistable.length).toBeGreaterThan(0);
+    expect(shortlistable.filter((id) => resolvePinId(id, catalog) === null)).toEqual([]);
+  });
+
+  test('and the resolved pin is the lunch spot itself, not a lookalike', () => {
+    const pin = resolvePinId('lunch-pastechi-house', catalog);
+    expect(pin?.kind).toBe('activity');
+    expect(pin?.kind === 'activity' && pin.activity.title).toBe('Pastechi House');
   });
 });

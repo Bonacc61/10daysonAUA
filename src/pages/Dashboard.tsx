@@ -34,6 +34,7 @@ import type { TripState } from '../lib/trips';
 import type { ExploreEntry } from '../data/exploreItems';
 import type { PlannedDay, PlannedCard } from '../data/itineraryPlan';
 import type { Slot, SlotEntry, CardEntry, MatchTag } from '../types';
+import { LUNCHSPOTS } from '../data/lunchspots';
 
 // ─────────────────────────────────────────────────────────── types ──────── //
 
@@ -128,7 +129,10 @@ function resolveStarredPool(starred: Set<string>, catalog: Catalog): Suggestion[
         pool.push({ kind: 'item', id: sid, item, group, book: itemBook(item) });
       }
     } else {
-      const activity = catalog.activities.find((a) => a.id === sid);
+      // LUNCHSPOTS too — Explore can shortlist one, and a pool that ignores it
+      // disagrees with the store it is reading.
+      const activity = catalog.activities.find((a) => a.id === sid)
+        ?? LUNCHSPOTS.find((l) => l.id === sid);
       if (activity) {
         pool.push({ kind: 'activity', id: sid, activity, book: bookUrlForActivity(activity) });
       }
