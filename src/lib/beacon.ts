@@ -47,7 +47,12 @@ function send(payload: Payload): void {
     // away when it fires. It also cannot be awaited, so it can never delay a
     // navigation.
     if (navigator.sendBeacon) {
-      navigator.sendBeacon(FN_URL, new Blob([body], { type: 'application/json' }));
+      // text/plain, NOT application/json, and this is load-bearing. Only
+      // text/plain, form-urlencoded and multipart are CORS-safelisted; any other
+      // content type turns this into a preflighted request, and a preflight that
+      // fails means the POST never leaves the browser. The server parses the
+      // body as JSON regardless of what this header says.
+      navigator.sendBeacon(FN_URL, new Blob([body], { type: 'text/plain' }));
       return;
     }
     // keepalive is the fetch equivalent for the same reason.
