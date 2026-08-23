@@ -289,7 +289,8 @@ describe('Stats — unique visitors are named for what they are', () => {
     }));
     render(<Stats setPage={() => {}} />);
     await screen.findByText(/Traffic over time/i);
-    expect(document.body.textContent).toMatch(/Unique visitors\s*10\s*so far today/i);
+    // The `i` is the info button, which sits between label and value.
+    expect(document.body.textContent).toMatch(/Unique visitors\s*i?\s*10\s*so far today/i);
     // The all-time row legitimately says visitor-days whatever the window; what
     // must NOT appear is the WINDOWED variant, which carries "see below".
     expect(document.body.textContent).not.toMatch(/Visits\s*i?\s*163/i);
@@ -379,7 +380,7 @@ describe('Stats — the cumulative tiles explain themselves', () => {
 
     // The explanation is in the DOM either way — a CSS 3D flip renders both
     // faces — so what is asserted is the control, not visibility.
-    const info = screen.getByRole('button', { name: /How to read: Visits/i });
+    const info = screen.getByRole('button', { name: /How to read: Visits \(all time\)/i });
     expect(info).toBeTruthy();
 
     const cardOf = (el: HTMLElement) => el.closest('.flip-card')!;
@@ -390,7 +391,7 @@ describe('Stats — the cumulative tiles explain themselves', () => {
     // And the back carries the warning that matters most about this figure.
     expect(document.body.textContent).toMatch(/somebody who came on three days counts three times/i);
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Back' })[1]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Back' }).find((b) => b.closest('.flip-card') === cardOf(info))!);
     expect(cardOf(info).className).not.toMatch(/flipped/);
   });
 
@@ -399,7 +400,7 @@ describe('Stats — the cumulative tiles explain themselves', () => {
     render(<Stats setPage={() => {}} />);
     await screen.findByText(/Since counting began/i);
     for (const label of ['Pageviews', 'Visits', 'Best day', 'Clicks sent out']) {
-      expect(screen.getByRole('button', { name: new RegExp(`How to read: ${label}`, 'i') })).toBeTruthy();
+      expect(screen.getByRole('button', { name: new RegExp(`How to read: ${label} \\(all time\\)`, 'i') })).toBeTruthy();
     }
   });
 });
@@ -452,8 +453,8 @@ describe('Stats — the all-time tile is named for what it currently is', () => 
     render(<Stats setPage={() => {}} />);
     await screen.findByText(/Since counting began/i);
     expect(document.body.textContent).toMatch(/one day so far/i);
-    expect(screen.getByRole('button', { name: /How to read: Unique visitors/i })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /How to read: Visits/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /How to read: Unique visitors \(all time\)/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /How to read: Visits \(all time\)/i })).toBeNull();
   });
 
   it('renames itself to VISITS once a second day makes them diverge', async () => {
@@ -462,7 +463,7 @@ describe('Stats — the all-time tile is named for what it currently is', () => 
     }));
     render(<Stats setPage={() => {}} />);
     await screen.findByText(/Since counting began/i);
-    expect(screen.getByRole('button', { name: /How to read: Visits/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /How to read: Visits \(all time\)/i })).toBeTruthy();
     expect(document.body.textContent).toMatch(/one per person, per day/i);
   });
 });
@@ -554,5 +555,37 @@ describe('Stats — countries read as places, not codes', () => {
     render(<Stats setPage={() => {}} />);
     await screen.findByText(/Where they came from/i);
     expect(document.body.textContent).toMatch(/QQ\s*3 visitors/i);
+  });
+});
+
+describe('Stats — the clock on the chart is the reader\'s', () => {
+  const hourly = [
+    { hour: '2026-08-23T16:00:00+00:00', views: 6, visitors: 4 },
+    { hour: '2026-08-23T17:00:00+00:00', views: 15, visitors: 6 },
+  ];
+
+  it('renders hour buckets in the local zone, not raw UTC', async () => {
+    // The buckets are UTC because the visitor code rotates on UTC midnight, but
+    // an Amsterdam reader looking at their own evening traffic against a clock
+    // two hours off their own will draw the wrong conclusion about when people
+    // visit. Days stay UTC; hours are shown locally and the page says so.
+    vi.stubGlobal('fetch', okFetch({ ...SUMMARY, window: 'today', hourly }));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByLabelText(/by hour/i);
+    const expected = new Date(hourly[0].hour)
+      .toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    expect(document.body.textContent).toContain(expected);
+    // And it names the zone rather than leaving it to be discovered.
+    expect(document.body.textContent).toMatch(/Times shown in/i);
+    expect(document.body.textContent).toMatch(/midnight to midnight UTC/i);
+  });
+
+  it('uses a 24-hour clock regardless of the browser locale', async () => {
+    // Pinned to en-GB so a US-English browser does not render "04:00 PM" beside
+    // the page's other en-GB timestamps. The ZONE stays the reader's.
+    vi.stubGlobal('fetch', okFetch({ ...SUMMARY, window: 'today', hourly }));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByLabelText(/by hour/i);
+    expect(document.body.textContent).not.toMatch(/\d{1,2}:\d{2}\s*(AM|PM)/i);
   });
 });

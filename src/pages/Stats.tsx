@@ -253,7 +253,7 @@ export default function Stats({ setPage }: Props) {
   const oneDayOnly = daysSpanned === 1;
   const byHour = (data.hourly?.length ?? 0) > 0;
   const points: Point[] = byHour
-    ? data.hourly!.map((h) => ({ key: h.hour, label: `${h.hour.slice(11, 16)}`, views: h.views, visitors: h.visitors }))
+    ? data.hourly!.map((h) => ({ key: h.hour, label: fmtHour(h.hour), views: h.views, visitors: h.visitors }))
     : (data.daily ?? []).map((d) => ({ key: d.day, label: fmtDay(d.day), views: d.views, visitors: d.visitors }));
   const avgPerDay = (data.daily ?? []).length
     ? Math.round((data.daily.reduce((s, d) => s + d.visitors, 0) / data.daily.length))
@@ -353,17 +353,48 @@ export default function Stats({ setPage }: Props) {
               and it errs by under-stating sessions rather than over-stating
               reach — the safe direction for a number headed for a pitch.
               ("Visitor-days" was accurate and nobody could read it.) */}
+          {/* Flippable like the cumulative row below. Four separate "what does
+              this one mean" questions came from this row while it was plain
+              tiles — the answer belongs on the tile, not in a conversation. */}
           <div style={tileRow}>
-            <Tile label="Pageviews" value={totalViews} />
+            <FlipTile
+              scope="this window"
+              label="Pageviews" value={totalViews}
+              back="Every page opened in this window, repeat opens included. One person reading four pages counts four times."
+            />
             {isOneDay
-              ? <Tile label="Unique visitors" value={data.funnel.visitors} sub="so far today" />
+              ? <FlipTile
+                  scope="this window"
+                  label="Unique visitors" value={data.funnel.visitors} sub="so far today"
+                  back="People, counted once each. Within a single day the count is exact — this is the figure to quote."
+                />
               : <>
-                  <Tile label="Visits" value={data.funnel.visitors} sub="one per person, per day" />
-                  <Tile label="Busiest day" value={busiest?.visitors ?? 0} sub={busiest ? `${fmtDay(busiest.day)}, unique` : '—'} />
-                  <Tile label="Average day" value={avgPerDay} sub="unique visitors" />
+                  <FlipTile
+                    scope="this window"
+                    label="Visits" value={data.funnel.visitors} sub="one per person, per day"
+                    back="One count per person per day, so three days is three. Larger than the number of people — for that, use Busiest day."
+                  />
+                  <FlipTile
+                    scope="this window"
+                    label="Busiest day" value={busiest?.visitors ?? 0} sub={busiest ? `${fmtDay(busiest.day)}, unique` : '—'}
+                    back="The most people seen in one day of this window. Exact, because within a day nobody is counted twice."
+                  />
+                  <FlipTile
+                    scope="this window"
+                    label="Average day" value={avgPerDay} sub="unique visitors"
+                    back="The daily unique counts, averaged across the days in this window. A typical day, not a total."
+                  />
                 </>}
-            <Tile label="Clicks sent out" value={outboundClicks} />
-            <Tile label="Visitors who clicked out" value={data.funnel.clickedOut} sub={isOneDay ? 'unique, today' : 'visits'} />
+            <FlipTile
+              scope="this window"
+              label="Clicks sent out" value={outboundClicks}
+              back="Every click on a booking link. One person opening three activities counts three times. Clicks SENT — the partner tells us nothing about what happens next."
+            />
+            <FlipTile
+              scope="this window"
+              label="Visitors who clicked out" value={data.funnel.clickedOut} sub={isOneDay ? 'unique, today' : 'visits'}
+              back="How many PEOPLE clicked at least one booking link. Someone who clicked three counts once here — the gap against Clicks sent out is how many activities a typical clicker opens."
+            />
           </div>
 
           {/* Moved up, directly under the headline figures: it answers "who are
@@ -374,6 +405,13 @@ export default function Stats({ setPage }: Props) {
 
           <Section title={byHour ? 'Traffic through the day' : 'Traffic over time'}>
             <TimeChart points={points} byHour={byHour} />
+            {byHour && (
+              <p style={{ ...muted, fontSize: 12, margin: '10px 0 0' }}>
+                Times shown in {localZone().replace('_', ' ')}. The day itself runs midnight to
+                midnight UTC — that is the boundary the visitor count is built on, so it cannot
+                follow a local clock without changing what &ldquo;unique&rdquo; means.
+              </p>
+            )}
           </Section>
 
           {data.allTime && (
@@ -385,6 +423,7 @@ export default function Stats({ setPage }: Props) {
               </p>
               <div style={{ ...tileRow, marginTop: 0 }}>
                 <FlipTile
+                  scope="all time"
                   label="Pageviews" value={data.allTime.views} sub="all time"
                   back="Every page opened, repeat visits included. One person opening four pages counts four. Activity, not people."
                 />
@@ -393,19 +432,23 @@ export default function Stats({ setPage }: Props) {
                     repeated to somebody as "visitors". */}
                 {oneDayOnly
                   ? <FlipTile
+                      scope="all time"
                       label="Unique visitors" value={data.allTime.visitorDays} sub="all time — one day so far"
                       back="Counting began today, so this is an exact count of people. From a second day on it becomes visitor-days: one count per person per DAY, which is always larger."
                     />
                   : <FlipTile
+                      scope="all time"
                       label="Visits" value={data.allTime.visitorDays} sub="one per person, per day"
                       back="One count per person per day, so somebody who came on three days counts three times. Larger than the number of people — for that, use Best day."
                     />}
                 <FlipTile
+                  scope="all time"
                   label="Best day" value={data.allTime.busiestDay?.visitors ?? 0}
                   sub={data.allTime.busiestDay ? `${fmtDay(data.allTime.busiestDay.day)}, unique` : '—'}
                   back="The most visitors in a single day. Within one day the count is exact, so this is a true number of people."
                 />
                 <FlipTile
+                  scope="all time"
                   label="Clicks sent out" value={data.allTime.outbound} sub="all time"
                   back="Every click on a booking link. Clicks SENT, never bookings — the partner tells us nothing about what follows."
                 />
@@ -683,7 +726,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
  * is a count of something subtly different, and "visitor-days" in particular is
  * the number most likely to be repeated to somebody as "visitors".
  */
-function FlipTile({ label, value, sub, back }: { label: string; value: number; sub?: string; back: string }) {
+function FlipTile({ label, value, sub, back, scope }: { label: string; value: number; sub?: string; back: string; scope: string }) {
   const [flipped, setFlipped] = useState(false);
   const face: React.CSSProperties = { ...card, margin: 0, height: '100%', boxSizing: 'border-box' };
   return (
@@ -697,7 +740,10 @@ function FlipTile({ label, value, sub, back }: { label: string; value: number; s
             <div style={{ fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase', fontWeight: 700, opacity: 0.6, marginBottom: 8 }}>{label}</div>
             <button
               onClick={() => setFlipped(true)}
-              aria-label={`How to read: ${label}`}
+              // The scope is part of the ACCESSIBLE NAME, not decoration: the
+              // same labels appear in the window row and the all-time row, and
+              // "How to read: Pageviews" would name two different buttons.
+              aria-label={`How to read: ${label} (${scope})`}
               title={`How to read: ${label}`}
               style={infoBtn}
             >i</button>
@@ -1022,6 +1068,36 @@ function elapsedSince(iso: string, now = Date.now()): string {
   if (days < 14) return `${days} days of data`;
   const weeks = Math.floor(days / 7);
   return weeks < 9 ? `${weeks} weeks of data` : `${Math.floor(days / 30)} months of data`;
+}
+
+/**
+ * An hour bucket, in the READER'S timezone.
+ *
+ * The buckets are UTC — everything in this pipe is, because the visitor code is
+ * rebuilt at midnight UTC and the daily counts are built on that boundary. But
+ * "16:00" means nothing to somebody in Amsterdam looking at their own evening
+ * traffic, and reading a graph against a clock two hours off your own is a way
+ * to draw the wrong conclusion about when people visit.
+ *
+ * So the DAYS stay UTC and the HOURS are shown locally, with the page saying so
+ * rather than leaving it to be discovered. Uses the viewer's own zone rather
+ * than a hardcoded Europe/Amsterdam, so it stays right when read from Aruba.
+ */
+function fmtHour(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? iso.slice(11, 16)
+    // en-GB for the 24-hour clock, matching the "Updated 18:24" line above and
+    // the rest of the page's number formatting. The ZONE is still the reader's;
+    // only the notation is pinned, so this does not become 04:00 PM for a
+    // browser set to US English.
+    : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+/** The reader's timezone, named, so the chart can say which clock it is using. */
+function localZone(): string {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'your local time'; }
+  catch { return 'your local time'; }
 }
 
 /**
