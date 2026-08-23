@@ -2241,3 +2241,66 @@ the same reason-string-is-primary shape `similarReason` uses. New codes:
 `booking-cap`, `excluded-product`, `day-shape`. Template placements also
 reported as `staple`, hiding the template's involvement entirely; `preplaced`
 now carries a `template` source.
+
+### 2026-08-23 — the same beach, day after day, after a single toggle
+
+**Symptom.** A traveller reported the same beach on consecutive days. Ticking
+every toggle in Q8 made it unmissable: a 14-day plan placed Palm Beach on eleven
+days running, day 4 through day 14.
+
+**What it was not.** The beach rules. The trace is unambiguous — every one of
+those days rejected Palm Beach as `already placed`, so rotation fired correctly
+each time and was then overridden:
+
+```
+day 2  PICKED   Palm Beach  [affordable+on-theme]
+day 3  rejected Palm Beach  already placed — day 2
+day 4  rejected Palm Beach  already placed — day 2
+day 4  PICKED   Palm Beach  [last-resort]
+```
+
+**Root cause.** `lastResortPick` was a plain `.find` over `[...matchedAll,
+...widenedAll]`, so it returned the earliest array position among eligible free
+cards — the same card every day. Two free beaches were eligible on each of those
+days (Palm Beach and Divi); it chose Palm Beach eleven times.
+
+The comment above it defended the `.find`: ranking unused-before-revisited would
+be dead code, because an unused free candidate would already have been taken by
+rung t2 with `kindOk` relaxed. That reasoning is correct and was instrumented —
+and it only covers ordering UNUSED against revisited. It says nothing about the
+order among several ALREADY-USED cards, which is the case that produced this.
+
+**Fix.** Pick the least-recently-used eligible card (`ctx.lastUsedDay`, never
+placed sorts first) instead of the first found. Ties keep array order, so the
+behaviour is identical wherever only one card is eligible.
+
+**Measured, per single toggle, 14-day balanced trip, live catalogue:**
+
+| toggle | distinct beaches | consecutive repeats before | after |
+|---|---|---|---|
+| `no-car` | 5 of 12 placed | 2 | 0 |
+| `no-early-mornings` | 8 of 10 | 1 | 0 |
+| the other seven | 9–10 | 0 | 0 |
+
+All nine at once: Palm Beach ×11 before, Palm/Divi alternating after. Zero
+consecutive repeats across all seven personas.
+
+**What this does NOT fix.** The pool depth behind it. With every toggle on, the
+afternoon pool is twelve items — ten unwhitelisted paid products and two free
+beaches — so the plan still alternates two beaches for eleven days. That is
+`docs/ROADMAP.md` item 20 (and `no-car`, which is worse: five distinct beaches
+across a fortnight). Rotation stops the engine choosing to repeat when it had an
+alternative; it cannot invent variety the catalogue does not hold.
+
+**Tooling.** `npm run trace` gained `--flags` (no persona covers Q8
+exhaustively, and a persona that fixes them cannot answer "what does this
+combination do") and `--plan`, which prints the final plan. The default trace
+shows the ladder's decisions only; cards placed by the later fill passes —
+last-resort among them — never appear there, so reading rotation off the trace
+alone under-reports repeats. That is why the first pass at this looked clean.
+
+**Regression test.** `itineraryGenerator.test.ts` — "the last-resort rung
+rotates". A synthetic catalogue of two free beaches, asserting no consecutive
+repeat and that both are used; plus a one-beach catalogue asserting the rung
+still fills the day, so rotation never turns "repeat rather than blank" into
+"blank rather than repeat". Mutation-checked against the original `.find`.

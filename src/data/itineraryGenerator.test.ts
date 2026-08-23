@@ -3848,3 +3848,54 @@ describe('beach rotation', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// last-resort rung — rotate what little is left, rather than repeating one card
+//
+// Reported 2026-08-23: a traveller ticking "No rental car" got the same beach on
+// consecutive days. With every Q8 toggle on, a 14-day trip put Palm Beach on
+// eleven days running. The beach rules were NOT broken — the trace showed the
+// repeat rejected as `already placed` every single day — and then the
+// last-resort rung, which exists so a day never renders blank, chose it anyway.
+// It was a plain `.find`, so it returned the same array position every time even
+// with another eligible free card sitting beside it.
+// ---------------------------------------------------------------------------
+describe('generatePlan — the last-resort rung rotates', () => {
+  /** A free curated beach, shaped like the real ones in activities.ts. */
+  const beach = (id: string, title: string): Activity => ({
+    id, title, category: 'Beaches', image: '', description: `${title} description`,
+    localsSay: '', cost: 'Free', duration: '2–4 hrs', timeOfDay: 'Afternoon',
+    fitReason: 'Free and easy', location: 'Somewhere, Aruba',
+    rating: 4.5, reviewCount: 0, adventure: 10, sections: ['beaches'], matched_by: [],
+  });
+
+  function planWithOnly(beaches: Activity[], days: number): string[] {
+    // A catalogue holding nothing but these free beaches: every paid rung finds
+    // nothing, so every slot past the first falls to the last-resort rung. That
+    // is the state the report describes, reproduced without the live catalogue.
+    const cat: Catalog = { activities: beaches, groups: [], items: [] };
+    return entryIds(generatePlan({ ...DEFAULT_ANSWERS, days }, cat));
+  }
+
+  it('never places the same card on consecutive days while another is free', () => {
+    const ids = planWithOnly([beach('beach-a', 'Beach A'), beach('beach-b', 'Beach B')], 10);
+    const consecutive = ids.filter((id, i) => i > 0 && id === ids[i - 1]);
+    expect(consecutive).toEqual([]);
+  });
+
+  it('uses BOTH free cards rather than one of them', () => {
+    // The failure was not "too few beaches" — it was choosing one and staying
+    // there. Two eligible cards must both appear.
+    const ids = planWithOnly([beach('beach-a', 'Beach A'), beach('beach-b', 'Beach B')], 10);
+    expect(new Set(ids).size).toBeGreaterThan(1);
+  });
+
+  it('still fills the day when only ONE card is available', () => {
+    // The rung's whole purpose is that a day never renders blank. Rotation must
+    // not turn "repeat rather than blank" into "blank rather than repeat" — with
+    // one card there is nothing to rotate to and repeating is correct.
+    const ids = planWithOnly([beach('beach-a', 'Beach A')], 5);
+    expect(ids.length).toBeGreaterThan(1);
+    expect(new Set(ids)).toEqual(new Set(['beach-a']));
+  });
+});

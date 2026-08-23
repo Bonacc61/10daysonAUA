@@ -1564,15 +1564,36 @@ function pickForSlot(
   // condition cannot fail. With NO free card the day can still come back empty,
   // and nothing better is available without breaking a rule above.
   //
-  // A plain `.find` — no ranking. Sorting unused-before-revisited would be dead
-  // code: a free candidate that is unused is also affordable (0 <= maxPrice
-  // always) and clears the same `notSimilar`/`feasible` closures, so rung t2 with
-  // `kindOk` relaxed would already have taken it. Instrumented over every firing
-  // in the suite: an unused candidate never reaches this line.
+  // LEAST RECENTLY USED, not first-found.
+  //
+  // The original note here argued that ranking would be dead code: a free
+  // candidate that is unused is also affordable (0 <= maxPrice always) and
+  // clears the same `notSimilar`/`feasible` closures, so rung t2 with `kindOk`
+  // relaxed would already have taken it — instrumented, and still true. But it
+  // only rules out ranking UNUSED before revisited. It says nothing about the
+  // order among several ALREADY-USED cards, and that is the case that bites.
+  //
+  // Measured 2026-08-23 on the live catalogue: a 14-day trip with "no rental
+  // car" ticked put the same beach on consecutive days, and with every Q8
+  // toggle on it placed Palm Beach on eleven days running. Two free beaches
+  // were eligible each time; `.find` returned the earlier array position every
+  // day, so the ladder rejected the repeat as `already placed` and this line
+  // then chose it anyway.
+  //
+  // Picking the least-recently-used card rotates whatever few are left instead.
+  // It does not create variety that the catalogue does not have — a slot with
+  // one eligible free card still repeats it, and that is a pool-depth problem
+  // (docs/ROADMAP.md item 20) rather than a scheduling one. What it stops is the
+  // engine choosing to repeat when it had an alternative.
   const lastResortPick = (): { pick: CardEntry; tier: TraceTier } | null => {
-    const pick = [...matchedAll, ...widenedAll]
-      .find((e) => entryPrice(e) === 0 && feasible(e) && notSimilar(e));
-    return pick ? { pick, tier: 'last-resort' } : null;
+    const eligible = [...matchedAll, ...widenedAll]
+      .filter((e) => entryPrice(e) === 0 && feasible(e) && notSimilar(e));
+    if (eligible.length === 0) return null;
+    // Never placed sorts first (-1); otherwise the oldest placement wins. Ties
+    // keep array order, so a same-day tie behaves exactly as `.find` did.
+    const lastDay = (e: CardEntry) => ctx.lastUsedDay.get(entryId(e)) ?? -1;
+    const pick = eligible.reduce((best, e) => (lastDay(e) < lastDay(best) ? e : best));
+    return { pick, tier: 'last-resort' };
   };
 
   // Tier 1 first, across BOTH kind gates, before tier 2 is allowed at all.

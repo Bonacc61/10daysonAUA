@@ -63,6 +63,35 @@ const pinned = arg('pinned')?.split(',').filter(Boolean);
 const dayFilter = arg('day') ? Number(arg('day')) : undefined;
 const slotFilter = arg('slot') as Slot | undefined;
 const why = arg('why')?.toLowerCase();      // trace one candidate across the trip
+// --plan: the FINAL plan, one line per placed card. The per-slot trace above
+// reports what the ladder did; cards placed by the later fill passes (notably
+// the last-resort rung) never appear there, so reading rotation off the trace
+// alone under-reports repeats. This prints what a traveller actually sees.
+const showPlan = has('plan');
+
+// Q8's toggles, which no persona covers exhaustively. A whole class of report —
+// "I ticked everything under 'prefer to skip' and the plan collapsed" — cannot
+// be reproduced without driving these directly, and a persona that fixes them is
+// the wrong instrument for asking what a particular combination does.
+//   --flags all                          every toggle
+//   --flags no-boats,no-early-mornings   a specific pair
+//   --flags none                         override a persona's own flags
+const ALL_Q8_FLAGS = [
+  'honeymoon', 'no-boats', 'intense-hikes', 'no-early-mornings', 'avoid-crowds',
+  'mobility', 'no-car', 'with-baby', 'influencer',
+];
+const flagsArg = arg('flags');
+const flagsOverride = flagsArg === undefined ? undefined
+  : flagsArg === 'all' ? ALL_Q8_FLAGS
+  : flagsArg === 'none' ? []
+  : flagsArg.split(',').map((f) => f.trim()).filter(Boolean);
+if (flagsOverride) {
+  const unknown = flagsOverride.filter((f) => !ALL_Q8_FLAGS.includes(f));
+  if (unknown.length) {
+    console.error(`unknown flag(s): ${unknown.join(', ')}\nknown: ${ALL_Q8_FLAGS.join(', ')}`);
+    process.exit(1);
+  }
+}
 const onlyOpen = has('only-open');          // just the slots that ended empty
 const verbose = has('verbose');             // list every rejection, not the top 3 per reason
 
@@ -107,12 +136,35 @@ async function main() {
       + `         Jaccard and route-family retirement do not fire in this trace.`;
 
   const events: TraceEvent[] = [];
-  const answers: Answers = { ...persona, days };
+  const answers: Answers = { ...persona, days, ...(flagsOverride ? { flags: flagsOverride } : {}) };
   const plan = generatePlan(answers, catalog, { seed, pinned, onTrace: (e) => events.push(e) });
 
   console.log(`\nItinerary trace — persona "${personaName}", ${days} days, seed ${seed}`);
+  console.log(`flags: ${answers.flags.length ? answers.flags.join(', ') : '(none)'}`);
   console.log(`catalog: ${source}`);
   if (pinned?.length) console.log(`pinned: ${pinned.join(', ')}`);
+
+  if (showPlan) {
+    // generatePlan returns Day[], whose slots hold raw SlotEntry values — an id
+    // and a kind, no title. Titles come from the catalog for a Viator group and
+    // from the curated set for an activity; where neither resolves, the id is
+    // printed rather than a placeholder, because an audit that silently prints
+    // "(untitled)" for two different cards would read them as a repeat.
+    const itemTitle = new Map(catalog.items.map((i) => [i.id, i.title]));
+    const groupTitle = new Map(catalog.groups.map((g) => [g.id, g.title]));
+    console.log('');
+    for (const d of plan) {
+      for (const slot of ['morning', 'afternoon', 'evening'] as const) {
+        for (const entry of d[slot]) {
+          const label = entry.kind === 'activity'
+            ? `activity:${entry.id}`
+            : (itemTitle.get(entry.bestSellerId) ?? groupTitle.get(entry.groupId) ?? `group:${entry.groupId}`);
+          console.log(`PLAN\tday ${d.day}\t${slot}\t${label}`);
+        }
+      }
+    }
+    console.log('');
+  }
 
   // --why: one candidate's fate across the whole trip. Answers "I expected X —
   // where did it go?" without reading the full trace.
