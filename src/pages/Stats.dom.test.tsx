@@ -98,7 +98,7 @@ describe('Stats — the labels that stop a number being misquoted', () => {
     render(<Stats setPage={() => {}} />);
     await screen.findByText(/Traffic over time/i);
     expect(document.body.textContent).toMatch(/cannot be added up/i);
-    expect(document.body.textContent).toMatch(/not measurable/i);
+    expect(document.body.textContent).toMatch(/monthly unique figure does not exist/i);
   });
 
   it('says outbound clicks are not bookings, on the page', async () => {
@@ -229,5 +229,55 @@ describe('Stats — when the network does not answer', () => {
     expect(document.body.textContent).toMatch(/Nothing is wrong with the counting/i);
     expect(screen.getByRole('button', { name: /Try again/i })).toBeTruthy();
     vi.useRealTimers();
+  });
+});
+
+describe('Stats — unique visitors are named for what they are', () => {
+  const withWindow = (extra: Record<string, unknown>) => okFetch({ ...SUMMARY, ...extra });
+
+  it('calls them UNIQUE VISITORS over a single day, because that is what they are', async () => {
+    vi.stubGlobal('fetch', withWindow({
+      window: 'today',
+      daily: [{ day: '2026-08-23', views: 21, visitors: 10 }],
+      funnel: { ...SUMMARY.funnel, visitors: 10 },
+    }));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Traffic over time/i);
+    expect(document.body.textContent).toMatch(/Unique visitors\s*10\s*so far today/i);
+    expect(document.body.textContent).not.toMatch(/Visitor-days/i);
+  });
+
+  it('calls them VISITOR-DAYS over more than one day, because they are not people', async () => {
+    // The code is rebuilt at midnight, so across days this is the sum of daily
+    // uniques. Labelling that "visitors" overstates reach to whoever reads it —
+    // and this is the number someone would quote to a partner.
+    vi.stubGlobal('fetch', withWindow({ window: 'days' }));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Traffic over time/i);
+    expect(document.body.textContent).toMatch(/Visitor-days/i);
+    expect(document.body.textContent).toMatch(/not unique people/i);
+    // And offers the two figures that ARE honest over a long window.
+    expect(document.body.textContent).toMatch(/Busiest day/i);
+    expect(document.body.textContent).toMatch(/Average day/i);
+  });
+
+  it('greys out a window it cannot fill, and says why', async () => {
+    // Collection began hours ago; a "90 days" tab returning three days of data
+    // and labelling it ninety is the quiet wrongness this page exists to avoid.
+    vi.stubGlobal('fetch', withWindow({ firstEvent: new Date(Date.now() - 3 * 86_400_000).toISOString() }));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Traffic over time/i);
+    expect((screen.getByRole('button', { name: 'Today' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: /Last 7 days/i }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: /Last 90 days/i }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('enables a window once enough has been collected', async () => {
+    vi.stubGlobal('fetch', withWindow({ firstEvent: new Date(Date.now() - 40 * 86_400_000).toISOString() }));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Traffic over time/i);
+    expect((screen.getByRole('button', { name: /Last 7 days/i }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: /Last 30 days/i }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: /Last 90 days/i }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

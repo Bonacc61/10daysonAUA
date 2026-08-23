@@ -39,6 +39,8 @@ type Counted = { n: number };
 type Summary = {
   days: number;
   window?: 'today' | 'days';
+  /** Oldest row in web_events, or null when nothing has been recorded. */
+  firstEvent?: string | null;
   daily: Daily[];
   topPaths: (Counted & { path: string })[];
   referrers: (Counted & { host: string })[];
@@ -92,7 +94,7 @@ const REFRESH_MS = 60 * 1000;
 
 export default function Stats({ setPage }: Props) {
   const { session, loading } = useAuth();
-  const [days, setDays] = useState<WindowKey>(30);
+  const [days, setDays] = useState<WindowKey>('today');
   const [data, setData] = useState<Summary | null>(null);
   // 'signedout' and 'denied' are deliberately different. Nobody signed in gets a
   // sign-in form; a signed-in traveller who is not on the allowlist gets nothing
@@ -213,7 +215,18 @@ export default function Stats({ setPage }: Props) {
     );
   }
 
+  // How much history there actually is, in days. Drives which windows are
+  // offered — see the control below.
+  const daysCollected = data.firstEvent
+    ? (Date.now() - new Date(data.firstEvent).getTime()) / 86_400_000
+    : 0;
   const totalViews = (data.daily ?? []).reduce((s, d) => s + d.views, 0);
+  // One day is the only window over which "distinct visitor codes" and "unique
+  // people" are the same thing.
+  const isOneDay = data.window === 'today' || (data.daily ?? []).length <= 1;
+  const avgPerDay = (data.daily ?? []).length
+    ? Math.round((data.daily.reduce((s, d) => s + d.visitors, 0) / data.daily.length))
+    : 0;
   const busiest = data.daily.reduce<Daily | null>((b, d) => (!b || d.visitors > b.visitors ? d : b), null);
   // The PARTNERS sum, not the products sum, and `||` between them was a bug
   // rather than a fallback. stats_summary builds `products` only from outbound
@@ -252,19 +265,37 @@ export default function Stats({ setPage }: Props) {
             ? `Updated ${lastAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · refreshes every minute`
             : 'refreshes every minute'}
         </p>
+        {/* A "90 days" tab over three days of data is the same quiet wrongness
+            the rest of this page guards against: the number is real, the period
+            is a fiction. Collection began 2026-08-23, so a window longer than
+            the history is greyed out until it can be filled — measured from the
+            OLDEST ROW rather than a hardcoded date, so it also follows the
+            retention purge down. */}
         <div role="group" aria-label="Reporting window" style={{ display: 'flex', gap: 8, marginTop: 18, flexWrap: 'wrap' }}>
-          {WINDOWS.map((w) => (
-            <button
-              key={w}
-              onClick={() => setDays(w)}
-              aria-pressed={days === w}
-              aria-label={w === 'today' ? 'Today' : `Last ${w} days`}
-              className={`filter-pill${days === w ? ' active' : ''}`}
-              // The app's pills are 11px tall by design; this one keeps their look
-              // but meets the 44px target the rest of the site uses for controls.
-              style={{ minHeight: 44, minWidth: 60, justifyContent: 'center', fontSize: 13 }}
-            >{windowLabel(w)}</button>
-          ))}
+          {WINDOWS.map((w) => {
+            const ready = w === 'today' || daysCollected >= w;
+            return (
+              <button
+                key={w}
+                onClick={() => ready && setDays(w)}
+                disabled={!ready}
+                aria-pressed={days === w}
+                aria-label={w === 'today' ? 'Today' : `Last ${w} days`}
+                title={ready ? undefined : `Available after ${w} days of collection — ${Math.floor(daysCollected)} so far.`}
+                className={`filter-pill${days === w ? ' active' : ''}`}
+                // The app's pills are 11px tall by design; this one keeps their look
+                // but meets the 44px target the rest of the site uses for controls.
+                style={{
+                  minHeight: 44, minWidth: 60, justifyContent: 'center', fontSize: 13,
+                  ...(ready ? {} : {
+                    cursor: 'not-allowed', opacity: 0.45,
+                    background: 'var(--sand-100)', color: 'var(--sand-500)',
+                    borderColor: 'var(--sand-500)',
+                  }),
+                }}
+              >{windowLabel(w)}</button>
+            );
+          })}
         </div>
       </div>
     }>
@@ -281,38 +312,56 @@ export default function Stats({ setPage }: Props) {
         </Section>
       ) : (
         <>
+          {/* UNIQUE VISITORS, named honestly.
+              Over ONE day, distinct visitor codes ARE unique visitors — that is
+              exactly what the code is for. Over more than one day it is the sum
+              of daily figures, because the code is rebuilt at midnight, so it
+              counts visitor-DAYS and calling it "visitors" overstates reach to
+              whoever reads it. The tiles change wording with the window rather
+              than leaving one label to mean two things. */}
           <div style={tileRow}>
             <Tile label="Pageviews" value={totalViews} />
-            {/* "Busiest day" says nothing when the window IS one day. */}
-            {data.window === 'today'
-              ? <Tile label="Visitors" value={busiest?.visitors ?? 0} sub="unique, so far today" />
-              : <Tile label="Busiest day" value={busiest?.visitors ?? 0} sub={busiest ? fmtDay(busiest.day) : '—'} />}
+            {isOneDay
+              ? <Tile label="Unique visitors" value={data.funnel.visitors} sub="so far today" />
+              : <>
+                  <Tile label="Visitor-days" value={data.funnel.visitors} sub="not unique people — see below" />
+                  <Tile label="Busiest day" value={busiest?.visitors ?? 0} sub={busiest ? `${fmtDay(busiest.day)}, unique` : '—'} />
+                  <Tile label="Average day" value={avgPerDay} sub="unique visitors" />
+                </>}
             <Tile label="Clicks sent out" value={outboundClicks} />
-            <Tile label="Visitors who clicked out" value={data.funnel.clickedOut} sub={`of ${data.funnel.visitors} counted`} />
+            <Tile label="Visitors who clicked out" value={data.funnel.clickedOut} sub={isOneDay ? 'unique, today' : 'visitor-days'} />
           </div>
+
+          {/* Moved up, directly under the headline figures: it answers "who are
+              these people on" before any of the deeper breakdowns. */}
+          <Section title="Devices">
+            <Devices d={data.devices} />
+          </Section>
 
           <Section title="Traffic over time">
             <TimeChart daily={data.daily} />
           </Section>
 
-          <Section title="Daily unique visitors — most recent 14 days">
+          <Section title="Unique visitors, by day — most recent 14">
             {/* REQUIRED LABEL — spec, and it is on the tile rather than in a
                 tooltip on purpose. This is the figure someone quotes. */}
             <p style={warn}>
-              <strong>These cannot be added up.</strong> The visitor code is rebuilt from scratch every
-              midnight UTC, so somebody who visits on five days counts as five. Monthly unique
-              visitors are not measurable here, by design — summing the days below gives a
-              number that means nothing.
+              <strong>Each day is a true unique count. The days cannot be added up.</strong> The
+              visitor code is rebuilt from scratch every midnight UTC, so one person visiting on
+              five days is five — that is what makes this countable without storing anything on
+              their device, and it is also why a monthly unique figure does not exist here. If a
+              partner asks &ldquo;how many people last month&rdquo;, the honest answers are the
+              busiest day, the average day, and the total visits — never the sum of these bars.
             </p>
             <BarList
               rows={data.daily.slice(-14).map((d) => ({ label: fmtDay(d.day), n: d.visitors }))}
               color={SERIES[1]}
-              unit="visitors"
+              unit="unique"
             />
           </Section>
 
           <Section title="What people did">
-            <Funnel f={data.funnel} />
+            <Funnel f={data.funnel} oneDay={isOneDay} />
           </Section>
 
           <Section title="Clicks sent to booking partners">
@@ -365,9 +414,6 @@ export default function Stats({ setPage }: Props) {
             </div>
           </Section>
 
-          <Section title="Devices">
-            <Devices d={data.devices} />
-          </Section>
         </>
       )}
 
@@ -673,7 +719,7 @@ function BarList({ rows, color, unit }: { rows: { label: string; n: number; sub?
  * meaning. Steps can legitimately widen: a visitor may click out without ever
  * generating an itinerary, so this is a set of counts, not a strict nesting.
  */
-function Funnel({ f }: { f: Summary['funnel'] }) {
+function Funnel({ f, oneDay }: { f: Summary['funnel']; oneDay: boolean }) {
   // MEASURED steps only. The three middle steps of the designed funnel —
   // questionnaire_started, itinerary_generated, itinerary_kept — have NO
   // instrumentation behind them: trackMilestone() exists in src/lib/beacon.ts
@@ -696,16 +742,16 @@ function Funnel({ f }: { f: Summary['funnel'] }) {
         label,
         n,
         sub: f.visitors > 0 ? `${Math.round((n / f.visitors) * 100)}%` : undefined,
-      }))} color={SERIES[0]} unit="visitors" />
+      }))} color={SERIES[0]} unit={oneDay ? 'unique' : 'visitor-days'} />
       <p style={{ ...warn, marginTop: 14 }}>
         <strong>Three steps are not measured yet.</strong> {NOT_YET.join(', ')} — the beacon
         for these was never wired up, so there is no data behind them. They are left out
         rather than drawn as zero, because a zero here would look like nobody doing it.
       </p>
       <p style={{ ...muted, fontSize: 12, marginBottom: 0 }}>
-        Each step counts distinct daily visitor codes, so a person planning across two days
-        is two. Steps are counts, not a strict funnel — a visitor can click out without
-        generating anything.
+        {oneDay
+          ? 'Each step counts unique visitors. Steps are counts, not a strict funnel — a visitor can click out without generating anything.'
+          : 'Each step counts distinct daily visitor codes, so a person planning across two days is two. Steps are counts, not a strict funnel — a visitor can click out without generating anything.'}
       </p>
     </>
   );
