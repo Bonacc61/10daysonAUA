@@ -486,6 +486,10 @@ export default function Stats({ setPage }: Props) {
             {data.products.length === 0 && data.partners.length === 0 && <p style={muted}>No outbound clicks in this window.</p>}
           </Section>
 
+          <Section title="What people did">
+            <Funnel f={data.funnel} oneDay={isOneDay} since={data.firstEvent} />
+          </Section>
+
           <Section title="Where they came from">
             <div style={{ display: 'grid', gap: 28, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
               <div>
@@ -587,9 +591,6 @@ export default function Stats({ setPage }: Props) {
             </p>
           </Section>
 
-          <Section title="What people did">
-            <Funnel f={data.funnel} oneDay={isOneDay} since={data.firstEvent} />
-          </Section>
 
 
 
@@ -1052,8 +1053,12 @@ function Funnel({ f, oneDay, since }: { f: Summary['funnel']; oneDay: boolean; s
       )}
       <p style={{ ...muted, fontSize: 12, marginBottom: 0 }}>
         {oneDay
-          ? 'Each step counts unique visitors. Steps are counts, not a strict funnel — a visitor can click out without generating anything.'
-          : 'Each step counts distinct daily visitor codes, so a person planning across two days is two. Steps are counts, not a strict funnel — a visitor can click out without generating anything.'}
+          ? 'Each step counts unique visitors.'
+          : 'Each step counts distinct daily visitor codes, so a person planning across two days is two.'}{' '}
+        <strong>These are counts, not a funnel, and a later step can be larger than an earlier
+        one.</strong> Somebody returning with their answers already saved goes straight to the
+        itinerary, so a plan is generated for them without a questionnaire being started; and a
+        visitor can click out to a partner without generating anything at all.
       </p>
     </>
   );

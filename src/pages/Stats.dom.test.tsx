@@ -649,3 +649,25 @@ describe('Stats — the bars mean their numbers', () => {
     expect(document.body.textContent).toMatch(/do not add up/i);
   });
 });
+
+describe('Stats — the funnel is not a funnel', () => {
+  it('explains how a later step can exceed an earlier one', async () => {
+    // Real data, first day: 5 generated an itinerary, 4 started the
+    // questionnaire. Not a bug — one visitor landed straight on /itinerary with
+    // answers already saved, so a plan was generated without a questionnaire
+    // being started in that session. A reader who cannot see that reads the
+    // page as broken.
+    vi.stubGlobal('fetch', okFetch({
+      ...SUMMARY,
+      funnel: { visitors: 30, questionnaire: 4, generated: 5, kept: 1, clickedOut: 2 },
+    }));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/What people did/i);
+    const text = document.body.textContent ?? '';
+    expect(text).toMatch(/a later step can be larger than an earlier one/i);
+    expect(text).toMatch(/answers already saved/i);
+    // And it still renders both numbers rather than clamping the larger one.
+    expect(text).toMatch(/Started the questionnaire\s*i?\s*4/);
+    expect(text).toMatch(/Generated an itinerary\s*i?\s*5/);
+  });
+});
