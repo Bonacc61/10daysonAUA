@@ -1011,7 +1011,11 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
   .hero-sub { font-size: 15px !important; margin-bottom: 18px !important; }
   .hero-slider-card { transform: none !important; max-width: 100% !important; }
   .hero-cta-row { gap: 10px !important; }
-  .hero-cta-row .btn-red { font-size: 14px !important; padding: 11px 16px !important; }
+  /* Both hero buttons, not just the red one — the Explore button beside it is
+     its peer and was left at desktop size, standing 9px taller than the primary
+     on a phone. */
+  .hero-cta-row .btn-red,
+  .hero-cta-row .btn-hero-alt { font-size: 14px !important; padding: 11px 16px !important; }
   /* Keep the hand-drawn arrow visible on mobile — pointing from slider card
      down to the CTA. Shrink it and let it sit on its own line so it doesn't
      overflow the CTA row. */
@@ -1744,3 +1748,18 @@ body:has(.cookie-banner) .map-page { padding-bottom: 72px; }
 .stat-flip { min-height: 0; height: 100%; }
 .stat-flip .flip-inner { min-height: 0; height: 100%; }
 .stat-flip .flip-back { overflow-y: auto; }
+
+/* The hero's secondary call to action.
+   Same chunky geometry as .btn-red beside it — this is a peer, not a footnote —
+   but CREAM, not yellow: the hero band is already amber, so a yellow fill reads
+   as a hole punched in the background rather than as a button. Cream separates
+   cleanly from the band while leaving red as the single primary. */
+.btn-hero-alt {
+  background: var(--cream); color: var(--ink);
+  border: 3px solid var(--ink); border-radius: 14px;
+  padding: 14px 22px; font-size: 16px; font-weight: 700;
+  font-family: inherit; cursor: pointer;
+  box-shadow: 4px 4px 0 var(--ink); transition: transform 0.08s;
+}
+.btn-hero-alt:hover  { background: #fff; }
+.btn-hero-alt:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }

@@ -88,11 +88,22 @@ export default function Landing({ setPage, answers, setAnswers, onPlanClick }: P
                 <button className="btn-red" onClick={goPlan} style={{ padding: '14px 22px', fontSize: 16, borderRadius: 14, borderWidth: 3 }}>
                   Plan my {label}-day trip →
                 </button>
+                {/* A peer of the primary, not a footnote. "or just browse" was
+                    an underlined text link beside a chunky red button, and read
+                    as the thing you do if you are not really interested — 6 of
+                    28 visitors reached Explore in the first day of measurement.
+                    Same geometry as the button beside it so it registers as an
+                    option rather than fine print.
+                    CREAM, not red and not yellow. Two identical primaries
+                    compete and neither wins; and the hero band is already amber,
+                    so a yellow fill (tried first) reads as a hole punched in the
+                    background rather than as a button. Cream separates from the
+                    band and leaves red as the single primary. */}
                 <button
+                  className="btn-hero-alt"
                   onClick={() => setPage('explore')}
-                  style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline', textDecorationThickness: 2, textUnderlineOffset: 4, background: 'none', border: 'none', fontFamily: 'inherit', padding: 0 }}
                 >
-                  or just browse
+                  Explore!
                 </button>
                 <svg className="hero-arrow" width="46" height="56" viewBox="0 0 60 80" style={{ flexShrink: 0 }}>
                   <path d="M 6 6 Q 50 16, 40 56 Q 36 68, 28 74" stroke="var(--ink)" strokeWidth="2.5" fill="none" strokeLinecap="round" />
