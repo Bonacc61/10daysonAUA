@@ -20,6 +20,8 @@ import LoginModal from './components/LoginModal';
 import CookieBanner from './components/CookieBanner';
 const TripMap = lazy(() => import('./pages/Map'));
 const Stats = lazy(() => import('./pages/Stats'));
+// Not imported from the lazy chunk: this is read at boot, before /stats loads.
+const AFTER_LOGIN_STATS = '10doa:after-login-stats';
 import { AuthProvider, useAuth } from './lib/auth';
 
 export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary' | 'map' | 'privacy' | 'terms' | 'surprise' | 'dashboard' | 'preview' | 'stats';
@@ -177,6 +179,21 @@ function AppShell() {
     if (page === 'stats') return;
     trackPageview(window.location.pathname);
   }, [page]);
+
+  // A magic link started from /stats should come back to /stats. It asks
+  // Supabase to return there, but Supabase only redirects to allowlisted URLs
+  // and otherwise drops the traveller on the site root — so the dashboard leaves
+  // a one-shot marker before sending the mail and we honour it once the session
+  // has resolved. sessionStorage, not localStorage: it belongs to this tab and
+  // this trip through the mail client, and must not outlive either.
+  useEffect(() => {
+    if (authLoading || !user) return;
+    try {
+      if (sessionStorage.getItem(AFTER_LOGIN_STATS) !== '1') return;
+      sessionStorage.removeItem(AFTER_LOGIN_STATS);
+      setPage('stats');
+    } catch { /* private mode: they land on the home page, which is survivable */ }
+  }, [authLoading, user]);
 
   // ONE DELEGATED LISTENER rather than a handler on each link. There are six
   // render sites for a Book now link today (ItineraryCard, GroupCard, Explore,

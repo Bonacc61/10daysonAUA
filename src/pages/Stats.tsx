@@ -38,6 +38,7 @@ type Daily = { day: string; views: number; visitors: number };
 type Counted = { n: number };
 type Summary = {
   days: number;
+  window?: 'today' | 'days';
   daily: Daily[];
   topPaths: (Counted & { path: string })[];
   referrers: (Counted & { host: string })[];
@@ -60,7 +61,15 @@ const SERIES = ['#3B82F6', '#E63946', '#22C55E'] as const;
 const INK = 'var(--ink)';
 const GRID = 'rgba(26,26,26,0.10)';
 
-const WINDOWS = [7, 30, 90] as const;
+// 'today' is a distinct window, not days=1: the server reads it as "since
+// midnight UTC", which is the same boundary the visitor hash rotates on. A
+// rolling 24 hours would disagree with the daily chart on the same page.
+// Read by App.tsx after a magic link lands, to forward back here.
+export const AFTER_LOGIN_KEY = '10doa:after-login-stats';
+
+const WINDOWS = ['today', 7, 30, 90] as const;
+type WindowKey = (typeof WINDOWS)[number];
+const windowLabel = (w: WindowKey) => (w === 'today' ? 'Today' : `${w} days`);
 
 // A request that never settles must not become a page that never resolves. A
 // blocker that black-holes *.supabase.co instead of refusing outright, a captive
@@ -83,9 +92,12 @@ const REFRESH_MS = 60 * 1000;
 
 export default function Stats({ setPage }: Props) {
   const { session, loading } = useAuth();
-  const [days, setDays] = useState<number>(30);
+  const [days, setDays] = useState<WindowKey>(30);
   const [data, setData] = useState<Summary | null>(null);
-  const [state, setState] = useState<'loading' | 'ok' | 'denied' | 'error'>('loading');
+  // 'signedout' and 'denied' are deliberately different. Nobody signed in gets a
+  // sign-in form; a signed-in traveller who is not on the allowlist gets nothing
+  // at all, because offering them a form implies trying again would help.
+  const [state, setState] = useState<'loading' | 'ok' | 'signedout' | 'denied' | 'error'>('loading');
   const [busy, setBusy] = useState(false);
   // Bumping this re-runs the fetch: the hourly tick and the retry button both
   // use it, so there is one path that asks again rather than two.
@@ -120,7 +132,7 @@ export default function Stats({ setPage }: Props) {
     if (loading) return;
     // No token means no request. A signed-out visitor should not cause a call to
     // an internal endpoint at all — the 403 would be correct and still pointless.
-    if (!token) { setState('denied'); return; }
+    if (!token) { setState('signedout'); return; }
     // Read inside the effect, not at module scope: both are optional in
     // ImportMetaEnv, and a build missing either should render the error state
     // rather than fetch an empty URL and report the failure as a denial.
@@ -163,8 +175,10 @@ export default function Stats({ setPage }: Props) {
     return <Shell><LoadingNote /></Shell>;
   }
 
-  // Signed out, signed in as a traveller, or the endpoint said no — all the same
-  // page. No login prompt: an invitation to try is an invitation to try.
+  if (state === 'signedout') return <Shell><SignIn /></Shell>;
+
+  // Signed in, but not on the allowlist. No form here: this account cannot be
+  // made to work by trying again, and a form would only invite the attempt.
   if (state === 'denied') {
     return (
       <Shell>
@@ -226,7 +240,9 @@ export default function Stats({ setPage }: Props) {
             request were ever clamped or defaulted server-side, this line has to
             say what was actually measured, not what was asked for. */}
         <p style={{ fontStyle: 'italic', fontSize: 15, margin: 0, color: 'var(--ink)', opacity: 0.85 }}>
-          Last {data.days} days &mdash; bots excluded by user-agent, and visitors who objected are not counted.
+          {data.window === 'today'
+            ? 'Today, since midnight UTC'
+            : `Last ${Math.round(data.days)} days`} &mdash; bots excluded by user-agent, and visitors who objected are not counted.
         </p>
         {/* Says when these numbers were fetched, because the page refreshes
             itself hourly and a figure with no timestamp invites a wrong guess
@@ -242,12 +258,12 @@ export default function Stats({ setPage }: Props) {
               key={w}
               onClick={() => setDays(w)}
               aria-pressed={days === w}
-              aria-label={`Last ${w} days`}
+              aria-label={w === 'today' ? 'Today' : `Last ${w} days`}
               className={`filter-pill${days === w ? ' active' : ''}`}
               // The app's pills are 11px tall by design; this one keeps their look
               // but meets the 44px target the rest of the site uses for controls.
               style={{ minHeight: 44, minWidth: 60, justifyContent: 'center', fontSize: 13 }}
-            >{w} days</button>
+            >{windowLabel(w)}</button>
           ))}
         </div>
       </div>
@@ -267,7 +283,10 @@ export default function Stats({ setPage }: Props) {
         <>
           <div style={tileRow}>
             <Tile label="Pageviews" value={totalViews} />
-            <Tile label="Busiest day" value={busiest?.visitors ?? 0} sub={busiest ? fmtDay(busiest.day) : '—'} />
+            {/* "Busiest day" says nothing when the window IS one day. */}
+            {data.window === 'today'
+              ? <Tile label="Visitors" value={busiest?.visitors ?? 0} sub="unique, so far today" />
+              : <Tile label="Busiest day" value={busiest?.visitors ?? 0} sub={busiest ? fmtDay(busiest.day) : '—'} />}
             <Tile label="Clicks sent out" value={outboundClicks} />
             <Tile label="Visitors who clicked out" value={data.funnel.clickedOut} sub={`of ${data.funnel.visitors} counted`} />
           </div>
@@ -365,6 +384,79 @@ export default function Stats({ setPage }: Props) {
       <button onClick={() => setPage('landing')} style={{ ...linkBtn, marginTop: 24 }}>← Back to the site</button>
       </div>
     </Shell>
+  );
+}
+
+/**
+ * The dashboard's OWN sign-in, deliberately not the site's login modal.
+ *
+ * The modal is the traveller's control — it lives in the nav, it is styled for
+ * them, and its copy is about saving trips. Reusing it here would mean one
+ * component serving two audiences with different needs, and every future change
+ * to the traveller flow would have to be checked against this page.
+ *
+ * The link comes back to /stats: signInWithEmail passes the current path as the
+ * return URL. If Supabase's redirect allowlist rejects it the traveller lands on
+ * the home page instead, which is why App.tsx keeps a one-shot marker and
+ * forwards them here after the session resolves.
+ */
+function SignIn() {
+  const { signInWithEmail } = useAuth();
+  const [email, setEmail] = useState('');
+  const [phase, setPhase] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [message, setMessage] = useState('');
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim() || phase === 'sending') return;
+    setPhase('sending');
+    // Survives the round trip through the mail client, so whichever page the
+    // link lands on, App.tsx can bring them back here.
+    try { sessionStorage.setItem(AFTER_LOGIN_KEY, '1'); } catch { /* private mode */ }
+    const { error } = await signInWithEmail(email.trim());
+    if (error) { setPhase('error'); setMessage(error); return; }
+    setPhase('sent');
+  }
+
+  return (
+    <div style={{ ...card, maxWidth: 460 }}>
+      <h1 className="font-display" style={{ fontSize: 28, margin: '0 0 6px' }}>Traffic</h1>
+      <p style={{ ...muted, marginBottom: 18 }}>Sign in to continue.</p>
+
+      {phase === 'sent' ? (
+        <p style={{ fontSize: 14, lineHeight: 1.6, margin: 0 }}>
+          <strong>Check your inbox.</strong> The link signs you in and brings you back to this
+          page. It expires in an hour and can only be used once.
+        </p>
+      ) : (
+        <form onSubmit={submit}>
+          <label htmlFor="stats-email" style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', opacity: 0.6, marginBottom: 6 }}>
+            Email
+          </label>
+          <input
+            id="stats-email" type="email" required autoComplete="email" value={email}
+            onChange={(e) => { setEmail(e.target.value); if (phase === 'error') setPhase('idle'); }}
+            placeholder="you@10daysonaruba.com"
+            style={{
+              width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '0 12px',
+              fontFamily: 'inherit', fontSize: 15, color: 'var(--ink)',
+              background: 'var(--cream)', border: '2px solid var(--ink)', borderRadius: 12,
+            }}
+          />
+          <button type="submit" className="btn-red" disabled={phase === 'sending'}
+            style={{ marginTop: 14, minHeight: 44, width: '100%', opacity: phase === 'sending' ? 0.7 : 1 }}>
+            {phase === 'sending' ? 'Sending…' : 'Email me a sign-in link'}
+          </button>
+          {phase === 'error' && (
+            <p style={{ ...warn, marginTop: 14, marginBottom: 0 }}>{message || 'That did not work. Try again.'}</p>
+          )}
+          <p style={{ ...muted, fontSize: 12, margin: '14px 0 0' }}>
+            A link rather than a password: nothing to store, share or leak, and access is
+            withdrawn by removing an address rather than changing a secret everyone knows.
+          </p>
+        </form>
+      )}
+    </div>
   );
 }
 

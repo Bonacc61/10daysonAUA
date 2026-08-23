@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import Stats from './Stats';
 
 /**
@@ -35,38 +35,60 @@ const SUMMARY = {
   partners: [{ host: 'viator.com', clicks: 12 }],
 };
 
-let authState: { session: { access_token: string } | null; loading: boolean };
+let authState: { session: { access_token: string } | null; loading: boolean; signInWithEmail: (e: string) => Promise<{ error: string | null }> };
+const sentTo: string[] = [];
 vi.mock('../lib/auth', () => ({ useAuth: () => authState }));
 
 const okFetch = (body: unknown = SUMMARY) =>
   vi.fn().mockResolvedValue({ ok: true, json: async () => body });
 
 beforeEach(() => {
-  authState = { session: { access_token: 'a-real-token' }, loading: false };
+  sentTo.length = 0;
+  authState = {
+    session: { access_token: 'a-real-token' }, loading: false,
+    signInWithEmail: async (e: string) => { sentTo.push(e); return { error: null }; },
+  };
+  sessionStorage.clear();
   vi.stubEnv('VITE_STATS_FN_URL', 'https://example.test/functions/v1/stats');
   vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'anon-key');
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe('Stats — who may see it', () => {
-  it('renders nothing useful when signed out, and makes NO request', async () => {
-    authState = { session: null, loading: false };
+  it('offers its OWN sign-in when signed out, and makes no request until then', async () => {
+    authState = { ...authState, session: null };
     const f = okFetch();
     vi.stubGlobal('fetch', f);
 
     render(<Stats setPage={() => {}} />);
 
-    expect(await screen.findByText(/Not available/i)).toBeTruthy();
+    expect(await screen.findByLabelText(/email/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /sign-in link/i })).toBeTruthy();
+    // Nothing is asked of the internal endpoint before there is a token.
     expect(f).not.toHaveBeenCalled();
-    // No invitation to sign in: an invitation is a hint that there is something
-    // behind the door.
-    expect(document.body.textContent).not.toMatch(/sign in|log in/i);
   });
 
-  it('shows the same page when the endpoint refuses a signed-in traveller', async () => {
+  it('sends the link itself rather than opening the traveller login modal', async () => {
+    authState = { ...authState, session: null };
+    vi.stubGlobal('fetch', okFetch());
+    render(<Stats setPage={() => {}} />);
+
+    fireEvent.change(await screen.findByLabelText(/email/i), { target: { value: 'jan@10daysonaruba.com' } });
+    fireEvent.click(screen.getByRole('button', { name: /sign-in link/i }));
+
+    await waitFor(() => expect(sentTo).toEqual(['jan@10daysonaruba.com']));
+    expect(await screen.findByText(/Check your inbox/i)).toBeTruthy();
+    // The marker App.tsx uses to bring them back here after the link lands.
+    expect(sessionStorage.getItem('10doa:after-login-stats')).toBe('1');
+  });
+
+  it('does NOT offer a form to a signed-in traveller who is refused', async () => {
+    // A form would imply trying again could help. It cannot: this account is not
+    // on the allowlist, and only a secret change fixes that.
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403 }));
     render(<Stats setPage={() => {}} />);
     expect(await screen.findByText(/Not available/i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /sign-in link/i })).toBeNull();
   });
 });
 

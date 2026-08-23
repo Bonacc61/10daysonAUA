@@ -23,7 +23,7 @@
 // Deployed WITH jwt verification (no --no-verify-jwt), unlike `collect`. The
 // beacon cannot send headers; a signed-in admin's browser can.
 import { corsHeaders } from '../_shared/cors.ts';
-import { windowDays } from './window.ts';
+import { parseWindow } from './window.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -66,16 +66,19 @@ Deno.serve(async (req) => {
   if (!allow.includes(uid)) return json({ error: 'forbidden' }, 403);
 
   // --- The numbers -----------------------------------------------------------
-  const days = windowDays(new URL(req.url).searchParams.get('days'));
+  // The server's clock decides what "today" means, not the browser's — a client
+  // four hours behind UTC would otherwise ask for a window starting at 20:00 the
+  // previous evening and have it labelled Today.
+  const win = parseWindow(new URL(req.url).searchParams.get('days'), new Date());
 
-  const rpc = await fetch(`${url}/rest/v1/rpc/stats_summary`, {
+  const rpc = await fetch(`${url}/rest/v1/rpc/stats_summary_since`, {
     method: 'POST',
     headers: {
       apikey: service,
       Authorization: `Bearer ${service}`,
       'content-type': 'application/json',
     },
-    body: JSON.stringify({ days }),
+    body: JSON.stringify({ since: win.since }),
   });
 
   if (!rpc.ok) {
@@ -86,9 +89,9 @@ Deno.serve(async (req) => {
     return json({ error: 'unavailable' }, 503);
   }
 
-  // `days` goes back with the data so the page can label its tiles from what the
-  // query actually used rather than from what it meant to ask for. The two
-  // differ whenever the parameter was junk, and the whole risk with this figure
-  // is that a wrong window still renders a plausible page.
-  return json({ days, ...(await rpc.json()) });
+  // The window goes back with the data so the page labels itself from what was
+  // actually measured rather than from what it meant to ask for. The two differ
+  // whenever the parameter was junk, and the risk with this figure is that a
+  // wrong window still renders a perfectly plausible page.
+  return json({ days: win.days, window: win.kind, ...(await rpc.json()) });
 });
