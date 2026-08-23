@@ -21,7 +21,7 @@ function spot(
 
 export const LUNCHSPOTS: Activity[] = [
   spot('lunch-pikas-corner', "Pika's Corner", 'Palm Beach', 'palm-beach', 'Casual local snack bar near the high-rise strip — pastechi, pan bati and cold drinks.', '$8–15 pp', "/Pika's Corner.webp"),
-  spot('lunch-pastechi-house', 'Pastechi House', 'Oranjestad', 'oranjestad', "Aruba's beloved pastechi stop — flaky fried turnovers with savory fillings.", '$6–12 pp', 'https://images.pexels.com/photos/1267320/pexels-photo-1267320.jpeg?auto=compress&cs=tinysrgb&w=800'),
+  spot('lunch-pastechi-house', 'Pastechi House', 'Oranjestad', 'oranjestad', "Aruba's beloved pastechi stop — flaky fried turnovers with savory fillings.", '$6–12 pp', '/Pastechi House.webp'),
   spot('lunch-zeerover', 'Zeerover', 'Savaneta', 'savaneta', "No-frills fishermen's spot — fresh catch fried by the pound, cash only.", '$10–18 pp', '/Zeerover.webp'),
   spot('lunch-hadicurari', 'Hadicurari', 'Noord', 'noord', 'Beachfront eatery by the fishing pier — fresh seafood with your toes in the sand.', '$15–30 pp', '/Hadicurari.webp'),
   spot('lunch-don-jacinto', 'Don Jacinto', 'Oranjestad', 'oranjestad', 'Authentic Aruban home cooking in a cozy downtown setting.', '$12–22 pp', '/Don Jacinto Aruba.webp'),

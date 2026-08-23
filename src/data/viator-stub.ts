@@ -77,7 +77,7 @@ export const VIATOR_ITEMS: ViatorItem[] = [
   // Adventure Tours
   { id: 'utv-cave-pool', group_id: 'adventure-tours', sections: ['adventures-outdoor'], adventure: 90, tags: [12035],
     title: 'Aruba UTV Tour with Natural Cave Pool and Cliff Jumping',
-    image_url: 'https://images.pexels.com/photos/1125883/pexels-photo-1125883.jpeg?auto=compress&cs=tinysrgb&w=800',
+    image_url: '/Natural Pool 4x4 Tour.webp',
     price_usd: 129, duration: '5 hrs', rating: 4.8, review_count: 1247,
     viator_item_url: '',
     is_best_seller: true, display_order: 1,
@@ -127,7 +127,7 @@ export const VIATOR_ITEMS: ViatorItem[] = [
     description: 'Half-day catamaran sail to the Antilla shipwreck — the Caribbean\'s largest WWII wreck — and on to the Boca Catalina reef for a second snorkel. Gear and an open bar back to port are included.' },
   { id: 'kitesurf-lesson', group_id: 'watersports', sections: ['cruises-water'], adventure: 85,
     title: 'Kitesurfing Lesson at Fisherman\'s Huts',
-    image_url: 'https://images.pexels.com/photos/2179473/pexels-photo-2179473.jpeg?auto=compress&cs=tinysrgb&w=800',
+    image_url: '/Kitesurfing Fishermans Huts.webp',
     price_usd: 120, duration: '2 hrs', rating: 4.6, review_count: 178,
     viator_item_url: '',
     is_best_seller: false, display_order: 2,

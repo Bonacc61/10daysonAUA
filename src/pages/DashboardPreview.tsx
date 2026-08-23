@@ -38,7 +38,7 @@ const MOCK_BOOKINGS = [
 
 const MOCK_STARRED = [
   { title: 'Baby Beach snorkel',    category: 'Beaches',     cost: 'Free',  duration: '2 hrs',  img: 'https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?w=400&q=70' },
-  { title: 'Kitesurfing lesson',    category: 'Watersports', cost: '$95',   duration: '3 hrs',  img: 'https://images.unsplash.com/photo-1572979026633-c4ca75a5b5cf?w=400&q=70' },
+  { title: 'Kitesurfing lesson',    category: 'Watersports', cost: '$95',   duration: '3 hrs',  img: '/Kitesurfing Fishermans Huts.webp' },
   { title: 'Arikok National Park',  category: 'Nature',      cost: 'Free',  duration: 'Half day', img: 'https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=400&q=70' },
 ];
 
