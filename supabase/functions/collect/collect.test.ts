@@ -143,6 +143,20 @@ describe('collect — only a real address is sent to the country lookup', () => 
     expect(lookupIp('::ffff:999.1.1.1')).toBe(null);
   });
 
+  it('rejects colon soup that is not an address', () => {
+    // These passed the first regex form: bounded, since the RPC would just error
+    // and leave country null, but the module claims to send only real addresses.
+    for (const junk of [':', '::', ':::', '1:2', 'a:', '::ffff:', '1:2:3:4:5:6:7', '1:2:3:4:5:6:7:8:9']) {
+      expect(lookupIp(junk), JSON.stringify(junk)).toBe(null);
+    }
+  });
+
+  it('still accepts the forms that are addresses', () => {
+    for (const ip of ['::1', '2001:610::1', '2001:0db8:0000:0000:0000:ff00:0042:8329', 'fe80::1']) {
+      expect(lookupIp(ip), ip).toBe(ip);
+    }
+  });
+
   it('does not accept a CIDR block or a port, which are not single addresses', () => {
     expect(lookupIp('145.100.0.0/16')).toBe(null);
     expect(lookupIp('145.100.0.1:443')).toBe(null);

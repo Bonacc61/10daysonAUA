@@ -19,7 +19,7 @@
 // brand coral against brand green is ΔE 3.4 under deuteranopia, i.e. the same
 // colour to a red-green colourblind reader. Do not "fix" these back to the brand
 // hues without re-running that script. Assigned in fixed order, never cycled.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PageId } from '../App';
 import { useAuth } from '../lib/auth';
 
@@ -106,8 +106,15 @@ export default function Stats({ setPage }: Props) {
 
   const totalViews = data.daily.reduce((s, d) => s + d.views, 0);
   const busiest = data.daily.reduce<Daily | null>((b, d) => (!b || d.visitors > b.visitors ? d : b), null);
-  const outboundClicks = data.products.reduce((s, p) => s + p.clicks, 0)
-    || data.partners.reduce((s, p) => s + p.clicks, 0);
+  // The PARTNERS sum, not the products sum, and `||` between them was a bug
+  // rather than a fallback. stats_summary builds `products` from outbound rows
+  // that have a product_code and truncates at 50; `partners` groups every
+  // outbound row by destination host. A direct-operator link from the map popup
+  // carries a host and no product code, so the moment one product-attributed
+  // click existed, `||` stopped counting all the others — and this tile could
+  // show fewer clicks than the "visitors who clicked out" tile beside it, which
+  // is impossible on its face.
+  const outboundClicks = data.partners.reduce((s, p) => s + p.clicks, 0);
   const empty = data.daily.length === 0 && totalViews === 0;
 
   return (
@@ -126,8 +133,10 @@ export default function Stats({ setPage }: Props) {
               key={w}
               onClick={() => setDays(w)}
               aria-pressed={days === w}
+              aria-label={`Last ${w} days`}
               style={{
-                fontFamily: 'inherit', fontSize: 13, cursor: 'pointer', padding: '6px 14px',
+                fontFamily: 'inherit', fontSize: 13, cursor: 'pointer', padding: '0 18px',
+                minHeight: 44, minWidth: 56,
                 borderRadius: 999, border: '1px solid var(--sand-200)',
                 background: days === w ? INK : 'transparent',
                 color: days === w ? 'var(--cream)' : INK,
@@ -160,7 +169,7 @@ export default function Stats({ setPage }: Props) {
             <TimeChart daily={data.daily} />
           </Section>
 
-          <Section title="Daily unique visitors">
+          <Section title="Daily unique visitors — most recent 14 days">
             {/* REQUIRED LABEL — spec, and it is on the tile rather than in a
                 tooltip on purpose. This is the figure someone quotes. */}
             <p style={warn}>
@@ -292,65 +301,97 @@ function Tile({ label, value, sub }: { label: string; value: number; sub?: strin
  */
 function TimeChart({ daily }: { daily: Daily[] }) {
   const [hover, setHover] = useState<number | null>(null);
-  const W = 880, H = 220, PAD_L = 44, PAD_B = 28, PAD_T = 12, PAD_R = 12;
+  const box = useRef<HTMLDivElement | null>(null);
+  // MEASURED width, drawn 1:1. A fixed viewBox scaled with width:100% scales the
+  // TEXT too: at a 390px viewport an 880-wide chart renders at 0.31, which put
+  // the axis and date labels at 3.4px — a smear. Measuring means 11px is 11px on
+  // a phone, and it is also what makes the hit area below usable.
+  const [w, setW] = useState(760);
+  useEffect(() => {
+    const el = box.current;
+    // Guarded because an exception here does not cost the chart, it costs the
+    // PAGE — there is no error boundary above this, so a throw in the effect
+    // unmounts the whole dashboard. jsdom has no ResizeObserver and demonstrated
+    // exactly that. Without it the default width still renders a correct chart.
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([e]) => setW(Math.max(260, Math.round(e.contentRect.width))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const H = 220, PAD_L = 40, PAD_B = 26, PAD_T = 12, PAD_R = 10;
   const max = Math.max(1, ...daily.map((d) => Math.max(d.views, d.visitors)));
-  const plotW = W - PAD_L - PAD_R, plotH = H - PAD_T - PAD_B;
+  const plotW = w - PAD_L - PAD_R, plotH = H - PAD_T - PAD_B;
   const x = (i: number) => PAD_L + (daily.length === 1 ? plotW / 2 : (i / (daily.length - 1)) * plotW);
   const y = (v: number) => PAD_T + plotH - (v / max) * plotH;
   const path = (key: 'views' | 'visitors') =>
     daily.map((d, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(d[key]).toFixed(1)}`).join(' ');
-  const ticks = useMemo(() => [0, Math.round(max / 2), max], [max]);
+  // Deduped: with max === 1 the three ticks collapse to [0, 1, 1], which draws a
+  // doubled gridline and hands React two children with the same key.
+  const ticks = useMemo(() => [...new Set([0, Math.round(max / 2), max])], [max]);
+
+  // ONE overlay rather than a hit rect per point. Per-point targets are 2.5px
+  // wide at 390px with a 90-day window — untappable, and unhittable with a mouse
+  // too. This finds the nearest day from the pointer's x, so the target is the
+  // whole plot at any width, and it works for touch: a tap fires pointer/mouse
+  // events, so the readout appears and stays until the next tap elsewhere.
+  const pick = (clientX: number) => {
+    const el = box.current;
+    if (!el || daily.length === 0) return;
+    const rect = el.getBoundingClientRect();
+    const rel = clientX - rect.left - PAD_L;
+    const step = daily.length === 1 ? plotW : plotW / (daily.length - 1);
+    setHover(Math.max(0, Math.min(daily.length - 1, Math.round(rel / step))));
+  };
 
   if (daily.length === 0) return <p style={muted}>No days with traffic in this window.</p>;
 
+  const shown = hover !== null && daily[hover] ? daily[hover] : daily[daily.length - 1];
+
   return (
-    <figure style={{ margin: 0 }}>
+    <figure style={{ margin: 0 }} ref={box}>
       {/* A legend is always present for two series, so identity is never carried
           by colour alone. */}
-      <div style={{ display: 'flex', gap: 18, marginBottom: 8, fontSize: 12 }}>
+      <div style={{ display: 'flex', gap: 18, marginBottom: 8, fontSize: 12, flexWrap: 'wrap' }}>
         <Key color={SERIES[0]} label="Pageviews" />
         <Key color={SERIES[1]} label="Unique visitors (daily)" />
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="Pageviews and daily unique visitors over time" style={{ display: 'block', overflow: 'visible' }}>
+      <svg
+        width={w} height={H} viewBox={`0 0 ${w} ${H}`}
+        role="img" aria-label="Pageviews and daily unique visitors over time"
+        style={{ display: 'block', touchAction: 'pan-y' }}
+        onMouseMove={(e) => pick(e.clientX)}
+        onMouseLeave={() => setHover(null)}
+        onTouchStart={(e) => pick(e.touches[0].clientX)}
+        onTouchMove={(e) => pick(e.touches[0].clientX)}
+      >
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={PAD_L} x2={W - PAD_R} y1={y(t)} y2={y(t)} stroke={GRID} strokeWidth={1} />
-            <text x={PAD_L - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill={INK} opacity={0.45}>{t}</text>
+            <line x1={PAD_L} x2={w - PAD_R} y1={y(t)} y2={y(t)} stroke={GRID} strokeWidth={1} />
+            <text x={PAD_L - 6} y={y(t) + 4} textAnchor="end" fontSize={11} fill={INK} opacity={0.55}>{t}</text>
           </g>
         ))}
         <path d={path('views')} fill="none" stroke={SERIES[0]} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         <path d={path('visitors')} fill="none" stroke={SERIES[1]} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         {hover !== null && daily[hover] && (
-          <line x1={x(hover)} x2={x(hover)} y1={PAD_T} y2={PAD_T + plotH} stroke={INK} strokeWidth={1} opacity={0.25} />
+          <>
+            <line x1={x(hover)} x2={x(hover)} y1={PAD_T} y2={PAD_T + plotH} stroke={INK} strokeWidth={1} opacity={0.25} />
+            {/* A 2px surface ring keeps the two markers separable where they meet. */}
+            <circle cx={x(hover)} cy={y(daily[hover].views)} r={4} fill={SERIES[0]} stroke="var(--sand-50)" strokeWidth={2} />
+            <circle cx={x(hover)} cy={y(daily[hover].visitors)} r={4} fill={SERIES[1]} stroke="var(--sand-50)" strokeWidth={2} />
+          </>
         )}
-        {daily.map((d, i) => (
-          <g key={d.day}>
-            {hover === i && <>
-              {/* A 2px surface ring keeps overlapping marks separable. */}
-              <circle cx={x(i)} cy={y(d.views)} r={4} fill={SERIES[0]} stroke="var(--cream)" strokeWidth={2} />
-              <circle cx={x(i)} cy={y(d.visitors)} r={4} fill={SERIES[1]} stroke="var(--cream)" strokeWidth={2} />
-            </>}
-            {/* Hit target far wider than the mark. */}
-            <rect
-              x={x(i) - plotW / Math.max(daily.length, 1) / 2} y={PAD_T}
-              width={Math.max(plotW / Math.max(daily.length, 1), 8)} height={plotH}
-              fill="transparent"
-              onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}
-            />
-          </g>
-        ))}
-        {daily.length > 0 && (
-          <text x={PAD_L} y={H - 8} fontSize={11} fill={INK} opacity={0.45}>{fmtDay(daily[0].day)}</text>
-        )}
+        <text x={PAD_L} y={H - 6} fontSize={11} fill={INK} opacity={0.55}>{fmtDay(daily[0].day)}</text>
         {daily.length > 1 && (
-          <text x={W - PAD_R} y={H - 8} textAnchor="end" fontSize={11} fill={INK} opacity={0.45}>{fmtDay(daily[daily.length - 1].day)}</text>
+          <text x={w - PAD_R} y={H - 6} textAnchor="end" fontSize={11} fill={INK} opacity={0.55}>{fmtDay(daily[daily.length - 1].day)}</text>
         )}
       </svg>
-      {hover !== null && daily[hover] && (
-        <div style={{ fontSize: 12, marginTop: 6 }}>
-          <strong>{fmtDay(daily[hover].day)}</strong> — {daily[hover].views} pageviews, {daily[hover].visitors} visitors
-        </div>
-      )}
+      {/* Always rendered, never conditionally. Mounting this on hover grew the
+          figure by ~24px and shunted every section below it up and down. */}
+      <div style={{ fontSize: 12, marginTop: 6, minHeight: 18, opacity: hover === null ? 0.55 : 1 }}>
+        <strong>{fmtDay(shown.day)}</strong> — {shown.views} pageviews, {shown.visitors} visitors
+        {hover === null && <span style={{ opacity: 0.7 }}> (latest day; hover or tap the chart for another)</span>}
+      </div>
     </figure>
   );
 }
@@ -409,14 +450,22 @@ function BarList({ rows, color, unit }: { rows: { label: string; n: number; sub?
  * generating an itinerary, so this is a set of counts, not a strict nesting.
  */
 function Funnel({ f }: { f: Summary['funnel'] }) {
+  // MEASURED steps only. The three middle steps of the designed funnel —
+  // questionnaire_started, itinerary_generated, itinerary_kept — have NO
+  // instrumentation behind them: trackMilestone() exists in src/lib/beacon.ts
+  // and is called from nowhere, so stats_summary counts zero of each, forever.
+  //
+  // Rendering them as "0 visitors · 0%" would not read as "not measured", it
+  // would read as nobody starting the questionnaire — a catastrophic-looking
+  // product instead of a missing beacon. So they are named as unmeasured
+  // instead. Wiring the three calls is plan Task 9 (docs/superpowers/plans/
+  // 2026-08-14-internal-analytics.md) and ROADMAP item 25; when they land, move
+  // them out of NOT_YET and delete this note.
   const steps = [
     ['Visited', f.visitors],
-    ['Started the questionnaire', f.questionnaire],
-    ['Generated an itinerary', f.generated],
-    ['Saved or shared it', f.kept],
     ['Clicked out to a partner', f.clickedOut],
   ] as const;
-  const max = Math.max(...steps.map(([, n]) => n), 1);
+  const NOT_YET = ['Started the questionnaire', 'Generated an itinerary', 'Saved or shared it'];
   return (
     <>
       <BarList rows={steps.map(([label, n]) => ({
@@ -424,7 +473,11 @@ function Funnel({ f }: { f: Summary['funnel'] }) {
         n,
         sub: f.visitors > 0 ? `${Math.round((n / f.visitors) * 100)}%` : undefined,
       }))} color={SERIES[0]} unit="visitors" />
-      {max === 0 && <p style={muted}>No milestones recorded yet.</p>}
+      <p style={{ ...warn, marginTop: 14 }}>
+        <strong>Three steps are not measured yet.</strong> {NOT_YET.join(', ')} — the beacon
+        for these was never wired up, so there is no data behind them. They are left out
+        rather than drawn as zero, because a zero here would look like nobody doing it.
+      </p>
       <p style={{ ...muted, fontSize: 12, marginBottom: 0 }}>
         Each step counts distinct daily visitor codes, so a person planning across two days
         is two. Steps are counts, not a strict funnel — a visitor can click out without
@@ -436,7 +489,7 @@ function Funnel({ f }: { f: Summary['funnel'] }) {
 
 function Devices({ d }: { d: Record<string, number> }) {
   const order = ['mobile', 'tablet', 'desktop'];
-  const rows = order.filter((k) => d[k]).map((k, i) => ({ label: k, n: d[k], color: SERIES[i] }));
+  const rows = order.filter((k) => d[k]).map((k) => ({ label: k, n: d[k], color: SERIES[order.indexOf(k)] }));
   if (rows.length === 0) return <p style={muted}>Nothing in this window.</p>;
   const total = rows.reduce((s, r) => s + r.n, 0);
   return (

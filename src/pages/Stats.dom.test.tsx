@@ -119,6 +119,33 @@ describe('Stats — the numbers', () => {
     expect(document.body.textContent).toMatch(/Unique visitors \(daily\)/i);
   });
 
+  it('names the three uninstrumented funnel steps instead of drawing them as zero', async () => {
+    // trackMilestone() has no call sites, so questionnaire/generated/kept are
+    // structurally always 0. Rendering "0 visitors · 0%" would read as nobody
+    // doing it rather than as nothing measuring it.
+    vi.stubGlobal('fetch', okFetch());
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/What people did/i);
+    expect(document.body.textContent).toMatch(/Three steps are not measured yet/i);
+    // The two that ARE measured still render as bars.
+    expect(document.body.textContent).toMatch(/Clicked out to a partner/);
+    // And the unmeasured ones carry no percentage of their own.
+    expect(document.body.textContent).not.toMatch(/Generated an itinerary\s*·/);
+  });
+
+  it('counts outbound clicks from the partner totals, not the product subset', async () => {
+    // `products` only holds rows WITH a product_code and truncates at 50;
+    // `partners` groups every outbound row. The old `||` discarded every
+    // click without a product code as soon as one product click existed.
+    vi.stubGlobal('fetch', okFetch({
+      ...SUMMARY,
+      products: [{ product: 'X', clicks: 9, visitors: 7 }],
+      partners: [{ host: 'viator.com', clicks: 21 }, { host: 'operator.aw', clicks: 9 }],
+    }));
+    render(<Stats setPage={() => {}} />);
+    expect(await screen.findByText('30')).toBeTruthy();
+  });
+
   it('reads an empty dataset as "nothing arrived yet", not as a broken query', async () => {
     vi.stubGlobal('fetch', okFetch({
       days: 30, daily: [], topPaths: [], referrers: [], campaigns: [], countries: [],

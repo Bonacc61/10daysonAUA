@@ -21,6 +21,9 @@ export const BOT_RE = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|em
 // Taken from PATH_TO_PAGE / PAGE_TO_PATH in src/App.tsx. Keep in step: a route
 // added there and not here silently becomes 'other', which looks like traffic
 // going nowhere rather than like a missing line.
+// ONE DELIBERATE EXCEPTION: '/stats' is absent on purpose. It is the operator's
+// own dashboard, not traveller traffic, and App.tsx skips the beacon for it —
+// adding it here would start counting visits to the numbers in the numbers.
 const KNOWN_PATHS = new Set([
   '/', '/questionnaire', '/itinerary', '/explore', '/map',
   '/privacy', '/terms', '/surprise', '/dashboard', '/preview',
@@ -73,8 +76,28 @@ export function deviceClass(ua: string): 'mobile' | 'tablet' | 'desktop' {
 // no check. Postgres remains the real validator; this only decides whether to
 // ask it.
 const V4 = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
-// Hex groups joined by colons, with at most one '::' elision.
-const V6 = /^(?=.*:)(?!.*::.*::)(?:[0-9a-f]{1,4})?(?::(?:[0-9a-f]{1,4})?){1,7}$/i;
+const HEX_GROUP = /^[0-9a-f]{1,4}$/i;
+
+// Hex groups joined by colons, at most one '::' elision, at least one group.
+// Written out rather than as one regex because the regex form accepted ':',
+// '::' and '1:2' — bounded (the RPC just errors and the country stays null) but
+// it contradicts what this module claims to do and puts avoidable errors in the
+// database log.
+function isV6(s: string): boolean {
+  if (!/^[0-9a-f:]+$/i.test(s)) return false;
+  const first = s.indexOf('::');
+  if (first !== s.lastIndexOf('::')) return false;   // at most one elision
+  // A leading or trailing single colon is not an address ('::ffff:'); a doubled
+  // one at either end is ('fe80::').
+  if (s.startsWith(':') && !s.startsWith('::')) return false;
+  if (s.endsWith(':') && !s.endsWith('::')) return false;
+  const parts = s.split(':');
+  const groups = parts.filter((p) => p !== '');
+  if (groups.length === 0) return false;             // ':' and '::' are not addresses
+  if (!groups.every((p) => HEX_GROUP.test(p))) return false;
+  // Without an elision every one of the eight groups must be written out.
+  return first === -1 ? parts.length === 8 : groups.length <= 7;
+}
 
 export function lookupIp(raw: string): string | null {
   if (typeof raw !== 'string' || !raw || raw.length > 45) return null;
@@ -85,6 +108,6 @@ export function lookupIp(raw: string): string | null {
   // for every visitor behind such a proxy.
   const unmapped = raw.replace(/^::ffff:/i, '');
   if (V4.test(unmapped)) return unmapped;
-  if (V6.test(raw)) return raw;
+  if (isV6(raw)) return raw;
   return null;
 }

@@ -33,8 +33,8 @@ async function visitorDayHash(ip: string, ua: string, salt: string): Promise<str
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// The FIRST x-forwarded-for entry, and this is a correction — measured against
-// the deployed function on 2026-08-23, not reasoned about.
+// x-real-ip, and this is a correction — measured against the deployed function
+// on 2026-08-23, not reasoned about.
 //
 // This read the LAST entry, on the usual and normally correct rule that the
 // leftmost value is whatever the client sent and keying on it hands out a fresh
@@ -51,17 +51,27 @@ async function visitorDayHash(ip: string, ua: string, salt: string): Promise<str
 // numbers stay plausible-looking while being wrong, which is the worst way for a
 // metric to fail when the point of it is to quote it to a partner.
 //
-// x-real-ip first because Supabase sets it to the client address; the head of
-// the forwarded chain is the fallback.
+// x-real-ip because Supabase sets it to the client address. There is
+// deliberately no x-forwarded-for fallback — see below.
 function clientIp(req: Request): string {
   const real = req.headers.get('x-real-ip')?.trim();
   if (real) return real;
-  const xff = req.headers.get('x-forwarded-for')?.split(',') ?? [];
-  return xff[0]?.trim() || 'unknown';
+  // NOT xff[0] as a fallback. The head of the chain is whatever the client sent,
+  // so trusting it would let a caller mint a fresh visitor per request and choose
+  // their own country — the very thing the old last-entry rule was defending
+  // against. Supabase always sets x-real-ip, so this line should never run;
+  // 'unknown' fails closed if it ever does (lookupIp rejects it, country stays
+  // null, the row is still written).
+  return 'unknown';
 }
 
 const trim = (v: unknown, n: number): string | null =>
   typeof v === 'string' && v ? v.slice(0, n) : null;
+
+// The three the funnel is built from, and nothing else.
+const MILESTONES = ['questionnaire_started', 'itinerary_generated', 'itinerary_kept'];
+const milestoneName = (v: unknown): string | null =>
+  typeof v === 'string' && MILESTONES.includes(v) ? v : null;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -127,7 +137,11 @@ Deno.serve(async (req) => {
       device: deviceClass(ua),
       product_code: name === 'outbound' ? trim(body?.product, 32) : null,
       destination_host: name === 'outbound' ? referrerHost(body?.href) : null,
-      milestone: name === 'milestone' ? trim(body?.milestone, 32) : null,
+      // Allowlisted, not trimmed. collect is deployed --no-verify-jwt, so this
+      // column is writable by anyone who finds the URL; an open 32-character text
+      // field on a public endpoint is exactly what the "never store words" rule
+      // exists to prevent, even though nothing renders it.
+      milestone: name === 'milestone' ? milestoneName(body?.milestone) : null,
     });
 
     return noContent();
