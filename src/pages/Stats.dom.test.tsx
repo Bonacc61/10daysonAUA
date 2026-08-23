@@ -372,7 +372,7 @@ describe('Stats — the cumulative tiles explain themselves', () => {
     expect(cardOf(info).className).toMatch(/flipped/);
 
     // And the back carries the warning that matters most about this figure.
-    expect(document.body.textContent).toMatch(/Do not quote this as a number of people/i);
+    expect(document.body.textContent).toMatch(/never quote it as one/i);
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Back' })[1]);
     expect(cardOf(info).className).not.toMatch(/flipped/);
