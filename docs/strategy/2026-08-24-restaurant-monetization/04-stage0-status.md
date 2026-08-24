@@ -57,12 +57,20 @@ rule, engine balance), so none were added to the catalog.
 
 ## Waiting on Jan
 
-1. **Deploy decision** — local main carries the strategy docs + `2bddf95`.
-   Ship gate applies: `/code-review` before pushing.
+1. **Deploy decision** — local main carries the strategy docs + the feature
+   commits. **Ship gate already run (2026-08-25 night): verdict SHIP, no
+   criticals**; the two non-blocking findings are folded in below and into the
+   code. Push = deploy.
 2. **PostHog key** — `VITE_POSTHOG_KEY` is still empty in `.env.production`,
    so the new event (and everything else) captures nothing. Same pre-launch
    blocker as roadmap items 2/18/20. The project API key is a public client
-   key; it belongs in `.env.production`.
+   key; it belongs in `.env.production`. **Prerequisite (ship-gate finding):**
+   the Privacy Policy currently says "No third-party analytics", which is true
+   only while the key is empty — setting it means updating `Privacy.tsx` in
+   the same push (PostHog as processor + the six capture events), per
+   CLAUDE.md's legal-basis rule. Also note the first-party outbound beacon
+   counts only viator.com hosts, so reserve-click counting depends entirely
+   on this key.
 3. **OpenTable affiliate application** — a founder form, 2–3 week lead time,
    non-revenue until 100+ seated covers/month:
    https://www.opentable.com/restaurant-solutions/api-partners/become-a-partner/

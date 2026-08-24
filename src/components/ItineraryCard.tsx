@@ -105,6 +105,8 @@ function ActivityCardFront({
   onPickReason?: (reason: SwapReason) => void;
   onNavigateToSection?: (section: Section) => void;
 } & SwapTextProps) {
+  // Hoisted so TypeScript's narrowing survives into the onClick closures below.
+  const reserve = a.reserve;
   const headerContent = (
     <>
       <div className="chb-title">{a.category}</div>
@@ -233,18 +235,18 @@ function ActivityCardFront({
                 <a href={bookUrl} target="_blank" rel="noopener noreferrer" className="itin-book-btn">
                   Book now ↗
                 </a>
-              ) : a.reserve ? (
+              ) : reserve ? (
                 // The click count per restaurant is what stage 1 of the
                 // monetization plan sells on, so the event fires before the
                 // navigation. Only id + kind — never traveller text.
-                a.reserve.kind === 'phone' ? (
-                  <a href={a.reserve.url} className="itin-book-btn"
-                     onClick={() => capture('restaurant_reserve_click', { id: a.id, kind: 'phone' })}>
+                reserve.kind === 'phone' ? (
+                  <a href={reserve.url} className="itin-book-btn"
+                     onClick={() => capture('restaurant_reserve_click', { id: a.id, kind: reserve.kind })}>
                     Call to reserve
                   </a>
                 ) : (
-                  <a href={a.reserve.url} target="_blank" rel="noopener noreferrer" className="itin-book-btn"
-                     onClick={() => capture('restaurant_reserve_click', { id: a.id, kind: a.reserve!.kind })}>
+                  <a href={reserve.url} target="_blank" rel="noopener noreferrer" className="itin-book-btn"
+                     onClick={() => capture('restaurant_reserve_click', { id: a.id, kind: reserve.kind })}>
                     Reserve a table ↗
                   </a>
                 )

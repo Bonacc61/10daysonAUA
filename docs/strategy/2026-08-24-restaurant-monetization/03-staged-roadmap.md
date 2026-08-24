@@ -17,8 +17,9 @@ possible, with a numeric gate. No stage starts before the previous stage's gate 
 
 ## Stage 0 — instrument + free rails (this sprint, pre-Reddit)
 
-- PostHog event on every outbound restaurant click (restaurant id, slot, day — **no
-  free text**, per house rules), consent-gated as always. Note: `VITE_POSTHOG_KEY` is
+- PostHog event on every outbound restaurant click (restaurant id and link kind — **no
+  free text**, per house rules; day/slot deliberately deferred, see 04-stage0-status.md),
+  consent-gated as always. Note: `VITE_POSTHOG_KEY` is
   currently empty in `.env.production` (roadmap items 2/18/20 share this blocker) — this
   is one more reason to turn collection on *before* the launch.
 - "Reserve a table" links: OpenTable affiliate deep link where the restaurant is listed;
