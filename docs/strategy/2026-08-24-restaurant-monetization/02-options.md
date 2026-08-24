@@ -23,7 +23,14 @@ pays and already exists in the catalog.
   collateral for option C); traveller gets real availability without us holding any PII.
 - **Against:** payouts are pocket money at our traffic (~€2–5k/yr ceiling, see 01); only
   covers restaurants OpenTable lists; we hand the customer relationship to OpenTable.
-- **ICE:** 4 × 9 × 9 = **324** → **do immediately**
+  **Verified 2026-08-24:** it is NOT a Viator-style deal. OpenTable has no transaction to
+  commission (the diner pays the restaurant; OpenTable's revenue is the ~$1/seated-diner
+  fee charged to the restaurant), and per affiliate directories new partners start as
+  **non-revenue partners** — tracked links, zero payout — until consistently referring
+  **100+ seated covers/month**, after which private revenue-share terms are offered.
+  Onboarding is direct via their partner portal, 2–3 weeks. So option B's near-term value
+  is instrumentation and traveller UX, not revenue; the money stays in option C.
+- **ICE:** 4 × 9 × 9 = **324** → **do immediately** (for the data, not the payout)
 
 ## C. Direct partnership program — featured placement + tracked referrals
 
