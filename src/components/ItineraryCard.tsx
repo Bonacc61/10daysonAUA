@@ -8,6 +8,7 @@ import CardBack from './CardBack';
 import SwapReasons, { type SwapTextProps } from './SwapReasons';
 import { productUrlFor, primarySection, bookUrlForActivity } from '../data/exploreItems';
 import { parseActivityCost, showsFreeTag } from '../data/matcher';
+import { capture } from '../lib/analytics';
 
 type Props = {
   entry: CardEntry;
@@ -232,6 +233,21 @@ function ActivityCardFront({
                 <a href={bookUrl} target="_blank" rel="noopener noreferrer" className="itin-book-btn">
                   Book now ↗
                 </a>
+              ) : a.reserve ? (
+                // The click count per restaurant is what stage 1 of the
+                // monetization plan sells on, so the event fires before the
+                // navigation. Only id + kind — never traveller text.
+                a.reserve.kind === 'phone' ? (
+                  <a href={a.reserve.url} className="itin-book-btn"
+                     onClick={() => capture('restaurant_reserve_click', { id: a.id, kind: 'phone' })}>
+                    Call to reserve
+                  </a>
+                ) : (
+                  <a href={a.reserve.url} target="_blank" rel="noopener noreferrer" className="itin-book-btn"
+                     onClick={() => capture('restaurant_reserve_click', { id: a.id, kind: a.reserve!.kind })}>
+                    Reserve a table ↗
+                  </a>
+                )
               ) : showsFreeTag(a) ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '8px 13px', fontSize: 13, fontWeight: 700, borderRadius: 10, border: '2px solid var(--ink)', background: '#A8F5B8', color: 'var(--ink)', boxShadow: '2px 2px 0 var(--ink)' }}>✓ Free</span>
               ) : null}
