@@ -32,6 +32,12 @@ const SUMMARY = {
   countries: [{ country: 'US', n: 71 }, { country: 'NL', n: 48 }],
   devices: { mobile: 96, desktop: 55, tablet: 12 },
   funnel: { visitors: 163, questionnaire: 74, generated: 51, kept: 18, clickedOut: 12 },
+  questionnaireFunnel: {
+    viewed: 90,
+    started: 74,
+    reached: { q_reached_2: 60, q_reached_3: 55, q_reached_4: 53, q_reached_5: 52, q_reached_6: 52, q_reached_7: 51 },
+    generated: 51,
+  },
   products: [{ product: '2785AFTSNORKEL', clicks: 9, visitors: 7 }],
   partners: [{ host: 'viator.com', clicks: 12 }],
 };
@@ -669,5 +675,34 @@ describe('Stats — the funnel is not a funnel', () => {
     // And it still renders both numbers rather than clamping the larger one.
     expect(text).toMatch(/Started the questionnaire\s*i?\s*4/);
     expect(text).toMatch(/Generated an itinerary\s*i?\s*5/);
+  });
+});
+
+/**
+ * The drop-off card answers "at which question do people stop", which the
+ * five-step funnel cannot: its whole questionnaire is one bar. Fed by the
+ * q_reached_N milestones (wired 2026-08-25).
+ */
+describe('Stats — where the questionnaire loses people', () => {
+  it('draws a row per question, labelled with the question itself', async () => {
+    vi.stubGlobal('fetch', okFetch());
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Questionnaire drop-off/i);
+    const text = document.body.textContent ?? '';
+    expect(text).toContain('Opened the questionnaire');
+    expect(text).toContain("Who's with you?");
+    expect(text).toContain('Adventure level?');
+    expect(text).toContain('Anything we should know?');
+  });
+
+  it('hides the card entirely while the deployed query predates it', async () => {
+    // The frontend deploys on push; the SQL migration is applied by hand. In
+    // the gap the summary has no questionnaireFunnel key, and a card of zeros
+    // would read as "everyone bounces at question 1".
+    const { questionnaireFunnel: _omit, ...older } = SUMMARY;
+    vi.stubGlobal('fetch', okFetch(older));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/What people did/i);
+    expect(screen.queryByText(/Questionnaire drop-off/i)).not.toBeInTheDocument();
   });
 });

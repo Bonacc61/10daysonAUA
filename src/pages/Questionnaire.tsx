@@ -66,6 +66,16 @@ export default function Questionnaire({ setPage, answers, setAnswers, onComplete
   const total = QUESTIONS.length;
   const q = QUESTIONS[step - 1];
 
+  // Where travellers stop. Arriving at question N fires q_reached_N — on
+  // ARRIVAL, not on answering, so someone who opens question 4 and leaves is
+  // counted as stopping at question 4. Step 1 fires nothing: opening the page
+  // is already the pageview, and the landing CTA enters at step 2 anyway (its
+  // slider answered q1). trackMilestoneOnce dedupes per page session, so Back
+  // and re-Continue does not double-count.
+  useEffect(() => {
+    if (step >= 2) trackMilestoneOnce(`q_reached_${step}`);
+  }, [step]);
+
   // The funnel's second step. Fired on the first ANSWER rather than on opening
   // the page, because opening it is already counted as a pageview — what this
   // measures is somebody actually starting to plan. trackMilestoneOnce dedupes

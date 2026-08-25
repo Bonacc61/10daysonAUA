@@ -4,6 +4,9 @@ import { useState } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import Questionnaire from './Questionnaire';
 import { DEFAULT_ANSWERS, type Answers } from '../App';
+import { trackMilestoneOnce } from '../lib/beacon';
+
+vi.mock('../lib/beacon', () => ({ trackMilestoneOnce: vi.fn() }));
 
 /**
  * Renders the questionnaire rather than reading its source.
@@ -172,5 +175,34 @@ describe('Q6 — arriving further out than the slider reaches', () => {
       const slider = screen.getByLabelText('When you start');
       expect(slider).toHaveAttribute('max', '179');
     });
+  });
+});
+
+/**
+ * Drop-off milestones. The dashboard's bounce-per-question card is fed by a
+ * q_reached_N milestone fired on ARRIVING at question N — so someone who
+ * opens question 4 and leaves counts as stopping there, whether or not they
+ * touched it. Step 1 fires nothing: opening the page is already the pageview,
+ * and the landing CTA enters at step 2 anyway.
+ */
+describe('Questionnaire — where travellers stop', () => {
+  it('marks arrival at the entry step, from step 2 on', () => {
+    vi.mocked(trackMilestoneOnce).mockClear();
+    show(2);
+    expect(trackMilestoneOnce).toHaveBeenCalledWith('q_reached_2');
+  });
+
+  it('marks each question Continue advances to', () => {
+    vi.mocked(trackMilestoneOnce).mockClear();
+    show(2);
+    fireEvent.click(screen.getByText('Continue'));
+    expect(trackMilestoneOnce).toHaveBeenCalledWith('q_reached_3');
+  });
+
+  it('marks nothing on question 1', () => {
+    vi.mocked(trackMilestoneOnce).mockClear();
+    show(1);
+    const reached = vi.mocked(trackMilestoneOnce).mock.calls.filter(([m]) => m.startsWith('q_reached_'));
+    expect(reached).toEqual([]);
   });
 });

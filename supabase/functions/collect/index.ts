@@ -110,8 +110,12 @@ function clientIp(req: Request): string {
 const trim = (v: unknown, n: number): string | null =>
   typeof v === 'string' && v ? v.slice(0, n) : null;
 
-// The three the funnel is built from, and nothing else.
-const MILESTONES = ['questionnaire_started', 'itinerary_generated', 'itinerary_kept'];
+// The three the funnel is built from, plus the questionnaire drop-off markers
+// (q_reached_N = a visitor arrived at question N), and nothing else.
+const MILESTONES = [
+  'questionnaire_started', 'itinerary_generated', 'itinerary_kept',
+  'q_reached_2', 'q_reached_3', 'q_reached_4', 'q_reached_5', 'q_reached_6', 'q_reached_7',
+];
 const milestoneName = (v: unknown): string | null =>
   typeof v === 'string' && MILESTONES.includes(v) ? v : null;
 
