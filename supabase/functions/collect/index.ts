@@ -111,10 +111,13 @@ const trim = (v: unknown, n: number): string | null =>
   typeof v === 'string' && v ? v.slice(0, n) : null;
 
 // The three the funnel is built from, plus the questionnaire drop-off markers
-// (q_reached_N = a visitor arrived at question N), and nothing else.
+// (q_reached_N = a visitor arrived at question N; q_reached_8 = pressed the
+// Build button on the last question — there is no eighth question), and
+// nothing else.
 const MILESTONES = [
   'questionnaire_started', 'itinerary_generated', 'itinerary_kept',
   'q_reached_2', 'q_reached_3', 'q_reached_4', 'q_reached_5', 'q_reached_6', 'q_reached_7',
+  'q_reached_8',
 ];
 const milestoneName = (v: unknown): string | null =>
   typeof v === 'string' && MILESTONES.includes(v) ? v : null;

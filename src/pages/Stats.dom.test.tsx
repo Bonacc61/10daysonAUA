@@ -35,8 +35,7 @@ const SUMMARY = {
   questionnaireFunnel: {
     viewed: 90,
     started: 74,
-    reached: { q_reached_2: 60, q_reached_3: 55, q_reached_4: 53, q_reached_5: 52, q_reached_6: 52, q_reached_7: 51 },
-    generated: 51,
+    reached: { q_reached_2: 60, q_reached_3: 55, q_reached_4: 53, q_reached_5: 52, q_reached_6: 52, q_reached_7: 51, q_reached_8: 49 },
   },
   products: [{ product: '2785AFTSNORKEL', clicks: 9, visitors: 7 }],
   partners: [{ host: 'viator.com', clicks: 12 }],
@@ -693,6 +692,19 @@ describe('Stats — where the questionnaire loses people', () => {
     expect(text).toContain("Who's with you?");
     expect(text).toContain('Adventure level?');
     expect(text).toContain('Anything we should know?');
+    expect(text).toContain('Pressed "Build my itinerary"');
+  });
+
+  it('does the subtraction for the reader: N stopped here, per question', async () => {
+    // q_reached_2 is 60 and q_reached_3 is 55 in the fixture — the Q2 row must
+    // say so, because "subtract adjacent rows yourself" was reported unreadable
+    // by the owner on night one. Q7 (51) minus the Build press (49) is 2.
+    vi.stubGlobal('fetch', okFetch());
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Questionnaire drop-off/i);
+    const text = document.body.textContent ?? '';
+    expect(text).toContain('5 stopped here');
+    expect(text).toContain('2 stopped here');
   });
 
   it('hides the card entirely while the deployed query predates it', async () => {

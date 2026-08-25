@@ -199,6 +199,15 @@ describe('Questionnaire — where travellers stop', () => {
     expect(trackMilestoneOnce).toHaveBeenCalledWith('q_reached_3');
   });
 
+  it('marks the Build press as q_reached_8 — the completion row', () => {
+    // itinerary_generated cannot feed the drop-off card: returners regenerate
+    // without opening the questionnaire, which measured at 133% of openers.
+    vi.mocked(trackMilestoneOnce).mockClear();
+    show(7);
+    fireEvent.click(screen.getByText('Build my itinerary →'));
+    expect(trackMilestoneOnce).toHaveBeenCalledWith('q_reached_8');
+  });
+
   it('marks nothing on question 1', () => {
     vi.mocked(trackMilestoneOnce).mockClear();
     show(1);

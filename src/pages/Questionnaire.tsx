@@ -95,6 +95,11 @@ export default function Questionnaire({ setPage, answers, setAnswers, onComplete
 
   const handleNext = () => {
     if (step < total) { setStep(step + 1); return; }
+    // Completion marker for the drop-off card. NOT an eighth question: "reached
+    // 8" means the Build button on step 7 was pressed. itinerary_generated
+    // cannot serve here — returners with saved answers regenerate without ever
+    // opening the questionnaire, which put that row at >100% of openers.
+    trackMilestoneOnce('q_reached_8');
     setLoading(true);
     setTimeout(() => {
       setLoading(false);

@@ -62,7 +62,7 @@ type Summary = {
   funnel: { visitors: number; questionnaire: number; generated: number; kept: number; clickedOut: number };
   /** Optional: absent until the 20260825150000 migration is applied, and the
    *  card hides itself rather than draw zeros that read as instant bounces. */
-  questionnaireFunnel?: { viewed: number; started: number; reached: Record<string, number>; generated: number };
+  questionnaireFunnel?: { viewed: number; started: number; reached: Record<string, number> };
   products: { product: string; clicks: number; visitors: number }[];
   partners: { host: string; clicks: number }[];
 };
@@ -495,7 +495,7 @@ export default function Stats({ setPage }: Props) {
 
           {data.questionnaireFunnel && (
             <Section title="Questionnaire drop-off">
-              <QuestionnaireDropoff qf={data.questionnaireFunnel} oneDay={isOneDay} since={data.firstEvent} />
+              <QuestionnaireDropoff qf={data.questionnaireFunnel} oneDay={isOneDay} />
             </Section>
           )}
 
@@ -1080,46 +1080,47 @@ function Funnel({ f, oneDay, since }: { f: Summary['funnel']; oneDay: boolean; s
  * question showing a stale label here misleads nobody: the counts are keyed by
  * step number, not by title.
  */
-function QuestionnaireDropoff({ qf, oneDay, since }: {
-  qf: NonNullable<Summary['questionnaireFunnel']>; oneDay: boolean; since?: string | null;
+function QuestionnaireDropoff({ qf, oneDay }: {
+  qf: NonNullable<Summary['questionnaireFunnel']>; oneDay: boolean;
 }) {
   const TITLES: Record<number, string> = {
     2: "Who's with you?", 3: "What's your budget vibe?", 4: 'What energizes you on vacation?',
     5: 'Adventure level?', 6: 'When are you visiting?', 7: 'Anything we should know?',
   };
+  const pctOf = (n: number) => (qf.viewed > 0 ? `${Math.round((n / qf.viewed) * 100)}%` : undefined);
+  // Q2..Q7 arrivals, then the Build press as the terminal row. "Stopped here"
+  // is this row minus the next — computed only between these rows, which share
+  // one semantics (a q_reached milestone) and one clamped window, so the
+  // difference really is people whose last question this was. Negative noise
+  // (a midnight-UTC hash split) prints nothing rather than "-1 stopped".
+  const qRows = Object.keys(TITLES).map((k) => ({
+    label: `Q${k} · ${TITLES[Number(k)]}`,
+    n: qf.reached[`q_reached_${k}`] ?? 0,
+  }));
+  const finished = qf.reached['q_reached_8'] ?? 0;
   const rows = [
-    { label: 'Opened the questionnaire', n: qf.viewed },
-    { label: 'Q1 · How long is your stay?', n: qf.started },
-    ...Object.keys(TITLES).map((k) => ({
-      label: `Q${k} · ${TITLES[Number(k)]}`,
-      n: qf.reached[`q_reached_${k}`] ?? 0,
-    })),
-    { label: 'Generated an itinerary', n: qf.generated },
+    { label: 'Opened the questionnaire', n: qf.viewed, sub: pctOf(qf.viewed) },
+    { label: 'Q1 · How long is your stay?', n: qf.started, sub: pctOf(qf.started) },
+    ...qRows.map((r, i) => {
+      const next = i + 1 < qRows.length ? qRows[i + 1].n : finished;
+      const stopped = r.n - next;
+      return { ...r, sub: [pctOf(r.n), stopped > 0 ? `${stopped} stopped here` : null].filter(Boolean).join(' · ') };
+    }),
+    { label: 'Pressed "Build my itinerary"', n: finished, sub: pctOf(finished) },
   ];
-  // Wired 2026-08-25, same shape as the Funnel note: a window reaching back
-  // past that date shows drop that is instrumentation, not behaviour.
-  const WIRED_AT = Date.parse('2026-08-25T18:00:00Z');
-  const spansTheGap = !!since && Date.parse(since) < WIRED_AT;
   return (
     <>
       <Explain>
-        How far people get, question by question. A row's shortfall against the one above it
-        is the share who stopped there. Q1 is counted by its first answer (the landing slider
-        answers it for most people, who enter at Q2), the rest by arriving at the question —
-        so Q2 can legitimately read higher than Q1: a landing-button visitor who bounces at
-        Q2 without touching anything is in the Q2 row but no Q1 answer ever happened.
+        Every number is people who got at least as far as that row, counting from the evening
+        of 25 August when this tracking went live — deliberately a shorter reach than the rest
+        of the page, so these rows always compare like with like. Read top to bottom:
+        &ldquo;stopped here&rdquo; on a question is that row minus the next — the people whose
+        last question it was. Q1 plays by a different rule: it counts a first <em>answer</em>,
+        and the landing button answers Q1 with its slider and drops people straight into Q2 —
+        so Q2 sitting above Q1 means most visitors came via that button, not that people
+        skipped a question.
       </Explain>
-      <BarList rows={rows.map((r) => ({
-        label: r.label,
-        n: r.n,
-        sub: qf.viewed > 0 ? `${Math.round((r.n / qf.viewed) * 100)}%` : undefined,
-      }))} color={SERIES[1]} unit={oneDay ? 'unique' : 'visits'} />
-      {spansTheGap && (
-        <p style={{ ...warn, marginTop: 14 }}>
-          <strong>Per-question counts start on 25 August.</strong> Visits before that recorded
-          no q_reached milestones, so older windows understate every question row.
-        </p>
-      )}
+      <BarList rows={rows} color={SERIES[1]} unit={oneDay ? 'unique' : 'visits'} />
     </>
   );
 }
