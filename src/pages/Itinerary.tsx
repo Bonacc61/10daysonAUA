@@ -35,6 +35,7 @@ import { capture } from '../lib/analytics';
 import { supabase } from '../lib/supabase';
 import SignIn from '../components/SignIn';
 import SharePopover from '../components/SharePopover';
+import BookAheadList from '../components/BookAheadList';
 import {
   seedPlan, addCard, removeCard, replaceCardEntry, moveCard, findCard,
   newUid, SECTIONS, type PlannedDay, type PlannedCard,
@@ -892,6 +893,10 @@ export default function Itinerary({ setPage, answers, setAnswers, onLogin, share
               You're viewing a shared Aruba itinerary — sign in to save your own editable copy.
             </div>
           )}
+          {/* Shown on shared views too: a friend sent this plan precisely so
+              the group can book the tours in it. bookedIds is viewer-local
+              there, which is fine — each traveller ticks their own list. */}
+          <BookAheadList plan={plan} resolveEntry={resolveEntry} bookedIds={bookedIds} />
           <div>
             <div className="itinerary-main">
               <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
