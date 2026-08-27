@@ -718,3 +718,37 @@ describe('Stats — where the questionnaire loses people', () => {
     expect(screen.queryByText(/Questionnaire drop-off/i)).not.toBeInTheDocument();
   });
 });
+
+describe('Stats — the all-time window', () => {
+  const withWindow = (extra: Record<string, unknown>) => okFetch({ ...SUMMARY, ...extra });
+
+  it('offers All time however little has been collected, and asks for the full retention window', async () => {
+    // Three days of history greys out "7 days" — but "All time" claims no
+    // duration, so it must be available from day one. The request underneath is
+    // days=365: rows purge at 12 months, so the maximum window IS everything
+    // that exists, by construction.
+    const f = withWindow({ firstEvent: new Date(Date.now() - 3 * 86_400_000).toISOString() });
+    vi.stubGlobal('fetch', f);
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Traffic over time/i);
+    const all = screen.getByRole('button', { name: 'All time' }) as HTMLButtonElement;
+    expect(all.disabled).toBe(false);
+    fireEvent.click(all);
+    await waitFor(() => {
+      const urls = f.mock.calls.map((c) => String(c[0]));
+      expect(urls.some((u) => u.includes('days=365'))).toBe(true);
+    });
+  });
+
+  it('labels the all-time window from the response — "since" the oldest row, never "365 days"', async () => {
+    // "Last 365 days" over four days of data is the quiet wrongness the window
+    // pills guard against. The honest label is the span actually measured,
+    // taken from firstEvent — which the SERVER sent, same rule as the other
+    // window labels.
+    vi.stubGlobal('fetch', withWindow({ days: 365, window: 'days', firstEvent: '2026-08-23T16:33:04.167354+00:00' }));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Traffic over time/i);
+    expect(document.body.textContent).toMatch(/All time — since 23 Aug 2026/);
+    expect(document.body.textContent).not.toMatch(/Last 365 days/i);
+  });
+});

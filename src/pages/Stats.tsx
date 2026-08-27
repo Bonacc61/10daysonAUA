@@ -84,9 +84,15 @@ const GRID = 'rgba(26,26,26,0.10)';
 // Read by App.tsx after a magic link lands, to forward back here.
 export const AFTER_LOGIN_KEY = '10doa:after-login-stats';
 
-const WINDOWS = ['today', 7, 30, 90] as const;
+// 'all' asks the server for days=365, and that is not an approximation: rows
+// purge at 12 months and the function clamps windows to 365, so the maximum
+// window IS everything that exists, by construction, permanently. All-time
+// needs no server change and no second dataset — it is a label over the
+// retention window, and the header derives that label from firstEvent.
+const WINDOWS = ['today', 7, 30, 90, 'all'] as const;
 type WindowKey = (typeof WINDOWS)[number];
-const windowLabel = (w: WindowKey) => (w === 'today' ? 'Today' : `${w} days`);
+const ALL_TIME_DAYS = 365;
+const windowLabel = (w: WindowKey) => (w === 'today' ? 'Today' : w === 'all' ? 'All time' : `${w} days`);
 
 // A request that never settles must not become a page that never resolves. A
 // blocker that black-holes *.supabase.co instead of refusing outright, a captive
@@ -175,7 +181,7 @@ export default function Stats({ setPage }: Props) {
     // mind. Stale numbers stay up instead, dimmed, until the new ones land.
     setState((prev) => (prev === 'ok' ? 'ok' : 'loading'));
     setBusy(true);
-    fetch(`${url}?days=${days}`, {
+    fetch(`${url}?days=${days === 'all' ? ALL_TIME_DAYS : days}`, {
       headers: { apikey: anon, Authorization: `Bearer ${token}` },
       signal: ctl.signal,
     })
@@ -291,9 +297,15 @@ export default function Stats({ setPage }: Props) {
             request were ever clamped or defaulted server-side, this line has to
             say what was actually measured, not what was asked for. */}
         <p style={{ fontStyle: 'italic', fontSize: 15, margin: 0, color: 'var(--ink)', opacity: 0.85 }}>
+          {/* days >= 365 is the retention window, i.e. all time — labelled by
+              the span actually measured (firstEvent, sent by the server), never
+              as "365 days", which over four days of data would be the exact
+              fiction the greyed-out pills below exist to avoid. */}
           {data.window === 'today'
             ? 'Today, since midnight UTC'
-            : `Last ${Math.round(data.days)} days`} &mdash; bots excluded by user-agent, and visitors who objected are not counted.
+            : data.days >= ALL_TIME_DAYS
+              ? `All time${data.firstEvent ? ` — since ${new Date(data.firstEvent).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}` : ''}`
+              : `Last ${Math.round(data.days)} days`} &mdash; bots excluded by user-agent, and visitors who objected are not counted.
         </p>
         {/* Says when these numbers were fetched, because the page refreshes
             itself hourly and a figure with no timestamp invites a wrong guess
@@ -311,14 +323,16 @@ export default function Stats({ setPage }: Props) {
             retention purge down. */}
         <div role="group" aria-label="Reporting window" style={{ display: 'flex', gap: 8, marginTop: 18, flexWrap: 'wrap' }}>
           {WINDOWS.map((w) => {
-            const ready = w === 'today' || daysCollected >= w;
+            // 'all' is never greyed out: unlike "90 days" over three days of
+            // history, "all time" claims no duration, so it cannot overstate one.
+            const ready = typeof w !== 'number' || daysCollected >= w;
             return (
               <button
                 key={w}
                 onClick={() => ready && setDays(w)}
                 disabled={!ready}
                 aria-pressed={days === w}
-                aria-label={w === 'today' ? 'Today' : `Last ${w} days`}
+                aria-label={w === 'today' ? 'Today' : w === 'all' ? 'All time' : `Last ${w} days`}
                 title={ready ? undefined : `Available after ${w} days of collection — ${Math.floor(daysCollected)} so far.`}
                 className={`filter-pill${days === w ? ' active' : ''}`}
                 // The app's pills are 11px tall by design; this one keeps their look
