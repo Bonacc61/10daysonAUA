@@ -74,9 +74,12 @@ Deno.serve(async (req) => {
   // 'best' cannot be expressed as a since-instant from here: which day was
   // busiest is something only the data knows, so the function that owns the
   // data picks the day (stats_summary_best_day) and names it in the payload.
+  // A fixed day is the opposite: fully known here, bounded on both sides.
   const [fn, args] = win.kind === 'best'
     ? ['stats_summary_best_day', {}]
-    : ['stats_summary_since', { since: win.since }];
+    : win.kind === 'day'
+      ? ['stats_summary_range', { since: win.since, until: win.until }]
+      : ['stats_summary_since', { since: win.since }];
   const rpc = await fetch(`${url}/rest/v1/rpc/${fn}`, {
     method: 'POST',
     headers: {
@@ -99,5 +102,10 @@ Deno.serve(async (req) => {
   // actually measured rather than from what it meant to ask for. The two differ
   // whenever the parameter was junk, and the risk with this figure is that a
   // wrong window still renders a perfectly plausible page.
-  return json({ days: win.days, window: win.kind, ...(await rpc.json()) });
+  // For a fixed day the measured day goes back too, same reason as bestDay.
+  return json({
+    days: win.days, window: win.kind,
+    ...(win.kind === 'day' ? { day: win.day } : {}),
+    ...(await rpc.json()),
+  });
 });

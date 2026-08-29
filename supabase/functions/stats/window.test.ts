@@ -101,3 +101,31 @@ describe('stats — "best" is the busiest day, and the data picks it', () => {
     expect(parseWindow('bestest', at(12))).toMatchObject({ kind: 'days', days: 30 });
   });
 });
+
+describe('stats — a fixed calendar day (days=YYYY-MM-DD)', () => {
+  const at = (h: number) => new Date(Date.UTC(2026, 7, 29, h, 0, 0));
+
+  it('bounds the window to exactly that UTC day, both sides', () => {
+    // Unlike 'today' this never grows, and unlike 'best' it never moves —
+    // that is the whole point of pinning a marketing day to it.
+    const w = parseWindow('2026-08-28', at(12));
+    expect(w).toMatchObject({
+      kind: 'day', days: 1, day: '2026-08-28',
+      since: '2026-08-28T00:00:00.000Z',
+      until: '2026-08-29T00:00:00.000Z',
+    });
+  });
+
+  it('rejects an impossible date rather than measuring a DIFFERENT day', () => {
+    // The trap: Date.parse here rolls '2026-02-30' over to 2 March rather than
+    // returning NaN, so without the round-trip check the window would measure
+    // a real day — just not the one asked for — and label it plausibly.
+    expect(parseWindow('2026-02-30', at(12))).toMatchObject({ kind: 'days', days: 30 });
+    expect(parseWindow('2026-13-01', at(12))).toMatchObject({ kind: 'days', days: 30 });
+  });
+
+  it('rejects a non-ISO shape and is not confused by plain numbers', () => {
+    expect(parseWindow('28-08-2026', at(12))).toMatchObject({ kind: 'days', days: 30 });
+    expect(parseWindow('7', at(12))).toMatchObject({ kind: 'days', days: 7 });
+  });
+});

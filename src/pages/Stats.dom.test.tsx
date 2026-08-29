@@ -770,6 +770,50 @@ describe('Stats — the best-day window', () => {
   });
 });
 
+describe('Stats — a pinned day: the 2nd Reddit Post', () => {
+  const DAY = {
+    ...SUMMARY,
+    days: 1,
+    window: 'day',
+    day: '2026-08-28',
+    daily: [{ day: '2026-08-28', views: 120, visitors: 81 }],
+    funnel: { ...SUMMARY.funnel, visitors: 81 },
+  };
+
+  it('offers the pill under the post name, and asks for that exact day', async () => {
+    // FIXED, not subject to change: unlike Best day this window is bounded to
+    // 2026-08-28 on both sides, so the post's numbers stay quotable after a
+    // better day comes along. Never greyed out — its day already happened.
+    const f = okFetch({ ...SUMMARY, firstEvent: new Date(Date.now() - 3 * 86_400_000).toISOString() });
+    vi.stubGlobal('fetch', f);
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Traffic over time/i);
+    const pill = screen.getByRole('button', { name: '2nd Reddit Post' }) as HTMLButtonElement;
+    expect(pill.disabled).toBe(false);
+    fireEvent.click(pill);
+    await waitFor(() => {
+      const urls = f.mock.calls.map((c) => String(c[0]));
+      expect(urls.some((u) => u.includes('days=2026-08-28'))).toBe(true);
+    });
+  });
+
+  it('labels the window with the post name and the day the server measured', async () => {
+    vi.stubGlobal('fetch', okFetch(DAY));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Traffic over time/i);
+    expect(document.body.textContent).toMatch(/2nd Reddit Post — 28 Aug 2026/);
+    expect(document.body.textContent).not.toMatch(/Last 1 days?/i);
+  });
+
+  it('keeps exact unique-visitor naming, without claiming "today"', async () => {
+    vi.stubGlobal('fetch', okFetch(DAY));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Traffic over time/i);
+    expect(document.body.textContent).toMatch(/Unique visitors\s*i?\s*81\s*on that day/i);
+    expect(document.body.textContent).not.toMatch(/so far today/i);
+  });
+});
+
 describe('Stats — the all-time window', () => {
   const withWindow = (extra: Record<string, unknown>) => okFetch({ ...SUMMARY, ...extra });
 

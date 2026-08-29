@@ -41,9 +41,11 @@ type Point = { key: string; label: string; views: number; visitors: number };
 type Counted = { n: number };
 type Summary = {
   days: number;
-  window?: 'today' | 'days' | 'best';
+  window?: 'today' | 'days' | 'best' | 'day';
   /** The day a 'best' window covers, YYYY-MM-DD — picked by the server. */
   bestDay?: string;
+  /** The day a fixed-day window covers, YYYY-MM-DD — echoed by the server. */
+  day?: string;
   /** Oldest row in web_events, or null when nothing has been recorded. */
   firstEvent?: string | null;
   /** The same headline figures, unwindowed. visitorDays is NOT people. */
@@ -97,10 +99,22 @@ export const AFTER_LOGIN_KEY = '10doa:after-login-stats';
 // from an earlier response could name yesterday's best day after today overtook
 // it, and the header must describe what was measured.
 const WINDOWS = ['today', 7, 30, 90, 'best', 'all'] as const;
-type WindowKey = (typeof WINDOWS)[number];
+
+// Marketing moments pinned to their UTC day. A pinned pill asks the server for
+// days=YYYY-MM-DD — bounded both sides, so unlike Best day it NEVER moves: the
+// numbers a post produced stay quotable after a better day comes along. The
+// server measures the day and echoes it back; only the NAME lives here.
+const PINNED_DAYS = [
+  // The second Reddit post, 2026-08-28 (owner's call, 2026-08-29).
+  { day: '2026-08-28', label: '2nd Reddit Post' },
+] as const;
+
+type WindowKey = (typeof WINDOWS)[number] | (typeof PINNED_DAYS)[number]['day'];
 const ALL_TIME_DAYS = 365;
+const pinnedLabel = (day: string | number | undefined) => PINNED_DAYS.find((p) => p.day === day)?.label;
 const windowLabel = (w: WindowKey) =>
-  w === 'today' ? 'Today' : w === 'best' ? 'Best day' : w === 'all' ? 'All time' : `${w} days`;
+  pinnedLabel(w) ??
+  (w === 'today' ? 'Today' : w === 'best' ? 'Best day' : w === 'all' ? 'All time' : `${w} days`);
 
 // A request that never settles must not become a page that never resolves. A
 // blocker that black-holes *.supabase.co instead of refusing outright, a captive
@@ -251,8 +265,11 @@ export default function Stats({ setPage }: Props) {
     : 0;
   const totalViews = (data.daily ?? []).reduce((s, d) => s + d.views, 0);
   // One day is the only window over which "distinct visitor codes" and "unique
-  // people" are the same thing. 'best' is one day by construction.
-  const isOneDay = data.window === 'today' || data.window === 'best' || (data.daily ?? []).length <= 1;
+  // people" are the same thing. 'best' and 'day' are one day by construction.
+  const isOneDay = data.window === 'today' || data.window === 'best' || data.window === 'day'
+    || (data.daily ?? []).length <= 1;
+  // A one-day window that is not today: its captions must not say "today".
+  const isPastDay = data.window === 'best' || data.window === 'day';
   // The denominator for "what share of visitors reached this page". The funnel's
   // first step is the same distinct count over the same window, so the shares
   // add up against a figure already on the page rather than a second one.
@@ -317,6 +334,10 @@ export default function Stats({ setPage }: Props) {
               ? data.bestDay
                 ? `Best day — ${new Date(`${data.bestDay}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}, the single busiest day so far`
                 : 'Best day — none yet'
+            : data.window === 'day'
+              // Labelled from the day the SERVER measured, with the pinned name
+              // this client gave it. A day nothing pinned still labels honestly.
+              ? `${pinnedLabel(data.day) ?? 'Fixed day'} — ${data.day ? new Date(`${data.day}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : ''}, that one UTC day`
             : data.days >= ALL_TIME_DAYS
               ? `All time${data.firstEvent ? ` — since ${new Date(data.firstEvent).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}` : ''}`
               : `Last ${Math.round(data.days)} days`} &mdash; bots excluded by user-agent, and visitors who objected are not counted.
@@ -336,9 +357,10 @@ export default function Stats({ setPage }: Props) {
             OLDEST ROW rather than a hardcoded date, so it also follows the
             retention purge down. */}
         <div role="group" aria-label="Reporting window" style={{ display: 'flex', gap: 8, marginTop: 18, flexWrap: 'wrap' }}>
-          {WINDOWS.map((w) => {
+          {([...WINDOWS, ...PINNED_DAYS.map((p) => p.day)] as WindowKey[]).map((w) => {
             // 'all' is never greyed out: unlike "90 days" over three days of
-            // history, "all time" claims no duration, so it cannot overstate one.
+            // history, "all time" claims no duration, so it cannot overstate
+            // one. Nor is a pinned day: its day already happened.
             const ready = typeof w !== 'number' || daysCollected >= w;
             return (
               <button
@@ -346,7 +368,7 @@ export default function Stats({ setPage }: Props) {
                 onClick={() => ready && setDays(w)}
                 disabled={!ready}
                 aria-pressed={days === w}
-                aria-label={w === 'today' ? 'Today' : w === 'best' ? 'Best day' : w === 'all' ? 'All time' : `Last ${w} days`}
+                aria-label={typeof w === 'number' ? `Last ${w} days` : windowLabel(w)}
                 title={ready ? undefined : `Available after ${w} days of collection — ${Math.floor(daysCollected)} so far.`}
                 className={`filter-pill${days === w ? ' active' : ''}`}
                 // The app's pills are 11px tall by design; this one keeps their look
@@ -401,7 +423,7 @@ export default function Stats({ setPage }: Props) {
               ? <FlipTile
                   scope="this window"
                   label="Unique visitors" value={data.funnel.visitors}
-                  sub={data.window === 'best' ? 'on the best day' : 'so far today'}
+                  sub={data.window === 'best' ? 'on the best day' : data.window === 'day' ? 'on that day' : 'so far today'}
                   back="People, counted once each. Within a single day the count is exact — this is the figure to quote."
                 />
               : <>
@@ -429,7 +451,7 @@ export default function Stats({ setPage }: Props) {
             <FlipTile
               scope="this window"
               label="Visitors who clicked out" value={data.funnel.clickedOut}
-              sub={isOneDay ? (data.window === 'best' ? 'unique, that day' : 'unique, today') : 'visits'}
+              sub={isOneDay ? (isPastDay ? 'unique, that day' : 'unique, today') : 'visits'}
               back="How many PEOPLE clicked at least one booking link. Someone who clicked three counts once here — the gap against Clicks sent out is how many activities a typical clicker opens."
             />
           </div>
