@@ -59,7 +59,9 @@ feeds the engine is in `docs/matching-engine/geography.md`:
   trace personas, measured 2026-08-03. The 2026-08-05 curation rules (one kayak, one sail and one
   off-road tour per trip up to 7 days; from 8 days the kayak and off-road
   families scale with length — 2 at 8-12, 3 at 13-14 — while the sails stay at
-  one of each kind, day-sail and evening-cruise counted separately from 8 days;
+  one of each kind, day-sail and evening-cruise counted separately from 8 days
+  (inert on the live catalogue: one experience cluster holds every sail, so a
+  trip gets one boat at any length — measured 2026-08-29);
   two outings and one meal per day) traded that back deliberately: **roughly 300-350 of 1,260 slots open** —
   the five personas from `tools/itinerary-trace.ts` at 14 days, seeds 0-5,
   measured 2026-08-05 (301 before these rules; 304 after, and it moved between

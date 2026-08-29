@@ -150,7 +150,11 @@ export default function Landing({ setPage, answers, setAnswers, onPlanClick }: P
 // leaves the catalog drops its card silently — nothing here can break a render.
 // Order is the render order — owner's call (2026-08-29): jeep first, then the
 // sunset sail, the Jolly Pirate sail last.
-const CURATED_PICK_IDS = ['6841POOL', '245508', '37387P3'];
+//
+// Exported so `LANDING_POOL_ID` in the itinerary generator — which steers plans
+// to the same Conchi jeep this band sells — can be pinned to it by a test
+// rather than drifting the day someone swaps a card out.
+export const CURATED_PICK_IDS = ['6841POOL', '245508', '37387P3'];
 
 // Same gesture contract as Explore's tiles (flipOnText there): a click on the
 // card flips it, but links, buttons and [data-noflip] keep their own click —

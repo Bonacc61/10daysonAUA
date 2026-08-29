@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generatePlan, SAN_NICOLAS_BEACHES, SAN_NICOLAS_MIN_DAY_GAP, SAN_NICOLAS_FIRST, CORE_BEACHES, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies, hasClaimedFamily, isPaidOuting, isBoatOuting, dayCapFamilyOf, gapFamilyOf, routeFamilyOf, tripRouteFamilies, routeFamilyBudget, RouteFamilyLedger, naturalPoolFor } from './itineraryGenerator';
+import { generatePlan, SAN_NICOLAS_BEACHES, SAN_NICOLAS_MIN_DAY_GAP, SAN_NICOLAS_FIRST, CORE_BEACHES, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies, hasClaimedFamily, isPaidOuting, isBoatOuting, dayCapFamilyOf, gapFamilyOf, routeFamilyOf, tripRouteFamilies, routeFamilyBudget, RouteFamilyLedger, naturalPoolFor, LANDING_POOL_ID } from './itineraryGenerator';
 import type { TraceEvent } from './itineraryGenerator';
 import { getCatalog } from './activitySource';
 import { DEFAULT_ANSWERS } from '../App';
@@ -3379,9 +3379,10 @@ describe('naturalPoolFor — selection by budget and adventure', () => {
   // Prices, adventure scores and review counts are the live values of the
   // products they are named for (measured 2026-08-21). The VALUES are live; the
   // resulting order is not the production order, because the fixture leaves out
-  // the products that actually win — on the full 327-item catalog a mid-range
-  // med-adventure traveller gets "Island Jeep Safari with Natural Pool Baby
-  // Beach and Lunch" ($139, 10,017 reviews). These are unit tests of the
+  // most of the catalog. On the full one a mid-range med-adventure traveller
+  // now gets the $99 "Natural Pool and Indian Cave Rugged Jeep Safari" — the
+  // landing band's card, which `landingRank` prefers over the better-reviewed
+  // sister safari it used to lose to (2026-08-29). These are unit tests of the
   // ordering RULE; the per-persona production picks are recorded in
   // docs/matching-engine/development-log.md.
   const mkItem = (
@@ -3401,8 +3402,14 @@ describe('naturalPoolFor — selection by budget and adventure', () => {
   // the same floor `privateUpgradeFor` applies for the same reason.
   const UNPROVEN     = mkItem('5566924P8', 'Private Aruba Jeep Tour Natural Pool and Beyond', 680, 70, 0);
   const NOT_CONCHI   = mkItem('ctrl', 'Aruba Catamaran Sail with Snorkeling', 120, 40, 2000);
+  // The sister safari: same operator, same pool, dearer, and better reviewed
+  // than the landing band's jeep. It is in the fixture to keep the two ordering
+  // tests below honest — without a non-landing product that OUT-REVIEWS the
+  // landing one, "popularity decides" and "the landing card wins" look
+  // identical, and deleting either tiebreak would leave both green.
+  const SISTER_JEEP  = mkItem('6841ISLAND', 'Island Jeep Safari with Natural Pool Baby Beach and Lunch', 139, 70, 10056);
 
-  const items = [MILD_JEEP, RUGGED_JEEP, UTV, PRIVATE_4X4, UNPROVEN, NOT_CONCHI];
+  const items = [MILD_JEEP, RUGGED_JEEP, SISTER_JEEP, UTV, PRIVATE_4X4, UNPROVEN, NOT_CONCHI];
   const cat: Catalog = { activities: [], groups: items.map((i) => mkGroup(i.group_id)), items };
   const tags = (...t: MatchTag[]) => new Set<MatchTag>(['couple', ...t]);
   const pickedId = (t: Set<MatchTag>) => naturalPoolFor(cat, t)?.bestSeller.id;
@@ -3450,10 +3457,25 @@ describe('naturalPoolFor — selection by budget and adventure', () => {
     expect(naturalPoolFor(withHikes, tags('money-no-object', 'med-adventure'))?.bestSeller.id).toBe('441143P5');
   });
 
-  it('gives a mid-range traveller the best-known excursion inside the tier cap', () => {
-    // $200 cap. Both jeeps clear it; the rugged one is the island's signature
-    // product at 9,360 reviews, so popularity decides — not price.
-    expect(pickedId(tags('mid-range', 'med-adventure'))).toBe('6841POOL');
+  it('gives a mid-range traveller the pool trip the landing band sells', () => {
+    // $200 cap, so all three jeeps clear it. The sister safari out-reviews the
+    // landing one (10,056 to 9,360) and would win on popularity alone — the
+    // preference is what puts the $99 card the homepage sells in the plan
+    // instead of a $139 tour of the same pool. Owner's ruling, 2026-08-29.
+    expect(pickedId(tags('mid-range', 'med-adventure'))).toBe(LANDING_POOL_ID);
+  });
+
+  it('falls back to popularity when the landing product is not in the catalog', () => {
+    // The other half of the rule above, and the reason the sister is in the
+    // fixture: strip the landing card out and the ordering must go back to
+    // most-booked-wins rather than to some second hardcoded id. This is what
+    // would fail if the preference were ever widened into a filter.
+    const withoutLanding: Catalog = {
+      activities: [],
+      groups: items.filter((i) => i.id !== LANDING_POOL_ID).map((i) => mkGroup(i.group_id)),
+      items: items.filter((i) => i.id !== LANDING_POOL_ID),
+    };
+    expect(naturalPoolFor(withoutLanding, tags('mid-range', 'med-adventure'))?.bestSeller.id).toBe('6841ISLAND');
   });
 
   it('gives a treat-yourself traveller the dearest excursion inside the tier cap', () => {

@@ -3,7 +3,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { Catalog } from '../data/activitySource';
 import type { ViatorGroup, ViatorItem } from '../types';
-import Landing from './Landing';
+import Landing, { CURATED_PICK_IDS } from './Landing';
+import { LANDING_POOL_ID } from '../data/itineraryGenerator';
 import { DEFAULT_ANSWERS } from '../App';
 
 /**
@@ -37,6 +38,15 @@ const renderLanding = () =>
   render(<Landing setPage={() => {}} answers={DEFAULT_ANSWERS} setAnswers={() => {}} />);
 
 describe('curated picks band', () => {
+  // The generator steers a plan's Natural Pool slot to the SAME jeep this band
+  // sells (landingRank, itineraryGenerator.ts). The id is written in both
+  // files, so swapping the band's pool card without updating the generator
+  // would leave plans quietly selling a product the homepage no longer shows.
+  it('the pool card the generator steers to is the one this band renders', () => {
+    expect(CURATED_PICK_IDS).toContain(LANDING_POOL_ID);
+  });
+
+
   it('renders a card with an affiliate Book now link per curated product', () => {
     CATALOG = {
       groups: [group()],

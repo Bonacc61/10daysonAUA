@@ -52,7 +52,7 @@ Accumulates trip-wide state across the day loop:
 | `usedClusterIds` | embedding clusters placed; a hit is conclusive, a miss falls through |
 | `usedTagSets` | tag arrays of placed items; trip-wide Jaccard at 0.35 |
 | `dayTagSets` | tag arrays placed TODAY, reset per day; stricter Jaccard at 0.08 |
-| `usedRouteFamilies` | a `RouteFamilyLedger` of family → count placed, against a per-family budget of `Math.max(1, Math.round(nDays / DAYS_PER_ROUTE_FAMILY))` — 5 days per family, so 1 up to 7 days, 2 at 8-12, 3 at 13-14 (2026-08-21). The scaled budget applies to `offroad`, `kayak` and `horseback`. The sail families are LENGTH-DEPENDENT since 2026-08-12 — collapsed to one `sail` below 8 days, split into `day-sail` + `evening-cruise` at 8+ — but each is capped at 1 however long the trip, alongside `natural-pool` (see `UNSCALED_FAMILIES`). `natural-pool` is a family again since 2026-08-21 — a DESTINATION with a fixed budget of 1, held *in addition to* an entry's activity family, so a pool jeep is both `offroad` and `natural-pool` while a pool hike is only the latter. See `tripRouteFamilies`. |
+| `usedRouteFamilies` | a `RouteFamilyLedger` of family → count placed, against a per-family budget of `Math.max(1, Math.round(nDays / DAYS_PER_ROUTE_FAMILY))` — 5 days per family, so 1 up to 7 days, 2 at 8-12, 3 at 13-14 (2026-08-21). The scaled budget applies to `offroad`, `kayak` and `horseback`. The sail families are LENGTH-DEPENDENT since 2026-08-12 — collapsed to one `sail` below 8 days, split into `day-sail` + `evening-cruise` at 8+ — but each is capped at 1 however long the trip, alongside `natural-pool` (see `UNSCALED_FAMILIES`). Note the second sail budget is never actually spent: every sail in the live catalogue sits in experience cluster `444239P2`, which `usedClusterIds` retires on the first one placed (measured 2026-08-29 — see the sail note further down). `natural-pool` is a family again since 2026-08-21 — a DESTINATION with a fixed budget of 1, held *in addition to* an entry's activity family, so a pool jeep is both `offroad` and `natural-pool` while a pool hike is only the latter. See `tripRouteFamilies`. |
 | `lastFamilyDay` | family → last day used; enforces FAMILY_MIN_DAY_GAP (boat outings) |
 | `usedGroupIds` | last-resort group dedup; only for items with neither tags nor a cluster |
 | `dayFamilies` | families placed TODAY; hard cap of one boat outing per day |
@@ -2106,9 +2106,17 @@ a rule can fire constantly and cost nothing while alternatives remain.
 
   The rule-driven part has since been walked back. The 2026-08-12 merge briefly
   made one sail cover the evening too — costing an evening card per trip and
-  taking open slots from 131 → 155 across five personas × 4 seeds — but the
-  length-dependent rule later the same day restored the evening sail on trips of
-  8+ days. **Those 131 → 155 figures predate both that change and the couples
+  taking open slots from 131 → 155 across five personas × 4 seeds — and the
+  length-dependent rule later the same day was MEANT to restore the evening sail
+  on trips of 8+ days. On the live catalogue it never does: all 22 sail products
+  share one experience cluster (`444239P2`), morning snorkel trips and sunset
+  open-bar runs alike, so the first sail placed retires the cluster for the trip
+  and `SECOND_SAIL_MIN_DAYS` is dead letter. Measured 2026-08-29 while trying to
+  add a sunset-sail staple: it put `444239P2` twice into the 9- and 10-day plans
+  and the no-duplicate-clusters assertion in `e2e-engine.test.ts` caught it. So
+  the evening-sail loss is still live at every length, and re-cutting the
+  clustering — not another rule — is what would lift it.
+  **Those 131 → 155 figures predate both that change and the couples
   exclusion, and have not been re-measured**; treat them as historical, not
   current. Under the pre-merge split, evening fill was 220/288 seeds×days
   (measured 2026-08-05).

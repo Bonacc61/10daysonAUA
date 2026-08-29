@@ -901,6 +901,16 @@ function privateUpgradeFor(
 // reface that shifts the spread wants these re-measured, not nudged.
 const NATURAL_POOL_RUGGED_MIN = 65;
 const NATURAL_POOL_GENTLE_MAX = 60;
+// Viator product code of the Conchi jeep on the landing page's curated band.
+// Read only by `landingRank` in naturalPoolCandidatesFor — see the note there
+// for why a preference is not the hardcoding that function forbids.
+//
+// Exported for one reason: the same id is written independently in
+// `Landing.tsx` (CURATED_PICK_IDS), and if the owner swaps the band's pool card
+// this constant would go on steering plans to the retired product — silently,
+// which is the worst way for a coupling like this to break. `Landing.curated`
+// asserts the two agree, so the swap fails a test instead.
+export const LANDING_POOL_ID = '6841POOL';
 
 /**
  * The natural pool excursion this traveller is offered, or undefined for a
@@ -952,8 +962,13 @@ export function naturalPoolCandidatesFor(
   // allows $200 and the dearest pool jeep it would pick is $139.
   //
   // What the catalogue answers with is the whole point, and no id is hardcoded
-  // to get it. The only natural-pool products at or under $60 with enough
-  // reviews to be placed are the two the owner curated:
+  // to REACH it. (Amended 2026-08-29, when `landingRank` put one id in this
+  // function: it sits at the bottom of the sort and only reorders candidates
+  // the filters above have already approved, so which products are ELIGIBLE —
+  // the claim this paragraph makes, and the one the tier below depends on —
+  // still falls out of the catalogue alone.) The only natural-pool products at
+  // or under $60 with enough reviews to be placed are the two the owner
+  // curated:
   //   $59, 116 reviews — "Sunrise Hike & Swim in Natural Pool"
   //   $60, 161 reviews — "Private Aruba National Park Hiking & Natural Pool
   //                       Swimming"
@@ -998,6 +1013,20 @@ export function naturalPoolCandidatesFor(
     if (tags.has('low-adventure')) return adv <= NATURAL_POOL_GENTLE_MAX ? 0 : 1;
     return 0;
   };
+  // The pool tour the landing page sells on its "The 3 we never skip" card
+  // (owner, 2026-08-29). Both it and its sister safari are hand-vouched, both
+  // clear every filter above from mid-range up, and on review_count alone the
+  // sister wins by 6% — so a plan showed a $139 tour beside a homepage card
+  // offering the same pool at $99.
+  //
+  // A PREFERENCE and nothing more, which is what keeps it inside the "no id is
+  // hardcoded to get it" rule this function opens with: it sorts BELOW the
+  // adventure band and only ever decides between candidates the budget, private
+  // and review filters have already approved. It cannot put a pool tour into a
+  // plan that would not have had one, cannot reach a budget traveller (whose
+  // $60 cap excludes both jeeps), and stands aside for the premium tiers, whose
+  // dearest-first ruling (2026-08-19) still picks for them.
+  const landingRank = (i: ViatorItem): 0 | 1 => (i.id === LANDING_POOL_ID ? 0 : 1);
   return catalog.items
     .filter((i) => isNaturalPool(i)
       && i.price_usd <= avgCap
@@ -1010,7 +1039,8 @@ export function naturalPoolCandidatesFor(
     .sort((a, b) => offBand(a) - offBand(b)
       || (premium
         ? b.price_usd - a.price_usd
-        : (b.review_count ?? 0) - (a.review_count ?? 0))
+        : (landingRank(a) - landingRank(b))
+          || (b.review_count ?? 0) - (a.review_count ?? 0))
       || (a.id < b.id ? -1 : 1))
     .flatMap((best) => {
       const group = catalog.groups.find((g) => g.id === best.group_id);
