@@ -2124,8 +2124,10 @@ a rule can fire constantly and cost nothing while alternatives remain.
 - **The evening pick ignores where the day was**: sunset and dinner products are
   all west-coast, and nothing stops one being appended to a day spent on the
   south coast — 15-24 km, routinely. Quantified 2026-08-05 (see the entry
-  above): daytime spread averages ~2.0 km, whole-day ~10.3 km (guarded at <6
-  and <12), and the gap is
+  above): daytime spread averages 6.39 km, whole-day 10.10 km (guarded at <7
+  and <13) — re-measured 2026-08-29, superseding the ~2.0 km / <6 / <12 figures
+  this line carried; the whole-day guard had already been 13 since R16 on
+  2026-08-18. The gap is
   entirely this. Would need the geo penalty to apply across the evening
   boundary, or an accepted rule that the evening is exempt.
 

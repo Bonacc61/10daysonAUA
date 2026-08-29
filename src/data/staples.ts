@@ -47,6 +47,17 @@ export type StapleSpec = {
   // the water dinner ARE the bookable experiences, and the local entry is
   // only a fallback for when the live catalog is unavailable.
   itemMatch?: (i: ViatorItem) => boolean;
+  // The itemMatch counterpart of preferInOrder: products to reach for FIRST
+  // when this staple has a slot, ahead of the most-booked ranking.
+  //
+  // The landing band names three products ("The 3 we never skip", owner
+  // 2026-08-29) and this is how one comes to be in the plan rather than a
+  // stranger's boat. PREFER, not force: it changes WHICH product fills a slot
+  // the trip was always going to have, never how many slots exist. Every
+  // filter below still runs first, so a vouched product ruled out by a
+  // traveller's flags, budget, group or an already-claimed experience falls
+  // through to the ranking exactly as any other product would.
+  preferItemIds?: string[];
 };
 
 // Dinner *by the water* — a beach/sunset/cruise dinner, not any restaurant
@@ -84,11 +95,24 @@ export const STAPLE_SPECS: StapleSpec[] = [
   },
   // The catamaran sail. Daytime only — an evening title belongs to the
   // dinner staple below, not here.
+  //
+  // The trip's daytime boat is the vouched Jolly Pirate afternoon sail wherever
+  // it is eligible: it is one of the three the landing band names, and on
+  // review_count alone it never won — the big operators outrank it 4:1.
+  //
+  // This costs day geography and the owner priced it: preferring it moves the
+  // average daytime intra-day spread 4.79 → 6.39 km, because the product's
+  // title pins it to the AFTERNOON and the rest of the day arranges around it.
+  // Ruling 2026-08-29: every traveller is assumed to have a hire car, so a
+  // couple of kilometres inside a day is not a cost worth trading our own
+  // vouched operator for. `e2e-engine.test.ts` carries the re-baselined guard
+  // and the same reasoning.
   {
     key: 'catamaran-sail',
     preferred: ['morning', 'afternoon'], fallback: [],
     minDays: 2,
     localIds: ['boca-catalina-snorkel'],
+    preferItemIds: ['37387P3'],
     itemMatch: (i) => activityKind(i) === 'sail' && !isEveningItem(i),
   },
   // Dinner on the water, once the trip is long enough to justify a second paid
@@ -134,10 +158,11 @@ export type ResolvedStaple = {
 // is that it lands the same way for everyone.
 //
 // `rand` (seeded by the caller) varies WHICH staple fills each category on a
-// regenerate — a different sunrise beach, a different catamaran operator —
-// while the category itself stays guaranteed. Without it every plan for every
-// traveller would name the same four products, and "regenerate" would visibly
-// stop changing anything.
+// regenerate — a different sunrise beach, and a different catamaran operator
+// too unless `preferItemIds` has claimed that staple — while the category
+// itself stays guaranteed. Without it every plan for every traveller would name
+// the same four products, and "regenerate" would visibly stop changing
+// anything.
 // `taken` holds the ids of entries already claimed by the pin pre-pass. A
 // traveller who shortlisted the sunset dinner cruise must not then have it
 // placed a second time as the beach-dinner staple.
@@ -157,7 +182,7 @@ export function resolveStaples(
     let free = true;
 
     if (spec.itemMatch) {
-      const candidates = catalog.items
+      const eligible = catalog.items
         .filter(spec.itemMatch)
         // A staple is the most prominent auto-suggestion there is — it lands in
         // every plan — so the "never suggest this unasked" rule has to apply here
@@ -175,9 +200,20 @@ export function resolveStaples(
         .filter((i) => !fitItem(i, tags).rejected)
         .filter((i) => !taken.has(i.id))
         .filter((i) => !i.experience_cluster_id || !usedClusters.has(i.experience_cluster_id))
-        .sort((a, b) => b.review_count - a.review_count || (a.id < b.id ? -1 : 1))
-        .slice(0, STAPLE_CANDIDATE_POOL);
-      const item = candidates[Math.floor(rand() * candidates.length)];
+        .sort((a, b) => b.review_count - a.review_count || (a.id < b.id ? -1 : 1));
+      // Looked up across the WHOLE eligible list rather than the most-booked
+      // few, because a vouched product's modest review count is precisely why
+      // the ranking never reached it. The `rand()` draw still runs either way,
+      // so a resolved preference does not shift the sequence the staples below
+      // this one see.
+      const promised = spec.preferItemIds
+        ?.map((id) => eligible.find((i) => i.id === id))
+        .find((i): i is ViatorItem => !!i);
+      const candidates = promised
+        ? [promised, ...eligible.filter((i) => i.id !== promised.id).slice(0, STAPLE_CANDIDATE_POOL - 1)]
+        : eligible.slice(0, STAPLE_CANDIDATE_POOL);
+      const drawn = candidates[Math.floor(rand() * candidates.length)];
+      const item = promised ?? drawn;
       const asEntry = (i: ViatorItem): CardEntry | null => {
         const g = catalog.groups.find((x) => x.id === i.group_id);
         if (!g) return null;

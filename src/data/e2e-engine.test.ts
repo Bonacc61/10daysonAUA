@@ -75,7 +75,35 @@ describe.skipIf(skip)('matching engine — live catalog', () => {
     // not one day past 15" — accurate the hour it was written, stale by the end
     // of the same session. Re-measure before trusting these, or read the printed
     // value rather than the pass.)
-    expect(spreads((d) => [...d.morning, ...d.afternoon])).toBeLessThan(6);
+    //
+    // Heed that warning about the line above it, too: those 2026-08-05 figures
+    // are stale by 2.4x. Re-measured 2026-08-29 the same day this guard moved,
+    // the pre-change average was 4.79 km, not 1.96 — it drifted at some change
+    // in between and nothing tripped, because a guard of 6 never asked. The
+    // 2026-08-29 numbers below supersede them.
+    //
+    // Re-baselined 6 → 7 on 2026-08-29, and the reason is a product ruling
+    // rather than a drift. Preferring the vouched Jolly Pirate sail (see
+    // `preferItemIds` in staples.ts) moved this number 4.79 → 6.39 km: the
+    // product's title pins it to the afternoon, so the day arranges around it
+    // and the other daytime card sits further off. Owner's ruling: every
+    // traveller is assumed to have a hire car, so a couple of kilometres inside
+    // a day is not a cost — and it is certainly not worth handing the trip's
+    // one boat to an operator we have not vouched for.
+    //
+    // This is NOT a licence to let the number drift. 7 over the measured 6.39
+    // is ~9.5% of headroom — thin, and at the low end of this file's practice
+    // (R16 below restored ~8% and called 3.9% too thin). What justifies it is
+    // that only the MEAN moved: re-measured 2026-08-29 across the same 6 seeds
+    // × 7 days, the max daytime spread went 25.29 → 25.40 km and the days past
+    // 15 km stayed at 6 of 42. The tail is untouched, so this is the afternoon
+    // pin pulling the average, not days scattering across the island.
+    //
+    // Which is also the honest limit of this assertion: an average over 42 days
+    // does not catch one scattered day — 6 of 42 are already past 15 km and it
+    // has never noticed. It was no more sensitive at 6. If it trips, find out
+    // what moved rather than raising it again.
+    expect(spreads((d) => [...d.morning, ...d.afternoon])).toBeLessThan(7);
 
     // The whole-day number, evenings included, is much looser and always was —
     // it mostly measures Aruba, not the engine. Every sunset spot and dinner
