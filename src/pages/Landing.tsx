@@ -13,7 +13,9 @@ import {
   type Activity,
   type Day,
 } from '../data/activities';
-import type { SlotEntry } from '../types';
+import { viatorLink } from '../data/exploreItems';
+import { useCatalog } from '../data/useCatalog';
+import type { SlotEntry, ViatorItem } from '../types';
 import type { PageId, Answers } from '../App';
 
 type Props = {
@@ -129,12 +131,68 @@ export default function Landing({ setPage, answers, setAnswers, onPlanClick }: P
         </div>
       </div>
 
+      <CuratedPicksSection />
       <SampleSection days={label} goPlan={goPlan} goExplore={() => setPage('explore')} />
       <GoodToKnowSection />
       <FAQSection />
       <ContactSection setPage={setPage} />
       <Footer setPage={setPage} />
     </>
+  );
+}
+
+/* ---------- Curated picks ---------- */
+
+// The three activities the owner sends every visitor to, lifted onto the
+// homepage so reaching them no longer takes the Explore detour. Ids are Viator
+// product codes from the hand-vouched set (localPickItems.ts); an id that
+// leaves the catalog drops its card silently — nothing here can break a render.
+const CURATED_PICK_IDS = ['37387P3', '37387P2', '6841POOL'];
+
+function CuratedPickCard({ item }: { item: ViatorItem }) {
+  return (
+    <div style={{ background: 'var(--cream)', border: '2px solid var(--ink)', borderRadius: 16, boxShadow: '5px 5px 0 var(--ink)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <img src={item.image_url} alt="" loading="lazy" style={{ width: '100%', height: 170, objectFit: 'cover', display: 'block', background: 'var(--sand-100)', borderBottom: '2px solid var(--ink)' }} />
+      <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+        <span style={{ alignSelf: 'flex-start', background: 'var(--yellow)', color: 'var(--ink)', border: '2px solid var(--ink)', borderRadius: 999, fontSize: 9, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '2px 7px', whiteSpace: 'nowrap' }}>Local pick</span>
+        <div className="font-display" style={{ fontSize: 19, lineHeight: 1.15, color: 'var(--ink)' }}>{item.title}</div>
+        <div style={{ fontSize: 12.5, color: 'rgba(0,0,0,0.6)' }}>
+          {item.duration} · ${item.price_usd} pp · ★ {item.rating.toFixed(1)} ({item.review_count.toLocaleString('en-US')})
+        </div>
+        <a
+          href={viatorLink(item.viator_item_url)}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => capture('landing_curated_book_click', { id: item.id })}
+          style={{ marginTop: 'auto', padding: '10px 12px', fontSize: 13, fontWeight: 700, textDecoration: 'none', textAlign: 'center', display: 'inline-block', borderRadius: 12, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '3px 3px 0 var(--ink)' }}
+        >
+          Book now
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function CuratedPicksSection() {
+  const { catalog } = useCatalog();
+  const picks = CURATED_PICK_IDS
+    .map((id) => catalog.items.find((i) => i.id === id))
+    .filter((i): i is ViatorItem => !!i && !!i.viator_item_url);
+  if (picks.length === 0) return null;
+  return (
+    <div className="aruba-section bleed" style={{ background: 'var(--sand-50)', borderTop: '2px solid var(--ink)' }}>
+      <div style={{ padding: '32px 36px 48px' }}>
+        <div className="container-1280" style={{ padding: 0 }}>
+          <h2 className="font-display" style={{ fontSize: 32, margin: '0 0 6px', color: 'var(--ink)' }}>Book these three first.</h2>
+          <p style={{ fontStyle: 'italic', fontSize: 15, lineHeight: 1.5, color: 'rgba(0,0,0,0.65)', margin: '0 0 22px', maxWidth: 640 }}>
+            The sails and the jeep safari we send every visitor to — whatever the rest of your plan looks like.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 22 }}>
+            {picks.map((item) => <CuratedPickCard key={item.id} item={item} />)}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
