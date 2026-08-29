@@ -147,7 +147,9 @@ export default function Landing({ setPage, answers, setAnswers, onPlanClick }: P
 // homepage so reaching them no longer takes the Explore detour. Ids are Viator
 // product codes from the hand-vouched set (localPickItems.ts); an id that
 // leaves the catalog drops its card silently — nothing here can break a render.
-const CURATED_PICK_IDS = ['37387P3', '245508', '6841POOL'];
+// Order is the render order — owner's call (2026-08-29): jeep first, then the
+// sunset sail, the Jolly Pirate sail last.
+const CURATED_PICK_IDS = ['6841POOL', '245508', '37387P3'];
 
 function CuratedPickCard({ item }: { item: ViatorItem }) {
   return (

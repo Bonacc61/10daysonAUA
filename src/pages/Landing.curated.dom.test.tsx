@@ -58,9 +58,9 @@ describe('curated picks band', () => {
 
     const links = screen.getAllByRole('link', { name: 'Book now' });
     expect(links.map((a) => a.getAttribute('href'))).toEqual([
-      'https://www.viator.com/x/37387P3?medium=link',
-      'https://www.viator.com/x/245508?medium=link',
       'https://www.viator.com/x/6841POOL?medium=link',
+      'https://www.viator.com/x/245508?medium=link',
+      'https://www.viator.com/x/37387P3?medium=link',
     ]);
     for (const a of links) expect(a).toHaveAttribute('target', '_blank');
   });
