@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import type { Catalog } from '../data/activitySource';
 import type { ViatorGroup, ViatorItem } from '../types';
 import Landing from './Landing';
@@ -77,6 +77,40 @@ describe('curated picks band', () => {
     renderLanding();
     expect(screen.getAllByRole('link', { name: 'Book now' })).toHaveLength(2);
     expect(screen.queryByText('Aruba Sunset Sail with Open Bar')).not.toBeInTheDocument();
+  });
+
+  it('flips on a click anywhere on the card except Book now', () => {
+    CATALOG = {
+      groups: [group()],
+      items: [
+        item('37387P3', 'Aruba Jolly Pirate Afternoon Sail with Snorkeling'),
+        item('245508', 'Aruba Sunset Sail with Open Bar', { description: 'Open bar as the sun goes down.' }),
+        item('6841POOL', 'Aruba Natural Pool and Indian Cave Rugged Jeep Safari'),
+      ],
+      activities: [],
+    };
+    renderLanding();
+
+    // The back is not mounted until the first flip, so each title is unique.
+    const title = screen.getByRole('button', { name: 'Aruba Sunset Sail with Open Bar' });
+    const card = title.closest('.flip-card')!;
+    expect(card.className).not.toContain('flipped');
+
+    // Title (a button) flips…
+    fireEvent.click(title);
+    expect(card.className).toContain('flipped');
+    // …and the back carries the product's own description.
+    expect(screen.getByText('Open bar as the sun goes down.')).toBeInTheDocument();
+
+    // A click on the card body (non-interactive area) flips it back.
+    fireEvent.click(card);
+    expect(card.className).not.toContain('flipped');
+
+    // Book now must never flip the card it is trying to leave.
+    const bookNow = screen.getAllByRole('link', { name: 'Book now' })[0];
+    const bookCard = bookNow.closest('.flip-card')!;
+    fireEvent.click(bookNow);
+    expect(bookCard.className).not.toContain('flipped');
   });
 
   it('renders no band at all when none of the ids are in the catalog', () => {

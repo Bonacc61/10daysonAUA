@@ -732,7 +732,7 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
 .explore-flip .a-card { min-width: 0; }
 .explore-flip .flip-inner { min-height: 0; height: 100%; }
 .explore-flip .a-card { height: 100%; }
-.explore-flip .flip-back { overflow-y: auto; }
+.explore-flip .flip-back, .landing-flip .flip-back { overflow-y: auto; }
 /* A hidden face must leave the TAB ORDER, not just stop taking clicks.
    `pointer-events: none` (above, for the itinerary card) does neither: with the
    back mounted, a keyboard user tabbing through Explore fell into the links on
@@ -743,8 +743,8 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
    Delayed by the length of the flip so it is still visible while it rotates
    AWAY; applied instantly on the way in so the face you are turning towards is
    there when it arrives. */
-.explore-flip:not(.flipped) .flip-back { visibility: hidden; transition: visibility 0s linear 0.55s; }
-.explore-flip.flipped .flip-back { visibility: visible; transition: visibility 0s linear 0s; }
+.explore-flip:not(.flipped) .flip-back, .landing-flip:not(.flipped) .flip-back { visibility: hidden; transition: visibility 0s linear 0.55s; }
+.explore-flip.flipped .flip-back, .landing-flip.flipped .flip-back { visibility: visible; transition: visibility 0s linear 0s; }
 
 /* The title is a button so it can be reached and pressed from a keyboard; it
    must still look exactly like the heading it replaced. */
@@ -757,14 +757,15 @@ details > summary::-webkit-details-marker, details > summary::marker { display: 
    card and wrong here: at 280px a two-column grid gives each block a ~100px
    ribbon, and an Overview set one word per line runs off the bottom. The mobile
    rules below already stack it for exactly this reason — an Explore tile is
-   always that narrow, so it stacks at every width. */
-.explore-flip .itin-card-back-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
-.explore-flip .itin-card-back { padding: 14px !important; }
+   always that narrow, so it stacks at every width. The landing curated cards
+   are the same width, so they share every one of these overrides. */
+.explore-flip .itin-card-back-grid, .landing-flip .itin-card-back-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
+.explore-flip .itin-card-back, .landing-flip .itin-card-back { padding: 14px !important; }
 /* No control cluster over this corner here, so the title gets the full width —
    and wraps to two lines rather than losing its ending to an ellipsis, which a
    nowrap title does almost immediately at this width. */
-.explore-flip .card-back-head { padding-right: 0 !important; }
-.explore-flip .card-back-title {
+.explore-flip .card-back-head, .landing-flip .card-back-head { padding-right: 0 !important; }
+.explore-flip .card-back-title, .landing-flip .card-back-title {
   white-space: normal !important; font-size: 16px !important;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }

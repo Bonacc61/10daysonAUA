@@ -15,6 +15,7 @@ import {
 } from '../data/activities';
 import { viatorLink } from '../data/exploreItems';
 import { useCatalog } from '../data/useCatalog';
+import CardBack from '../components/CardBack';
 import type { SlotEntry, ViatorItem } from '../types';
 import type { PageId, Answers } from '../App';
 
@@ -151,25 +152,48 @@ export default function Landing({ setPage, answers, setAnswers, onPlanClick }: P
 // sunset sail, the Jolly Pirate sail last.
 const CURATED_PICK_IDS = ['6841POOL', '245508', '37387P3'];
 
+// Same gesture contract as Explore's tiles (flipOnText there): a click on the
+// card flips it, but links, buttons and [data-noflip] keep their own click —
+// Book now must never flip the card it's trying to leave.
+function flipGuard(e: React.MouseEvent, toggle: () => void) {
+  if ((e.target as HTMLElement).closest('a, button, [data-noflip]')) return;
+  toggle();
+}
+
 function CuratedPickCard({ item }: { item: ViatorItem }) {
+  const [flipped, setFlipped] = useState(false);
+  // Back mounts on first flip, like Explore's tiles — and it keeps the front's
+  // title unique in the DOM until someone actually flips.
+  const [everFlipped, setEverFlipped] = useState(false);
+  const flip = (to: boolean) => { if (to) setEverFlipped(true); setFlipped(to); };
   return (
-    <div style={{ background: 'var(--cream)', border: '2px solid var(--ink)', borderRadius: 16, boxShadow: '5px 5px 0 var(--ink)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <img src={item.image_url} alt="" loading="lazy" style={{ width: '100%', height: 170, objectFit: 'cover', display: 'block', background: 'var(--sand-100)', borderBottom: '2px solid var(--ink)' }} />
-      <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-        <span style={{ alignSelf: 'flex-start', background: 'var(--yellow)', color: 'var(--ink)', border: '2px solid var(--ink)', borderRadius: 999, fontSize: 9, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '2px 7px', whiteSpace: 'nowrap' }}>Local pick</span>
-        <div className="font-display" style={{ fontSize: 19, lineHeight: 1.15, color: 'var(--ink)' }}>{item.title}</div>
-        <div style={{ fontSize: 12.5, color: 'rgba(0,0,0,0.6)' }}>
-          {item.duration} · ${item.price_usd} pp · ★ {item.rating.toFixed(1)} ({item.review_count.toLocaleString('en-US')})
+    <div className={`flip-card landing-flip${flipped ? ' flipped' : ''}`}
+         onClick={(e) => flipGuard(e, () => flip(!flipped))} style={{ cursor: 'pointer' }}>
+      <div className="flip-inner" style={{ height: '100%' }}>
+        <div className="flip-face" style={{ background: 'var(--cream)', border: '2px solid var(--ink)', borderRadius: 16, boxShadow: '5px 5px 0 var(--ink)', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
+          <img src={item.image_url} alt="" loading="lazy" style={{ width: '100%', height: 170, objectFit: 'cover', display: 'block', background: 'var(--sand-100)', borderBottom: '2px solid var(--ink)', flexShrink: 0 }} />
+          <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+            <span style={{ alignSelf: 'flex-start', background: 'var(--yellow)', color: 'var(--ink)', border: '2px solid var(--ink)', borderRadius: 999, fontSize: 9, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '2px 7px', whiteSpace: 'nowrap' }}>Local pick</span>
+            <button type="button" className="explore-flip-btn font-display" aria-expanded={flipped}
+                    onClick={() => flip(!flipped)}
+                    style={{ fontSize: 19, lineHeight: 1.15, color: 'var(--ink)' }}>
+              {item.title}
+            </button>
+            <div style={{ fontSize: 12.5, color: 'rgba(0,0,0,0.6)' }}>
+              {item.duration} · ${item.price_usd} pp · ★ {item.rating.toFixed(1)} ({item.review_count.toLocaleString('en-US')})
+            </div>
+            <a
+              href={viatorLink(item.viator_item_url)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => capture('landing_curated_book_click', { id: item.id })}
+              style={{ marginTop: 'auto', padding: '10px 12px', fontSize: 13, fontWeight: 700, textDecoration: 'none', textAlign: 'center', display: 'inline-block', borderRadius: 12, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '3px 3px 0 var(--ink)' }}
+            >
+              Book now
+            </a>
+          </div>
         </div>
-        <a
-          href={viatorLink(item.viator_item_url)}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => capture('landing_curated_book_click', { id: item.id })}
-          style={{ marginTop: 'auto', padding: '10px 12px', fontSize: 13, fontWeight: 700, textDecoration: 'none', textAlign: 'center', display: 'inline-block', borderRadius: 12, border: '2px solid var(--ink)', background: 'var(--red)', color: 'var(--cream)', boxShadow: '3px 3px 0 var(--ink)' }}
-        >
-          Book now
-        </a>
+        {everFlipped && <CardBack kind="group" bestSeller={item} onFlip={() => flip(false)} />}
       </div>
     </div>
   );
