@@ -719,6 +719,57 @@ describe('Stats — where the questionnaire loses people', () => {
   });
 });
 
+describe('Stats — the best-day window', () => {
+  const BEST = {
+    ...SUMMARY,
+    days: 1,
+    window: 'best',
+    bestDay: '2026-08-28',
+    daily: [{ day: '2026-08-28', views: 120, visitors: 81 }],
+    funnel: { ...SUMMARY.funnel, visitors: 81 },
+  };
+
+  it('offers a Best day pill from day one, and asks the server for days=best', async () => {
+    // Like All time, "Best day" claims no duration, so history cannot make it a
+    // lie — it must never be greyed out. And the SERVER picks the day: a client
+    // echoing back a day from an earlier response could name yesterday's best
+    // day after today overtook it.
+    const f = okFetch({ ...SUMMARY, firstEvent: new Date(Date.now() - 3 * 86_400_000).toISOString() });
+    vi.stubGlobal('fetch', f);
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Traffic over time/i);
+    const best = screen.getByRole('button', { name: 'Best day' }) as HTMLButtonElement;
+    expect(best.disabled).toBe(false);
+    fireEvent.click(best);
+    await waitFor(() => {
+      const urls = f.mock.calls.map((c) => String(c[0]));
+      expect(urls.some((u) => u.includes('days=best'))).toBe(true);
+    });
+  });
+
+  it('labels the window from the day the server measured', async () => {
+    vi.stubGlobal('fetch', okFetch(BEST));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Traffic over time/i);
+    expect(document.body.textContent).toMatch(/Best day — 28 Aug 2026/);
+    expect(document.body.textContent).not.toMatch(/Last 1 days?/i);
+  });
+
+  it('counts UNIQUE VISITORS, because one day is the window where that is true', async () => {
+    vi.stubGlobal('fetch', okFetch(BEST));
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Traffic over time/i);
+    // The `i` is the info button, which sits between label and value. The
+    // caption must NOT claim "today" — the best day is usually a past one.
+    expect(document.body.textContent).toMatch(/Unique visitors\s*i?\s*81\s*on the best day/i);
+    expect(document.body.textContent).not.toMatch(/so far today/i);
+    // Multi-day furniture stays away: over one day these tiles are the number.
+    // (Pinned to the tile's info button — the closing footnote legitimately
+    // says "the average day" in prose.)
+    expect(screen.queryByRole('button', { name: /How to read: Average day/i })).toBeNull();
+  });
+});
+
 describe('Stats — the all-time window', () => {
   const withWindow = (extra: Record<string, unknown>) => okFetch({ ...SUMMARY, ...extra });
 

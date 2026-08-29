@@ -10,13 +10,18 @@ const MIN_DAYS = 1;
 // larger window cannot return more data — it would only cost a wider scan.
 const MAX_DAYS = 365;
 
-export type Window = {
-  kind: 'days' | 'today';
-  /** Whole days for a days-window; the elapsed fraction for today. Labelling only. */
-  days: number;
-  /** The instant the window starts, which is what the query actually uses. */
-  since: string;
-};
+export type Window =
+  | {
+      kind: 'days' | 'today';
+      /** Whole days for a days-window; the elapsed fraction for today. Labelling only. */
+      days: number;
+      /** The instant the window starts, which is what the query actually uses. */
+      since: string;
+    }
+  // 'best' carries no instant at all: which day is busiest is something only
+  // the data knows, so stats_summary_best_day picks it server-side and reports
+  // the day back in the payload. days: 1 is labelling, like the others.
+  | { kind: 'best'; days: number };
 
 /**
  * "Today" is the UTC CALENDAR DAY, not the last 24 hours, and the difference is
@@ -51,6 +56,7 @@ function todayWindow(now: Date): Window {
 
 export function parseWindow(raw: string | null, now: Date): Window {
   if (raw !== null && raw.trim().toLowerCase() === 'today') return todayWindow(now);
+  if (raw !== null && raw.trim().toLowerCase() === 'best') return { kind: 'best', days: 1 };
   const days = windowDays(raw);
   return { kind: 'days', days, since: new Date(now.getTime() - days * 86_400_000).toISOString() };
 }

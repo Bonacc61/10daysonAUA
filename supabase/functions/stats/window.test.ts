@@ -78,3 +78,26 @@ describe('stats — "today" means the UTC calendar day', () => {
     expect(parseWindow('todayish', at(12))).toMatchObject({ kind: 'days', days: 30 });
   });
 });
+
+describe('stats — "best" is the busiest day, and the data picks it', () => {
+  const at = (h: number) => new Date(Date.UTC(2026, 7, 29, h, 0, 0));
+
+  it('parses the keyword and carries NO since-instant', () => {
+    // The window cannot be expressed from here: which day was busiest is
+    // something only the data knows, so index.ts routes 'best' to
+    // stats_summary_best_day rather than sending an instant at all.
+    const w = parseWindow('best', at(12));
+    expect(w.kind).toBe('best');
+    expect(w.days).toBe(1);
+    expect('since' in w).toBe(false);
+  });
+
+  it('accepts the word in any case, like today', () => {
+    expect(parseWindow('BEST', at(12)).kind).toBe('best');
+    expect(parseWindow(' Best ', at(12)).kind).toBe('best');
+  });
+
+  it('a near-miss falls through to the number path and its default', () => {
+    expect(parseWindow('bestest', at(12))).toMatchObject({ kind: 'days', days: 30 });
+  });
+});

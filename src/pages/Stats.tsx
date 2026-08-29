@@ -41,7 +41,9 @@ type Point = { key: string; label: string; views: number; visitors: number };
 type Counted = { n: number };
 type Summary = {
   days: number;
-  window?: 'today' | 'days';
+  window?: 'today' | 'days' | 'best';
+  /** The day a 'best' window covers, YYYY-MM-DD — picked by the server. */
+  bestDay?: string;
   /** Oldest row in web_events, or null when nothing has been recorded. */
   firstEvent?: string | null;
   /** The same headline figures, unwindowed. visitorDays is NOT people. */
@@ -89,10 +91,16 @@ export const AFTER_LOGIN_KEY = '10doa:after-login-stats';
 // window IS everything that exists, by construction, permanently. All-time
 // needs no server change and no second dataset — it is a label over the
 // retention window, and the header derives that label from firstEvent.
-const WINDOWS = ['today', 7, 30, 90, 'all'] as const;
+// 'best' asks the server for the single busiest day so far — the same day the
+// all-time "Best day" tile names — with every breakdown on the page scoped to
+// it. The server picks the day (days=best), not this client: echoing back a day
+// from an earlier response could name yesterday's best day after today overtook
+// it, and the header must describe what was measured.
+const WINDOWS = ['today', 7, 30, 90, 'best', 'all'] as const;
 type WindowKey = (typeof WINDOWS)[number];
 const ALL_TIME_DAYS = 365;
-const windowLabel = (w: WindowKey) => (w === 'today' ? 'Today' : w === 'all' ? 'All time' : `${w} days`);
+const windowLabel = (w: WindowKey) =>
+  w === 'today' ? 'Today' : w === 'best' ? 'Best day' : w === 'all' ? 'All time' : `${w} days`;
 
 // A request that never settles must not become a page that never resolves. A
 // blocker that black-holes *.supabase.co instead of refusing outright, a captive
@@ -243,8 +251,8 @@ export default function Stats({ setPage }: Props) {
     : 0;
   const totalViews = (data.daily ?? []).reduce((s, d) => s + d.views, 0);
   // One day is the only window over which "distinct visitor codes" and "unique
-  // people" are the same thing.
-  const isOneDay = data.window === 'today' || (data.daily ?? []).length <= 1;
+  // people" are the same thing. 'best' is one day by construction.
+  const isOneDay = data.window === 'today' || data.window === 'best' || (data.daily ?? []).length <= 1;
   // The denominator for "what share of visitors reached this page". The funnel's
   // first step is the same distinct count over the same window, so the shares
   // add up against a figure already on the page rather than a second one.
@@ -303,6 +311,12 @@ export default function Stats({ setPage }: Props) {
               fiction the greyed-out pills below exist to avoid. */}
           {data.window === 'today'
             ? 'Today, since midnight UTC'
+            : data.window === 'best'
+              // The server named the day it measured; without one there was no
+              // pageview to crown, and saying so beats a blank.
+              ? data.bestDay
+                ? `Best day — ${new Date(`${data.bestDay}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}, the single busiest day so far`
+                : 'Best day — none yet'
             : data.days >= ALL_TIME_DAYS
               ? `All time${data.firstEvent ? ` — since ${new Date(data.firstEvent).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}` : ''}`
               : `Last ${Math.round(data.days)} days`} &mdash; bots excluded by user-agent, and visitors who objected are not counted.
@@ -332,7 +346,7 @@ export default function Stats({ setPage }: Props) {
                 onClick={() => ready && setDays(w)}
                 disabled={!ready}
                 aria-pressed={days === w}
-                aria-label={w === 'today' ? 'Today' : w === 'all' ? 'All time' : `Last ${w} days`}
+                aria-label={w === 'today' ? 'Today' : w === 'best' ? 'Best day' : w === 'all' ? 'All time' : `Last ${w} days`}
                 title={ready ? undefined : `Available after ${w} days of collection — ${Math.floor(daysCollected)} so far.`}
                 className={`filter-pill${days === w ? ' active' : ''}`}
                 // The app's pills are 11px tall by design; this one keeps their look
@@ -386,7 +400,8 @@ export default function Stats({ setPage }: Props) {
             {isOneDay
               ? <FlipTile
                   scope="this window"
-                  label="Unique visitors" value={data.funnel.visitors} sub="so far today"
+                  label="Unique visitors" value={data.funnel.visitors}
+                  sub={data.window === 'best' ? 'on the best day' : 'so far today'}
                   back="People, counted once each. Within a single day the count is exact — this is the figure to quote."
                 />
               : <>
@@ -413,7 +428,8 @@ export default function Stats({ setPage }: Props) {
             />
             <FlipTile
               scope="this window"
-              label="Visitors who clicked out" value={data.funnel.clickedOut} sub={isOneDay ? 'unique, today' : 'visits'}
+              label="Visitors who clicked out" value={data.funnel.clickedOut}
+              sub={isOneDay ? (data.window === 'best' ? 'unique, that day' : 'unique, today') : 'visits'}
               back="How many PEOPLE clicked at least one booking link. Someone who clicked three counts once here — the gap against Clicks sent out is how many activities a typical clicker opens."
             />
           </div>

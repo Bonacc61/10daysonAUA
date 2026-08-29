@@ -71,14 +71,20 @@ Deno.serve(async (req) => {
   // previous evening and have it labelled Today.
   const win = parseWindow(new URL(req.url).searchParams.get('days'), new Date());
 
-  const rpc = await fetch(`${url}/rest/v1/rpc/stats_summary_since`, {
+  // 'best' cannot be expressed as a since-instant from here: which day was
+  // busiest is something only the data knows, so the function that owns the
+  // data picks the day (stats_summary_best_day) and names it in the payload.
+  const [fn, args] = win.kind === 'best'
+    ? ['stats_summary_best_day', {}]
+    : ['stats_summary_since', { since: win.since }];
+  const rpc = await fetch(`${url}/rest/v1/rpc/${fn}`, {
     method: 'POST',
     headers: {
       apikey: service,
       Authorization: `Bearer ${service}`,
       'content-type': 'application/json',
     },
-    body: JSON.stringify({ since: win.since }),
+    body: JSON.stringify(args),
   });
 
   if (!rpc.ok) {
