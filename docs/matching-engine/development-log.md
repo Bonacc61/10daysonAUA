@@ -49,10 +49,10 @@ Accumulates trip-wide state across the day loop:
 |---|---|
 | `lastUsedDay` | item-id → day number; no id repeats, except a free local `Beaches` activity, which may return after ONE clear day (`REVISITABLE_MIN_DAY_GAP` = 2 is a gap of two day NUMBERS, so day 5 → day 7) — unless the traveller pinned it. One further exception since 2026-08-17: the blank-day rescue's last-resort rung never calls `unused` at all, so ANY free card may repeat there — no day gap, no placement cap — to stop a day rendering blank. It never considers a paid one. Since 2026-08-22 a revisit is also refused while any core beach the traveller can reach is still unplaced — see `coreBeachPool`. |
 | `pinnedIds` | ids the traveller pinned; exempt from the beach-revisit allowance, so a pinned pick is placed exactly once BY THE LADDER. The blank-day last-resort rung does not consult `unused`, so a free pinned card is the one way a pin can appear twice (theoretical — the pin path is not live). |
-| `usedClusterIds` | embedding clusters placed; a hit is conclusive, a miss falls through |
+| `usedClusterIds` | embedding clusters placed; a hit is conclusive except for a sail (2026-08-29 — the route-family ledger governs boats), a miss falls through |
 | `usedTagSets` | tag arrays of placed items; trip-wide Jaccard at 0.35 |
 | `dayTagSets` | tag arrays placed TODAY, reset per day; stricter Jaccard at 0.08 |
-| `usedRouteFamilies` | a `RouteFamilyLedger` of family → count placed, against a per-family budget of `Math.max(1, Math.round(nDays / DAYS_PER_ROUTE_FAMILY))` — 5 days per family, so 1 up to 7 days, 2 at 8-12, 3 at 13-14 (2026-08-21). The scaled budget applies to `offroad`, `kayak` and `horseback`. The sail families are LENGTH-DEPENDENT since 2026-08-12 — collapsed to one `sail` below 8 days, split into `day-sail` + `evening-cruise` at 8+ — but each is capped at 1 however long the trip, alongside `natural-pool` (see `UNSCALED_FAMILIES`). Note the second sail budget is never actually spent: every sail in the live catalogue sits in experience cluster `444239P2`, which `usedClusterIds` retires on the first one placed (measured 2026-08-29 — see the sail note further down). `natural-pool` is a family again since 2026-08-21 — a DESTINATION with a fixed budget of 1, held *in addition to* an entry's activity family, so a pool jeep is both `offroad` and `natural-pool` while a pool hike is only the latter. See `tripRouteFamilies`. |
+| `usedRouteFamilies` | a `RouteFamilyLedger` of family → count placed, against a per-family budget of `Math.max(1, Math.round(nDays / DAYS_PER_ROUTE_FAMILY))` — 5 days per family, so 1 up to 7 days, 2 at 8-12, 3 at 13-14 (2026-08-21). The scaled budget applies to `offroad`, `kayak` and `horseback`. The sail families are LENGTH-DEPENDENT since 2026-08-12 — collapsed to one `sail` below 8 days, split into `day-sail` + `evening-cruise` at 8+ — but each is capped at 1 however long the trip, alongside `natural-pool` (see `UNSCALED_FAMILIES`). The second sail budget went unspent until 2026-08-29 — cluster `444239P2` holds 28 boats including both vouched sails, and `usedClusterIds` retired it on the first one placed — which is why the cluster gate now stands down for sails and lets this ledger decide; see the sail note further down. `natural-pool` is a family again since 2026-08-21 — a DESTINATION with a fixed budget of 1, held *in addition to* an entry's activity family, so a pool jeep is both `offroad` and `natural-pool` while a pool hike is only the latter. See `tripRouteFamilies`. |
 | `lastFamilyDay` | family → last day used; enforces FAMILY_MIN_DAY_GAP (boat outings) |
 | `usedGroupIds` | last-resort group dedup; only for items with neither tags nor a cluster |
 | `dayFamilies` | families placed TODAY; hard cap of one boat outing per day |
@@ -1990,7 +1990,10 @@ where they disagree with this section, this section wins.
   replaced — two jeep safaris at 0.83 could attach to different founders and both
   survive.
 - **Cluster dedup and tag Jaccard are layered nets.** `similarReason` checks
-  `usedClusterIds` first; a hit is conclusive, a MISS falls through to tag
+  `usedClusterIds` first; a hit is conclusive — except for a `day-sail` or
+  `evening-cruise` candidate, where the cluster stands down and the route-family
+  ledger decides instead (2026-08-29: one 28-strong cluster holds both vouched
+  sails, which was overruling our own finer split) — and a MISS falls through to tag
   Jaccard. Making the cluster authoritative either way was tried and reverted —
   `championsByExperience` already allows one item per cluster into the pool, so
   `usedClusterIds` almost never fires there, and different option codes of one
@@ -2108,14 +2111,20 @@ a rule can fire constantly and cost nothing while alternatives remain.
   made one sail cover the evening too — costing an evening card per trip and
   taking open slots from 131 → 155 across five personas × 4 seeds — and the
   length-dependent rule later the same day was MEANT to restore the evening sail
-  on trips of 8+ days. On the live catalogue it never does: all 22 sail products
-  share one experience cluster (`444239P2`), morning snorkel trips and sunset
-  open-bar runs alike, so the first sail placed retires the cluster for the trip
-  and `SECOND_SAIL_MIN_DAYS` is dead letter. Measured 2026-08-29 while trying to
-  add a sunset-sail staple: it put `444239P2` twice into the 9- and 10-day plans
-  and the no-duplicate-clusters assertion in `e2e-engine.test.ts` caught it. So
-  the evening-sail loss is still live at every length, and re-cutting the
-  clustering — not another rule — is what would lift it.
+  on trips of 8+ days. For two weeks it did not: experience cluster `444239P2`
+  holds 28 boat products — 13 day-sails and 15 evening-cruises, including both
+  vouched sails — so the first one placed retired the cluster for the trip and
+  `SECOND_SAIL_MIN_DAYS` was dead letter — found 2026-08-29 while adding a
+  sunset-sail staple, which put `444239P2` twice into the 9- and 10-day plans and
+  tripped the no-duplicate-clusters assertion in `e2e-engine.test.ts`.
+  **Closed the same day** (owner's ruling: the sunset sail must be plannable and
+  suggested): `similarReason` now stands the cluster gate down for a
+  `day-sail`/`evening-cruise` candidate and lets the route-family ledger decide,
+  which is the tighter rule anyway at a budget of 1 per family. Measured after:
+  one daytime and one evening sail in 60 of 60 plans at 8/10/14 days, paid cards
+  per plan unchanged. So the rule fires now, and it was another rule rather than
+  a re-cut of the clustering that lifted it — though the over-merge behind it is
+  still open as ROADMAP item 19.
   **Those 131 → 155 figures predate both that change and the couples
   exclusion, and have not been re-measured**; treat them as historical, not
   current. Under the pre-merge split, evening fill was 220/288 seeds×days

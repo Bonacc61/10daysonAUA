@@ -115,6 +115,35 @@ export const STAPLE_SPECS: StapleSpec[] = [
     preferItemIds: ['37387P3'],
     itemMatch: (i) => activityKind(i) === 'sail' && !isEveningItem(i),
   },
+  // The sunset sail — the third product the landing band names (Palm Pleasure,
+  // 245508). A sunset open-bar sail is not the same outing as an afternoon
+  // snorkel trip: `routeFamilyOf` has drawn that distinction since 2026-08-12
+  // and the owner reaffirmed it on 2026-08-29 ("it should be plannable, even
+  // suggested").
+  //
+  // Starts at SECOND_SAIL_MIN_DAYS because that is where the engine's own rule
+  // grants a trip a second, different-in-kind boat; below it the two families
+  // merge and the placement loop refuses this staple unaided. Nothing here
+  // overrides that — the spec just does not apply until it lifts. Written as a
+  // literal because importing the constant would close a cycle (the generator
+  // imports this module, so the value would still be in its temporal dead zone
+  // when this array is built); `itineraryGenerator.test.ts` asserts the two are
+  // equal instead. What DID have to change is the experience-cluster gate, which
+  // put this sail and the daytime staple in one 28-strong cluster and had kept
+  // that rule dead letter —
+  // see the note in `similarReason`.
+  //
+  // No localIds: the free "beach at sunset" staple above already covers the
+  // unbookable case, and a curated stand-in would put a stranger's boat in a
+  // slot that exists for this one.
+  {
+    key: 'sunset-sail',
+    preferred: ['evening'], fallback: [],
+    minDays: 8, // === SECOND_SAIL_MIN_DAYS; see above
+    localIds: [],
+    preferItemIds: ['245508'],
+    itemMatch: (i) => activityKind(i) === 'sail' && isEveningItem(i) && !DINNER_RE.test(i.title),
+  },
   // Dinner on the water, once the trip is long enough to justify a second paid
   // evening — or on the sand, when the catamaran staple has already taken the
   // trip's one sail. The matcher admits both, and since 2026-08-12 that is load
@@ -199,8 +228,21 @@ export function resolveStaples(
         .filter((i) => (tags.has('family-young-kids') || tags.has('family-teens')) || !isKidsOriented(i))
         .filter((i) => !fitItem(i, tags).rejected)
         .filter((i) => !taken.has(i.id))
-        .filter((i) => !i.experience_cluster_id || !usedClusters.has(i.experience_cluster_id))
         .sort((a, b) => b.review_count - a.review_count || (a.id < b.id ? -1 : 1));
+      // Every filter above is about the TRAVELLER — flags, budget, group — and
+      // binds a promised product as much as any other. The cluster rule is not:
+      // it is the catalogue's view of what counts as the same outing, and for
+      // boats that view is too coarse to be trusted here — one 28-strong cluster
+      // holds both this sail and the daytime staple, so the daytime staple
+      // claiming it would otherwise put the sunset sail out of reach. Same exception the generator's `similarReason`
+      // now makes, for the same reason, and bounded the same way: the placement
+      // loop still checks the route-family ledger against every candidate
+      // including this one, and that allows one daytime and one evening boat and
+      // no more. Note it is not only sail-vs-sail — a promised id skips the
+      // cluster filter whoever claimed the cluster; see the width note at
+      // `similarReason` for why that gap is 9 items wide and unobserved.
+      const clusterFree = eligible
+        .filter((i) => !i.experience_cluster_id || !usedClusters.has(i.experience_cluster_id));
       // Looked up across the WHOLE eligible list rather than the most-booked
       // few, because a vouched product's modest review count is precisely why
       // the ranking never reached it. The `rand()` draw still runs either way,
@@ -210,8 +252,8 @@ export function resolveStaples(
         ?.map((id) => eligible.find((i) => i.id === id))
         .find((i): i is ViatorItem => !!i);
       const candidates = promised
-        ? [promised, ...eligible.filter((i) => i.id !== promised.id).slice(0, STAPLE_CANDIDATE_POOL - 1)]
-        : eligible.slice(0, STAPLE_CANDIDATE_POOL);
+        ? [promised, ...clusterFree.filter((i) => i.id !== promised.id).slice(0, STAPLE_CANDIDATE_POOL - 1)]
+        : clusterFree.slice(0, STAPLE_CANDIDATE_POOL);
       const drawn = candidates[Math.floor(rand() * candidates.length)];
       const item = promised ?? drawn;
       const asEntry = (i: ViatorItem): CardEntry | null => {

@@ -16,6 +16,7 @@ import {
 import { viatorLink } from '../data/exploreItems';
 import { useCatalog } from '../data/useCatalog';
 import CardBack from '../components/CardBack';
+import BookAheadBadge from '../components/BookAheadBadge';
 import type { SlotEntry, ViatorItem } from '../types';
 import type { PageId, Answers } from '../App';
 
@@ -177,7 +178,23 @@ function CuratedPickCard({ item }: { item: ViatorItem }) {
         <div className="flip-face" style={{ background: 'var(--cream)', border: '2px solid var(--ink)', borderRadius: 16, boxShadow: '5px 5px 0 var(--ink)', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
           <img src={item.image_url} alt="" loading="lazy" style={{ width: '100%', height: 170, objectFit: 'cover', display: 'block', background: 'var(--sand-100)', borderBottom: '2px solid var(--ink)', flexShrink: 0 }} />
           <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-            <span style={{ alignSelf: 'flex-start', background: 'var(--yellow)', color: 'var(--ink)', border: '2px solid var(--ink)', borderRadius: 999, fontSize: 9, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '2px 7px', whiteSpace: 'nowrap' }}>Local pick</span>
+            {/* "Likely to sell out" / "New on Viator" — Viator's own flag on
+                their own inventory, rendered only when the product actually
+                carries it — 4 of 369 items are flagged likely-to-sell-out and 55
+                are new-on-Viator, none of them these three, so today this row is
+                just the Local pick chip. Deliberately NOT a
+                scarcity line we write ourselves: the demand figure Viator shows
+                on its own pages is not in any API field, and inventing urgency
+                beside an affiliate Book now button is the practice the EU rules
+                name outright. Owner's call, 2026-08-29 — show it if and when
+                Viator says it, and say nothing until then. */}
+            {/* No `gap`: BookAheadBadge carries `marginLeft: auto` and sits at
+                the far edge. `flexShrink: 0` on the chip so a badge alongside it
+                cannot squeeze its nowrap text out of its own pill. */}
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ flexShrink: 0, background: 'var(--yellow)', color: 'var(--ink)', border: '2px solid var(--ink)', borderRadius: 999, fontSize: 9, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '2px 7px', whiteSpace: 'nowrap' }}>Local pick</span>
+              <BookAheadBadge item={item} />
+            </div>
             <button type="button" className="explore-flip-btn font-display" aria-expanded={flipped}
                     onClick={() => flip(!flipped)}
                     style={{ fontSize: 19, lineHeight: 1.15, color: 'var(--ink)' }}>

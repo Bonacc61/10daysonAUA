@@ -209,10 +209,19 @@ function checkInvariants(plan: Day[], catalog: Catalog, tags: Set<MatchTag>): Vi
     if (cards === 0) out.push({ rule: 'no activity-less day', detail: `day ${d.day} has no cards at all` });
   }
 
-  // One experience cluster, once per trip.
+  // One experience cluster, once per trip. Sails exempt since 2026-08-29: the
+  // engine stood the cluster gate down for 'day-sail'/'evening-cruise' (see
+  // `similarReason` in itineraryGenerator.ts), because all 28 boats share one
+  // cluster and it was overruling our own finer distinction. Their trip-wide
+  // limit is the route-family budget asserted twenty lines above — one of each
+  // kind, no more. Without this exemption every plan of 8+ days reports a
+  // violation here: noise in both arms, and it can flip a run to INTRODUCED
+  // when enrichment merely moves a sail to a different day.
+  const sailIds = new Set(sailItems.map((i) => i.id));
   const seenCluster = new Map<string, string[]>();
   for (const d of plan) {
     for (const i of itemsOf(d)) {
+      if (sailIds.has(i.id)) continue;
       const cid = i.experience_cluster_id;
       if (!cid) continue;
       seenCluster.set(cid, [...(seenCluster.get(cid) ?? []), `d${d.day}:${i.id}`]);

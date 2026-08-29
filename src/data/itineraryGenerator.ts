@@ -1452,8 +1452,10 @@ function pickForSlot(
       }
     }
     if (e.kind !== 'group') return null;
-    // LAYERED, not alternatives. A cluster hit is conclusive; a cluster MISS is
-    // not, so we fall through to tag Jaccard rather than returning null.
+    // LAYERED, not alternatives. A cluster hit is conclusive — except for a
+    // sail, where a finer rule of ours governs instead (see the note at the
+    // cluster gate below, 2026-08-29) — and a cluster MISS is never conclusive,
+    // so we fall through to tag Jaccard rather than returning null.
     //
     // This was briefly changed to make the cluster authoritative either way, on
     // the reasoning that of the 9,674 pairs tag Jaccard blocks, embeddings agree
@@ -1471,7 +1473,46 @@ function pickForSlot(
     // into the fill pool, so usedClusterIds rarely fires there at all — Jaccard
     // is doing nearly all the real work on live data.
     const cid = e.bestSeller.experience_cluster_id;
-    if (cid && ctx.usedClusterIds.has(cid)) return `experience cluster "${cid}" already placed`;
+    // ...EXCEPT for boats, where we hold a finer rule of our own and the
+    // clustering is known to be too coarse to carry this one.
+    //
+    // `routeFamilyOf` has separated 'day-sail' from 'evening-cruise' since
+    // 2026-08-12 — an afternoon snorkel trip and a sunset open-bar sail are
+    // different outings, and from SECOND_SAIL_MIN_DAYS a trip may hold one of
+    // each. The embedding clustering disagrees where it matters most: cluster
+    // 444239P2 holds 28 boat products — 13 day-sails and 15 evening-cruises,
+    // among them BOTH the vouched daytime staple (37387P3) and the vouched
+    // sunset sail (245508) — so placing the first retired the second for the
+    // rest of the trip and that length rule never once fired. Measured
+    // 2026-08-29. (The island's other ~34 sails are spread across 23 further
+    // clusters, so this was never "every sail in one bucket" — it is that the
+    // one over-merged bucket happens to contain the pair the split is about.)
+    //
+    // Which of the two is right about these products is not a close call. The
+    // clustering has been over-merging since the 2026-08-16 re-embed lengthened
+    // the descriptions it reads (distinct clusters 153 → 121, largest cluster
+    // 119 of 369 items — ROADMAP item 19, still open), while the sail split is a
+    // deliberate editorial distinction the owner reaffirmed on 2026-08-29.
+    //
+    // So the cluster stands down for a sail and the family ledger decides. The
+    // ledger is the stronger gate here anyway: each sail family has a budget of
+    // 1 and the family check ABOVE this one has already refused a spent family,
+    // so at most one daytime and one evening boat can get through.
+    //
+    // Be exact about the width, because the obvious description is wrong: this
+    // keys on the CANDIDATE's family, not on what claimed the cluster. So a sail
+    // is also admitted against a cluster a NON-sail claimed. Two live clusters
+    // hold both kinds — `459169P1` (the ROADMAP-19 sink: 8 sails among 119
+    // items) and `2455P18` (one each) — so 9 items sit in that gap. Measured
+    // 2026-08-29 across 60 plans: 0 occurrences, because `championsByExperience`
+    // already admits one item per cluster to the fill pool. Latent, and pointing
+    // the same way as the over-merge fix; keying on the claimant would mean
+    // storing a family per claimed cluster, which is not worth it for 9 items.
+    const fam = routeFamilyOf(e);
+    const sailGovernedByItsOwnFamily = fam === 'day-sail' || fam === 'evening-cruise';
+    if (cid && !sailGovernedByItsOwnFamily && ctx.usedClusterIds.has(cid)) {
+      return `experience cluster "${cid}" already placed`;
+    }
     // Second net, for everything the cluster missed — which is most things,
     // since the champion pool has already thinned each cluster to one item.
     if (tags.length === 0) {

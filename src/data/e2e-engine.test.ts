@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'fs';
-import { generatePlan } from './itineraryGenerator';
+import { generatePlan, routeFamilyOf, SECOND_SAIL_MIN_DAYS } from './itineraryGenerator';
 import { ACTIVITIES } from './activities';
 import type { Day } from './activities';
 import type { Catalog } from './activitySource';
@@ -186,14 +186,52 @@ describe.skipIf(skip)('matching engine — live catalog', () => {
       const dupeItems: string[] = [];
       for (const id of itemIds) { if (seen.has(id)) dupeItems.push(id); seen.add(id); }
       expect(dupeItems, `duplicate items: ${[...new Set(dupeItems)].join(', ')}`).toEqual([]);
-      // Never the same real-world experience twice (by cluster id, when present).
-      const clusters = entries
-        .filter((e): e is Extract<typeof e, { kind: 'group' }> => e.kind === 'group')
-        .map(e => catalog.items.find(i => i.id === e.bestSellerId)?.experience_cluster_id)
-        .filter((c): c is string => !!c);
+      // Never the same real-world experience twice (by cluster id, when present)
+      // — with ONE exception, added 2026-08-29: a daytime sail and an evening
+      // sail may share a trip from SECOND_SAIL_MIN_DAYS.
+      //
+      // Not a weakening of this assertion so much as a correction to what it was
+      // measuring. Every one of the island's 28 boat products sits in a single
+      // cluster (444239P2), morning snorkel runs and sunset open-bar sails
+      // alike, so this test was reading the clustering's opinion that the two
+      // are the same outing. Our own rule has said otherwise since 2026-08-12
+      // (`routeFamilyOf` splits `day-sail` from `evening-cruise`, one of each
+      // from 8 days), the owner reaffirmed it, and the clustering is a known
+      // over-merger (ROADMAP 19). The route-family ledger is what bounds this
+      // now, and it is the tighter rule: one daytime boat, one evening boat.
+      //
+      // Deliberately narrow. Two boats of the SAME kind still fail here, as does
+      // every non-sail cluster repeat — which is the part of this assertion that
+      // was doing the real work.
+      const itemOf = (e: Extract<(typeof entries)[number], { kind: 'group' }>) =>
+        catalog.items.find(i => i.id === e.bestSellerId);
+      const groupEntries = entries
+        .filter((e): e is Extract<typeof e, { kind: 'group' }> => e.kind === 'group');
       const seenC = new Set<string>();
+      const seenSailFamilies = new Set<string>();
       const dupeC: string[] = [];
-      for (const c of clusters) { if (seenC.has(c)) dupeC.push(c); seenC.add(c); }
+      for (const e of groupEntries) {
+        const item = itemOf(e);
+        const c = item?.experience_cluster_id;
+        if (!c) continue;
+        const fam = item ? routeFamilyOf({ kind: 'group', group: { id: item.group_id } as never, bestSeller: item, others: [] }) : undefined;
+        if (fam === 'day-sail' || fam === 'evening-cruise') {
+          // Judged by the finer rule — and by the same LENGTH rule the engine
+          // applies. `tripRouteFamily` collapses both kinds into one 'sail'
+          // family below SECOND_SAIL_MIN_DAYS, so a day+evening pair is still a
+          // duplicate on a short trip and a legal pair only from 8 days. Keying
+          // this on `routeFamilyOf` alone would have stopped guarding the three
+          // personas below the threshold, which is where a regression is most
+          // likely to land.
+          const key = answers.days >= SECOND_SAIL_MIN_DAYS ? fam : 'sail';
+          if (seenSailFamilies.has(key)) dupeC.push(`${c} (${key} twice)`);
+          seenSailFamilies.add(key);
+          seenC.add(c);
+          continue;
+        }
+        if (seenC.has(c)) dupeC.push(c);
+        seenC.add(c);
+      }
       expect(dupeC, `duplicate clusters: ${[...new Set(dupeC)].join(', ')}`).toEqual([]);
     });
 

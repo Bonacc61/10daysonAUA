@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { generatePlan, SAN_NICOLAS_BEACHES, SAN_NICOLAS_MIN_DAY_GAP, SAN_NICOLAS_FIRST, CORE_BEACHES, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies, hasClaimedFamily, isPaidOuting, isBoatOuting, dayCapFamilyOf, gapFamilyOf, routeFamilyOf, tripRouteFamilies, routeFamilyBudget, RouteFamilyLedger, naturalPoolFor, LANDING_POOL_ID } from './itineraryGenerator';
+import { generatePlan, SAN_NICOLAS_BEACHES, SAN_NICOLAS_MIN_DAY_GAP, SAN_NICOLAS_FIRST, CORE_BEACHES, durationMinutes, claimedRouteFamilies, withoutClaimedFamilies, hasClaimedFamily, isPaidOuting, isBoatOuting, dayCapFamilyOf, gapFamilyOf, routeFamilyOf, tripRouteFamilies, routeFamilyBudget, RouteFamilyLedger, naturalPoolFor, LANDING_POOL_ID, SECOND_SAIL_MIN_DAYS } from './itineraryGenerator';
+import { STAPLE_SPECS } from './staples';
 import type { TraceEvent } from './itineraryGenerator';
 import { getCatalog } from './activitySource';
 import { DEFAULT_ANSWERS } from '../App';
@@ -3455,6 +3456,17 @@ describe('naturalPoolFor — selection by budget and adventure', () => {
   it('still withholds an EXPENSIVE private pool trip from a traveller who could afford it', () => {
     expect(naturalPoolFor(withHikes, tags('treat-yourself', 'med-adventure'))?.bestSeller.id).not.toBe('441143P5');
     expect(naturalPoolFor(withHikes, tags('money-no-object', 'med-adventure'))?.bestSeller.id).toBe('441143P5');
+  });
+
+  // The sunset-sail staple starts exactly where the engine grants a trip its
+  // second, different-in-kind boat. staples.ts cannot import the constant —
+  // itineraryGenerator imports staples, so the value would still be in its
+  // temporal dead zone when STAPLE_SPECS is built — so it carries a literal and
+  // this asserts the two have not drifted.
+  it('the sunset-sail staple starts at SECOND_SAIL_MIN_DAYS', () => {
+    const spec = STAPLE_SPECS.find((s) => s.key === 'sunset-sail');
+    expect(spec).toBeDefined();
+    expect(spec!.minDays).toBe(SECOND_SAIL_MIN_DAYS);
   });
 
   it('gives a mid-range traveller the pool trip the landing band sells', () => {
