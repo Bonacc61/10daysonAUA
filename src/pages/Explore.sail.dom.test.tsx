@@ -152,7 +152,10 @@ describe('Explore — the sail filter', () => {
     fireEvent.click(sailToggle());
     fireEvent.click([...screen.getByRole('group', { name: 'Show' }).querySelectorAll('button')]
       .find((b) => b.textContent === 'Local picks')!);
-    expect(titles()).toEqual(['Curated Sunset Schooner']);
+    // 245508 became a hand-vouched local pick on 2026-08-29 (the Palm Pleasure
+    // sunset sail, picked for the landing curated band), so the fixture item
+    // wearing that real id now rightly passes the Local picks filter too.
+    expect(titles()).toEqual(['Aruba Sunset Sail', 'Curated Sunset Schooner']);
   });
 
   // The pills are toggles, not a radio group: a second click adds rather than

@@ -22,10 +22,14 @@ export const LOCAL_PICK_ITEM_IDS = new Set<string>([
   // Jolly Pirates — the same operator's two sails, added 2026-08-20.
   '37387P3', // Aruba Jolly Pirate Afternoon Sail with Snorkeling  ($89, 4.6★/531)
   '37387P2', // Aruba Sunset Jolly Pirate Sail with Open Bar       ($70, 4.6★/465)
-  // Palm Pleasure — the catalog carries one Palm Pleasure listing and it is an
-  // AFTERNOON sail, not a sunset one, which is worth knowing if this was meant
-  // to be a sunset boat.
+  // Palm Pleasure — the catalog was thought to carry one Palm Pleasure listing,
+  // an AFTERNOON sail, not a sunset one, which was worth knowing if this was
+  // meant to be a sunset boat.
   '2455HAPPY', // Aruba Afternoon Snorkel Sail aboard Palm Pleasure Catamaran ($85, 4.6★/324)
+  // The Palm Pleasure SUNSET sail does exist after all — its catalog title just
+  // doesn't name the boat; the Viator URL slug (Palm-Pleasure-Sunset-Sail)
+  // does. Owner's pick for the landing curated band, 2026-08-29.
+  '245508', // Aruba Sunset Sail with Open Bar ($112, 4.5★/392)
   // Two jeep safaris to the Natural Pool, added 2026-08-20. Both are the same
   // operator (6841*) and between them carry 19,355 reviews at 5.0.
   '6841ISLAND', // Island Jeep Safari with Natural Pool Baby Beach and Lunch    ($139, 5.0★/10003)

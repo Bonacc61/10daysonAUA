@@ -42,7 +42,7 @@ describe('curated picks band', () => {
       groups: [group()],
       items: [
         item('37387P3', 'Aruba Jolly Pirate Afternoon Sail with Snorkeling'),
-        item('37387P2', 'Aruba Sunset Jolly Pirate Sail with Open Bar'),
+        item('245508', 'Aruba Sunset Sail with Open Bar'),
         item('6841POOL', 'Aruba Natural Pool and Indian Cave Rugged Jeep Safari'),
         item('OTHER', 'Some Other Tour'), // in the catalog, not in the band
       ],
@@ -50,16 +50,16 @@ describe('curated picks band', () => {
     };
     renderLanding();
 
-    expect(screen.getByText('Book these three first.')).toBeInTheDocument();
+    expect(screen.getByText('The 3 we never skip.')).toBeInTheDocument();
     expect(screen.getByText('Aruba Jolly Pirate Afternoon Sail with Snorkeling')).toBeInTheDocument();
-    expect(screen.getByText('Aruba Sunset Jolly Pirate Sail with Open Bar')).toBeInTheDocument();
+    expect(screen.getByText('Aruba Sunset Sail with Open Bar')).toBeInTheDocument();
     expect(screen.getByText('Aruba Natural Pool and Indian Cave Rugged Jeep Safari')).toBeInTheDocument();
     expect(screen.queryByText('Some Other Tour')).not.toBeInTheDocument();
 
     const links = screen.getAllByRole('link', { name: 'Book now' });
     expect(links.map((a) => a.getAttribute('href'))).toEqual([
       'https://www.viator.com/x/37387P3?medium=link',
-      'https://www.viator.com/x/37387P2?medium=link',
+      'https://www.viator.com/x/245508?medium=link',
       'https://www.viator.com/x/6841POOL?medium=link',
     ]);
     for (const a of links) expect(a).toHaveAttribute('target', '_blank');
@@ -76,12 +76,12 @@ describe('curated picks band', () => {
     };
     renderLanding();
     expect(screen.getAllByRole('link', { name: 'Book now' })).toHaveLength(2);
-    expect(screen.queryByText('Aruba Sunset Jolly Pirate Sail with Open Bar')).not.toBeInTheDocument();
+    expect(screen.queryByText('Aruba Sunset Sail with Open Bar')).not.toBeInTheDocument();
   });
 
   it('renders no band at all when none of the ids are in the catalog', () => {
     CATALOG = { groups: [group()], items: [item('OTHER', 'Some Other Tour')], activities: [] };
     renderLanding();
-    expect(screen.queryByText('Book these three first.')).not.toBeInTheDocument();
+    expect(screen.queryByText('The 3 we never skip.')).not.toBeInTheDocument();
   });
 });

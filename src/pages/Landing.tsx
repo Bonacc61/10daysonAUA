@@ -147,7 +147,7 @@ export default function Landing({ setPage, answers, setAnswers, onPlanClick }: P
 // homepage so reaching them no longer takes the Explore detour. Ids are Viator
 // product codes from the hand-vouched set (localPickItems.ts); an id that
 // leaves the catalog drops its card silently — nothing here can break a render.
-const CURATED_PICK_IDS = ['37387P3', '37387P2', '6841POOL'];
+const CURATED_PICK_IDS = ['37387P3', '245508', '6841POOL'];
 
 function CuratedPickCard({ item }: { item: ViatorItem }) {
   return (
@@ -183,7 +183,7 @@ function CuratedPicksSection() {
     <div className="aruba-section bleed" style={{ background: 'var(--sand-50)', borderTop: '2px solid var(--ink)' }}>
       <div style={{ padding: '32px 36px 48px' }}>
         <div className="container-1280" style={{ padding: 0 }}>
-          <h2 className="font-display" style={{ fontSize: 32, margin: '0 0 6px', color: 'var(--ink)' }}>Book these three first.</h2>
+          <h2 className="font-display" style={{ fontSize: 32, margin: '0 0 6px', color: 'var(--ink)' }}>The 3 we never skip.</h2>
           <p style={{ fontStyle: 'italic', fontSize: 15, lineHeight: 1.5, color: 'rgba(0,0,0,0.65)', margin: '0 0 22px', maxWidth: 640 }}>
             The sails and the jeep safari we send every visitor to — whatever the rest of your plan looks like.
           </p>
