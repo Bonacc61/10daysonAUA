@@ -51,7 +51,7 @@ export default function Landing({ setPage, answers, setAnswers, onPlanClick }: P
                 </span>{' '}
                 would.
               </h1>
-              <p className="hero-sub" style={{ fontSize: 17, lineHeight: 1.5, margin: '0 0 26px', fontWeight: 500 }}>50% local insights, 50% AI.</p>
+              <p className="hero-sub" style={{ fontSize: 17, lineHeight: 1.5, margin: '0 0 26px', fontWeight: 500 }}>A planner that starts with what's free — and only adds what's worth paying for.</p>
 
               {/* Slider card */}
               <div className="chunky hero-slider-card" style={{ borderWidth: 3, padding: '18px 20px 16px', margin: '0 0 22px', maxWidth: 460, transform: 'rotate(-1.5deg)' }}>
