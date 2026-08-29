@@ -36,6 +36,50 @@ export const LUNCHSPOTS: Activity[] = [
 ];
 
 /**
+ * Lunch spots whose menus VERIFIABLY offer vegetarian dishes — the ones that
+ * wear the green menu "V" on their cards (VegMark, in the card banner).
+ *
+ * Only HIGH-confidence verdicts are in: a traveller may order a lunch stop by
+ * this mark, and a wrong V misleads them at the counter. Verified 2026-08-29
+ * against PRIMARY sources — the restaurant's own menu or the official aruba.com
+ * listing, never aggregator sites, which routinely paste "caters to all dietary
+ * preferences" boilerplate under every restaurant:
+ *
+ *   lunch-bingo            bingoaruba.com menu PDF: dedicated Vegetarian AND
+ *                          Vegan sections (veggie burger, veggie lasagna,
+ *                          berdura stoba, vegan Mexican bowl)
+ *   lunch-hadicurari       hadicurari.com: dedicated vegan menu, downloadable
+ *   lunch-lindas-pancakes  lindas-aruba.com menu (cheese/apple/plain, 40+
+ *                          toppings) + HappyCow "Veg Options" listing
+ *   lunch-willems-pancakes willemsdutchpancakes.com menus: sweet pancakes,
+ *                          poffertjes, cheese/tomato/mushroom savories
+ *   lunch-pastechi-house   cheese pastechi — aruba.com listing plus multiple
+ *                          independent reviews naming the filling
+ *
+ * Deliberately ABSENT, not forgotten:
+ *   lunch-zeerover         fried fish and shrimp only; the meatless items are
+ *                          sides (fries, funchi, pan bati). A V here would lie.
+ *   lunch-oniels           real vegetarian dishes, but as daily SPECIALS
+ *                          (aruba.com: "available"), not a printed menu — too
+ *                          soft a promise for a mark.
+ *   lunch-pikas-corner, lunch-las-cafeteros, lunch-don-jacinto
+ *                          the vegetarian case rests on single review mentions
+ *                          (cheese pastechi / arepa con queso) or a menu that
+ *                          cannot be read online. Reconsider on menu evidence.
+ */
+export const VEGETARIAN_LUNCHSPOTS: ReadonlySet<string> = new Set([
+  'lunch-bingo',
+  'lunch-hadicurari',
+  'lunch-lindas-pancakes',
+  'lunch-willems-pancakes',
+  'lunch-pastechi-house',
+]);
+
+export function hasVegetarianOptions(id: string): boolean {
+  return VEGETARIAN_LUNCHSPOTS.has(id);
+}
+
+/**
  * Lunch spots that are the SAME VENUE as an entry in `ACTIVITIES`, and so must
  * not get a second tile once Explore shows both lists.
  *

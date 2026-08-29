@@ -7,6 +7,8 @@ import GroupCard from './GroupCard';
 import CardBack from './CardBack';
 import SwapReasons, { type SwapTextProps } from './SwapReasons';
 import { productUrlFor, primarySection, bookUrlForActivity } from '../data/exploreItems';
+import { hasVegetarianOptions } from '../data/lunchspots';
+import VegMark from './VegMark';
 import { parseActivityCost, showsFreeTag } from '../data/matcher';
 import { capture } from '../lib/analytics';
 
@@ -109,7 +111,10 @@ function ActivityCardFront({
   const reserve = a.reserve;
   const headerContent = (
     <>
-      <div className="chb-title">{a.category}</div>
+      {/* flex: 1 keeps the V (and the chevron on the clickable variant) pinned
+          right — with plain justify-between a third child floats mid-band. */}
+      <div className="chb-title" style={{ flex: 1 }}>{a.category}</div>
+      {hasVegetarianOptions(a.id) && <VegMark />}
     </>
   );
   return (

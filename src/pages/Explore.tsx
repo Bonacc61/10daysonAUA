@@ -11,6 +11,8 @@ import { useShortlist } from '../lib/shortlist';
 import type { Activity } from '../data/activities';
 import { useCatalog } from '../data/useCatalog';
 import { isLocalPickItem } from '../data/localPickItems';
+import { hasVegetarianOptions } from '../data/lunchspots';
+import VegMark from '../components/VegMark';
 import { filterExploreEntries, exploreCatalogCounts, sortEntries, bookUrlForEntry, SECTIONS, sectionLabel, primarySection, SECTION_VIATOR_URL, vibeHint, priceHint, poolPass, sailPass, type ExploreEntry } from '../data/exploreItems';
 import { matchingSection } from '../data/itemFit';
 import type { DurationBand, Provenance, SortKey, PoolMode, SailFacet } from '../data/exploreItems';
@@ -622,7 +624,7 @@ function ActivityTile({ a, section, sectionUrl: _sectionUrl, bookNow, added, onA
   // See ItemTile: the back is built on first flip, not for all ~350 tiles.
   const [everFlipped, setEverFlipped] = useState(false);
   const flip = (to: boolean) => { if (to) setEverFlipped(true); setFlipped(to); };
-  const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span><LocalMark /></>;
+  const headerInner = <><span className="chb-title" style={{ flex: 1 }}>{section}</span>{hasVegetarianOptions(a.id) && <VegMark />}<LocalMark /></>;
   return (
     <div className={`flip-card explore-flip fade-in${flipped ? ' flipped' : ''}`}
          onClick={flipped ? (e) => flipOnText(e, () => flip(false)) : undefined}>
