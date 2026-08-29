@@ -100,7 +100,7 @@ Our key is **Basic access**. Verified, not assumed:
 
 ## Tests
 
-- ~1,300 tests (`vitest run`, excluding any untracked `.claude/worktrees/` copy — that double-counts `src/data` and inflates the figure). `npm test` is offline and free EXCEPT for three
+- ~1,400 tests (`vitest run`, excluding any untracked `.claude/worktrees/` copy — that double-counts `src/data` and inflates the figure). `npm test` is offline and free EXCEPT for three
   live-catalog suites — `e2e-engine`, `influencer-e2e` and `bookableDensity` — which read
   `VITE_SUPABASE_ANON_KEY` from `.env.production` and skip without it (`bookableDensity`
   says so out loud; the other two skip silently). Everything
