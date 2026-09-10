@@ -8,7 +8,7 @@
  * Fails loudly rather than skipping: silently emitting nothing would 404 every
  * content URL on the next deploy.
  */
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, readdirSync } from 'node:fs';
 import { cssHrefFromManifest } from '../src/seo/assets';
 import { selectPages, departedPages } from '../src/seo/floor';
 import type { SeoCatalogItem, SeoCatalogSnapshot } from '../src/seo/catalog';
@@ -190,7 +190,34 @@ function main(): void {
   writeFileSync(`${DIST}/sitemap.xml`, renderSitemap(entries));
   writeFileSync(`${DIST}/llms.txt`, renderLlmsTxt([{ heading: 'Things to do in Aruba', links: emitted }]));
 
+  dropManifest(manifestPath);
+
   console.log(`seo: ${productLinks.length} product + ${curatedLinks.length} curated pages + index, ${entries.length} sitemap urls, css ${cssHref}`);
+}
+
+/**
+ * The Vite manifest is a build INPUT, not a deliverable.
+ *
+ * vite.config.ts turns it on solely so this generator can find the fingerprinted
+ * stylesheet — but deploy.yml mirrors dist/ wholesale, dot-directories included,
+ * so it would be published at /.vite/manifest.json: a map of every chunk to its
+ * source path, handed to anyone who guesses the URL.
+ *
+ * Deleted HERE, where it is consumed, rather than excluded in deploy.yml. The
+ * exclusion would fix the deploy and leave `npm run build` still producing a
+ * dist/ that is not what gets served — so `vite preview`, a local inspection and
+ * CI would each be looking at a different tree, and the next thing that reads
+ * dist/ would have to remember the exclusion too. One place, one rule: after
+ * this line dist/ is exactly the deliverable.
+ *
+ * Only the file that was read, and the directory only when nothing else is left
+ * in it — a future Vite may put something else there, and this is not the code
+ * that should decide its fate.
+ */
+function dropManifest(manifestPath: string): void {
+  rmSync(manifestPath, { force: true });
+  const dir = manifestPath.replace(/\/[^/]+$/, '');
+  if (dir !== DIST && existsSync(dir) && readdirSync(dir).length === 0) rmSync(dir, { recursive: true });
 }
 
 function writePage(slug: string, html: string): void {
