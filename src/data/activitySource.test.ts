@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveSlotEntry, isTransportOnly, isPartyBus, isExcludedFromCatalog, regroupItems, mergeLocalMatches, type Catalog } from './activitySource';
+import { resolveSlotEntry, isTransportOnly, isPartyBus, isRoadScooter, isExcludedFromCatalog, regroupItems, mergeLocalMatches, type Catalog } from './activitySource';
 import { parseActivityCost } from './matcher';
 import { isRetailProduct } from './itemFit';
 import type { ViatorGroup, ViatorItem } from '../types';
@@ -89,6 +89,50 @@ describe('isPartyBus — kept out of the catalog entirely', () => {
   it('is a catalog-level drop, so a transfer and a party bus are both excluded', () => {
     expect(isExcludedFromCatalog(titled('Private Airport Pickup'))).toBe(true);
     expect(isExcludedFromCatalog(titled('Sunset Dinner Cruise'))).toBe(false);
+  });
+});
+
+describe('isRoadScooter — kept out of the catalog entirely', () => {
+  it('drops all six live e-scooter listings, guided tours and self-guided rentals alike', () => {
+    // Every one of them is product code 476164 wearing a different variant
+    // name. The rentals go with the tours: same machine, same road.
+    for (const t of [
+      'Guided Electric Scooter Island Tour in Aruba (1 or 2-seater)',
+      'Sunset Island Tour in Aruba on Electric Scooter (1 or 2-seater)',
+      'Guided 3-Hour E-Scooter Island Tour in Aruba (1 or 2-seater)',
+      'E-Scooter Rental Aruba – 4 Hours Self-Guided (1 or 2-seater)',
+      'E-Scooter Rental Aruba Full Day Self-Guided (1 or 2-seater)',
+      'Electric Scooter Rental Aruba – 1 or Multiple Days Rental',
+    ]) {
+      expect(isRoadScooter(titled(t)), t).toBe(true);
+      expect(isExcludedFromCatalog(titled(t)), t).toBe(true);
+    }
+  });
+
+  it('keeps the sea scooters — the word is not the signal, the road is', () => {
+    // Three live products. A sea scooter is a snorkel outing, and bookables.ts
+    // already carries the same warning for the same three titles.
+    for (const t of [
+      'Small-Group Sea Scooters Snorkel at Mangel Halto Beach in Aruba',
+      'Mangel Halto Adventure Sea Scooters',
+      'Aruba Seabob Scooter Reef Tour',
+    ]) {
+      expect(isRoadScooter(titled(t)), t).toBe(false);
+      expect(isExcludedFromCatalog(titled(t)), t).toBe(false);
+    }
+  });
+
+  it('leaves the bike and e-bike tours alone', () => {
+    // Nine live products. The ruling was about scooters, not about two wheels.
+    for (const t of [
+      'Epic Off-Road Surron Electric Bike Tour in Aruba',
+      'Oranjestad City Sunset Bike Tour',
+      'Private Mountain Bike Tour in Aruba',
+      'Oranjestad Culture Heritage and Coastal Electric Bike Experience',
+    ]) {
+      expect(isRoadScooter(titled(t)), t).toBe(false);
+      expect(isExcludedFromCatalog(titled(t)), t).toBe(false);
+    }
   });
 });
 

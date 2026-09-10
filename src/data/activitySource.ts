@@ -64,13 +64,47 @@ export function isPartyBus(item: ViatorItem): boolean {
   return PARTY_BUS_RE.test(item.title);
 }
 
+// Road scooters: e-scooters and mopeds, guided tours and self-guided rentals
+// alike. Same class of exclusion as the party bus above — a judgement about what
+// this site puts in front of a traveller at all, not about how it is surfaced.
+//
+// Six live products match, and all six are one Viator product code (476164)
+// wearing variant names: three guided island tours (one of them the sunset run)
+// and three self-guided rentals. The generator already refused them —
+// bookables.ts drops two-wheelers off the OFF-ROAD row — so until now they were
+// browsable on Explore and addable by hand, but never plannable. This closes
+// that gap for scooters. It is NOT a general invariant: the walking tours, the
+// sip-and-paint and the three Harley-Davidson listings are all unplannable and
+// still browsable, deliberately.
+//
+// Scoped to the ROAD, which is the whole reason this is two patterns instead of
+// one. A SEA scooter is a snorkel outing and stays: "Small-Group Sea Scooters
+// Snorkel at Mangel Halto Beach in Aruba", "Mangel Halto Adventure Sea Scooters"
+// and the 231-review "Aruba Seabob Scooter Reef Tour" are three live products
+// that the bare word would take down with it. bookables.ts carries the same
+// warning for the same three titles.
+//
+// Bikes and e-bikes are untouched — nine live products, including the Surron
+// off-road tour and the Oranjestad e-bike rides. So are the Harleys, which are
+// road motorbikes and would be the next candidates if the ruling is ever
+// widened from scooters to two-wheelers on public roads.
+//
+// `mopeds?` is FORWARD-LOOKING and matches zero titles today — every one of the
+// nine scooter/moped-word hits on the live catalog says "scooter". It is in the
+// pattern because the feed names products, and the next one may not.
+const SCOOTER_RE = /\b(?:scooters?|mopeds?)\b/i;
+const SEA_SCOOTER_RE = /\bseabob\b|\bsea[\s-]?scooters?\b/i;
+export function isRoadScooter(item: ViatorItem): boolean {
+  return SCOOTER_RE.test(item.title) && !SEA_SCOOTER_RE.test(item.title);
+}
+
 // Everything the catalog refuses to carry at all: pure transfers, party buses and
-// bar crawls, and retail errands (the diamond showroom, duty-free, timeshare
-// pitches). One chokepoint, applied at ingest, so Explore, search, the swap pool
-// and the generator all see the same catalog — there is no surface where a
-// dropped product can still turn up.
+// bar crawls, road scooters, and retail errands (the diamond showroom, duty-free,
+// timeshare pitches). One chokepoint, applied at ingest, so Explore, search, the
+// swap pool and the generator all see the same catalog — there is no surface
+// where a dropped product can still turn up.
 export function isExcludedFromCatalog(item: ViatorItem): boolean {
-  return isTransportOnly(item) || isPartyBus(item) || isRetailProduct(item);
+  return isTransportOnly(item) || isPartyBus(item) || isRoadScooter(item) || isRetailProduct(item);
 }
 
 // --- Group reassignment (the live feed's group_id is not trustworthy) -------

@@ -101,6 +101,14 @@ export type ExploreEntry =
 // (private airport transfers above all) that no traveller ever sees here and
 // which would flatter some of these shares. Each number is the reason a control
 // exists, or the reason one doesn't.
+//
+// The denominator is 322 as of 2026-09-10: `isExcludedFromCatalog` also drops
+// road scooters now (six e-scooter listings, owner's call). The 328-based
+// figures below and elsewhere in src/data and src/lib (entrySearch's "354
+// entries" among them) are left as the 2026-08-16
+// measurements they are — six products out of 328 moves none of them enough to
+// change what a control is for, and re-quoting them would mean re-measuring
+// each against the live catalog rather than editing the number.
 
 // How long an activity runs, in bands a traveller plans a day around.
 export type DurationBand = 'any' | 'short' | 'half' | 'long' | 'full';
