@@ -90,11 +90,14 @@ export function isPartyBus(item: ViatorItem): boolean {
 // must never be caught here, and pedal and pedal-assist bikes stay. A PEDAL
 // trike (a recumbent, a pedicab) WOULD be caught wrongly; none is on the feed.
 //
-// Both boundaries are pinned by activitySource.test.ts, which is also where the
-// live counts live: three claims in this block rotted in a single day, so a
-// number a catalog refresh can falsify belongs in a test that fails rather than
-// a comment that lies. `mopeds?`, `motorcycles?`, `motorbikes?` and `tricycles?`
-// match no live title and are forward-looking — the feed names products.
+// Both boundaries are pinned by activitySource.test.ts — against named titles,
+// which is what makes them durable. NOTHING pins a catalog COUNT, here or there,
+// and that is why no CATALOG SIZE is quoted in this block: five claims in it
+// rotted in a
+// single day, four of them numbers or the explanations attached to them. If a
+// count ever needs guarding, it needs a test that reads the live feed, not a
+// sentence. `mopeds?`, `motorcycles?`, `motorbikes?` and `tricycles?` match no
+// live title and are forward-looking — the feed names products.
 const MOTORBIKE_RE = /\b(?:scooters?|mopeds?|harleys?|motorcycles?|motorbikes?|trikes?|tricycles?)\b/i;
 const SEA_SCOOTER_RE = /\bseabob\b|\bsea[\s-]?scooters?\b/i;
 export function isRoadMotorbike(item: ViatorItem): boolean {
@@ -115,12 +118,13 @@ export function isExcludedFromCatalog(item: ViatorItem): boolean {
 // Tours With Exciting Attractions" (350808P2417) repeated under one group,
 // differing only in display_order.
 //
-// The repeat is made upstream. `viator-cards` de-dupes products ACROSS its anchor
-// groups but not WITHIN one — it filters a group's results against `seen` before
-// adding any of that group's own ids, so a product Viator's paged search returns
-// twice inside a single group survives twice. That is worth fixing there too, but
-// it cannot be the only guard: the payload is cached for hours, the function
-// deploys separately from the app, and a duplicate id is not a cosmetic problem.
+// The repeat was made upstream. `viator-cards` de-duped ACROSS its anchor groups
+// but not WITHIN one — it filtered a group's results against `seen` before adding
+// any of that group's own ids, so a product returned twice inside a single group
+// survived twice. Fixed at the source on 2026-09-10 by moving `seen.add` into the
+// filter, and the refreshed payload carries no duplicate id. This guard stays
+// regardless: the payload is cached for hours, the function deploys separately
+// from the app, and a duplicate id is not a cosmetic problem.
 //
 // Two rows with one id become two React children keyed `item:<id>`. That renders
 // the tile twice, and when the list shrinks React's reconciliation leaves an

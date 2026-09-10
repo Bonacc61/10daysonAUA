@@ -326,12 +326,13 @@ describe('resolveSlotEntry — a stored id that has left the catalog', () => {
 });
 
 describe('dedupeById — one product, one tile', () => {
-  // The live feed really does repeat a product. `viator-cards` de-dupes ACROSS
-  // its anchor groups but not WITHIN one: it filters a group's page of results
-  // against `seen` before adding any of that group's own ids, so a product Viator
-  // returns twice inside a single paged search survives twice. Observed
+  // The live feed really did repeat a product. `viator-cards` de-duped ACROSS its
+  // anchor groups but not WITHIN one: it filtered a group's page of results
+  // against `seen` before adding any of that group's own ids, so a product
+  // returned twice inside a single paged search survived twice. Observed
   // 2026-09-10: 371 items, 370 unique ids — "Aruba Private Jeep Tours With
   // Exciting Attractions" (350808P2417) twice, differing only in display_order.
+  // Fixed at the source the same day; this guard is independent of that fix.
   //
   // Two identical ids become two React children keyed `item:<id>`, which renders
   // the card twice AND leaves an orphan node behind when the list shrinks — an

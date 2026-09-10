@@ -102,14 +102,17 @@ export type ExploreEntry =
 // which would flatter some of these shares. Each number is the reason a control
 // exists, or the reason one doesn't.
 //
-// The denominator is 324, MEASURED against the live feed on 2026-09-10: 371 raw
-// items, 47 dropped by `isExcludedFromCatalog`, which now also refuses road
-// motorbikes — six e-scooter listings, three Harley-Davidson ones and the one
-// trike, owner's call across three widenings the same day.
+// The denominator is 331, MEASURED against the live feed late on 2026-09-10:
+// 378 raw items, 47 dropped by `isExcludedFromCatalog`, which now also refuses
+// road motorbikes — six e-scooter listings, three Harley-Davidson ones and the
+// one trike, owner's call across three widenings the same day.
 //
-// It is deliberately not "328 minus ten", which lands six low: the feed has
-// grown since August and the transport and retail rules absorbed the growth.
-// Measure it, do not derive it.
+// Treat that number as a reading, not a constant. It moved once already that
+// same afternoon — 371 raw / 324 kept a few hours earlier — and WHY it moved is
+// not established: the Aruba catalog gaining listings and one paged search
+// returning a different set both fit two readings hours apart. Nothing guards
+// this figure, so measure it rather than deriving it from an older one, and
+// re-measure rather than trusting this line.
 //
 // The 328-based figures below, and elsewhere in src/data and src/lib
 // (entrySearch's "354 entries" among them), are left as the 2026-08-16
