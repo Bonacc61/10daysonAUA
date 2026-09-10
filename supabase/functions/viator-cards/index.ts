@@ -137,7 +137,7 @@ serve(async (req) => {
   try {
     const groups: unknown[] = [];
     const items: unknown[] = [];
-    const seen = new Set<string>(); // de-dupe products across groups (first group wins)
+    const seen = new Set<string>(); // de-dupe products, across groups AND within one
 
     for (let i = 0; i < GROUPS.length; i++) {
       const g = GROUPS[i];
@@ -145,13 +145,20 @@ serve(async (req) => {
       // its child-tag products — so search with the single broad anchor (tagIds[0]).
       const { products, totalCount } = await searchProductsPaged(ARUBA_DESTINATION_ID, [g.tagIds[0]], PER_GROUP_MAX);
 
+      // `seen` is added to INSIDE the filter, not in the loop below. Filtering
+      // first and adding afterwards de-dupes across groups but never within one:
+      // the whole filter runs before a single id of this group's own is recorded,
+      // so a product Viator's paged search returns twice in one group shipped
+      // twice. It did — 350808P2417 on 2026-09-10, which rendered a duplicate
+      // tile and, sharing a React key, left an orphan card behind when Explore's
+      // filters shrank the list. The client de-dupes too (dedupeById), because
+      // this payload is cached for hours and deploys on its own schedule.
       const groupItems = products
         .map(normalizeProduct)
-        .filter((it) => it.id && !seen.has(it.id));
+        .filter((it) => it.id && !seen.has(it.id) && (seen.add(it.id), true));
 
       let order = 0;
       for (const it of groupItems) {
-        seen.add(it.id);
         items.push({
           id: it.id,
           group_id: g.id,

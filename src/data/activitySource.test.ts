@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveSlotEntry, isTransportOnly, isPartyBus, isRoadMotorbike, isExcludedFromCatalog, regroupItems, mergeLocalMatches, type Catalog } from './activitySource';
+import { resolveSlotEntry, isTransportOnly, isPartyBus, isRoadMotorbike, isExcludedFromCatalog, dedupeById, regroupItems, mergeLocalMatches, type Catalog } from './activitySource';
 import { parseActivityCost } from './matcher';
 import { isRetailProduct } from './itemFit';
 import type { ViatorGroup, ViatorItem } from '../types';
@@ -322,6 +322,37 @@ describe('resolveSlotEntry — a stored id that has left the catalog', () => {
     const stored = { kind: 'group' as const, groupId: 'sightseeing-tours', bestSellerId: 'kept' };
     const resolved = resolveSlotEntry(stored, cat, undefined, 'evening');
     expect(resolved?.kind === 'group' && resolved.bestSeller.id).toBe('kept');
+  });
+});
+
+describe('dedupeById — one product, one tile', () => {
+  // The live feed really does repeat a product. `viator-cards` de-dupes ACROSS
+  // its anchor groups but not WITHIN one: it filters a group's page of results
+  // against `seen` before adding any of that group's own ids, so a product Viator
+  // returns twice inside a single paged search survives twice. Observed
+  // 2026-09-10: 371 items, 370 unique ids — "Aruba Private Jeep Tours With
+  // Exciting Attractions" (350808P2417) twice, differing only in display_order.
+  //
+  // Two identical ids become two React children keyed `item:<id>`, which renders
+  // the card twice AND leaves an orphan node behind when the list shrinks — an
+  // expensive tour surviving a filter that excluded it, with the results counter
+  // correctly disagreeing with the grid.
+  it('keeps the first occurrence and drops the repeat', () => {
+    const out = dedupeById([item('a', 'g'), item('b', 'g'), item('a', 'g')]);
+    expect(out.map((i) => i.id)).toEqual(['a', 'b']);
+  });
+
+  it('keeps the FIRST row when duplicates differ, so order is not luck', () => {
+    // The two live rows differ in display_order (6 and 9). Whichever wins must
+    // be the same one on every load, or the grid reshuffles between refreshes.
+    const out = dedupeById([item('a', 'g', false, 6), item('a', 'g', false, 9)]);
+    expect(out).toHaveLength(1);
+    expect(out[0].display_order).toBe(6);
+  });
+
+  it('leaves a list that has no duplicates exactly as it was', () => {
+    const clean = [item('a', 'g'), item('b', 'g'), item('c', 'g')];
+    expect(dedupeById(clean)).toEqual(clean);
   });
 });
 

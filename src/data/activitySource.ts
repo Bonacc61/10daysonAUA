@@ -110,6 +110,31 @@ export function isExcludedFromCatalog(item: ViatorItem): boolean {
   return isTransportOnly(item) || isPartyBus(item) || isRoadMotorbike(item) || isRetailProduct(item);
 }
 
+// One product, one item. The feed is not guaranteed to hold a product only once
+// and on 2026-09-10 did not: 371 items, 370 unique ids, with "Aruba Private Jeep
+// Tours With Exciting Attractions" (350808P2417) repeated under one group,
+// differing only in display_order.
+//
+// The repeat is made upstream. `viator-cards` de-dupes products ACROSS its anchor
+// groups but not WITHIN one — it filters a group's results against `seen` before
+// adding any of that group's own ids, so a product Viator's paged search returns
+// twice inside a single group survives twice. That is worth fixing there too, but
+// it cannot be the only guard: the payload is cached for hours, the function
+// deploys separately from the app, and a duplicate id is not a cosmetic problem.
+//
+// Two rows with one id become two React children keyed `item:<id>`. That renders
+// the tile twice, and when the list shrinks React's reconciliation leaves an
+// orphan node behind — which is how a $498 jeep tour stayed on screen under a
+// filter that had correctly excluded it, with the results counter reading 16
+// against a grid of 17.
+//
+// First occurrence wins, deliberately: whichever row is kept must be the same one
+// on every load, or the grid reshuffles between refreshes.
+export function dedupeById(items: readonly ViatorItem[]): ViatorItem[] {
+  const seen = new Set<string>();
+  return items.filter((i) => !seen.has(i.id) && (seen.add(i.id), true));
+}
+
 // --- Group reassignment (the live feed's group_id is not trustworthy) -------
 // viator-cards fetches products by searching a handful of broad Viator anchors
 // and files each result under the anchor it came back from. Products surface
@@ -217,7 +242,7 @@ export function getCatalog(): Catalog {
     stubCatalog = {
       activities: ACTIVITIES,
       groups: VIATOR_GROUPS,
-      items: normalizePopularity(regroupItems(VIATOR_GROUPS, VIATOR_ITEMS.filter((i) => !isExcludedFromCatalog(i)))),
+      items: normalizePopularity(regroupItems(VIATOR_GROUPS, dedupeById(VIATOR_ITEMS.filter((i) => !isExcludedFromCatalog(i))))),
       lunchspots: LUNCHSPOTS,
     };
   }
@@ -332,7 +357,7 @@ export function loadCatalog(): Promise<Catalog> {
       // list, and nothing downstream of it can be affected by an item it has no
       // record for.
       const mergedItems = mergeEnrichment(
-        normalizePopularity(regroupItems(groups, items.filter((i) => !isExcludedFromCatalog(i)))),
+        normalizePopularity(regroupItems(groups, dedupeById(items.filter((i) => !isExcludedFromCatalog(i))))),
         ENRICHMENT as EnrichmentSnapshot,
       );
       liveCatalog = {
