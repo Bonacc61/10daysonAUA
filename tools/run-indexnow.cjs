@@ -14,13 +14,20 @@
  * XML file and does an HTTP POST — no app code, no TypeScript needed.
  *
  * Usage:
- *   node tools/run-indexnow.cjs --dry-run   # print what would be submitted; sends nothing
- *   node tools/run-indexnow.cjs             # actually submit to IndexNow
+ *   node tools/run-indexnow.cjs             # DEFAULT: dry run. Prints exactly what would
+ *                                            # be submitted. Sends nothing.
+ *   node tools/run-indexnow.cjs --dry-run   # same as above, spelled out
+ *   node tools/run-indexnow.cjs --send      # actually POSTs to IndexNow. Irreversible —
+ *                                            # consumes live rate limit against a real domain.
  *
- * Deliberately NOT wired into deploy.yml or `npm run build`: IndexNow
- * guidance discourages resubmitting an unchanged URL set, and the build runs
- * on every push including unrelated fixes. Run this by hand after a push that
- * actually changes page content or adds/removes pages.
+ * Dry-run is the default ON PURPOSE, not just documented: an accidental dry
+ * run costs nothing, an accidental real submission cannot be recalled, and
+ * `npm run seo:indexnow --dry-run` (without a `--` separator) hands the flag
+ * to npm rather than this script — so the plain, no-flags command has to be
+ * the safe one. Run with no arguments at all any time; it never sends.
+ *
+ * npm run seo:indexnow            # safe — dry run
+ * npm run seo:indexnow -- --send  # the only way to actually submit
  */
 const { readFileSync, existsSync } = require('node:fs');
 
@@ -57,25 +64,27 @@ function readSitemapUrls(path) {
   return urls;
 }
 
-async function main() {
-  const dryRun = process.argv.includes('--dry-run');
-
-  const urlList = readSitemapUrls(SITEMAP_PATH);
+function buildBody(urlList) {
   const host = new URL(urlList[0]).host;
   const keyLocation = `https://${host}/${KEY}.txt`;
-  const body = { host, key: KEY, keyLocation, urlList };
+  return { host, key: KEY, keyLocation, urlList };
+}
 
-  if (dryRun) {
-    console.log('DRY RUN — nothing will be submitted.\n');
-    console.log(`host:        ${body.host}`);
-    console.log(`key:         ${body.key}`);
-    console.log(`keyLocation: ${body.keyLocation}`);
-    console.log(`urlList:     ${urlList.length} urls`);
-    for (const u of urlList) console.log(`  ${u}`);
-    return;
-  }
+function printDryRun(body) {
+  console.log('DRY RUN — nothing will be submitted.\n');
+  console.log(`host:        ${body.host}`);
+  console.log(`key:         ${body.key}`);
+  console.log(`keyLocation: ${body.keyLocation}`);
+  console.log(`urlList:     ${body.urlList.length} urls`);
+  for (const u of body.urlList) console.log(`  ${u}`);
+  console.log('\nNothing was sent. To actually submit: npm run seo:indexnow -- --send');
+}
 
-  console.log(`Submitting ${urlList.length} urls for ${host} to ${ENDPOINT} ...`);
+// The real sender. Kept separate from run() so tests can inject a mock here
+// instead of hitting the live endpoint — this function is the only place in
+// the file that performs the network call.
+async function realSubmit(body) {
+  console.log(`Submitting ${body.urlList.length} urls for ${body.host} to ${ENDPOINT} ...`);
   let res;
   try {
     res = await fetch(ENDPOINT, {
@@ -85,7 +94,7 @@ async function main() {
     });
   } catch (err) {
     console.error(`error: request to IndexNow failed: ${err.message}`);
-    process.exit(1);
+    return 1;
   }
 
   const meaning = STATUS_MEANINGS[res.status] ?? 'unrecognized status';
@@ -94,8 +103,32 @@ async function main() {
   if (res.status !== 200 && res.status !== 202) {
     const text = await res.text().catch(() => '');
     if (text) console.error(text);
-    process.exit(1);
+    return 1;
   }
+  return 0;
 }
 
-main();
+// --send is the only flag that reaches the network. Anything else — no
+// arguments at all, or the explicit --dry-run alias — is dry-run.
+function parseMode(argv) {
+  return argv.includes('--send') ? 'send' : 'dry-run';
+}
+
+async function run(argv, { submit = realSubmit, sitemapPath = SITEMAP_PATH } = {}) {
+  const urlList = readSitemapUrls(sitemapPath);
+  const body = buildBody(urlList);
+  const mode = parseMode(argv);
+
+  if (mode === 'dry-run') {
+    printDryRun(body);
+    return 0;
+  }
+
+  return submit(body);
+}
+
+module.exports = { run, readSitemapUrls, buildBody, parseMode, realSubmit, KEY, SITEMAP_PATH, ENDPOINT, STATUS_MEANINGS };
+
+if (require.main === module) {
+  run(process.argv.slice(2)).then((code) => process.exit(code));
+}
