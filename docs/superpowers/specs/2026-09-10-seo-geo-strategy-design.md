@@ -49,11 +49,16 @@ The wedge is not writing. It is data already committed to this repo:
 | `src/data/activities.ts` → `ACTIVITIES` | **26** curated locals, **19** with hand-written `localsSay` | Original editorial. Exists nowhere else on the internet. |
 | `src/data/itemCoords.ts` | — | Verified coordinates, pin-reviewed. |
 
-Nobody publishes a cross-platform star histogram. A page that says *"4.8★ across
-585 Tripadvisor reviews, but 4.4★ across 57 on Viator"* answers the question a
-traveller actually has — **is this worth my money** — with a number that can be
-cited rather than paraphrased. That is simultaneously the SEO differentiator and
-the GEO one.
+Nobody publishes this distribution in one comparable place across 322 products.
+The value is the aggregation and the shape, not the datum: an average of 4.6
+hides whether that is everyone agreeing or a bimodal split between delighted and
+furious, and the histogram answers **is this worth my money** with something
+citable rather than paraphrasable. That is simultaneously the SEO differentiator
+and the GEO one.
+
+**One constraint on how it is shown**, carried over from the app and binding
+here: the headline rating is the *combined* figure, because that is the number
+on the Viator page the visitor lands on. See the data-page spec below.
 
 ---
 
@@ -191,9 +196,21 @@ Every block traces to data we own.
 
 1. **Title + one-line framing**, generated from facets ("Catamaran sunset sail,
    2.5h, departs 17:30, easygoing"). Not Viator's marketing copy.
-2. **The honest-ratings block — the centrepiece.** Viator and Tripadvisor side
-   by side: count, average, and the 5-star histogram as accessible HTML bars.
-   The block no other site can render.
+2. **The honest-ratings block — the centrepiece.** Headline is
+   `combinedBreakdown(id)` — the summed figure, matching both the app's cards
+   and what the traveller will see on the Viator page they land on. Below it,
+   the 5-star histogram as accessible HTML bars.
+
+   **The per-platform split is secondary and conditional.** It renders only
+   when the platforms disagree by **>= 0.3**, under an explicit heading
+   ("where these reviews come from"), never as the headline number.
+   `reviewBreakdown.ts:50` explains why: *"Showing Viator's 157 beside
+   TripAdvisor's 55 was accurate and still wrong: the page says 212, so a card
+   saying 157 reads as stale data even though both numbers are right."* That
+   reasoning holds here too — a visitor clicking through must not find a
+   different number than the one that sent them. Framing the split as
+   provenance rather than as the rating keeps the existing rule intact while
+   still saying the thing no competitor says.
 3. **Practical facts table:** duration, start times, minimum age, `baby_ok`,
    physical demand, swim required, indoor/outdoor, location. **Price only if the
    catalog value proves non-zero at build** — `viator-cards` has been sending
