@@ -23,8 +23,10 @@ const Stats = lazy(() => import('./pages/Stats'));
 // Not imported from the lazy chunk: this is read at boot, before /stats loads.
 const AFTER_LOGIN_STATS = '10doa:after-login-stats';
 import { AuthProvider, useAuth } from './lib/auth';
-
-export type PageId = 'landing' | 'questionnaire' | 'explore' | 'itinerary' | 'map' | 'privacy' | 'terms' | 'surprise' | 'dashboard' | 'preview' | 'stats';
+import { PAGE_TO_PATH, PATH_TO_PAGE, type PageId } from './lib/pages';
+// Re-exported so `import type { PageId } from '../App'` keeps resolving in the
+// five page components that already do it.
+export type { PageId };
 
 export type Answers = {
   days: number;
@@ -49,32 +51,6 @@ export const DEFAULT_ANSWERS: Answers = {
   lodging: '',
   flags: [],
   specialNotes: '',
-};
-
-const PATH_TO_PAGE: Record<string, PageId> = {
-  '/explore': 'explore',
-  '/itinerary': 'itinerary',
-  '/map': 'map',
-  '/questionnaire': 'questionnaire',
-  '/privacy': 'privacy',
-  '/terms': 'terms',
-  '/surprise': 'surprise',
-  '/dashboard': 'dashboard',
-  '/preview': 'preview',
-  '/stats': 'stats',
-};
-const PAGE_TO_PATH: Record<PageId, string> = {
-  landing: '/',
-  questionnaire: '/questionnaire',
-  explore: '/explore',
-  itinerary: '/itinerary',
-  map: '/map',
-  privacy: '/privacy',
-  terms: '/terms',
-  surprise: '/surprise',
-  dashboard: '/dashboard',
-  preview: '/preview',
-  stats: '/stats',
 };
 
 function pageFromUrl(): PageId {
