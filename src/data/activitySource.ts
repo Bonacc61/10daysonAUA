@@ -64,47 +64,38 @@ export function isPartyBus(item: ViatorItem): boolean {
   return PARTY_BUS_RE.test(item.title);
 }
 
-// Motorised two-wheelers on public roads: e-scooters, mopeds and motorbikes,
-// guided tours and self-guided rentals alike. Same class of exclusion as the
-// party bus above — a judgement about what this site puts in front of a
-// traveller at all, not about how a product is surfaced.
+// Motorbikes for hire on public roads: e-scooters, mopeds, motorcycles and the
+// three-wheeled trike, guided tours and self-guided rentals alike. Same class of
+// exclusion as the party bus above — a judgement about what this site puts in
+// front of a traveller at all, not about how a product is surfaced. Owner's
+// ruling, widened three times on 2026-09-10: code 476164 (the e-scooters, one
+// the sunset run), then 178836 (Harley-Davidson), then 5494168P1 (the trike).
 //
-// Nine live products match, under two Viator product codes. 476164 is six
-// e-scooter listings (three guided island tours, one of them the sunset run,
-// and three self-guided rentals), dropped 2026-09-10. 178836 is the three
-// Harley-Davidson listings (one guided tour, two rental blocks), added later
-// the same day when the owner widened the ruling from scooters to motorbikes.
+// None was ever PLANNABLE. Some classify `offroad`, where bookables.ts drops
+// two-wheelers off the row; the rest classify `sec:tours-sightseeing` and match
+// no kind row. WHICH product takes which route follows its Viator tags and moves
+// as the feed does — an e-scooter RENTAL sits on the sightseeing side today —
+// so the standing fact is only that `bookableTier` returns null for all of them.
+// Three earlier versions of this sentence tried to name the split per product
+// and each was wrong; that is what the paragraph below is about. What they WERE
+// is browsable on Explore, addable by hand, and offered in the Swap menu and
+// "Other suggestions", neither of which consults the whitelist. That is the gap
+// this closes.
 //
-// bookables.ts already dropped two-wheelers off the OFF-ROAD row, so these were
-// browsable on Explore and addable by hand but never plannable. This closes
-// that gap for motorbikes. It is NOT a general invariant: the two walking tours
-// and the five sip-and-paint listings are unplannable and still browsable,
-// deliberately.
+// TWO BOUNDARIES, and both matter more than the pattern. The ROAD boundary is
+// why this is two patterns and not one: a SEA scooter is a snorkel outing and
+// stays (the Seabob note in bookables.ts warns for the same reason). The
+// BIKE boundary is the one to watch when widening this again — it is about what
+// a traveller straddles, not about engines, so the jeep/UTV/ATV/quad/buggy fleet
+// must never be caught here, and pedal and pedal-assist bikes stay. A PEDAL
+// trike (a recumbent, a pedicab) WOULD be caught wrongly; none is on the feed.
 //
-// Scoped to the ROAD, which is the whole reason this is two patterns and not
-// one. A SEA scooter is a snorkel outing and stays: "Small-Group Sea Scooters
-// Snorkel at Mangel Halto Beach in Aruba", "Mangel Halto Adventure Sea Scooters"
-// and the 231-review "Aruba Seabob Scooter Reef Tour" are three live products
-// that the bare word would take down with it. bookables.ts carries the same
-// warning for the same three titles.
-//
-// MOTORISED is the other half of the scope. Pedal and pedal-assist bikes stay —
-// nine live products, including the Surron off-road e-bike and the Oranjestad
-// e-bike rides. So does "Guided Trikes Tour Around Aruba Island" (5494168P1), a
-// three-wheeler, and it is a separate decision that has NOT been taken.
-//
-// Not because it is plannable — it is not. Measured: a $95 group entry filed
-// under `sightseeing-tours`, `bookableTier` returns null for every tag set, so
-// `isExcludedPaidProduct` refuses it from the fill ladder like any other paid
-// product off the whitelist. What dropping it WOULD change is the Swap menu and
-// a card's "Other suggestions": `refaceForAnswers` and `resolveSlotEntry` never
-// consult the whitelist, so it is reachable there and only there.
-//
-// `mopeds?`, `motorcycles?` and `motorbikes?` are FORWARD-LOOKING and match zero
-// titles today — every live hit says "scooter" or "Harley-Davidson". They are in
-// the pattern because the feed names products and the next one may not, and
-// activitySource.test.ts asserts them so that half is not untested.
-const MOTORBIKE_RE = /\b(?:scooters?|mopeds?|harleys?|motorcycles?|motorbikes?)\b/i;
+// Both boundaries are pinned by activitySource.test.ts, which is also where the
+// live counts live: three claims in this block rotted in a single day, so a
+// number a catalog refresh can falsify belongs in a test that fails rather than
+// a comment that lies. `mopeds?`, `motorcycles?`, `motorbikes?` and `tricycles?`
+// match no live title and are forward-looking — the feed names products.
+const MOTORBIKE_RE = /\b(?:scooters?|mopeds?|harleys?|motorcycles?|motorbikes?|trikes?|tricycles?)\b/i;
 const SEA_SCOOTER_RE = /\bseabob\b|\bsea[\s-]?scooters?\b/i;
 export function isRoadMotorbike(item: ViatorItem): boolean {
   return MOTORBIKE_RE.test(item.title) && !SEA_SCOOTER_RE.test(item.title);

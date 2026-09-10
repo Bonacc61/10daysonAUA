@@ -110,8 +110,8 @@ describe('isRoadMotorbike — kept out of the catalog entirely', () => {
   });
 
   it('keeps the sea scooters — the word is not the signal, the road is', () => {
-    // Three live products. A sea scooter is a snorkel outing, and bookables.ts
-    // already carries the same warning for the same three titles.
+    // Three live products. A sea scooter is a snorkel outing; the Seabob note in
+    // bookables.ts carries the same warning (for that one title only).
     for (const t of [
       'Small-Group Sea Scooters Snorkel at Mangel Halto Beach in Aruba',
       'Mangel Halto Adventure Sea Scooters',
@@ -136,34 +136,50 @@ describe('isRoadMotorbike — kept out of the catalog entirely', () => {
   });
 
   it('covers the motorbike words no live title uses yet', () => {
-    // `mopeds?`, `motorcycles?` and `motorbikes?` match ZERO titles on today's
-    // catalog — every live hit says "scooter" or "Harley-Davidson". They are in
-    // the pattern because the feed names products and the next one may not, and
-    // they are asserted here so the forward-looking half is not untested.
+    // `mopeds?`, `motorcycles?`, `motorbikes?` and `tricycles?` match ZERO live
+    // titles — every hit says "scooter", "Harley-Davidson" or "Trikes". They are
+    // in the pattern because the feed names products and the next one may not,
+    // and they are asserted here so the forward-looking half is not untested.
     for (const t of [
       'Aruba Moped Island Tour',
       'Guided Motorcycle Tour of Aruba',
       'Motorbike Rental Oranjestad',
+      'Aruba Tricycle Sightseeing Tour',
     ]) {
       expect(isRoadMotorbike(titled(t)), t).toBe(true);
     }
   });
 
-  it('leaves the trike tour alone — three wheels, and a decision not taken', () => {
-    // Pinned deliberately. This started as a comment claiming the trike was
-    // spared because it was plannable; it is not plannable (bookableTier
-    // returns null for every tag set), and an unpinned comment is what let that
-    // rot. If the ruling ever widens to three-wheelers, this line is the one
-    // that should fail first.
+  it('drops the trike tour — a motorbike with a third wheel', () => {
+    // 5494168P1, the one live title. Dropped 2026-09-10 when the owner widened
+    // the ruling a third time; this test previously asserted the opposite and
+    // was flipped deliberately, which is the point of having pinned it.
     const t = 'Guided Trikes Tour Around Aruba Island';
-    expect(isRoadMotorbike(titled(t))).toBe(false);
-    expect(isExcludedFromCatalog(titled(t))).toBe(false);
+    expect(isRoadMotorbike(titled(t))).toBe(true);
+    expect(isExcludedFromCatalog(titled(t))).toBe(true);
+  });
+
+  it('leaves the jeeps, UTVs and quads alone — this is about bikes, not engines', () => {
+    // 67 live products (measured 2026-09-10), and the single most important
+    // boundary in the pattern: the off-road fleet is a core part of what this
+    // site plans. If a future widening of the motorbike ruling ever reaches
+    // them, this fails first.
+    for (const t of [
+      'Natural Pool Rugged Jeep Safari',
+      'Aruba Small-Group UTV Adventure',
+      'Off-Road ATV Tour to the Natural Pool',
+      'Aruba Quad Bike Adventure',
+      'Dune Buggy Adventure Aruba',
+    ]) {
+      expect(isRoadMotorbike(titled(t)), t).toBe(false);
+      expect(isExcludedFromCatalog(titled(t)), t).toBe(false);
+    }
   });
 
   it('leaves the bike and e-bike tours alone', () => {
-    // Nine live products. The ruling is about MOTORISED two-wheelers, so pedal
-    // and pedal-assist bikes stay — including the Surron, which is an off-road
-    // e-bike rather than a road motorbike.
+    // Nine live products (measured 2026-09-10). The ruling is about motorbikes,
+    // so pedal and pedal-assist bikes stay — including the Surron, which is an
+    // off-road e-bike rather than a road motorbike.
     for (const t of [
       'Epic Off-Road Surron Electric Bike Tour in Aruba',
       'Oranjestad City Sunset Bike Tour',

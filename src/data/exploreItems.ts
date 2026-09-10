@@ -102,12 +102,14 @@ export type ExploreEntry =
 // which would flatter some of these shares. Each number is the reason a control
 // exists, or the reason one doesn't.
 //
-// The denominator is 325, MEASURED against the live feed on 2026-09-10: 371 raw
-// items, 46 dropped by `isExcludedFromCatalog`, which now also refuses road
-// motorbikes — six e-scooter listings and three Harley-Davidson ones, owner's
-// call. It is deliberately not "328 minus nine": the feed has grown since
-// August and the transport and retail rules absorbed the growth, so arithmetic
-// on the old snapshot lands six low. Measure it, do not derive it.
+// The denominator is 324, MEASURED against the live feed on 2026-09-10: 371 raw
+// items, 47 dropped by `isExcludedFromCatalog`, which now also refuses road
+// motorbikes — six e-scooter listings, three Harley-Davidson ones and the one
+// trike, owner's call across three widenings the same day.
+//
+// It is deliberately not "328 minus ten", which lands six low: the feed has
+// grown since August and the transport and retail rules absorbed the growth.
+// Measure it, do not derive it.
 //
 // The 328-based figures below, and elsewhere in src/data and src/lib
 // (entrySearch's "354 entries" among them), are left as the 2026-08-16
