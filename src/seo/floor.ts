@@ -27,6 +27,13 @@ export const MIN_SEO_REVIEWS = 25;
 export function productEarnsPage(id: string): boolean {
   const rows = reviewSourcesFor(id);
   const platforms = new Set(rows.map((r) => r.p));
+  // Measured 2026-09-10: 0 of the 39 selected products are excluded by this
+  // check alone — every product clearing prose + MIN_SEO_REVIEWS already has
+  // both platforms. Not dead code: 28 single-platform products carry prose
+  // and are held out only by the review floor, closest at 12 reviews — one
+  // of them crossing 25 makes this bind. Keep it regardless: without it we'd
+  // publish a page whose rating centrepiece is single-platform, undercutting
+  // the cross-platform review data this project is built to differentiate on.
   if (!(platforms.has('V') && platforms.has('T'))) return false;   // 1. both platforms
   if (!whatToExpectFor(id)) return false;                          // 2. prose to summarise
   const total = rows.reduce((sum, r) => sum + r.n, 0);
