@@ -30,7 +30,18 @@ describe('site-level JSON-LD in index.html', () => {
   // Ratings we did not collect ourselves must never be marked up: Google's
   // review-snippet policy requires first-party ratings, and aggregating
   // Viator's and TripAdvisor's here would invite a manual action.
-  it('markets no aggregateRating', () => {
-    expect(HTML).not.toContain('aggregateRating');
+  it('marks up no aggregateRating in structured data', () => {
+    // Check no JSON-LD block contains aggregateRating at any depth.
+    for (const block of blocks()) {
+      const serialized = JSON.stringify(block);
+      expect(serialized).not.toContain('aggregateRating');
+    }
+  });
+
+  it('marks up no aggregateRating in rendered markup', () => {
+    // Strip comments, then check for aggregateRating anywhere else
+    // (microdata attributes, other JSON-LD blocks, etc).
+    const noComments = HTML.replace(/<!--[\s\S]*?-->/g, '');
+    expect(noComments).not.toContain('aggregateRating');
   });
 });
