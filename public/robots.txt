@@ -1,0 +1,32 @@
+# 10daysonaruba.com
+#
+# Private and per-traveller URLs (/itinerary, /map, /dashboard, /preview,
+# /stats, /i/<id>) are deliberately NOT disallowed here. A robots-blocked URL
+# can still be indexed by reference, and blocking it guarantees the crawler
+# never reads the noindex tag that would have excluded it properly.
+# See src/lib/head.ts.
+
+User-agent: *
+Allow: /
+
+# AI crawlers — allowed on purpose. This trades content for citations in AI
+# answers, which is the point of the GEO half of the strategy. It is a business
+# decision, and it is reversible: change Allow to Disallow here.
+# Spec: docs/superpowers/specs/2026-09-10-seo-geo-strategy-design.md
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://10daysonaruba.com/sitemap.xml
