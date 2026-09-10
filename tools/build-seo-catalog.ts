@@ -34,9 +34,32 @@ async function main(): Promise<void> {
     sections: i.sections,
   }));
 
-  items.sort((a, b) => a.id.localeCompare(b.id));   // stable diffs
+  // `id` is the snapshot's key — src/seo/catalog.ts documents it as "the key
+  // into every committed snapshot" — and later tasks key generated pages off
+  // it 1:1. Viator has been observed to emit the same product code twice in a
+  // single catalog response; if a duplicate reached the generator it would
+  // build the same page twice and emit a duplicate <loc> in sitemap.xml. Drop
+  // repeats here (first occurrence wins) rather than downstream, and warn
+  // loudly rather than paper over it — a duplicate this far upstream is a bug
+  // worth someone noticing, in loadCatalog() or the edge function itself.
+  const seen = new Set<string>();
+  const deduped: SeoCatalogItem[] = [];
+  const duplicateIds: string[] = [];
+  for (const item of items) {
+    if (seen.has(item.id)) {
+      duplicateIds.push(item.id);
+      continue;
+    }
+    seen.add(item.id);
+    deduped.push(item);
+  }
+  if (duplicateIds.length) {
+    console.error(`\nwarning: dropped ${duplicateIds.length} duplicate item(s) from the catalog: ${duplicateIds.join(', ')}\n`);
+  }
 
-  const missingAffiliate = items.filter(
+  deduped.sort((a, b) => a.id.localeCompare(b.id));   // stable diffs
+
+  const missingAffiliate = deduped.filter(
     (i) => i.viator_item_url && !(i.viator_item_url.includes('pid=') && i.viator_item_url.includes('mcid=')),
   );
   if (missingAffiliate.length) {
@@ -45,8 +68,8 @@ async function main(): Promise<void> {
     console.error('These will be REFUSED a page by the generator (tools/build-seo.ts).\n');
   }
 
-  writeFileSync(OUT, JSON.stringify({ measured: new Date().toISOString().slice(0, 10), items }, null, 1) + '\n');
-  console.log(`wrote ${OUT}: ${items.length} items`);
+  writeFileSync(OUT, JSON.stringify({ measured: new Date().toISOString().slice(0, 10), items: deduped }, null, 1) + '\n');
+  console.log(`wrote ${OUT}: ${deduped.length} items`);
 }
 
 void main();
