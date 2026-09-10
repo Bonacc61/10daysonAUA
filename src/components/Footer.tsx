@@ -1,5 +1,43 @@
 import type { PageId } from '../App';
 import { Instagram, Coffee } from './Icons';
+import { PAGE_TO_PATH } from '../lib/pages';
+
+/**
+ * An in-app navigation that is also a real link.
+ *
+ * Every internal navigation on this site used to be a <button onClick>. That is
+ * invisible to a crawler — there was no path from any page to any other page,
+ * so nothing could be discovered by following links and no link equity moved.
+ *
+ * The href is what a crawler reads; preventDefault on a plain click is what
+ * keeps the SPA navigation instant. Modifier-clicks and middle-clicks fall
+ * through to the browser deliberately, so open-in-new-tab works — it never did
+ * while these were buttons.
+ */
+export function SpaLink({
+  page, setPage, children, className, style,
+}: {
+  page: PageId;
+  setPage: (p: PageId) => void;
+  children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <a
+      href={PAGE_TO_PATH[page]}
+      className={className}
+      style={style}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        e.preventDefault();
+        setPage(page);
+      }}
+    >
+      {children}
+    </a>
+  );
+}
 
 type Props = { setPage: (p: PageId) => void };
 
@@ -78,18 +116,14 @@ export default function Footer({ setPage }: Props) {
           send a friend to.
         </p>
         <div style={{ marginTop: 16, display: 'flex', gap: 16, justifyContent: 'center' }}>
-          <button
-            onClick={() => setPage('privacy')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#666', fontFamily: 'inherit', padding: 0, textDecoration: 'underline' }}
-          >
+          <SpaLink page="privacy" setPage={setPage}
+            style={{ fontSize: 11, color: '#666', textDecoration: 'underline' }}>
             Privacy Policy
-          </button>
-          <button
-            onClick={() => setPage('terms')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#666', fontFamily: 'inherit', padding: 0, textDecoration: 'underline' }}
-          >
+          </SpaLink>
+          <SpaLink page="terms" setPage={setPage}
+            style={{ fontSize: 11, color: '#666', textDecoration: 'underline' }}>
             Terms of Service
-          </button>
+          </SpaLink>
         </div>
         <div style={{ fontSize: 10, color: '#555', marginTop: 10, letterSpacing: '0.04em' }}>
           build {build}
