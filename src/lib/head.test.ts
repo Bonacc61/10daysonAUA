@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pageMeta, sharedItineraryMeta, ORIGIN } from './head';
+import { pageMeta, sharedItineraryMeta } from './head';
 import { PAGE_TO_PATH, PRIVATE_PAGES, type PageId } from './pages';
 
 const ALL = Object.keys(PAGE_TO_PATH) as PageId[];
@@ -20,8 +20,11 @@ describe('pageMeta', () => {
   });
 
   it('builds the canonical from the origin and the route path', () => {
-    expect(pageMeta('landing').canonical).toBe(`${ORIGIN}/`);
-    expect(pageMeta('explore').canonical).toBe(`${ORIGIN}/explore`);
+    // Hardcoded literals prevent the test from passing when ORIGIN is corrupted.
+    // If this test used ORIGIN in the expected value, breaking ORIGIN would
+    // move both actual and expected together, leaving the test trivially true.
+    expect(pageMeta('landing').canonical).toBe('https://10daysonaruba.com/');
+    expect(pageMeta('explore').canonical).toBe('https://10daysonaruba.com/explore');
   });
 
   it('marks every private page noindex', () => {
@@ -80,7 +83,9 @@ describe('sharedItineraryMeta', () => {
   });
 
   it('canonicalises to its own share URL', () => {
-    expect(sharedItineraryMeta('abc123').canonical).toBe(`${ORIGIN}/i/abc123`);
+    // Hardcoded literal: if this used ORIGIN, breaking ORIGIN would move both
+    // actual and expected together, leaving the test passing with broken canonicals.
+    expect(sharedItineraryMeta('abc123').canonical).toBe('https://10daysonaruba.com/i/abc123');
   });
 
   it('never puts the share id in the title or description', () => {
