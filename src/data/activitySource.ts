@@ -64,47 +64,59 @@ export function isPartyBus(item: ViatorItem): boolean {
   return PARTY_BUS_RE.test(item.title);
 }
 
-// Road scooters: e-scooters and mopeds, guided tours and self-guided rentals
-// alike. Same class of exclusion as the party bus above — a judgement about what
-// this site puts in front of a traveller at all, not about how it is surfaced.
+// Motorised two-wheelers on public roads: e-scooters, mopeds and motorbikes,
+// guided tours and self-guided rentals alike. Same class of exclusion as the
+// party bus above — a judgement about what this site puts in front of a
+// traveller at all, not about how a product is surfaced.
 //
-// Six live products match, and all six are one Viator product code (476164)
-// wearing variant names: three guided island tours (one of them the sunset run)
-// and three self-guided rentals. The generator already refused them —
-// bookables.ts drops two-wheelers off the OFF-ROAD row — so until now they were
-// browsable on Explore and addable by hand, but never plannable. This closes
-// that gap for scooters. It is NOT a general invariant: the walking tours, the
-// sip-and-paint and the three Harley-Davidson listings are all unplannable and
-// still browsable, deliberately.
+// Nine live products match, under two Viator product codes. 476164 is six
+// e-scooter listings (three guided island tours, one of them the sunset run,
+// and three self-guided rentals), dropped 2026-09-10. 178836 is the three
+// Harley-Davidson listings (one guided tour, two rental blocks), added later
+// the same day when the owner widened the ruling from scooters to motorbikes.
 //
-// Scoped to the ROAD, which is the whole reason this is two patterns instead of
+// bookables.ts already dropped two-wheelers off the OFF-ROAD row, so these were
+// browsable on Explore and addable by hand but never plannable. This closes
+// that gap for motorbikes. It is NOT a general invariant: the two walking tours
+// and the five sip-and-paint listings are unplannable and still browsable,
+// deliberately.
+//
+// Scoped to the ROAD, which is the whole reason this is two patterns and not
 // one. A SEA scooter is a snorkel outing and stays: "Small-Group Sea Scooters
 // Snorkel at Mangel Halto Beach in Aruba", "Mangel Halto Adventure Sea Scooters"
 // and the 231-review "Aruba Seabob Scooter Reef Tour" are three live products
 // that the bare word would take down with it. bookables.ts carries the same
 // warning for the same three titles.
 //
-// Bikes and e-bikes are untouched — nine live products, including the Surron
-// off-road tour and the Oranjestad e-bike rides. So are the Harleys, which are
-// road motorbikes and would be the next candidates if the ruling is ever
-// widened from scooters to two-wheelers on public roads.
+// MOTORISED is the other half of the scope. Pedal and pedal-assist bikes stay —
+// nine live products, including the Surron off-road e-bike and the Oranjestad
+// e-bike rides. So does "Guided Trikes Tour Around Aruba Island" (5494168P1), a
+// three-wheeler, and it is a separate decision that has NOT been taken.
 //
-// `mopeds?` is FORWARD-LOOKING and matches zero titles today — every one of the
-// nine scooter/moped-word hits on the live catalog says "scooter". It is in the
-// pattern because the feed names products, and the next one may not.
-const SCOOTER_RE = /\b(?:scooters?|mopeds?)\b/i;
+// Not because it is plannable — it is not. Measured: a $95 group entry filed
+// under `sightseeing-tours`, `bookableTier` returns null for every tag set, so
+// `isExcludedPaidProduct` refuses it from the fill ladder like any other paid
+// product off the whitelist. What dropping it WOULD change is the Swap menu and
+// a card's "Other suggestions": `refaceForAnswers` and `resolveSlotEntry` never
+// consult the whitelist, so it is reachable there and only there.
+//
+// `mopeds?`, `motorcycles?` and `motorbikes?` are FORWARD-LOOKING and match zero
+// titles today — every live hit says "scooter" or "Harley-Davidson". They are in
+// the pattern because the feed names products and the next one may not, and
+// activitySource.test.ts asserts them so that half is not untested.
+const MOTORBIKE_RE = /\b(?:scooters?|mopeds?|harleys?|motorcycles?|motorbikes?)\b/i;
 const SEA_SCOOTER_RE = /\bseabob\b|\bsea[\s-]?scooters?\b/i;
-export function isRoadScooter(item: ViatorItem): boolean {
-  return SCOOTER_RE.test(item.title) && !SEA_SCOOTER_RE.test(item.title);
+export function isRoadMotorbike(item: ViatorItem): boolean {
+  return MOTORBIKE_RE.test(item.title) && !SEA_SCOOTER_RE.test(item.title);
 }
 
 // Everything the catalog refuses to carry at all: pure transfers, party buses and
-// bar crawls, road scooters, and retail errands (the diamond showroom, duty-free,
+// bar crawls, road motorbikes, and retail errands (the diamond showroom, duty-free,
 // timeshare pitches). One chokepoint, applied at ingest, so Explore, search, the
 // swap pool and the generator all see the same catalog — there is no surface
 // where a dropped product can still turn up.
 export function isExcludedFromCatalog(item: ViatorItem): boolean {
-  return isTransportOnly(item) || isPartyBus(item) || isRoadScooter(item) || isRetailProduct(item);
+  return isTransportOnly(item) || isPartyBus(item) || isRoadMotorbike(item) || isRetailProduct(item);
 }
 
 // --- Group reassignment (the live feed's group_id is not trustworthy) -------

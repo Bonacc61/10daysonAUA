@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveSlotEntry, isTransportOnly, isPartyBus, isRoadScooter, isExcludedFromCatalog, regroupItems, mergeLocalMatches, type Catalog } from './activitySource';
+import { resolveSlotEntry, isTransportOnly, isPartyBus, isRoadMotorbike, isExcludedFromCatalog, regroupItems, mergeLocalMatches, type Catalog } from './activitySource';
 import { parseActivityCost } from './matcher';
 import { isRetailProduct } from './itemFit';
 import type { ViatorGroup, ViatorItem } from '../types';
@@ -92,7 +92,7 @@ describe('isPartyBus — kept out of the catalog entirely', () => {
   });
 });
 
-describe('isRoadScooter — kept out of the catalog entirely', () => {
+describe('isRoadMotorbike — kept out of the catalog entirely', () => {
   it('drops all six live e-scooter listings, guided tours and self-guided rentals alike', () => {
     // Every one of them is product code 476164 wearing a different variant
     // name. The rentals go with the tours: same machine, same road.
@@ -104,7 +104,7 @@ describe('isRoadScooter — kept out of the catalog entirely', () => {
       'E-Scooter Rental Aruba Full Day Self-Guided (1 or 2-seater)',
       'Electric Scooter Rental Aruba – 1 or Multiple Days Rental',
     ]) {
-      expect(isRoadScooter(titled(t)), t).toBe(true);
+      expect(isRoadMotorbike(titled(t)), t).toBe(true);
       expect(isExcludedFromCatalog(titled(t)), t).toBe(true);
     }
   });
@@ -117,20 +117,60 @@ describe('isRoadScooter — kept out of the catalog entirely', () => {
       'Mangel Halto Adventure Sea Scooters',
       'Aruba Seabob Scooter Reef Tour',
     ]) {
-      expect(isRoadScooter(titled(t)), t).toBe(false);
+      expect(isRoadMotorbike(titled(t)), t).toBe(false);
       expect(isExcludedFromCatalog(titled(t)), t).toBe(false);
     }
   });
 
+  it('drops all three live Harley-Davidson listings, guided tour and rentals alike', () => {
+    // Product code 178836. Added 2026-09-10, owner's call, widening the ruling
+    // from scooters to motorised two-wheelers on public roads.
+    for (const t of [
+      'Harley-Davidson Guided Island Tours',
+      'Harley-Davidson RENTALS ONLY 4 hrs',
+      'Harley-Davidson RENTALS ONLY 8 hrs',
+    ]) {
+      expect(isRoadMotorbike(titled(t)), t).toBe(true);
+      expect(isExcludedFromCatalog(titled(t)), t).toBe(true);
+    }
+  });
+
+  it('covers the motorbike words no live title uses yet', () => {
+    // `mopeds?`, `motorcycles?` and `motorbikes?` match ZERO titles on today's
+    // catalog — every live hit says "scooter" or "Harley-Davidson". They are in
+    // the pattern because the feed names products and the next one may not, and
+    // they are asserted here so the forward-looking half is not untested.
+    for (const t of [
+      'Aruba Moped Island Tour',
+      'Guided Motorcycle Tour of Aruba',
+      'Motorbike Rental Oranjestad',
+    ]) {
+      expect(isRoadMotorbike(titled(t)), t).toBe(true);
+    }
+  });
+
+  it('leaves the trike tour alone — three wheels, and a decision not taken', () => {
+    // Pinned deliberately. This started as a comment claiming the trike was
+    // spared because it was plannable; it is not plannable (bookableTier
+    // returns null for every tag set), and an unpinned comment is what let that
+    // rot. If the ruling ever widens to three-wheelers, this line is the one
+    // that should fail first.
+    const t = 'Guided Trikes Tour Around Aruba Island';
+    expect(isRoadMotorbike(titled(t))).toBe(false);
+    expect(isExcludedFromCatalog(titled(t))).toBe(false);
+  });
+
   it('leaves the bike and e-bike tours alone', () => {
-    // Nine live products. The ruling was about scooters, not about two wheels.
+    // Nine live products. The ruling is about MOTORISED two-wheelers, so pedal
+    // and pedal-assist bikes stay — including the Surron, which is an off-road
+    // e-bike rather than a road motorbike.
     for (const t of [
       'Epic Off-Road Surron Electric Bike Tour in Aruba',
       'Oranjestad City Sunset Bike Tour',
       'Private Mountain Bike Tour in Aruba',
       'Oranjestad Culture Heritage and Coastal Electric Bike Experience',
     ]) {
-      expect(isRoadScooter(titled(t)), t).toBe(false);
+      expect(isRoadMotorbike(titled(t)), t).toBe(false);
       expect(isExcludedFromCatalog(titled(t)), t).toBe(false);
     }
   });
