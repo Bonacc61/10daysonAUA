@@ -847,3 +847,160 @@ describe('Stats — the all-time window', () => {
     expect(document.body.textContent).not.toMatch(/Last 365 days/i);
   });
 });
+
+/**
+ * The SEO surface section — the numbers the ~6-week expand-or-cut decision
+ * rests on (docs/superpowers/specs/2026-09-10-seo-geo-strategy-design.md).
+ *
+ * What is actually load-bearing here is not that the figures render. It is that
+ * they cannot be MISREAD:
+ *
+ *   - a rate computed from three visitors must not be printed as a rate;
+ *   - nothing in the section may be labelled a booking, a conversion or
+ *     revenue, because Viator returns no signal that would support any of them.
+ *
+ * `seo` is deliberately kept out of the shared SUMMARY fixture so the
+ * migration-not-yet-applied case stays covered by every other test in this file.
+ */
+const SEO = {
+  clickOuts: { seoVisitors: 200, seoClicks: 24, plannerVisitors: 500, plannerClicks: 35 },
+  answerEngines: [{ host: 'chatgpt.com', n: 6 }, { host: 'perplexity.ai', n: 2 }],
+  toPlanner: { visitors: 40, questionnaire: 11 },
+};
+const withSeo = (seo: unknown = SEO) => okFetch({ ...SUMMARY, seo });
+
+describe('Stats — the SEO surface', () => {
+  it('hides itself entirely until the migration is applied', async () => {
+    // Zeros here would read as "58 pages, nobody came", which is a decision
+    // input; an absent key means the query does not exist yet.
+    vi.stubGlobal('fetch', okFetch());
+    render(<Stats setPage={() => {}} />);
+    await screen.findByText(/Traffic over time/i);
+    expect(screen.queryByTestId('seo-surface')).toBeNull();
+  });
+
+  it('shows each group click-out rate AND the base it was computed from', async () => {
+    vi.stubGlobal('fetch', withSeo());
+    render(<Stats setPage={() => {}} />);
+    const text = (await screen.findByTestId('seo-surface')).textContent ?? '';
+    // 24/200 and 35/500, worked out here rather than read back from the page.
+    expect(text).toContain('0.12 per visitor');
+    expect(text).toContain('0.07 per visitor');
+    // The base is what makes the two comparable, so it is on the row, not in a
+    // tooltip. Formatted the way the page formats every other count.
+    expect(text).toContain('24 clicks from 200 visits');
+    expect(text).toContain('35 clicks from 500 visits');
+  });
+
+  it('withholds the rate on a base too small to mean anything, and says why', async () => {
+    // 2 of 3 is 0.67 — an authoritative-looking number that one extra click
+    // would move by a third. It must not be printed at all.
+    vi.stubGlobal('fetch', withSeo({
+      ...SEO,
+      clickOuts: { seoVisitors: 3, seoClicks: 2, plannerVisitors: 500, plannerClicks: 35 },
+    }));
+    render(<Stats setPage={() => {}} />);
+    const text = (await screen.findByTestId('seo-surface')).textContent ?? '';
+    expect(text).not.toContain('0.67');
+    expect(text).toContain('not enough to rate');
+    // The base still shows — three visitors is itself the finding.
+    expect(text).toContain('2 clicks from 3 visits');
+    expect(screen.getByTestId('seo-small-base')).toBeTruthy();
+    // The healthy group keeps its rate: the flag is per row, not a whole-section
+    // blackout.
+    expect(text).toContain('0.07 per visitor');
+  });
+
+  it('prints the rate, and no small-base note, once both groups clear the floor', async () => {
+    vi.stubGlobal('fetch', withSeo());
+    render(<Stats setPage={() => {}} />);
+    await screen.findByTestId('seo-surface');
+    expect(screen.queryByTestId('seo-small-base')).toBeNull();
+  });
+
+  it('never calls any of it a booking, a conversion or revenue', async () => {
+    vi.stubGlobal('fetch', withSeo());
+    render(<Stats setPage={() => {}} />);
+    const section = await screen.findByTestId('seo-surface');
+    const caution = screen.getByTestId('seo-clicks-caution');
+    // The caution is the ONE place those words may appear, and it uses them to
+    // rule the claims out. Everything else in the section is checked with the
+    // caution's own text removed, so a figure relabelled "conversions" fails
+    // even though the disclaimer above it still reads correctly.
+    expect(caution.textContent).toMatch(/Clicks sent, not bookings/i);
+    const rest = (section.textContent ?? '').replace(caution.textContent ?? '', '');
+    // Non-vacuity floor: an empty or near-empty `rest` would pass the assertion
+    // below while checking nothing.
+    expect(rest.length).toBeGreaterThan(400);
+    expect(rest).not.toMatch(/booking|revenue|conversion/i);
+  });
+
+  it('lists answer-engine referrals per host, and says why a small number still matters', async () => {
+    vi.stubGlobal('fetch', withSeo());
+    render(<Stats setPage={() => {}} />);
+    const text = (await screen.findByTestId('seo-surface')).textContent ?? '';
+    expect(text).toContain('chatgpt.com');
+    expect(text).toContain('perplexity.ai');
+    expect(text).toMatch(/6 visits/);
+    expect(text).toMatch(/2 visits/);
+    // The caveat the strategy insists on: a citation nobody clicks is invisible,
+    // so this is a floor on the real figure and never the figure itself.
+    expect(text).toMatch(/never as the size of it/i);
+  });
+
+  it('says nothing arrived rather than drawing an empty list', async () => {
+    vi.stubGlobal('fetch', withSeo({ ...SEO, answerEngines: [] }));
+    render(<Stats setPage={() => {}} />);
+    const text = (await screen.findByTestId('seo-surface')).textContent ?? '';
+    expect(text).toMatch(/No visits from a named assistant/i);
+    expect(text).not.toContain('chatgpt.com');
+  });
+
+  it('shows how many content-page arrivals went on to answer a question', async () => {
+    vi.stubGlobal('fetch', withSeo());
+    render(<Stats setPage={() => {}} />);
+    const text = (await screen.findByTestId('seo-surface')).textContent ?? '';
+    expect(text).toContain('Arrived from a content page');
+    expect(text).toContain('40 visits');
+    // 11 of 40 = 28%, computed here.
+    expect(text).toMatch(/11 visits · 28% of them/);
+  });
+
+  it('refuses to present a multi-day window as a count of people', async () => {
+    // visitor_day_hash is a DAILY identity; summing days is not a monthly
+    // unique, and this section reports two group totals that invite exactly
+    // that addition.
+    vi.stubGlobal('fetch', withSeo());
+    render(<Stats setPage={() => {}} />);
+    const text = (await screen.findByTestId('seo-surface')).textContent ?? '';
+    expect(text).toMatch(/daily visitor codes/i);
+    expect(text).toMatch(/never be added into a monthly total/i);
+  });
+
+  it('describes the grouping as first-touch (entry page), never as "touched at any point"', async () => {
+    // The migration moved from bool_or (touched a content page anywhere in the
+    // window) to distinct-on-entry (the page the visitor-day STARTED on). If a
+    // future edit reverts the SQL to bool_or without reverting this copy, the
+    // page would silently start lying about what it measures — so this test
+    // pins wording that only entry-attribution can honestly make.
+    vi.stubGlobal('fetch', withSeo());
+    render(<Stats setPage={() => {}} />);
+    const text = (await screen.findByTestId('seo-surface')).textContent ?? '';
+    expect(text).toMatch(/page (their|the visitor'?s?) day started on/i);
+    expect(text).not.toMatch(/touched/i);
+    expect(text).not.toMatch(/visited at any point/i);
+    expect(text).not.toMatch(/any page they opened/i);
+  });
+
+  it('states the single-touch residual limit: an assisting content page gets no credit', async () => {
+    // Without this line a low click-out rate for the content group reads as
+    // "content does nothing", which is not what a first-touch figure can show —
+    // a page that helped someone who arrived elsewhere is invisible to it by
+    // construction. The dashboard must say so, not just measure it.
+    vi.stubGlobal('fetch', withSeo());
+    render(<Stats setPage={() => {}} />);
+    const text = (await screen.findByTestId('seo-surface')).textContent ?? '';
+    expect(text).toMatch(/assists?/i);
+    expect(text).toMatch(/no credit/i);
+  });
+});
