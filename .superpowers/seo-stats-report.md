@@ -168,3 +168,75 @@ section's required label already contains all three words.
    milestone is a join on `visitor_day_hash` — which holds within a UTC day and
    not across one. Same limitation the campaigns card already carries; noted in
    the migration header.
+
+## SEO surface: entry-page attribution (2026-09-10)
+
+**Change.** `clickOuts` in `supabase/migrations/20260910120000_stats_seo_surface.sql`
+now groups visitor-days by their EARLIEST pageview in the window (`distinct on
+(visitor_day_hash) ... order by visitor_day_hash, created_at, id`, tiebroken by
+the identity `id` column), not by "touched a `/things-to-do` page anywhere".
+The old `bool_or` shape mechanically enriched the content group with clickers
+because engagement drives both "wandered into content" and "clicked out". A
+`clicks` CTE (group by visitor_day_hash, count outbound) is left-joined onto
+`entry`, matching the cost profile of the file's other visitor-distinct
+aggregates rather than a per-row correlated subquery.
+
+**Exclusion preserved.** Restricting `entry` to `name = 'pageview'` before the
+`distinct on` reproduces the old `having bool_or(name = 'pageview')` floor: a
+hash with only outbound events never gets an `entry` row, so it's excluded
+from both groups exactly as before. Empty-window `coalesce(...,0)` behaviour
+is untouched — the query shape after `seen` is unchanged.
+
+**Migration mechanics.** Amended `20260910120000_stats_seo_surface.sql` in
+place rather than adding a new migration. Confirmed via `supabase db push`
+history / git log that this migration has never been applied — no `db push`
+has run against it, so there is no deployed state to leave stale, and shipping
+a since-superseded definition under an already-applied timestamp would be the
+real risk here (there isn't one).
+
+**Dashboard copy** (`src/pages/Stats.tsx`): group labels changed to "Started
+on a content page" / "Started elsewhere"; footnote now says the grouping is by
+"the page their day started on ... not every page they happened to open
+afterward"; added a new paragraph stating the single-touch residual limit — a
+content page that only *assists* a visitor who arrived elsewhere gets no
+credit, framed as an honest limit of the method, not a defect.
+
+**Tests added.**
+- `supabase/functions/stats/summary-sql.test.ts`: new test asserts
+  `distinct on (visitor_day_hash)` and the `order by visitor_day_hash,
+  created_at, id` tiebreak are present, and that the old
+  `bool_or(name = 'pageview' and path like` shape is gone. Explicitly
+  commented that this is a TEXT check — it cannot execute the query, only
+  catch a structural regression back to the old shape.
+- `src/pages/Stats.dom.test.tsx`: two new tests — (1) copy matches
+  `/page (their|the visitor's?) day started on/i` and does NOT contain
+  "touched" or "visited at any point" or "any page they opened"; (2) copy
+  mentions "assist" and "no credit" (the residual-limit sentence).
+
+**Mutation-check results (all passed as expected, then reverted):**
+- Reverted SQL to `bool_or` -> `summary-sql.test.ts` new test failed (1 of 9
+  failed) exactly as expected; reverted back, 9/9 pass.
+- Reverted `Stats.tsx` copy to "touched"/"visited at any point" wording (no
+  residual-limit paragraph) -> both new DOM tests failed (2 of 67 in that
+  file) exactly as expected; reverted back, 76/76 pass across both files.
+
+**Test count.** Full suite (excluding `.claude/worktrees/**` double-count and
+the pre-existing-broken `src/data/influencer-e2e.test.ts`): 91 files, 1625
+tests, all passing. `npm run build` succeeds.
+
+**What stays unverified.** No Postgres available in this sandbox (no local
+instance, `docker run` blocked) and `supabase db push` was not run — the
+`distinct on` / join / coalesce SQL has NOT been executed against a real
+`web_events` table. In particular unverified: that Postgres accepts
+`distinct on (visitor_day_hash) ... order by visitor_day_hash, created_at, id`
+inside a CTE the way written (syntax looks standard but is untested), that the
+left join against the `clicks` CTE performs comparably to the other
+visitor-distinct aggregates at real data volumes, and that the empty-window
+case actually returns 0s end-to-end through the edge function. Verify by
+running the migration and reading `/stats`.
+
+**Concerns.** None blocking. The only judgment call worth flagging: group
+labels ("Started on a content page" / "Started elsewhere") were changed from
+"Read a content page" / "Never opened one" to make the entry-page semantics
+honest at the label level too, not just in the footnote — no test depended on
+the old label text.

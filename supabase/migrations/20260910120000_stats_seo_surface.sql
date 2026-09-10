@@ -126,11 +126,27 @@ select jsonb_build_object(
   --
   -- The one figure tied to the goal: do the generated pages send people to a
   -- partner more or less often than the tool does? A visitor-day is put in the
-  -- SEO group if ANY pageview it made in this window was a /things-to-do path
-  -- ('/things-to-do' and '/things-to-do/:slug' are the only two shapes collect
-  -- allowlists), and in the planner group otherwise. Someone who read a content
-  -- page and then used the planner counts as SEO — the question is which
-  -- surface brought them, and the content page is the one that did.
+  -- SEO group when its EARLIEST pageview in this window was a /things-to-do
+  -- path ('/things-to-do' and '/things-to-do/:slug' are the only two shapes
+  -- collect allowlists) — first-touch attribution, not "touched at any point".
+  -- Engagement (curiosity, page count) drives both "opened a content page at
+  -- some point" AND "clicked out", so grouping on ANY touch mechanically
+  -- enriches the content group with clickers regardless of how they arrived.
+  -- Grouping on the ENTRY page ties the outcome to arrival channel, which is
+  -- what "did SEO traffic convert" actually asks. A visitor who lands on the
+  -- planner directly and wanders into a content page later counts as planner
+  -- here — a content page that only ASSISTS someone who arrived elsewhere gets
+  -- no credit in this figure. That is the honest residual of any single-touch
+  -- model, not a defect, and it is why a low number here does not mean content
+  -- does nothing.
+  --
+  -- `entry` picks each visitor-day's first pageview with `distinct on`, tied
+  -- deterministically by `id` (the identity primary key) after `created_at` so
+  -- two pageviews sharing a timestamp cannot flip the entry page between runs.
+  -- Restricting to name = 'pageview' before the distinct is what reproduces
+  -- the old `having bool_or(name = 'pageview')` floor: a hash with outbound
+  -- events but no pageview never gets an `entry` row, so it is excluded from
+  -- both groups exactly as before.
   --
   -- BOTH the visitor count and the click count go back, per group, on purpose.
   -- The dashboard needs the base to decide whether the rate is worth reading at
@@ -143,13 +159,26 @@ select jsonb_build_object(
   -- and the alternative counts a click-only hash as a whole visitor.
   'seo', jsonb_build_object(
     'clickOuts', (
-      with seen as (
-        select visitor_day_hash,
-               bool_or(name = 'pageview' and path like '/things-to-do%') as on_seo,
-               count(*) filter (where name = 'outbound') as clicks
+      with entry as (
+        select distinct on (visitor_day_hash)
+               visitor_day_hash,
+               path like '/things-to-do%' as on_seo
         from win
+        where name = 'pageview'
+        order by visitor_day_hash, created_at, id
+      ),
+      clicks as (
+        select visitor_day_hash, count(*) as clicks
+        from win
+        where name = 'outbound'
         group by visitor_day_hash
-        having bool_or(name = 'pageview')
+      ),
+      seen as (
+        select e.visitor_day_hash,
+               e.on_seo,
+               coalesce(c.clicks, 0) as clicks
+        from entry e
+        left join clicks c using (visitor_day_hash)
       )
       select jsonb_build_object(
         'seoVisitors',     coalesce(count(*) filter (where on_seo), 0),

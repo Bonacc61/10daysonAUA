@@ -1222,8 +1222,8 @@ function SeoSurface({ seo, oneDay }: { seo: NonNullable<Summary['seo']>; oneDay:
   const c = seo.clickOuts;
   const unit = oneDay ? 'unique' : 'visits';
   const groups = [
-    { label: 'Read a content page', visitors: c.seoVisitors, clicks: c.seoClicks },
-    { label: 'Never opened one', visitors: c.plannerVisitors, clicks: c.plannerClicks },
+    { label: 'Started on a content page', visitors: c.seoVisitors, clicks: c.seoClicks },
+    { label: 'Started elsewhere', visitors: c.plannerVisitors, clicks: c.plannerClicks },
   ];
   const p = seo.toPlanner;
   return (
@@ -1263,11 +1263,18 @@ function SeoSurface({ seo, oneDay }: { seo: NonNullable<Summary['seo']>; oneDay:
         </p>
       )}
       <p style={{ ...muted, fontSize: 12 }}>
-        A visitor counts in the first row if any page they opened in this window was under{' '}
-        <code>/things-to-do</code>, and in the second otherwise.{' '}
+        A visitor counts in the first row if the page their day started on was under{' '}
+        <code>/things-to-do</code>, and in the second otherwise — the page they arrived on,
+        not every page they happened to open afterward.{' '}
         {oneDay
           ? 'Within one day this is an exact count of people.'
           : 'Across a window these are daily visitor codes, so a person who came on two days is two — and the two rows can never be added into a monthly total.'}
+      </p>
+      <p style={{ ...muted, fontSize: 12 }}>
+        This can only credit the page someone arrived on. A content page that merely{' '}
+        <em>assists</em> a visitor who started somewhere else — read along the way, never the
+        entry — gets no credit here. That is the honest limit of counting by first touch, not a
+        sign the page did nothing.
       </p>
 
       <h3 style={h3}>Visits from answer engines</h3>

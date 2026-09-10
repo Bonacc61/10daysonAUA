@@ -976,4 +976,31 @@ describe('Stats — the SEO surface', () => {
     expect(text).toMatch(/daily visitor codes/i);
     expect(text).toMatch(/never be added into a monthly total/i);
   });
+
+  it('describes the grouping as first-touch (entry page), never as "touched at any point"', async () => {
+    // The migration moved from bool_or (touched a content page anywhere in the
+    // window) to distinct-on-entry (the page the visitor-day STARTED on). If a
+    // future edit reverts the SQL to bool_or without reverting this copy, the
+    // page would silently start lying about what it measures — so this test
+    // pins wording that only entry-attribution can honestly make.
+    vi.stubGlobal('fetch', withSeo());
+    render(<Stats setPage={() => {}} />);
+    const text = (await screen.findByTestId('seo-surface')).textContent ?? '';
+    expect(text).toMatch(/page (their|the visitor'?s?) day started on/i);
+    expect(text).not.toMatch(/touched/i);
+    expect(text).not.toMatch(/visited at any point/i);
+    expect(text).not.toMatch(/any page they opened/i);
+  });
+
+  it('states the single-touch residual limit: an assisting content page gets no credit', async () => {
+    // Without this line a low click-out rate for the content group reads as
+    // "content does nothing", which is not what a first-touch figure can show —
+    // a page that helped someone who arrived elsewhere is invisible to it by
+    // construction. The dashboard must say so, not just measure it.
+    vi.stubGlobal('fetch', withSeo());
+    render(<Stats setPage={() => {}} />);
+    const text = (await screen.findByTestId('seo-surface')).textContent ?? '';
+    expect(text).toMatch(/assists?/i);
+    expect(text).toMatch(/no credit/i);
+  });
 });

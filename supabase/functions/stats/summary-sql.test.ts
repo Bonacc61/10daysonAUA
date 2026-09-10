@@ -66,6 +66,20 @@ describe('the seo key reaches all three summary windows', () => {
     }
   });
 
+  it('groups clickOuts by entry page (distinct on, ordered), not by bool_or-anywhere', () => {
+    // This is a TEXT check and cannot prove the query's behaviour — it cannot
+    // run against Postgres in this suite. What it CAN prove is that the
+    // first-touch shape is present in the SQL and the old any-touch shape
+    // (`bool_or(name = 'pageview' and path like`) is gone. A regression back to
+    // bool_or would still declare the three functions and the same jsonb keys,
+    // so the earlier structural tests would keep passing even though the
+    // metric's meaning changed — this test is what catches that.
+    const range = fnBody('stats_summary_range');
+    expect(range).toContain('distinct on (visitor_day_hash)');
+    expect(range).toMatch(/order by visitor_day_hash,\s*created_at,\s*id/);
+    expect(range).not.toMatch(/bool_or\(name = 'pageview' and path like/);
+  });
+
   it('gives the other two the key by delegating, so no window can be missing it', () => {
     // These two hold no body of their own (20260829100000 made them wrappers),
     // so "contains 'seo'" would be the wrong assertion — the right one is that
