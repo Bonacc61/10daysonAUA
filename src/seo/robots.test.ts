@@ -7,7 +7,10 @@ const TXT = readFileSync('public/robots.txt', 'utf8');
 describe('robots.txt', () => {
   it('allows the default crawler', () => {
     expect(TXT).toMatch(/^User-agent: \*$/m);
-    expect(TXT).toMatch(/^Allow: \/$/m);
+    const wildcardBlock = TXT.split(/\n(?=User-agent:)/).find((b) => b.includes('User-agent: *'));
+    expect(wildcardBlock).toBeDefined();
+    expect(wildcardBlock).toMatch(/^Allow: \/$/m);
+    expect(wildcardBlock).not.toMatch(/^Disallow: \//m);
   });
 
   it('names the sitemap', () => {
