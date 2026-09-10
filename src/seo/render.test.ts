@@ -84,8 +84,35 @@ describe('renderDataPage', () => {
     expect((html.match(/data-star=/g) ?? [])).toHaveLength(5);
   });
 
-  it('links back to the planner with a ref the beacon can attribute', () => {
-    expect(page()).toContain('?ref=seo-sample-activity');
+  it('links back to the planner with a ref derived from the id, not the slug', () => {
+    // The id, not `slug`, is what makes it into the ref — see refFor() in
+    // render.ts. SAMPLE.id comes from src/data/seoCatalog.json (the catalog
+    // module), not from render.ts, so this is not deriving an expected value
+    // from the module under test.
+    expect(page()).toContain(`?ref=seo-${SAMPLE.id.toLowerCase()}`);
+  });
+
+  it('uses the id even when the slug is long enough that the old slug-based ref would have blown the 32-char allowlist', () => {
+    // Real slugs run long — 40 of the 58 generated pages exceed 28 characters,
+    // which combined with the "seo-" prefix passes the collect function's
+    // 32-char campaign() allowlist (supabase/functions/collect/normalise.ts)
+    // right by. This fixture's slug alone is already past that limit, so the
+    // old `?ref=seo-${slug}` behaviour would fail the assertion below — this
+    // test would have caught the original bug.
+    const longSlug = 'a-slug-so-long-it-alone-exceeds-the-collect-allowlist-limit';
+    expect(`seo-${longSlug}`.length).toBeGreaterThan(32);
+    const html = page({ slug: longSlug });
+    expect(html).not.toContain(`?ref=seo-${longSlug}`);
+    expect(html).toContain(`?ref=seo-${SAMPLE.id.toLowerCase()}`);
+  });
+
+  it('emits a ref matching the collect allowlist the server enforces', () => {
+    // The literal pattern from supabase/functions/collect/normalise.ts's
+    // campaign() — kept in sync by tools/build-seo.refContract.test.ts, not
+    // by hoping nobody edits one side.
+    const m = page().match(/\?ref=([^"]*)"/);
+    expect(m, 'no ?ref= link found').not.toBeNull();
+    expect(m![1]).toMatch(/^[a-z0-9-]{1,32}$/);
   });
 
   it('stamps the build date', () => {
@@ -232,7 +259,7 @@ describe('a product that has left the catalog', () => {
   });
 
   it('still sends the reader to the planner', () => {
-    expect(gone()).toContain('?ref=seo-sample-activity');
+    expect(gone()).toContain(`?ref=seo-${SAMPLE.id.toLowerCase()}`);
   });
 
   it('tells crawlers not to index it, without removing it', () => {
@@ -332,8 +359,25 @@ describe('renderCuratedPage', () => {
     expect(curated()).not.toContain('rel="noopener sponsored"');
   });
 
-  it('still sends the reader to the planner', () => {
-    expect(curated()).toContain('?ref=seo-eagle-beach-morning-session');
+  it('still sends the reader to the planner, with a ref derived from the id, not the slug', () => {
+    // EAGLE.id is 'eagle-beach-morning' (from src/data/activities.ts), not
+    // the 'eagle-beach-morning-session' slug fixture below — proves the ref
+    // tracks refFor(activity.id), not the slug.
+    expect(curated()).toContain(`?ref=seo-${EAGLE.id.toLowerCase()}`);
+  });
+
+  it('uses the id even when the slug is long enough that the old slug-based ref would have blown the 32-char allowlist', () => {
+    const longSlug = 'a-slug-so-long-it-alone-exceeds-the-collect-allowlist-limit';
+    expect(`seo-${longSlug}`.length).toBeGreaterThan(32);
+    const html = curated({ slug: longSlug });
+    expect(html).not.toContain(`?ref=seo-${longSlug}`);
+    expect(html).toContain(`?ref=seo-${EAGLE.id.toLowerCase()}`);
+  });
+
+  it('emits a ref matching the collect allowlist the server enforces', () => {
+    const m = curated().match(/\?ref=([^"]*)"/);
+    expect(m, 'no ?ref= link found').not.toBeNull();
+    expect(m![1]).toMatch(/^[a-z0-9-]{1,32}$/);
   });
 
   it('escapes a hostile localsSay rather than injecting it', () => {

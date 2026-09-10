@@ -174,12 +174,17 @@ function main(): void {
   const emitted = advertised([...productLinks, ...curatedLinks, ...departedLinks]);
 
   mkdirSync(`${DIST}/things-to-do`, { recursive: true });
+  const indexHtml = withCollectUrl(renderIndexPage({ entries: emitted, cssHref, buildDate }), collectUrl);
+  // renderIndexPage's ref is the static "seo-index" (9 chars), not id-derived,
+  // but it still flows through the same allowlist the collect function
+  // enforces — checked here rather than assumed safe.
+  assertSafeRef(indexHtml, 'the things-to-do index');
   writeFileSync(
     `${DIST}/things-to-do/index.html`,
     // withCollectUrl here too: the hub carries the same beacon as every page
     // under it, and without the substitution it would ship the literal
     // __COLLECT_URL__ and count nothing.
-    withCollectUrl(renderIndexPage({ entries: emitted, cssHref, buildDate }), collectUrl),
+    indexHtml,
   );
 
   const entries = [
@@ -240,8 +245,46 @@ function assertSafeSlug(slug: string): void {
   }
 }
 
+/**
+ * Contract with `campaign()` in `supabase/functions/collect/normalise.ts` —
+ * KEEP THESE TWO IDENTICAL. That function allowlists the `ref` query param on
+ * every "Build a full Aruba itinerary" link; anything that doesn't match is
+ * silently turned to `null` and the pageview is stored with no attribution.
+ * There is no error anywhere when the two drift: the beacon sends whatever
+ * this file was willing to emit, the edge function nulls whatever normalise.ts
+ * doesn't allow, and both sides look fine in isolation. This is exactly how
+ * the original bug shipped — 40 of 58 generated refs were one character short
+ * of the limit and nobody noticed until someone looked at raw ingest rows.
+ * `tools/build-seo.refContract.test.ts` fails the build (via `npx vitest run`)
+ * if the two patterns' literal source text ever stops matching.
+ */
+const REF_PATTERN = /^[a-z0-9-]{1,32}$/;
+
+/**
+ * Every `?ref=` link this build is about to publish, checked against the
+ * exact allowlist the collect function enforces server-side. Failing here —
+ * loudly, before anything is written — is the only way a mismatch is not
+ * silent: see REF_PATTERN above.
+ */
+function assertSafeRef(html: string, context: string): void {
+  const match = html.match(/\/questionnaire\?ref=([^"]*)"/);
+  if (!match) {
+    throw new Error(`seo: ${context} has no ?ref= link to the planner — attribution would be unmeasurable.`);
+  }
+  const ref = match[1];
+  if (!REF_PATTERN.test(ref)) {
+    throw new Error(
+      `seo: ref "${ref}" (${ref.length} chars) for ${context} fails the collect allowlist ` +
+        `${REF_PATTERN.source} enforced in supabase/functions/collect/normalise.ts — the beacon ` +
+        'would send it, the server would silently null it, and this page would vanish from ' +
+        '/stats with no error anywhere. Fix the id or the renderer, not this check.',
+    );
+  }
+}
+
 function writePage(slug: string, html: string): void {
   assertSafeSlug(slug);
+  assertSafeRef(html, `slug "${slug}"`);
   const dir = `${DIST}/things-to-do/${slug}`;
   mkdirSync(dir, { recursive: true });
   writeFileSync(`${dir}/index.html`, html);

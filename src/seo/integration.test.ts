@@ -166,6 +166,24 @@ d('generated output in dist/', () => {
     }
   });
 
+  // The actual bug this guards against: a `ref` value the collect function's
+  // allowlist (`^[a-z0-9-]{1,32}$` in supabase/functions/collect/normalise.ts)
+  // would silently null. Checked against the real built pages, not a fixture,
+  // so a renderer regression that only shows up for a specific catalog id
+  // (a long slug, an uppercase Viator product code) cannot slip past.
+  it('gives every page — and the index — a ref that survives the collect allowlist', () => {
+    const all = [
+      ...pages().map((p) => ({ where: p.slug, html: p.html })),
+      { where: 'index', html: readFileSync('dist/things-to-do/index.html', 'utf8') },
+    ];
+    expect(all.length, 'no built pages to check').toBeGreaterThan(30);
+    for (const { where, html } of all) {
+      const m = html.match(/\/questionnaire\?ref=([^"]*)"/);
+      expect(m, `${where} has no ?ref= link to the planner`).not.toBeNull();
+      expect(m![1], `${where}'s ref "${m?.[1]}" fails the collect allowlist`).toMatch(/^[a-z0-9-]{1,32}$/);
+    }
+  });
+
   it('has a real collect URL substituted into the beacon', () => {
     for (const p of pages()) expect(p.html).not.toContain('__COLLECT_URL__');
     expect(readFileSync('dist/things-to-do/index.html', 'utf8')).not.toContain('__COLLECT_URL__');

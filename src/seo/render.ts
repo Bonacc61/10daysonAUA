@@ -21,6 +21,25 @@ export type DataPageInput = {
   related: { title: string; url: string }[];
 };
 
+/**
+ * The `ref` on every "Build a full Aruba itinerary" link, so /stats can tell
+ * whether an SEO page actually fed the planner.
+ *
+ * Built from the page's ID, not its slug: the slug is free-text derived from
+ * the title (src/seo/slugs.ts) and can run long — 40 of the 58 pages' slugs
+ * are over 28 characters, which is enough to blow past
+ * `supabase/functions/collect/normalise.ts`'s 32-character campaign
+ * allowlist and get silently discarded server-side. The id is the registry
+ * key in content/slugs.json: it never changes, and across the full catalog
+ * (2026-09-10) the longest is `seo-california-lighthouse-sunset` at exactly
+ * 32 chars. Lowercased because Viator product codes carry an uppercase
+ * variant letter (e.g. "102406P4") that the allowlist's [a-z0-9-] would
+ * otherwise reject.
+ */
+export function refFor(id: string): string {
+  return `seo-${id.toLowerCase()}`;
+}
+
 export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -104,7 +123,7 @@ ${faqBlock(item, times)}
 ${item.gone
   ? `<p class="seo-gone">This trip is <strong>no longer listed</strong> by its operator. The reviews below are kept for reference; the activities underneath are live alternatives.</p>`
   : `<p class="seo-cta"><a class="btn" href="${escapeHtml(book)}" target="_blank" rel="noopener sponsored">Check dates and prices on Viator</a></p>`}
-<p class="seo-plan"><a href="/questionnaire?ref=seo-${escapeHtml(slug)}">Build a full Aruba itinerary around this</a></p>
+<p class="seo-plan"><a href="/questionnaire?ref=${escapeHtml(refFor(item.id))}">Build a full Aruba itinerary around this</a></p>
 
 ${related.length ? `<section><h2>Similar things to do</h2><ul>${
   related.map((r) => `<li><a href="${escapeHtml(r.url)}">${escapeHtml(r.title)}</a></li>`).join('')
@@ -287,7 +306,7 @@ ${a.localsSay ? `<blockquote class="seo-locals">${escapeHtml(a.localsSay)}</bloc
 ${facts.length ? `<section><h2>The practical details</h2><table class="seo-facts"><tbody>${facts.join('')}</tbody></table></section>` : ''}
 
 ${book ? `<p class="seo-cta"><a class="btn" href="${escapeHtml(book.url)}" target="_blank" rel="${book.affiliate ? 'noopener sponsored' : 'noopener'}">Book this</a></p>` : ''}
-<p class="seo-plan"><a href="/questionnaire?ref=seo-${escapeHtml(slug)}">Build a full Aruba itinerary around this</a></p>
+<p class="seo-plan"><a href="/questionnaire?ref=${escapeHtml(refFor(a.id))}">Build a full Aruba itinerary around this</a></p>
 
 ${related.length ? `<section><h2>Nearby and similar</h2><ul>${
   related.map((r) => `<li><a href="${escapeHtml(r.url)}">${escapeHtml(r.title)}</a></li>`).join('')
