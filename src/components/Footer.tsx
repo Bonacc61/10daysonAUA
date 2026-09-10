@@ -128,6 +128,12 @@ export default function Footer({ setPage }: Props) {
             style={{ fontSize: 11, color: '#666', textDecoration: 'underline' }}>
             Terms of Service
           </SpaLink>
+          {/* A plain <a>, not a SpaLink: /things-to-do/ is a static page
+              outside the SPA, so a full navigation is correct here. */}
+          <a href="/things-to-do/"
+            style={{ fontSize: 11, color: '#666', textDecoration: 'underline' }}>
+            Things to do in Aruba
+          </a>
         </div>
         <div style={{ fontSize: 10, color: '#555', marginTop: 10, letterSpacing: '0.04em' }}>
           build {build}

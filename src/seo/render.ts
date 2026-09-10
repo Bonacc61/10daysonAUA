@@ -301,3 +301,43 @@ ${related.length ? `<section><h2>Nearby and similar</h2><ul>${
 const BEACON = `(function(){try{if(localStorage.getItem('10doa:no-analytics')==='true')return}catch(e){return}
 var u='__COLLECT_URL__';if(!u)return;var b=JSON.stringify({name:'pageview',path:location.pathname});
 try{navigator.sendBeacon?navigator.sendBeacon(u,new Blob([b],{type:'text/plain'})):fetch(u,{method:'POST',body:b,keepalive:true,headers:{'content-type':'text/plain'}})}catch(e){}})();`;
+
+/**
+ * The hub-shaped index at /things-to-do/.
+ *
+ * This is the entry point into the generated surface: the footer links here,
+ * and this links to every data page. Phase 2's five editorial guides will sit
+ * between the two, but the crawl path must not wait for them.
+ */
+export function renderIndexPage(input: {
+  entries: { title: string; url: string }[];
+  cssHref: string;
+  buildDate: string;
+}): string {
+  const { entries, cssHref, buildDate } = input;
+  const canonical = ORIGIN + '/things-to-do/';
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Things to do in Aruba — reviews and practical detail</title>
+<meta name="description" content="Aruba activities with combined Viator and Tripadvisor review data, start times and what each trip actually involves.">
+<link rel="canonical" href="${canonical}">
+<link rel="stylesheet" href="${cssHref}">
+</head>
+<body>
+<main class="seo-page">
+<nav class="seo-crumbs"><a href="/">10 days on Aruba</a> › <span>Things to do</span></nav>
+<h1>Things to do in Aruba</h1>
+<p>${entries.length} activities, each with its combined review distribution, real start times, and what the trip involves. Ratings are summed across Viator and Tripadvisor — the same figure the booking page shows.</p>
+<ul class="seo-index">${
+  entries.map((e) => `<li><a href="${escapeHtml(e.url)}">${escapeHtml(e.title)}</a></li>`).join('')
+}</ul>
+<p class="seo-plan"><a href="/questionnaire?ref=seo-index">Build a full Aruba itinerary</a></p>
+<p class="seo-freshness">Data updated ${buildDate}</p>
+</main>
+</body>
+</html>
+`;
+}
