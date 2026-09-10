@@ -46,3 +46,17 @@ export function proposeRegistry(
 export function urlFor(slug: string, kind: 'things-to-do' | 'guides'): string {
   return `/${kind}/${slug}/`;
 }
+
+/**
+ * The ids in `proposed` that `existing` did not already hold — the URLs a run
+ * has just invented.
+ *
+ * Separated from proposeRegistry so the build can refuse to mint in CI, where
+ * nothing can commit the result. See tools/build-seo.ts for why that matters.
+ */
+export function mintedIds(
+  existing: Record<string, string>,
+  proposed: Record<string, string>,
+): string[] {
+  return Object.keys(proposed).filter((id) => !(id in existing));
+}

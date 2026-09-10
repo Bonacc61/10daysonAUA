@@ -12,7 +12,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { cssHrefFromManifest } from '../src/seo/assets';
 import { selectPages } from '../src/seo/floor';
 import type { SeoCatalogItem, SeoCatalogSnapshot } from '../src/seo/catalog';
-import { proposeRegistry, slugFor, urlFor } from '../src/seo/slugs';
+import { mintedIds, proposeRegistry, slugFor, urlFor } from '../src/seo/slugs';
 import { renderDataPage, renderCuratedPage, renderIndexPage } from '../src/seo/render';
 import { renderSitemap, publicRouteEntries, renderLlmsTxt } from '../src/seo/sitemap';
 import { ORIGIN } from '../src/lib/head';
@@ -59,6 +59,39 @@ function main(): void {
     ],
     existing,
   );
+  // A published slug must never move — that is the whole reason the registry
+  // exists (src/seo/slugs.ts). But proposeRegistry can only protect ids it
+  // ALREADY holds, so a run that mints a URL and then discards the registry is
+  // the one path that can silently rename an indexed page:
+  //
+  //   seo:refresh adds a product, nobody builds locally, so slugs.json gains
+  //   nothing → CI mints "foo" and deploys → Google indexes /things-to-do/foo/
+  //   → months later Viator RETITLES that product → CI mints "bar" for the same
+  //   id, because "foo" was never committed → deploy.yml mirrors with --delete
+  //   → /things-to-do/foo/ is a hard 404 on an indexed URL, no redirect, and
+  //   every link pointing at it is lost.
+  //
+  // No collision is needed for that; the snapshot changing is enough. Locally
+  // the fix is cheap — mint, then commit slugs.json. In CI nothing can commit,
+  // so minting is refused outright and the deploy fails while it is still
+  // recoverable. Do NOT "simplify" this back into an unconditional write: the
+  // failure it guards is an unrecoverable 404, not a warning.
+  const minted = mintedIds(existing, registry);
+  if (minted.length) {
+    console.error(
+      `seo: ${minted.length} new URL(s) minted:\n` +
+        minted.map((id) => `  ${id} \u2192 /things-to-do/${registry[id]}/`).join('\n'),
+    );
+    if (process.env.CI) {
+      throw new Error(
+        'seo: refusing to mint a URL in CI, which cannot commit content/slugs.json. ' +
+          'A slug this build invents and throws away can be invented differently on a ' +
+          'later run once Viator retitles the product, 404ing an already-indexed page. ' +
+          'Run `npm run build` locally and commit content/slugs.json first.',
+      );
+    }
+    console.error('seo: commit content/slugs.json so those URLs become permanent.');
+  }
   writeFileSync(REGISTRY, JSON.stringify(registry, null, 2) + '\n');
 
   /** A missing slug would emit dist/things-to-do/undefined/ — fail instead. */
