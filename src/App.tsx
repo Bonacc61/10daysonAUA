@@ -24,6 +24,7 @@ const Stats = lazy(() => import('./pages/Stats'));
 const AFTER_LOGIN_STATS = '10doa:after-login-stats';
 import { AuthProvider, useAuth } from './lib/auth';
 import { PAGE_TO_PATH, PATH_TO_PAGE, type PageId } from './lib/pages';
+import { applyHead, pageMeta, sharedItineraryMeta } from './lib/head';
 // Re-exported so `import type { PageId } from '../App'` keeps resolving in the
 // five page components that already do it.
 export type { PageId };
@@ -137,6 +138,13 @@ function AppShell() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, [page]);
+
+  // Per-route <head>. Keyed on the same state as the beacon effect below and
+  // for the same reason: setPage pushes history without a navigation, so there
+  // is no load event to hang this on after the first one.
+  useEffect(() => {
+    applyHead(shareId ? sharedItineraryMeta(shareId) : pageMeta(page));
+  }, [page, shareId]);
 
   // --- Cookieless traffic beacon (src/lib/beacon.ts) ------------------------
   //

@@ -95,3 +95,41 @@ export function sharedItineraryMeta(shareId: string): PageMeta {
     index: false,
   };
 }
+
+/**
+ * Write a PageMeta into <head>. Idempotent: reuses the tags index.html already
+ * ships rather than appending duplicates, and REMOVES the robots tag when the
+ * page is indexable — without that, one visit to /itinerary would leave the
+ * noindex in place for every subsequent client-side navigation in the session.
+ */
+export function applyHead(meta: PageMeta): void {
+  document.title = meta.title;
+
+  upsertMeta('description', meta.description);
+
+  let canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  if (!canonical) {
+    canonical = document.createElement('link');
+    canonical.rel = 'canonical';
+    document.head.appendChild(canonical);
+  }
+  canonical.href = meta.canonical;
+
+  const robots = document.head.querySelector('meta[name="robots"]');
+  if (meta.index) {
+    robots?.remove();
+  } else {
+    // "follow" on purpose: exclude the page, still let its links pass equity.
+    upsertMeta('robots', 'noindex, follow');
+  }
+}
+
+function upsertMeta(name: string, content: string): void {
+  let el = document.head.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
+  if (!el) {
+    el = document.createElement('meta');
+    el.name = name;
+    document.head.appendChild(el);
+  }
+  el.content = content;
+}
