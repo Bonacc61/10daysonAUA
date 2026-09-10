@@ -111,6 +111,12 @@ describe('renderDataPage', () => {
   it('links every related activity', () => {
     expect(page()).toContain('/things-to-do/another-thing/');
   });
+
+  it('escapes a hostile related title rather than injecting it', () => {
+    const html = page({ related: [{ title: '<img src=x onerror=alert(1)>', url: '/things-to-do/x/' }] });
+    expect(html).not.toContain('<img src=x onerror=alert(1)>');
+    expect(html).toContain('&lt;img');
+  });
 });
 
 describe('platformSplitWorthShowing', () => {
@@ -165,10 +171,27 @@ describe('renderCuratedPage', () => {
   });
 
   // THE invariant. activities.ts:26 — these are curation weights, not ratings.
+  //
+  // Forbidden strings are DERIVED FROM `EAGLE.rating` / `EAGLE.reviewCount`
+  // (activities.ts, the DATA module) rather than hardcoded — this does not
+  // violate "never derive expected values from the module under test", because
+  // the module under test here is render.ts, not activities.ts. Deriving from
+  // the data is what makes the guard keep working when someone retunes Eagle
+  // Beach's curation weight; a hardcoded '4.9'/'2847' would silently stop
+  // guarding anything the day that number changes, while still passing green.
+  //
+  // Checks both the raw value AND the locale-formatted value (2,847, not just
+  // 2847): a renderer that runs reviewCount through .toLocaleString() before
+  // printing it evades a literal-substring check on the unformatted digits.
   it('never publishes the editorial rating or review count', () => {
     const html = curated();
-    expect(html).not.toContain('4.9');
-    expect(html).not.toContain('2847');
+    for (const forbidden of [
+      String(EAGLE.rating),
+      String(EAGLE.reviewCount),
+      EAGLE.reviewCount.toLocaleString('en-US'),
+    ]) {
+      expect(html, `curated page must never publish ${forbidden}`).not.toContain(forbidden);
+    }
     expect(html).not.toContain('reviews');
   });
 
@@ -190,5 +213,34 @@ describe('renderCuratedPage', () => {
     const html = curated({ activity: { ...EAGLE, localsSay: '<img onerror=x>' } });
     expect(html).not.toContain('<img onerror=x>');
     expect(html).toContain('&lt;img');
+  });
+
+  it('escapes a hostile related title rather than injecting it', () => {
+    const html = curated({ related: [{ title: '<img src=x onerror=alert(1)>', url: '/things-to-do/x/' }] });
+    expect(html).not.toContain('<img src=x onerror=alert(1)>');
+    expect(html).toContain('&lt;img');
+  });
+
+  it('escapes a hostile description rather than injecting it', () => {
+    const html = curated({ activity: { ...EAGLE, description: '<img src=x onerror=alert(1)>' } });
+    expect(html).not.toContain('<img src=x onerror=alert(1)>');
+    expect(html).toContain('&lt;img');
+  });
+
+  // The global constraint — "every outbound Viator link carries pid= and
+  // mcid=" — applies to curated picks too, but EAGLE is free and so never
+  // exercises the affiliate branch of bookUrlForActivity. Build a paid fixture
+  // by spreading a real activity rather than inventing one from scratch.
+  it('carries the affiliate parameters when a curated pick is paid and bookable', () => {
+    const PAID = {
+      ...EAGLE,
+      cost: '$75 pp',
+      viator_item_url: 'https://www.viator.com/tours/Aruba/Some-Tour/d28-999999P1?mcid=42383&pid=P00302487',
+    };
+    const html = curated({ activity: PAID });
+    expect(html).toContain('pid=P00302487');
+    expect(html).toContain('mcid=42383');
+    expect(html).toContain('medium=link');
+    expect(html).toContain('rel="noopener sponsored"');
   });
 });
