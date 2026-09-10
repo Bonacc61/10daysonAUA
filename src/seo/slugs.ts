@@ -23,6 +23,15 @@ export function slugFor(id: string, registry: Record<string, string>): string | 
  * Registry after adding any new ids. Existing entries are never rewritten, and
  * ids missing from the catalog are never dropped — a vanished product keeps its
  * URL, drops out of the sitemap, and its page points at a live alternative.
+ *
+ * The last three clauses are not this function's doing, and for a while they
+ * were simply false: the generator looped over the current selection, so a
+ * de-listed product's page was never re-emitted and the next --delete mirror
+ * 404'd it. Keeping this registry entry is only the first half. The other half
+ * is mergeSnapshotItems (src/seo/catalog.ts) retaining the row as `gone`,
+ * departedPages (src/seo/floor.ts) finding it from THIS registry rather than
+ * from the quality floor, and tools/build-seo.ts writing its page while leaving
+ * it out of sitemap.xml, llms.txt and the index.
  */
 export function proposeRegistry(
   entries: { id: string; title: string }[],

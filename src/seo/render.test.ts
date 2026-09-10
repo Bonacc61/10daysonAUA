@@ -12,10 +12,16 @@ const ITEMS = (SNAPSHOT as { items: SeoCatalogItem[] }).items;
 // product carries affiliate parameters, even though today (2026-09-10) all 327
 // catalog items do. Select defensively, and fail loudly if the catalog ever
 // stops carrying one.
-const SAMPLE = selectPages(ITEMS).products.find((p) => p.viator_item_url.includes('pid='));
+//
+// `!p.gone` matters as much as the pid check: the gone block at the bottom of
+// this file spreads `{ ...SAMPLE, gone: true }` to build its fixture, so SAMPLE
+// itself has to be a LIVE product. The day seo:refresh flags whichever product
+// happens to sort first here, a SAMPLE that carried gone through would take the
+// booking-link tests down with it and read as a renderer regression.
+const SAMPLE = selectPages(ITEMS).products.find((p) => !p.gone && p.viator_item_url.includes('pid='));
 if (!SAMPLE) {
   throw new Error(
-    'Test fixture setup: no selected product carries pid= — the affiliate-parameter test below would be meaningless against this catalog.',
+    'Test fixture setup: no live selected product carries pid= — the affiliate-parameter test below would be meaningless against this catalog.',
   );
 }
 
@@ -116,6 +122,62 @@ describe('renderDataPage', () => {
     const html = page({ related: [{ title: '<img src=x onerror=alert(1)>', url: '/things-to-do/x/' }] });
     expect(html).not.toContain('<img src=x onerror=alert(1)>');
     expect(html).toContain('&lt;img');
+  });
+
+  it('emits no robots meta for a product that is still listed', () => {
+    // The counterpart to the noindex case below. Without this, a renderer that
+    // stamped `noindex, follow` on EVERY page would pass the whole gone block
+    // while quietly de-indexing all 39 product pages.
+    expect(page()).not.toContain('name="robots"');
+  });
+});
+
+// A product Viator stops returning. Not a deletion: dist/ is rebuilt from
+// scratch and mirrored with --delete on every deploy, so dropping the page
+// would turn an indexed URL into a hard 404 and discard every link into it.
+describe('a product that has left the catalog', () => {
+  const gone = () => page({ item: { ...SAMPLE, gone: true } });
+
+  it('still renders a page rather than disappearing', () => {
+    const html = gone();
+    expect(html.startsWith('<!DOCTYPE html>')).toBe(true);
+    // Escaped, because 44 of the 327 catalog titles carry & or ' and the
+    // renderer is required to escape them — a raw-title assertion here would
+    // fail on the data rather than on the behaviour under test.
+    expect(html).toContain(escapeHtml(SAMPLE.title));
+  });
+
+  it('drops the booking CTA instead of linking a dead product', () => {
+    const html = gone();
+    expect(html).not.toContain('Check dates and prices on Viator');
+    expect(html).toContain('no longer listed');
+  });
+
+  it('sends no traffic at all to the de-listed product', () => {
+    // Stronger than the CTA-copy check above: a renderer that kept the <a> and
+    // only reworded the button would still be paying a click into a dead page.
+    const html = gone();
+    expect(html).not.toContain('rel="noopener sponsored"');
+    expect(html).not.toContain(SAMPLE.viator_item_url.split('?')[0]);
+    expect(html).not.toContain('pid=P00302487');
+  });
+
+  it('still offers the related activities as somewhere to go', () => {
+    expect(gone()).toContain('/things-to-do/another-thing/');
+  });
+
+  it('still sends the reader to the planner', () => {
+    expect(gone()).toContain('?ref=seo-sample-activity');
+  });
+
+  it('tells crawlers not to index it, without removing it', () => {
+    const html = gone();
+    expect(html).toContain('name="robots" content="noindex, follow"');
+    // follow, not nofollow: the links out are the whole point of keeping it.
+    expect(html).not.toContain('nofollow');
+    // The canonical still names its own URL — a gone page that canonicalised
+    // to something else would be asking Google to merge it away.
+    expect(html).toContain('<link rel="canonical" href="https://10daysonaruba.com/things-to-do/sample-activity/">');
   });
 });
 

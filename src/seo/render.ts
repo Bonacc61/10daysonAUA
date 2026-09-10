@@ -48,6 +48,16 @@ export function platformSplitWorthShowing(id: string): boolean {
   return Math.max(...averages) - Math.min(...averages) >= DISAGREEMENT;
 }
 
+/**
+ * A Viator product page.
+ *
+ * `item.gone` — the product has left the catalog — renders the same document
+ * with two differences: the booking CTA is replaced by a "no longer listed"
+ * note (linking a de-listed product wastes the click), and `noindex, follow`
+ * asks crawlers to stop indexing it while still following its links. Not a
+ * removal: the URL stays reachable and keeps passing equity to the live
+ * alternatives in "Similar things to do". See src/seo/catalog.ts.
+ */
 export function renderDataPage(input: DataPageInput): string {
   const { item, slug, cssHref, buildDate, related } = input;
   const title = escapeHtml(item.title);
@@ -71,7 +81,7 @@ export function renderDataPage(input: DataPageInput): string {
 <title>${title} — 10 days on Aruba</title>
 <meta name="description" content="${description}">
 <link rel="canonical" href="${canonical}">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+${item.gone ? '<meta name="robots" content="noindex, follow">\n' : ''}<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
 <link rel="stylesheet" href="${cssHref}">
 <meta property="og:type" content="article">
 <meta property="og:title" content="${title}">
@@ -91,7 +101,9 @@ ${factsTable(item, times)}
 ${prose ? `<section><h2>What this involves</h2><p>${escapeHtml(summarise(prose))}</p></section>` : ''}
 ${faqBlock(item, times)}
 
-<p class="seo-cta"><a class="btn" href="${escapeHtml(book)}" target="_blank" rel="noopener sponsored">Check dates and prices on Viator</a></p>
+${item.gone
+  ? `<p class="seo-gone">This trip is <strong>no longer listed</strong> by its operator. The reviews below are kept for reference; the activities underneath are live alternatives.</p>`
+  : `<p class="seo-cta"><a class="btn" href="${escapeHtml(book)}" target="_blank" rel="noopener sponsored">Check dates and prices on Viator</a></p>`}
 <p class="seo-plan"><a href="/questionnaire?ref=seo-${escapeHtml(slug)}">Build a full Aruba itinerary around this</a></p>
 
 ${related.length ? `<section><h2>Similar things to do</h2><ul>${

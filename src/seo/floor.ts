@@ -59,3 +59,26 @@ export function selectPages(items: SeoCatalogItem[]): {
     curated: ACTIVITIES.filter(curatedEarnsPage),
   };
 }
+
+/**
+ * The products that have left the catalog but already own a published URL.
+ *
+ * The floor above answers "does this earn a NEW url". This answers the other
+ * question, and it deliberately does not consult the floor: a page Google has
+ * already indexed keeps its URL whether or not the product would still clear
+ * the bar today. productEarnsPage() reads committed per-id data files
+ * (reviewBreakdown.json, whatToExpect.json), so a gone product scores exactly
+ * as it did while it was live — right up until one of those files is
+ * regenerated without it, at which point a floor-driven loop would silently
+ * stop emitting the page and the next deploy would 404 it.
+ *
+ * A slug in the registry is the proof that the URL was published. An id absent
+ * from it never had one, so there is nothing to preserve — and minting a fresh
+ * URL for a dead product is the opposite of the point.
+ */
+export function departedPages(
+  items: SeoCatalogItem[],
+  registry: Record<string, string>,
+): SeoCatalogItem[] {
+  return items.filter((i) => i.gone && registry[i.id]);
+}

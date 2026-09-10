@@ -14,6 +14,14 @@ d('generated output in dist/', () => {
       .filter((e) => e.isDirectory())
       .map((e) => ({ slug: e.name, html: readFileSync(`dist/things-to-do/${e.name}/index.html`, 'utf8') }));
 
+  // A product that has left the catalog keeps its URL but is deliberately not
+  // advertised: no sitemap entry, no index listing, no inbound links. Every
+  // assertion below that is about the PUBLISHED surface has to read this list
+  // rather than every directory in dist/, or the retention feature would show
+  // up as an orphan and a missing sitemap URL. The gone pages' own guarantees
+  // are covered by src/seo/render.test.ts, which can build the state on demand.
+  const indexable = () => pages().filter((p) => !p.html.includes('name="robots" content="noindex'));
+
   it('served robots.txt is a real file, not the SPA fallback', () => {
     expect(readFileSync('dist/robots.txt', 'utf8')).toContain('User-agent:');
   });
@@ -33,7 +41,8 @@ d('generated output in dist/', () => {
 
   it('emits an index page that links every data page', () => {
     const idx = readFileSync('dist/things-to-do/index.html', 'utf8');
-    for (const p of pages()) expect(idx).toContain(`/things-to-do/${p.slug}/`);
+    expect(indexable().length, 'no indexable pages to check').toBeGreaterThan(30);
+    for (const p of indexable()) expect(idx).toContain(`/things-to-do/${p.slug}/`);
   });
 
   it('links the generated surface from the app footer', () => {
@@ -42,7 +51,14 @@ d('generated output in dist/', () => {
 
   it('lists every generated page in the sitemap', () => {
     const xml = sitemap();
-    for (const p of pages()) expect(xml).toContain(`/things-to-do/${p.slug}/`);
+    expect(indexable().length, 'no indexable pages to check').toBeGreaterThan(30);
+    for (const p of indexable()) expect(xml).toContain(`/things-to-do/${p.slug}/`);
+    // The other direction: nothing carrying noindex may appear in the sitemap.
+    // A noindex URL inside a sitemap is a contradiction Search Console flags.
+    for (const p of pages()) {
+      if (indexable().some((q) => q.slug === p.slug)) continue;
+      expect(xml, `${p.slug} is noindex and must not be submitted`).not.toContain(`/things-to-do/${p.slug}/`);
+    }
   });
 
   // A noindex URL inside a sitemap is a contradiction Search Console reports as
@@ -64,7 +80,7 @@ d('generated output in dist/', () => {
   // No orphans: a sitemap is a promise, internal links are the proof. The
   // index page above is the entry point; this checks the pages cross-link too.
   it('links every generated page from at least one other page', () => {
-    const all = pages();
+    const all = indexable();
     const linked = new Set<string>();
     for (const p of all) {
       for (const other of all) {

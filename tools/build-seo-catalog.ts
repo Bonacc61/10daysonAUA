@@ -13,9 +13,10 @@
  *
  *   npm run seo:refresh
  */
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { loadCatalog } from '../src/data/activitySource';
-import type { SeoCatalogItem } from '../src/seo/catalog';
+import { mergeSnapshotItems } from '../src/seo/catalog';
+import type { SeoCatalogItem, SeoCatalogSnapshot } from '../src/seo/catalog';
 
 const OUT = 'src/data/seoCatalog.json';
 
@@ -57,8 +58,6 @@ async function main(): Promise<void> {
     console.error(`\nwarning: dropped ${duplicateIds.length} duplicate item(s) from the catalog: ${duplicateIds.join(', ')}\n`);
   }
 
-  deduped.sort((a, b) => a.id.localeCompare(b.id));   // stable diffs
-
   const missingAffiliate = deduped.filter(
     (i) => i.viator_item_url && !(i.viator_item_url.includes('pid=') && i.viator_item_url.includes('mcid=')),
   );
@@ -68,8 +67,29 @@ async function main(): Promise<void> {
     console.error('These will be REFUSED a page by the generator (tools/build-seo.ts).\n');
   }
 
-  writeFileSync(OUT, JSON.stringify({ measured: new Date().toISOString().slice(0, 10), items: deduped }, null, 1) + '\n');
-  console.log(`wrote ${OUT}: ${deduped.length} items`);
+  // MERGE, never overwrite. A product Viator stops returning must not simply
+  // vanish from the snapshot: the generator would stop emitting its page, the
+  // next deploy would mirror dist/ with --delete, and an indexed URL would
+  // become a hard 404 — discarding every link and ranking signal pointing at
+  // it. mergeSnapshotItems keeps it, flagged `gone`; tools/build-seo.ts then
+  // keeps its URL alive, without a booking link and out of the sitemap.
+  const previous: SeoCatalogItem[] = existsSync(OUT)
+    ? (JSON.parse(readFileSync(OUT, 'utf8')) as SeoCatalogSnapshot).items
+    : [];
+  const merged = mergeSnapshotItems(deduped, previous);   // sorted by id — stable diffs
+
+  const retained = merged.filter((i) => i.gone);
+  if (retained.length) {
+    console.log(`retaining ${retained.length} product(s) no longer in the catalog:`);
+    for (const i of retained) console.log(`  ${i.id}  ${i.title}`);
+  }
+  const returned = previous.filter((p) => p.gone && !merged.find((m) => m.id === p.id)?.gone);
+  if (returned.length) {
+    console.log(`${returned.length} previously-gone product(s) are back in the catalog: ${returned.map((i) => i.id).join(', ')}`);
+  }
+
+  writeFileSync(OUT, JSON.stringify({ measured: new Date().toISOString().slice(0, 10), items: merged }, null, 1) + '\n');
+  console.log(`wrote ${OUT}: ${merged.length} items (${deduped.length} live, ${retained.length} gone)`);
 }
 
 void main();

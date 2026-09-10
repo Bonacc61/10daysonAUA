@@ -10,7 +10,7 @@
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { cssHrefFromManifest } from '../src/seo/assets';
-import { selectPages } from '../src/seo/floor';
+import { selectPages, departedPages } from '../src/seo/floor';
 import type { SeoCatalogItem, SeoCatalogSnapshot } from '../src/seo/catalog';
 import { mintedIds, proposeRegistry, slugFor, urlFor } from '../src/seo/slugs';
 import { renderDataPage, renderCuratedPage, renderIndexPage } from '../src/seo/render';
@@ -33,7 +33,11 @@ function main(): void {
   const cssHref = cssHrefFromManifest(readFileSync(manifestPath, 'utf8'));
 
   const snapshot = JSON.parse(readFileSync('src/data/seoCatalog.json', 'utf8')) as SeoCatalogSnapshot;
-  const { products, curated } = selectPages(snapshot.items);
+  // The quality floor decides which LIVE products earn a URL. A product that
+  // has left the catalog is deliberately not put to it again: it already owns a
+  // published URL, and whether it would still clear the bar today is beside the
+  // point. `departed`, below, is what keeps those URLs alive.
+  const { products, curated } = selectPages(snapshot.items.filter((i) => !i.gone));
 
   // Refuse a product whose URL lost its affiliate parameters. A page that sends
   // traffic to Viator without pid/mcid is a page that earns nothing, and the
@@ -101,6 +105,12 @@ function main(): void {
     return slug;
   };
 
+  // The clause src/seo/slugs.ts promises — "a vanished product keeps its URL".
+  // Read from the snapshot and the pre-existing registry, NOT from the
+  // selection: the loop over `publishable` only ever walks what the floor
+  // picked today, which is exactly how that promise came to be false.
+  const departed = departedPages(snapshot.items, existing);
+
   const collectUrl = readEnv('VITE_COLLECT_FN_URL');
   if (!collectUrl) {
     console.error('seo: WARNING — no VITE_COLLECT_FN_URL in .env.production; generated pages will not be counted in /stats.');
@@ -137,6 +147,25 @@ function main(): void {
     const html = withCollectUrl(renderCuratedPage({ activity, slug, cssHref, buildDate, related }), collectUrl);
     writePage(slug, html);
     curatedLinks.push({ title: activity.title, url: urlFor(slug, 'things-to-do') });
+  }
+
+  // The departed. Their pages are written, and that is all: they are absent
+  // from `emitted`, so they reach neither sitemap.xml, nor llms.txt, nor the
+  // /things-to-do/ index. Reachable at the URL the outside world already
+  // points at, still passing equity onward through their related links, but no
+  // longer advertised or competing in the index. `publishable` is live-only by
+  // construction, so the alternatives they offer are all real.
+  for (let i = 0; i < departed.length; i++) {
+    const item = departed[i];
+    const slug = mustSlug(item.id);
+    const related = pickRelated(item, publishable, mustSlug, i);
+    writePage(slug, withCollectUrl(renderDataPage({ item, slug, cssHref, buildDate, related }), collectUrl));
+  }
+  if (departed.length) {
+    console.error(
+      `seo: ${departed.length} product(s) have left the catalog; their URLs stay alive as noindex, out of the sitemap:\n` +
+        departed.map((i) => `  ${i.id} → /things-to-do/${mustSlug(i.id)}/`).join('\n'),
+    );
   }
 
   const emitted = [...productLinks, ...curatedLinks];
@@ -189,11 +218,14 @@ function pickRelated(
   mustSlug: (id: string) => string,
   index: number,
 ): Link[] {
+  // `!o.gone` is belt and braces — main() only ever passes the live selection —
+  // but these links are the one thing a departed page still has to offer, and
+  // "here is a live alternative" must never resolve to another dead product.
   const sameCluster = item.experience_cluster_id
-    ? all.filter((o) => o.id !== item.id && o.experience_cluster_id === item.experience_cluster_id)
+    ? all.filter((o) => o.id !== item.id && !o.gone && o.experience_cluster_id === item.experience_cluster_id)
     : [];
   const neighbours = [all[(index + 1) % all.length], all[(index + 2) % all.length]]
-    .filter((o) => o && o.id !== item.id);
+    .filter((o) => o && !o.gone && o.id !== item.id);
   const picked = [...sameCluster.slice(0, 2), ...neighbours]
     .filter((o, i, arr) => arr.findIndex((x) => x.id === o.id) === i)
     .slice(0, 3);
