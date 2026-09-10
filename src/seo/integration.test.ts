@@ -53,11 +53,39 @@ d('generated output in dist/', () => {
     const xml = sitemap();
     expect(indexable().length, 'no indexable pages to check').toBeGreaterThan(30);
     for (const p of indexable()) expect(xml).toContain(`/things-to-do/${p.slug}/`);
-    // The other direction: nothing carrying noindex may appear in the sitemap.
-    // A noindex URL inside a sitemap is a contradiction Search Console flags.
-    for (const p of pages()) {
-      if (indexable().some((q) => q.slug === p.slug)) continue;
-      expect(xml, `${p.slug} is noindex and must not be submitted`).not.toContain(`/things-to-do/${p.slug}/`);
+  });
+
+  // The converse, and the reason it is set algebra rather than a loop: an
+  // earlier version of this test was `for (page) { if (indexable) continue;
+  // expect(...) }`, which with the real snapshot skips every iteration and
+  // asserts nothing at all. Comparing two computed sets cannot pass vacuously —
+  // an empty listing fails the equality, and the size guards below fail before
+  // that if either side is empty when it should not be.
+  it('advertises exactly the indexable pages — no noindex URL in any listing', () => {
+    const all = pages();
+    const noindex = new Set(
+      all.filter((p) => p.html.includes('name="robots" content="noindex')).map((p) => p.slug),
+    );
+    const expected = all.filter((p) => !noindex.has(p.slug)).map((p) => p.slug).sort();
+
+    expect(all.length, 'no generated pages at all').toBeGreaterThan(50);
+    expect(expected.length, 'every page is noindex — the surface advertises nothing').toBeGreaterThan(50);
+
+    // Slugs are read out of each listing rather than searched for one at a
+    // time, so an EXTRA entry fails as loudly as a missing one.
+    const slugsIn = (text: string) =>
+      [...new Set([...text.matchAll(/\/things-to-do\/([^/"<\s)]+)\//g)].map((m) => m[1]))].sort();
+
+    for (const [name, text] of [
+      ['sitemap.xml', sitemap()],
+      ['llms.txt', readFileSync('dist/llms.txt', 'utf8')],
+      ['the /things-to-do/ index', readFileSync('dist/things-to-do/index.html', 'utf8')],
+    ] as const) {
+      expect(slugsIn(text), `${name} does not advertise exactly the indexable pages`).toEqual(expected);
+      expect(
+        slugsIn(text).filter((s) => noindex.has(s)),
+        `${name} advertises a noindex page`,
+      ).toEqual([]);
     }
   });
 

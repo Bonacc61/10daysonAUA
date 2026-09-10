@@ -14,14 +14,13 @@ import { selectPages, departedPages } from '../src/seo/floor';
 import type { SeoCatalogItem, SeoCatalogSnapshot } from '../src/seo/catalog';
 import { mintedIds, proposeRegistry, slugFor, urlFor } from '../src/seo/slugs';
 import { renderDataPage, renderCuratedPage, renderIndexPage } from '../src/seo/render';
+import { advertised, pickRelated, type Link } from '../src/seo/links';
 import { renderSitemap, publicRouteEntries, renderLlmsTxt } from '../src/seo/sitemap';
 import { ORIGIN } from '../src/lib/head';
 
 const DIST = 'dist';
 const REGISTRY = 'content/slugs.json';
 const MANIFEST_CANDIDATES = [`${DIST}/.vite/manifest.json`, `${DIST}/manifest.json`];
-
-type Link = { title: string; url: string };
 
 function main(): void {
   const buildDate = new Date().toISOString().slice(0, 10);
@@ -149,17 +148,18 @@ function main(): void {
     curatedLinks.push({ title: activity.title, url: urlFor(slug, 'things-to-do') });
   }
 
-  // The departed. Their pages are written, and that is all: they are absent
-  // from `emitted`, so they reach neither sitemap.xml, nor llms.txt, nor the
-  // /things-to-do/ index. Reachable at the URL the outside world already
-  // points at, still passing equity onward through their related links, but no
-  // longer advertised or competing in the index. `publishable` is live-only by
-  // construction, so the alternatives they offer are all real.
+  // The departed. Their pages are written like any other, then marked `gone`
+  // so advertised() drops them from all three listings at once. Reachable at
+  // the URL the outside world already points at, still passing equity onward
+  // through their related links, but not advertised and not in the index.
+  // `publishable` is live-only, so the alternatives they offer are all real.
+  const departedLinks: Link[] = [];
   for (let i = 0; i < departed.length; i++) {
     const item = departed[i];
     const slug = mustSlug(item.id);
     const related = pickRelated(item, publishable, mustSlug, i);
     writePage(slug, withCollectUrl(renderDataPage({ item, slug, cssHref, buildDate, related }), collectUrl));
+    departedLinks.push({ title: item.title, url: urlFor(slug, 'things-to-do'), gone: true });
   }
   if (departed.length) {
     console.error(
@@ -168,7 +168,10 @@ function main(): void {
     );
   }
 
-  const emitted = [...productLinks, ...curatedLinks];
+  // ONE filter, feeding sitemap.xml, llms.txt and the /things-to-do/ index —
+  // so "a retained page is never advertised" is a single assertable step
+  // rather than three places that each have to remember.
+  const emitted = advertised([...productLinks, ...curatedLinks, ...departedLinks]);
 
   mkdirSync(`${DIST}/things-to-do`, { recursive: true });
   writeFileSync(
@@ -200,36 +203,6 @@ function writePage(slug: string, html: string): void {
  */
 function withCollectUrl(html: string, collectUrl: string | null): string {
   return html.replaceAll('__COLLECT_URL__', () => collectUrl ?? '');
-}
-
-/**
- * Three related links per page, from the cluster data the engine already
- * computes: items sharing an experience_cluster_id are the same real-world
- * experience.
- *
- * The i+1 neighbour is always among them, and that is load-bearing rather than
- * filler: it makes the pages a cycle, so every page has an inbound link. Taking
- * three cluster-mates instead would leave the fifth member of a large cluster
- * linked from nowhere, since every member links the same first three.
- */
-function pickRelated(
-  item: SeoCatalogItem,
-  all: SeoCatalogItem[],
-  mustSlug: (id: string) => string,
-  index: number,
-): Link[] {
-  // `!o.gone` is belt and braces — main() only ever passes the live selection —
-  // but these links are the one thing a departed page still has to offer, and
-  // "here is a live alternative" must never resolve to another dead product.
-  const sameCluster = item.experience_cluster_id
-    ? all.filter((o) => o.id !== item.id && !o.gone && o.experience_cluster_id === item.experience_cluster_id)
-    : [];
-  const neighbours = [all[(index + 1) % all.length], all[(index + 2) % all.length]]
-    .filter((o) => o && !o.gone && o.id !== item.id);
-  const picked = [...sameCluster.slice(0, 2), ...neighbours]
-    .filter((o, i, arr) => arr.findIndex((x) => x.id === o.id) === i)
-    .slice(0, 3);
-  return picked.map((o) => ({ title: o.title, url: urlFor(mustSlug(o.id), 'things-to-do') }));
 }
 
 function readEnv(key: string): string | null {
