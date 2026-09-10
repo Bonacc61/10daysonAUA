@@ -240,3 +240,117 @@ labels ("Started on a content page" / "Started elsewhere") were changed from
 "Read a content page" / "Never opened one" to make the entry-page semantics
 honest at the label level too, not just in the footnote — no test depended on
 the old label text.
+
+---
+
+## Executable verification against a real PostgreSQL 16 — 2026-09-10
+
+The "What stays unverified" section above is now closed. The SQL was executed.
+
+**Cluster.** PostgreSQL 16.15 (`/usr/lib/postgresql/16/bin`), a throwaway
+cluster on a unix socket with no TCP listener. Production was never touched and
+`supabase db push` was never run.
+
+**Step 1 — schema and migration lineage.** `web_events` created from
+`20260820090000_web_events.sql` unmodified except that
+`create extension if not exists pg_cron` is stubbed (pg_cron is Supabase-managed
+and absent from a stock apt install; a no-op `cron.schedule` stand-in lets the
+retention DDL run). Roles `anon`, `authenticated`, `service_role` created as
+bare NOLOGIN roles because the revoke/grant lines name them. Then all eleven
+migrations touching the stats functions applied oldest-first:
+
+```
+ok 20260820093000_stats_rollups          ok 20260823240000_stats_page_visitors
+ok 20260823180000_stats_summary_since    ok 20260825150000_stats_questionnaire_funnel
+ok 20260823190000_stats_first_event      ok 20260825160000_stats_qfunnel_clamped
+ok 20260823200000_stats_all_time         ok 20260829100000_stats_best_day
+ok 20260823210000_stats_hourly           ok 20260910120000_stats_seo_surface
+ok 20260823220000_stats_referrer_visitors
+```
+
+**None failed.** Twelve of twelve files, including `web_events`, applied clean.
+
+**Step 2 — verdict: the SQL is CORRECT.** 28 assertions over hand-counted
+fixtures, all PASS, zero failures. The load-bearing ones, with actual values:
+
+| # | assertion | expected | actual |
+|---|---|---|---|
+| A1 | `seoVisitors` — content-page entry (`h_seo1`, `h_tie_a`, `h_tie_c`) | 3 | 3 |
+| A2 | `seoClicks` | 1 | 1 |
+| A3 | `plannerVisitors` | 11 | 11 |
+| A4 | `plannerClicks` — `h_nonseo1`'s two clicks | 2 | 2 |
+| A5 | **retired `bool_or` logic on the same rows** | 5 | 5 |
+| A6 | classified visitors, `h_clickonly` excluded | 14 | 14 |
+| A7 | counted clicks, `h_clickonly`'s 3 excluded | 3 | 3 |
+| A9 | `answerEngines` | `[{chatgpt.com,2},{perplexity.ai,1}]` | same |
+| A10 | `google.com` absent from `answerEngines` | false | false |
+| A11 | `toPlanner.visitors` (four `seo-*` campaigns) | 4 | 4 |
+| A12 | `toPlanner.questionnaire` | 1 | 1 |
+| A13-A19 | empty window: every figure 0, `[]`, `{visitors:0,questionnaire:0}`, no JSON nulls, no error | — | as expected |
+| A20-A22 | `range` / `since` / `best_day` all carry the `seo` key | true | true |
+| A23 | `best_day` picked the right day | 2026-09-01 | 2026-09-01 |
+| A24-A25 | `best_day` and `since` `seo` blocks equal `range`'s | — | byte-identical |
+| A26 | tie determinism, 8 runs x 7 planner configs | never flips | never flips |
+| A27-A28 | no stats function executable by public/anon/authenticated; all executable by service_role | 0 / 0 | 0 / 0 |
+
+**A5 is the point of the change.** `h_nonseo1` enters on `/`, opens
+`/things-to-do/:slug` afterwards, and clicks out twice. The shipped first-touch
+SQL puts them in the planner group. On the identical rows, the retired
+`bool_or(path like '/things-to-do%')` logic returns **5** SEO visitors where the
+new logic returns **3** — the two extra are exactly `h_nonseo1` and `h_tie_b`,
+the visitors who merely wandered into a content page. The old query would have
+credited content with `h_nonseo1`'s 2 click-outs; the new one does not.
+
+**Mutation-checked, twelve mutants, twelve killed.** Every assertion above was
+walked through by deliberately breaking the migration and confirming the suite
+goes red: last-touch ordering (3 red), dropping the `id` tiebreak (3 red),
+dropping the `name = 'pageview'` filter from `entry` (5 red), widening `on_seo`
+(5 red), counting visitors instead of clicks (3 red), inner-joining the clicks
+CTE (4 red), removing and adding an answer-engine host (1 and 2 red), loosening
+the `seo-%` campaign pattern (2 red), matching any milestone instead of
+`q_reached_%` (1 red), dropping the underscore `escape` (1 red), and counting
+non-distinct milestone rows (1 red). Three of those survived the first fixture
+set and are the reason the fixtures now include a 2000-row `created_at` tie, a
+second milestone for one visitor, and a `qareachedb3` milestone. The migration
+file was restored byte-for-byte after each mutation (`git status` clean).
+
+**Two things measured that the assertions do not assert.**
+
+1. `path` is never null for a pageview — `collect/normalise.ts::normalisePath`
+   returns `'other'` rather than null, so the three-valued-logic hole in
+   `count(*) filter (where on_seo)` / `filter (where not on_seo)` cannot be
+   reached in production. Worth knowing because a null `path` would drop a
+   visitor from BOTH groups silently.
+2. `like '/things-to-do%'` cannot over-match: `KNOWN_PATHS` holds exactly
+   `/things-to-do`, and the only other shape is the collapsed
+   `/things-to-do/:slug`.
+
+**One PRE-EXISTING observation, not a bug in this migration, not fixed.**
+`stats_summary_best_day()` picks the day with session-timezone
+`created_at::date` but builds the window bounds with `at time zone 'utc'`. Under
+a non-UTC session those disagree. Measured: with 30 pageviews at
+`2026-09-03 02:00Z` and the session at `America/New_York`, the function returned
+`bestDay = 2026-09-02` with every figure inside it zero — it named a day whose
+events the window then excluded. The `best_day` body is byte-identical to
+`20260829100000_stats_best_day.sql` (diffed), so this arrived there, not here,
+and the migration under test copies it verbatim as its header says. It is inert
+on Supabase, where the session timezone is UTC. Left alone deliberately: fixing
+it is out of scope for the `seo` key and belongs in its own change.
+
+**Step 4 — the capability is committed.** `tools/run-verify-stats.cjs` plus
+`tools/verify-stats-sql.sql`. Self-contained: it finds a local postgres, runs
+`initdb` into a temp directory, applies `*web_events*.sql` and every
+`*stats*.sql` in filename order, runs the assertions, prints a PASS/FAIL table,
+tears the cluster down and exits 1 on any failure. No docker, no network, no
+credentials. Its header states plainly that it needs a local PostgreSQL SERVER
+install (`postgresql`, not `postgresql-client` — the latter has no `initdb`) and
+exits 2 saying so if one is absent; it never falls back to a remote database,
+because the fixtures begin by truncating `web_events`. Verified end to end: exit
+0 clean, exit 1 on a seeded failure, no leftover cluster directories.
+
+    node tools/run-verify-stats.cjs          # from the repo root
+    node tools/run-verify-stats.cjs --keep   # leave the cluster up to poke at
+
+**Cluster disposition.** The harness tears down its own cluster every run. The
+pre-existing scratch cluster at `/tmp/pgseo/data` (port 5433) was LEFT RUNNING,
+with a `seostats` database in it holding the fixtures.
