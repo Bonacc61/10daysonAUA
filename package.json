@@ -20,7 +20,8 @@
     "probe:start-times": "node tools/run-probe-start-times.cjs",
     "probe:suitability": "node tools/run-probe-suitability.cjs",
     "build:suitability": "node tools/run-build-suitability.cjs",
-    "build:curated": "node tools/run-build-curated.cjs"
+    "build:curated": "node tools/run-build-curated.cjs",
+    "seo:refresh": "node tools/run-build-seo-catalog.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
