@@ -138,7 +138,7 @@ describe('the three listings a retained page must stay out of', () => {
   });
 
   it('keeps a departed page out of the /things-to-do/ index', () => {
-    const html = renderIndexPage({ entries: listed, cssHref: '/a.css', buildDate: '2026-09-10' });
+    const html = renderIndexPage({ entries: listed, guides: [], cssHref: '/a.css', buildDate: '2026-09-10' });
     expect(html).toContain(LIVE.url);
     expect(html, 'the hub must not advertise a de-listed product').not.toContain(GONE.url);
     // The count the hub prints is the advertised count, not the written count.

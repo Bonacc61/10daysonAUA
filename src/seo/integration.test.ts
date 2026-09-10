@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { ACTIVITIES } from '../data/activities';
+import { loadGuide } from './guides';
 
 // These assert on the OUTPUT of `npm run build`. They skip when dist/ has not
 // been built, so `npm test` stays fast and offline for everyone else.
@@ -192,6 +193,50 @@ d('generated output in dist/', () => {
   // The counterpart to the test above, and the reason it is needed: "no
   // placeholder left" passes trivially on a page that carries no beacon at all,
   // which is exactly how the hub shipped uncounted.
+  // The status gate, asserted against what actually reached dist/. Both
+  // directions from one source of truth: every file in content/guides is read,
+  // and each one is required to be present or absent according to its own
+  // `status`. Flipping the draft to published without building fails this; so
+  // does a generator that ignores the field.
+  it('emits exactly the guides whose status says published', () => {
+    const files = readdirSync('content/guides').filter((f) => f.endsWith('.md'));
+    expect(files.length, 'no guides on disk to check').toBeGreaterThan(0);
+
+    const wanted: string[] = [];
+    for (const file of files) {
+      const slug = file.replace(/\.md$/, '');
+      const loaded = loadGuide(slug, readFileSync(`content/guides/${file}`, 'utf8'));
+      // A draft too broken to parse is dropped by the generator with a
+      // warning, so it is not expected in dist/ either.
+      if ('guide' in loaded && loaded.guide.status === 'published') wanted.push(slug);
+    }
+    const built = existsSync('dist/guides')
+      ? readdirSync('dist/guides', { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)
+      : [];
+    // Set equality, so an EXTRA published page fails as loudly as a missing one
+    // — an unreviewed draft reaching dist/ is the failure this whole gate exists
+    // to prevent.
+    expect(built.sort()).toEqual(wanted.sort());
+  });
+
+  it('advertises every published guide, and no unpublished one', () => {
+    const files = readdirSync('content/guides').filter((f) => f.endsWith('.md'));
+    expect(files.length, 'no guides on disk to check').toBeGreaterThan(0);
+    const xml = sitemap();
+    const llms = readFileSync('dist/llms.txt', 'utf8');
+    const hub = readFileSync('dist/things-to-do/index.html', 'utf8');
+
+    for (const file of files) {
+      const slug = file.replace(/\.md$/, '');
+      const loaded = loadGuide(slug, readFileSync(`content/guides/${file}`, 'utf8'));
+      const url = `/guides/${slug}/`;
+      const listed = 'guide' in loaded && loaded.guide.status === 'published';
+      expect(xml.includes(url), `${slug} in sitemap.xml`).toBe(listed);
+      expect(llms.includes(url), `${slug} in llms.txt`).toBe(listed);
+      expect(hub.includes(url), `${slug} on the /things-to-do/ hub`).toBe(listed);
+    }
+  });
+
   it('gives every built page a beacon that reports the referrer', () => {
     const all = [
       ...pages().map((p) => ({ where: p.slug, html: p.html })),

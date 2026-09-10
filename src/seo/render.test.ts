@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { renderDataPage, renderCuratedPage, renderIndexPage, escapeHtml, platformSplitWorthShowing } from './render';
+import { renderDataPage, renderCuratedPage, renderIndexPage, renderGuidePage, escapeHtml, platformSplitWorthShowing } from './render';
+import { parseGuide } from './guides';
 import type { SeoCatalogItem } from './catalog';
 import { combinedBreakdown } from '../data/reviewBreakdown';
 import { whatToExpectFor } from '../data/whatToExpect';
@@ -416,8 +417,165 @@ describe('renderCuratedPage', () => {
   });
 });
 
+const GUIDE_MD = `---
+title: "Snorkeling: free vs paid"
+description: "When the free beach beats the boat trip."
+date: 2026-09-02
+status: published
+products:
+  - 119085P1
+curated:
+  - tres-trapi
+---
+
+# Snorkeling: free vs paid
+
+**Go at eight.** The catamarans arrive at ten.
+
+| Trip | Five-star |
+|---|---|
+| Arusun | 90% |
+
+> "Get in before the catamarans arrive." — Edsel
+
+## Common questions
+
+**Do I need a boat to see turtles?**
+No. [Tres Trapi](/things-to-do/tres-trapi-turtle-cove/) has them from shore.
+`;
+
+const guidePage = () =>
+  renderGuidePage({
+    guide: parseGuide('snorkeling-free-vs-paid', GUIDE_MD),
+    cssHref: '/assets/index-abc.css',
+    buildDate: '2026-09-10',
+  });
+
+describe('renderGuidePage', () => {
+  it('emits a complete document with the /guides/ canonical and the app stylesheet', () => {
+    const html = guidePage();
+    expect(html.startsWith('<!DOCTYPE html>')).toBe(true);
+    expect(html).toContain('<link rel="canonical" href="https://10daysonaruba.com/guides/snorkeling-free-vs-paid/">');
+    expect(html).toContain('<link rel="stylesheet" href="/assets/index-abc.css">');
+    expect(html).toContain('<title>Snorkeling: free vs paid — 10 days on Aruba</title>');
+  });
+
+  it('carries the same furniture as the data pages', () => {
+    const html = guidePage();
+    // Breadcrumbs: home › the hub › this guide.
+    expect(html).toContain('<a href="/">10 days on Aruba</a> › <a href="/things-to-do/">Things to do</a> › <span>Snorkeling: free vs paid</span>');
+    expect(html).toContain('class="seo-freshness"');
+    expect(html).toContain('data updated 2026-09-10');
+    expect(html).toContain('__COLLECT_URL__');
+  });
+
+  it('renders the markdown body into the page rather than printing it', () => {
+    const html = guidePage();
+    expect(html).toContain('<div class="seo-scroll"><table>');
+    expect(html).toContain('<blockquote>');
+    expect(html).toContain('<strong>Go at eight.</strong>');
+    expect(html, 'the body must not arrive HTML-escaped').not.toContain('&lt;table&gt;');
+    expect(html, 'raw markdown pipes would mean the table never parsed').not.toContain('| Trip |');
+  });
+
+  it('has exactly one h1, and it is the frontmatter title', () => {
+    const h1s = [...guidePage().matchAll(/<h1>([\s\S]*?)<\/h1>/g)].map((m) => m[1]);
+    expect(h1s).toEqual(['Snorkeling: free vs paid']);
+  });
+
+  it('links the planner with a ref inside the collect allowlist', () => {
+    const refs = [...guidePage().matchAll(/\/questionnaire\?ref=([^"]*)"/g)].map((m) => m[1]);
+    expect(refs).toEqual(['seo-g-snorkeling-free-vs-paid']);
+    // The allowlist in supabase/functions/collect/normalise.ts, written out
+    // here rather than imported so a change to it fails this too.
+    for (const ref of refs) expect(ref).toMatch(/^[a-z0-9-]{1,32}$/);
+  });
+
+  describe('JSON-LD', () => {
+    const blocks = () =>
+      [...guidePage().matchAll(/<script type="application\/ld\+json">\n([\s\S]*?)\n<\/script>/g)].map((m) =>
+        JSON.parse(m[1].replace(/\\u003c/g, '<')),
+      );
+
+    it('marks the page up as an Article', () => {
+      const article = blocks().find((b) => b['@type'] === 'Article');
+      expect(article).toBeDefined();
+      expect(article.headline).toBe('Snorkeling: free vs paid');
+      expect(article.datePublished).toBe('2026-09-02');
+      expect(article.dateModified).toBe('2026-09-10');
+      expect(article.mainEntityOfPage['@id']).toBe('https://10daysonaruba.com/guides/snorkeling-free-vs-paid/');
+    });
+
+    it('publishes the Common questions as a FAQPage', () => {
+      const faq = blocks().find((b) => b['@type'] === 'FAQPage');
+      expect(faq).toBeDefined();
+      expect(faq.mainEntity).toEqual([
+        {
+          '@type': 'Question',
+          name: 'Do I need a boat to see turtles?',
+          acceptedAnswer: { '@type': 'Answer', text: 'No. Tres Trapi has them from shore.' },
+        },
+      ]);
+    });
+
+    it('omits FAQPage entirely when the guide asks no questions', () => {
+      const html = renderGuidePage({
+        guide: parseGuide('no-faq', GUIDE_MD.split('## Common questions')[0]),
+        cssHref: '/a.css',
+        buildDate: '2026-09-10',
+      });
+      expect(html, 'markup claiming a FAQ section the page does not have').not.toContain('FAQPage');
+      expect(html, 'the rest of the structured data must survive').toContain('"@type": "Article"');
+    });
+
+    it('breadcrumbs put the guide under the things-to-do hub', () => {
+      const crumbs = blocks().find((b) => b['@type'] === 'BreadcrumbList');
+      expect(crumbs.itemListElement.map((i: { item: string }) => i.item)).toEqual([
+        'https://10daysonaruba.com/',
+        'https://10daysonaruba.com/things-to-do/',
+        'https://10daysonaruba.com/guides/snorkeling-free-vs-paid/',
+      ]);
+    });
+
+    // Google's review-snippet policy wants first-party ratings; every number in
+    // these guides is Viator's or Tripadvisor's. Marking them up invites a
+    // manual action.
+    it('carries no aggregateRating anywhere on the page', () => {
+      expect(guidePage()).not.toContain('aggregateRating');
+    });
+  });
+});
+
+describe('the /things-to-do/ hub with guides', () => {
+  const hub = (guides: { title: string; url: string }[]) =>
+    renderIndexPage({
+      entries: [{ title: 'Another Thing', url: '/things-to-do/another-thing/' }],
+      guides,
+      cssHref: '/a.css',
+      buildDate: '2026-09-10',
+    });
+
+  it('lists a guide ABOVE the activity list — guides are the top of the crawl path', () => {
+    const html = hub([{ title: 'Snorkeling free vs paid', url: '/guides/snorkeling-free-vs-paid/' }]);
+    const guideAt = html.indexOf('/guides/snorkeling-free-vs-paid/');
+    const activityAt = html.indexOf('/things-to-do/another-thing/');
+    expect(guideAt).toBeGreaterThan(-1);
+    expect(activityAt).toBeGreaterThan(-1);
+    expect(guideAt).toBeLessThan(activityAt);
+    expect(html).toContain('Snorkeling free vs paid');
+  });
+
+  it('says nothing about guides when there are none', () => {
+    const html = hub([]);
+    expect(html).not.toContain('/guides/');
+    expect(html).not.toContain('Start here');
+    // and still lists the activities
+    expect(html).toContain('/things-to-do/another-thing/');
+  });
+});
+
 // The generated surface loads no app bundle, so src/lib/beacon.ts never runs on
-// it. Whatever these three renderers inline IS the analytics for all 59 pages.
+// it. Whatever these four renderers inline IS the analytics for every page.
 // The index page shipped without any beacon at all until 2026-09-10 — the hub
 // the footer points at was the one page nobody could count.
 describe('the inlined beacon', () => {
@@ -427,16 +585,18 @@ describe('the inlined beacon', () => {
     'index page': () =>
       renderIndexPage({
         entries: [{ title: 'Another Thing', url: '/things-to-do/another-thing/' }],
+        guides: [],
         cssHref: '/assets/index-abc.css',
         buildDate: '2026-09-10',
       }),
+    'guide page': () => guidePage(),
   };
   const NAMES = Object.keys(SURFACES);
 
   // Non-vacuity floor: if a renderer is ever dropped from the table above, the
   // it.each below would silently stop testing it.
   it('covers every renderer this module exports', () => {
-    expect(new Set(NAMES)).toEqual(new Set(['product page', 'curated page', 'index page']));
+    expect(new Set(NAMES)).toEqual(new Set(['product page', 'curated page', 'index page', 'guide page']));
   });
 
   it.each(NAMES)('%s carries the beacon at all', (name) => {
