@@ -1818,3 +1818,33 @@ body:has(.cookie-banner) .map-page { padding-bottom: 72px; }
 .seo-index li { border-bottom: 1px solid var(--sand-200); }
 .seo-index a { display: block; padding: 12px 4px; font-weight: 600; text-decoration: none; }
 .seo-index a:hover { background: var(--sand-50); }
+
+/* The editorial guides (/guides/<slug>/). Same document furniture as the data
+   pages — .seo-guide sits alongside .seo-page — plus the three things a data
+   page never had to render: a markdown table, an unclassed <blockquote>, and
+   long-form prose.
+
+   The table is the reason .seo-scroll exists. A <table> cannot scroll itself,
+   so the container has to be in the markup; src/seo/guides.ts wraps every
+   generated table in one via a marked renderer override. Measured in Chromium
+   at 360px with the first guide's 6-column comparison table: document
+   scrollWidth 360 = clientWidth 360, the 471px table scrolling inside a 328px
+   box. With overflow-x forced back to visible, the same page measured
+   scrollWidth 487 — the classic mobile overflow this wrapper exists to stop. */
+.seo-scroll { overflow-x: auto; margin: 18px 0; }
+.seo-guide table { border-collapse: collapse; font-size: 13px; min-width: 100%; }
+.seo-guide th, .seo-guide td { padding: 8px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--sand-200); white-space: nowrap; }
+/* The first column carries trip names, which are long. Let it wrap; the
+   numeric columns beside it are what must stay on one line to stay readable. */
+.seo-guide th:first-child, .seo-guide td:first-child { white-space: normal; min-width: 148px; }
+.seo-guide thead th { color: var(--sand-700); font-weight: 600; border-bottom-width: 2px; }
+.seo-guide blockquote { margin: 18px 0; padding: 10px 16px; border-left: 4px solid var(--coral); background: var(--sand-50); font-style: italic; }
+.seo-guide blockquote p { margin: 0; }
+.seo-guide p { margin: 0 0 16px; }
+.seo-guide ul, .seo-guide ol { padding-left: 22px; margin: 0 0 16px; }
+.seo-guide li { margin-bottom: 6px; }
+.seo-guide hr { border: 0; border-top: 1px solid var(--sand-200); margin: 30px 0; }
+/* Long-form prose reads at a slightly larger measure than a facts page. */
+.seo-guide { font-size: 16px; }
+.seo-guide h2 { font-size: 21px; }
+.seo-guide h3 { font-size: 16px; margin: 24px 0 6px; }

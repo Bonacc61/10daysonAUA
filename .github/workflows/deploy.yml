@@ -46,7 +46,11 @@ jobs:
           # is built rather than written out. `things-to-do/<slug>/index.html`
           # becomes `put -O <remote>/things-to-do/<slug> ./dist/...`; the mirror
           # above has already created those directories.
-          FORCE_PUTS=$(cd dist && find things-to-do -name index.html \
+          #
+          # `guides` is in the list for exactly the same reason, and 2>/dev/null
+          # because it does not exist while every guide is still a draft — find
+          # would otherwise print an error for a state that is entirely normal.
+          FORCE_PUTS=$(cd dist && find things-to-do guides -name index.html 2>/dev/null \
             | sed "s|^\(.*\)/index.html\$|put -O $SFTP_PATH/\1 ./dist/\1/index.html|")
           lftp -u "$SFTP_USER,$SFTP_PASSWORD" "sftp://$SFTP_HOST" <<EOF
           set sftp:auto-confirm yes

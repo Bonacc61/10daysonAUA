@@ -12,6 +12,7 @@ import type { Activity } from '../data/activities';
 import { ORIGIN } from '../lib/head';
 import { urlFor } from './slugs';
 import type { SeoCatalogItem } from './catalog';
+import type { Guide } from './guides';
 
 export type DataPageInput = {
   item: SeoCatalogItem;
@@ -38,6 +39,21 @@ export type DataPageInput = {
  */
 export function refFor(id: string): string {
   return `seo-${id.toLowerCase()}`;
+}
+
+/**
+ * The same thing for a guide, in its own namespace so /stats can split
+ * editorial from data without a lookup table.
+ *
+ * `seo-g-` rather than `seo-guide-`: the prefix plus the slug has to stay
+ * inside the collect function's 32-character allowlist, and the first guide's
+ * slug is 23 characters — `seo-guide-snorkeling-free-vs-paid` is 33 and would
+ * be silently discarded server-side. tools/build-seo.ts checks every emitted
+ * ref against that allowlist, so a slug long enough to break this fails the
+ * build rather than the measurement.
+ */
+export function refForGuide(slug: string): string {
+  return `seo-g-${slug.toLowerCase()}`;
 }
 
 export function escapeHtml(s: string): string {
@@ -321,6 +337,95 @@ ${related.length ? `<section><h2>Nearby and similar</h2><ul>${
 }
 
 /**
+ * An editorial guide — the spec's "hub".
+ *
+ * Same furniture as the two data renderers (app stylesheet, breadcrumbs,
+ * canonical, beacon, freshness line) around a body that came from markdown
+ * rather than from the catalog. The body is trusted, committed content: it is
+ * NOT escaped, because escaping it would print the markup instead of rendering
+ * it. Everything from frontmatter still is.
+ *
+ * No aggregateRating anywhere, for the same reason as the data pages: Google's
+ * review-snippet policy wants first-party ratings and every number in these
+ * guides is Viator's or Tripadvisor's.
+ */
+export function renderGuidePage(input: { guide: Guide; cssHref: string; buildDate: string }): string {
+  const { guide, cssHref, buildDate } = input;
+  const title = escapeHtml(guide.title);
+  const canonical = ORIGIN + urlFor(guide.slug, 'guides');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title} — 10 days on Aruba</title>
+<meta name="description" content="${escapeHtml(guide.description).slice(0, 160)}">
+<link rel="canonical" href="${canonical}">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="stylesheet" href="${cssHref}">
+<meta property="og:type" content="article">
+<meta property="og:title" content="${title}">
+<meta property="og:url" content="${canonical}">
+${guideJsonLd(guide, canonical, buildDate)}
+</head>
+<body>
+<main class="seo-page seo-guide">
+<nav class="seo-crumbs"><a href="/">10 days on Aruba</a> › <a href="/things-to-do/">Things to do</a> › <span>${title}</span></nav>
+
+<h1>${title}</h1>
+${guide.bodyHtml}
+<p class="seo-plan"><a href="/questionnaire?ref=${escapeHtml(refForGuide(guide.slug))}">Build a full Aruba itinerary</a></p>
+
+<p class="seo-freshness">Written ${escapeHtml(guide.date)} · data updated ${buildDate}</p>
+</main>
+<script>${BEACON}</script>
+</body>
+</html>
+`;
+}
+
+function guideJsonLd(guide: Guide, canonical: string, buildDate: string): string {
+  const article = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: guide.title,
+    description: guide.description,
+    datePublished: guide.date,
+    dateModified: buildDate,
+    inLanguage: 'en',
+    mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
+    // No `author`: whether these carry a byline is Jan's call, still open in
+    // the spec. A fabricated one is worse than none.
+    publisher: { '@type': 'Organization', name: '10 days on Aruba', url: ORIGIN + '/' },
+  };
+  const crumbs = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: '10 days on Aruba', item: ORIGIN + '/' },
+      { '@type': 'ListItem', position: 2, name: 'Things to do', item: ORIGIN + '/things-to-do/' },
+      { '@type': 'ListItem', position: 3, name: guide.title, item: canonical },
+    ],
+  };
+  const blocks: unknown[] = [article, crumbs];
+  // FAQPage only when there are questions — an empty mainEntity is markup that
+  // claims a section the page does not have.
+  if (guide.faqs.length) {
+    blocks.push({
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: guide.faqs.map((f) => ({
+        '@type': 'Question',
+        name: f.q,
+        acceptedAnswer: { '@type': 'Answer', text: f.a },
+      })),
+    });
+  }
+  return blocks.map((o) => `<script type="application/ld+json">\n${jsonForScript(o)}\n</script>`).join('\n');
+}
+
+/**
  * The beacon, inlined.
  *
  * src/lib/beacon.ts lives in the app bundle, which these pages deliberately do
@@ -346,15 +451,20 @@ try{navigator.sendBeacon?navigator.sendBeacon(u,new Blob([b],{type:'text/plain'}
  * The hub-shaped index at /things-to-do/.
  *
  * This is the entry point into the generated surface: the footer links here,
- * and this links to every data page. Phase 2's five editorial guides will sit
- * between the two, but the crawl path must not wait for them.
+ * and this links to every data page. The editorial guides sit between the two,
+ * which is why they are listed ABOVE the page list rather than under it: they
+ * are the top of the crawl path and the pages carrying the judgement.
+ *
+ * `guides` is required rather than optional so a caller that forgets them is a
+ * type error rather than a silently guide-less hub. Pass [] deliberately.
  */
 export function renderIndexPage(input: {
   entries: { title: string; url: string }[];
+  guides: { title: string; url: string }[];
   cssHref: string;
   buildDate: string;
 }): string {
-  const { entries, cssHref, buildDate } = input;
+  const { entries, guides, cssHref, buildDate } = input;
   const canonical = ORIGIN + '/things-to-do/';
   return `<!DOCTYPE html>
 <html lang="en">
@@ -371,6 +481,10 @@ export function renderIndexPage(input: {
 <nav class="seo-crumbs"><a href="/">10 days on Aruba</a> › <span>Things to do</span></nav>
 <h1>Things to do in Aruba</h1>
 <p>${entries.length} activities, each with its combined review distribution, real start times, and what the trip involves. Ratings are summed across Viator and Tripadvisor — the same figure the booking page shows.</p>
+${guides.length ? `<section><h2>Start here</h2><ul class="seo-index">${
+  guides.map((g) => `<li><a href="${escapeHtml(g.url)}">${escapeHtml(g.title)}</a></li>`).join('')
+}</ul></section>` : ''}
+<h2>Every activity</h2>
 <ul class="seo-index">${
   entries.map((e) => `<li><a href="${escapeHtml(e.url)}">${escapeHtml(e.title)}</a></li>`).join('')
 }</ul>

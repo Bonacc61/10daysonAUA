@@ -13,13 +13,15 @@ import { cssHrefFromManifest } from '../src/seo/assets';
 import { selectPages, departedPages } from '../src/seo/floor';
 import type { SeoCatalogItem, SeoCatalogSnapshot } from '../src/seo/catalog';
 import { mintedIds, proposeRegistry, slugFor, urlFor } from '../src/seo/slugs';
-import { renderDataPage, renderCuratedPage, renderIndexPage } from '../src/seo/render';
+import { renderDataPage, renderCuratedPage, renderIndexPage, renderGuidePage } from '../src/seo/render';
+import { parseGuide, type Guide } from '../src/seo/guides';
 import { advertised, pickRelated, type Link } from '../src/seo/links';
 import { renderSitemap, publicRouteEntries, renderLlmsTxt } from '../src/seo/sitemap';
 import { ORIGIN } from '../src/lib/head';
 
 const DIST = 'dist';
 const REGISTRY = 'content/slugs.json';
+const GUIDES = 'content/guides';
 const MANIFEST_CANDIDATES = [`${DIST}/.vite/manifest.json`, `${DIST}/manifest.json`];
 
 function main(): void {
@@ -168,13 +170,23 @@ function main(): void {
     );
   }
 
+  // The editorial guides. Deliberately last among the page loops: their
+  // internal links are checked against the slugs actually written above, so
+  // everything they could point at has to exist by now.
+  const guideLinks = emitGuides({
+    knownIds: new Set([...publishable.map((p) => p.id), ...curated.map((c) => c.id)]),
+    cssHref,
+    buildDate,
+    collectUrl,
+  });
+
   // ONE filter, feeding sitemap.xml, llms.txt and the /things-to-do/ index —
   // so "a retained page is never advertised" is a single assertable step
   // rather than three places that each have to remember.
   const emitted = advertised([...productLinks, ...curatedLinks, ...departedLinks]);
 
   mkdirSync(`${DIST}/things-to-do`, { recursive: true });
-  const indexHtml = withCollectUrl(renderIndexPage({ entries: emitted, cssHref, buildDate }), collectUrl);
+  const indexHtml = withCollectUrl(renderIndexPage({ entries: emitted, guides: guideLinks, cssHref, buildDate }), collectUrl);
   // renderIndexPage's ref is the static "seo-index" (9 chars), not id-derived,
   // but it still flows through the same allowlist the collect function
   // enforces — checked here rather than assumed safe.
@@ -190,14 +202,106 @@ function main(): void {
   const entries = [
     ...publicRouteEntries(buildDate),
     { loc: `${ORIGIN}/things-to-do/`, lastmod: buildDate },
+    ...guideLinks.map((g) => ({ loc: ORIGIN + g.url, lastmod: buildDate })),
     ...emitted.map((e) => ({ loc: ORIGIN + e.url, lastmod: buildDate })),
   ];
   writeFileSync(`${DIST}/sitemap.xml`, renderSitemap(entries));
-  writeFileSync(`${DIST}/llms.txt`, renderLlmsTxt([{ heading: 'Things to do in Aruba', links: emitted }]));
+  writeFileSync(
+    `${DIST}/llms.txt`,
+    renderLlmsTxt([
+      // Guides first: they are the pages that answer a question rather than
+      // describe a product, and an answer engine reading top-down should meet
+      // the judgement before the catalog.
+      ...(guideLinks.length ? [{ heading: 'Guides', links: guideLinks }] : []),
+      { heading: 'Things to do in Aruba', links: emitted },
+    ]),
+  );
 
   dropManifest(manifestPath);
 
-  console.log(`seo: ${productLinks.length} product + ${curatedLinks.length} curated pages + index, ${entries.length} sitemap urls, css ${cssHref}`);
+  console.log(`seo: ${productLinks.length} product + ${curatedLinks.length} curated pages + index, ${guideLinks.length} guides, ${entries.length} sitemap urls, css ${cssHref}`);
+}
+
+/**
+ * The editorial guides, from content/guides/*.md.
+ *
+ * `status` is the gate and it is the most consequential line in this file.
+ * Only `published` is emitted; anything else is skipped and named on stdout,
+ * because the alternative — a pipeline that publishes whatever markdown it
+ * finds — puts unreviewed writing on a live site the moment someone drafts a
+ * file. Publication is an editorial decision, not a side effect of a build.
+ */
+function emitGuides(ctx: {
+  knownIds: Set<string>;
+  cssHref: string;
+  buildDate: string;
+  collectUrl: string | null;
+}): Link[] {
+  const guides = existsSync(GUIDES)
+    ? readdirSync(GUIDES)
+        .filter((f) => f.endsWith('.md'))
+        .sort()
+        .map((f) => parseGuide(f.replace(/\.md$/, ''), readFileSync(`${GUIDES}/${f}`, 'utf8')))
+    : [];
+
+  const links: Link[] = [];
+  for (const guide of guides) {
+    if (guide.status !== 'published') {
+      console.error(`seo: guide "${guide.slug}" NOT published — status: ${guide.status}.`);
+      continue;
+    }
+    assertKnownRefs(guide, ctx.knownIds);
+    const html = withCollectUrl(
+      renderGuidePage({ guide, cssHref: ctx.cssHref, buildDate: ctx.buildDate }),
+      ctx.collectUrl,
+    );
+    assertLinksResolve(guide, html);
+    assertSafeRef(html, `guide "${guide.slug}"`);
+    const dir = `${DIST}/guides/${guide.slug}`;
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(`${dir}/index.html`, html);
+    links.push({ title: guide.title, url: urlFor(guide.slug, 'guides') });
+  }
+  console.error(`seo: ${links.length} guide(s) published, ${guides.length - links.length} skipped as unpublished.`);
+  return links;
+}
+
+/**
+ * The spec's rule: "the generator fails the build if a hub references a
+ * product code it does not know."
+ *
+ * Checked against the ids that earned a page THIS run, not against the whole
+ * catalog — an id that exists but has no page is exactly the case that
+ * produces a 404 from an editorial page, and the first draft contains one
+ * (`boca-catalina-shore`, a real curated activity with empty localsSay, which
+ * the quality floor holds out). Failing here names the guide and the id while
+ * it is still a five-second fix; failing silently ships a broken link on the
+ * page with the most inbound equity.
+ */
+function assertKnownRefs(guide: Guide, knownIds: Set<string>): void {
+  const bad = [...guide.products, ...guide.curated].filter((id) => !knownIds.has(id));
+  if (bad.length) {
+    throw new Error(
+      `seo: guide "${guide.slug}" references ${bad.length} id(s) with no generated page: ${bad.join(', ')}. ` +
+        'Frontmatter takes registry ids (content/slugs.json keys), not slugs. Fix the guide or the floor.',
+    );
+  }
+}
+
+/**
+ * Every /things-to-do/ link in the rendered guide has to point at a page this
+ * build wrote. The frontmatter check above covers what the guide DECLARES; this
+ * covers what it actually links, which is what a reader clicks.
+ */
+function assertLinksResolve(guide: Guide, html: string): void {
+  const slugs = [...html.matchAll(/href="\/things-to-do\/([^/"]+)\//g)].map((m) => m[1]);
+  const dead = [...new Set(slugs)].filter((s) => !writtenSlugs.has(s));
+  if (dead.length) {
+    throw new Error(
+      `seo: guide "${guide.slug}" links to ${dead.length} /things-to-do/ URL(s) that this build did not write: ` +
+        `${dead.join(', ')}. A dead internal link on a hub is worse than a missing hub.`,
+    );
+  }
 }
 
 /**
@@ -267,20 +371,31 @@ const REF_PATTERN = /^[a-z0-9-]{1,32}$/;
  * silent: see REF_PATTERN above.
  */
 function assertSafeRef(html: string, context: string): void {
-  const match = html.match(/\/questionnaire\?ref=([^"]*)"/);
-  if (!match) {
+  // EVERY ref on the page, not just the first. The generated pages carry
+  // exactly one, but a guide's body is hand-written markdown that can carry its
+  // own — and a ref an author typed is the one most likely to run long.
+  const refs = [...html.matchAll(/\/questionnaire\?ref=([^"]*)"/g)].map((m) => m[1]);
+  if (!refs.length) {
     throw new Error(`seo: ${context} has no ?ref= link to the planner — attribution would be unmeasurable.`);
   }
-  const ref = match[1];
-  if (!REF_PATTERN.test(ref)) {
-    throw new Error(
-      `seo: ref "${ref}" (${ref.length} chars) for ${context} fails the collect allowlist ` +
-        `${REF_PATTERN.source} enforced in supabase/functions/collect/normalise.ts — the beacon ` +
-        'would send it, the server would silently null it, and this page would vanish from ' +
-        '/stats with no error anywhere. Fix the id or the renderer, not this check.',
-    );
+  for (const ref of refs) {
+    if (!REF_PATTERN.test(ref)) {
+      throw new Error(
+        `seo: ref "${ref}" (${ref.length} chars) for ${context} fails the collect allowlist ` +
+          `${REF_PATTERN.source} enforced in supabase/functions/collect/normalise.ts — the beacon ` +
+          'would send it, the server would silently null it, and this page would vanish from ' +
+          '/stats with no error anywhere. Fix the id or the renderer, not this check.',
+      );
+    }
   }
 }
+
+/**
+ * Every /things-to-do/ slug this run actually wrote to disk. Read by
+ * assertLinksResolve() so a guide's internal links are checked against what
+ * exists rather than against what the registry once promised.
+ */
+const writtenSlugs = new Set<string>();
 
 function writePage(slug: string, html: string): void {
   assertSafeSlug(slug);
@@ -288,6 +403,7 @@ function writePage(slug: string, html: string): void {
   const dir = `${DIST}/things-to-do/${slug}`;
   mkdirSync(dir, { recursive: true });
   writeFileSync(`${dir}/index.html`, html);
+  writtenSlugs.add(slug);
 }
 
 /**
