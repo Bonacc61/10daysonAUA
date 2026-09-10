@@ -220,7 +220,28 @@ function dropManifest(manifestPath: string): void {
   if (dir !== DIST && existsSync(dir) && readdirSync(dir).length === 0) rmSync(dir, { recursive: true });
 }
 
+/**
+ * Every slug this build emits flows into deploy.yml's lftp heredoc: `find
+ * things-to-do -name index.html | sed ...` turns each
+ * `things-to-do/<slug>/index.html` into a `put -O <remote>/<path> ...` line
+ * that lftp reads back inside the same heredoc. slugify() (src/seo/slugs.ts)
+ * can only emit [a-z0-9-], but content/slugs.json is hand-editable — a
+ * committed registry entry never goes through slugify() again — so a stray
+ * `;` or `|` there would reach lftp as a command separator or pipe rather
+ * than a path segment. Enforced here, at the one place every slug (product,
+ * curated, and departed) passes through before touching disk.
+ */
+function assertSafeSlug(slug: string): void {
+  if (!/^[a-z0-9-]+$/.test(slug)) {
+    throw new Error(
+      `seo: slug "${slug}" contains characters outside [a-z0-9-] — it would reach deploy.yml's ` +
+        'lftp heredoc unescaped. Fix content/slugs.json.',
+    );
+  }
+}
+
 function writePage(slug: string, html: string): void {
+  assertSafeSlug(slug);
   const dir = `${DIST}/things-to-do/${slug}`;
   mkdirSync(dir, { recursive: true });
   writeFileSync(`${dir}/index.html`, html);

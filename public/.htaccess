@@ -1,3 +1,44 @@
+# Shared itineraries at /i/<id> hold a traveller's trip at a public URL.
+# applyHead() (src/lib/head.ts) stamps <meta name="robots" content="noindex,
+# follow"> at runtime, but the served shell is static HTML with no meta tag
+# yet — and robots.txt now explicitly invites GPTBot, ClaudeBot and
+# PerplexityBot, none of which execute JavaScript. No content leaks (the shell
+# is empty until React hydrates), but the URL itself is indexable by exactly
+# the crawlers this branch just courted. The SPA fallback below means every
+# /i/<id> request is ultimately served from index.html, so a <Files> or
+# <FilesMatch> match can't tell one route from another — mod_rewrite (loaded;
+# proven by the SPA block below) tags the request with an env var by
+# REQUEST_URI, and mod_headers (loaded; the cache rules further down depend on
+# it too) sends the header off that var, so the tag holds with JavaScript off.
+#
+# THIS BLOCK MUST STAY ABOVE THE SPA FALLBACK. `RewriteRule . /index.html [L]`
+# down there is a *substitution* — the target differs from the request — so
+# `[L]` doesn't just stop this round, it makes Apache re-run the whole rewrite
+# ruleset from the top against the new URI /index.html (an internal redirect).
+# If this block sat below the fallback, as it did until 2026-09-10, its
+# RewriteCond on REQUEST_URI would only ever see "/index.html" and the
+# NOINDEX_SHARE env var would never be set — measured on Apache 2.4.58, see
+# src/seo/htaccess.test.ts. Up here, `RewriteRule ^ - [E=NOINDEX_SHARE:1]`
+# substitutes to "-" (no change), so it does NOT trigger a restart: the env
+# var gets set and processing falls through to the SPA rule in the same round.
+#
+# That restart is also why the header line below is doubled. Apache renames
+# every env var to REDIRECT_<name> across an internal redirect (a caveat of
+# mod_rewrite/mod_env, not a typo here). By the time mod_headers runs, on the
+# now-restarted round, the variable this block just set is no longer named
+# NOINDEX_SHARE — it's REDIRECT_NOINDEX_SHARE. `env=NOINDEX_SHARE` alone
+# matches nothing; `env=REDIRECT_NOINDEX_SHARE` alone would miss any future
+# rule that reaches mod_headers without a restart. Emit both, and do not
+# collapse them into one line — verified as two independent failure modes.
+<IfModule mod_rewrite.c>
+  RewriteCond %{REQUEST_URI} ^/i/ [NC]
+  RewriteRule ^ - [E=NOINDEX_SHARE:1]
+</IfModule>
+<IfModule mod_headers.c>
+  Header set X-Robots-Tag "noindex, follow" env=NOINDEX_SHARE
+  Header set X-Robots-Tag "noindex, follow" env=REDIRECT_NOINDEX_SHARE
+</IfModule>
+
 # SPA fallback: send unknown paths to index.html so client-side routing works
 <IfModule mod_rewrite.c>
   RewriteEngine On
@@ -13,26 +54,6 @@
   RewriteCond %{HTTPS} !=on
   RewriteCond %{HTTP_HOST} !^localhost
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-</IfModule>
-
-# Shared itineraries at /i/<id> hold a traveller's trip at a public URL.
-# applyHead() (src/lib/head.ts) stamps <meta name="robots" content="noindex,
-# follow"> at runtime, but the served shell is static HTML with no meta tag
-# yet — and robots.txt now explicitly invites GPTBot, ClaudeBot and
-# PerplexityBot, none of which execute JavaScript. No content leaks (the shell
-# is empty until React hydrates), but the URL itself is indexable by exactly
-# the crawlers this branch just courted. The SPA fallback above means every
-# /i/<id> request is ultimately served from index.html, so a <Files> or
-# <FilesMatch> match can't tell one route from another — mod_rewrite (loaded;
-# proven by the two blocks above) tags the request with an env var by
-# REQUEST_URI, and mod_headers (loaded; the cache rules below depend on it
-# too) sends the header off that var, so the tag holds with JavaScript off.
-<IfModule mod_rewrite.c>
-  RewriteCond %{REQUEST_URI} ^/i/ [NC]
-  RewriteRule ^ - [E=NOINDEX_SHARE:1]
-</IfModule>
-<IfModule mod_headers.c>
-  Header set X-Robots-Tag "noindex, follow" env=NOINDEX_SHARE
 </IfModule>
 
 # Cache hashed build assets for a year (filenames change on every build).
