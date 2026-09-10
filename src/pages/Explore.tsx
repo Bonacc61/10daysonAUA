@@ -372,8 +372,12 @@ export default function Explore({ setPage, answers, canSeeItinerary, initialSect
   // `addedByMeaning` IS the tail length (entrySearch appends and counts exactly
   // what it appended), and it is 0 whenever the box is empty — so with no query
   // this ranks the whole page, which is the common case.
+  // `price` rides along so the 'recommended' path can lead with the most
+  // expensive at the splurge end of the slider. It is read ONLY there: pick
+  // anything in the Sort dropdown and that choice wins, so a slider never
+  // silently overrides something the traveller set by hand.
   const entries = sortEntries(found, sort, {
-    tags, hasPersona, adventureLevel: answers.adventureLevel, semanticTail: addedByMeaning,
+    tags, hasPersona, adventureLevel: answers.adventureLevel, semanticTail: addedByMeaning, price,
   });
 
   const totalCount = entries.length;

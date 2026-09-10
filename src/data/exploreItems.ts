@@ -938,7 +938,57 @@ export type RankContext = {
    * there is no tail, which is every case where the search box is empty.
    */
   semanticTail?: number;
+  /**
+   * The Price slider, 0-100. Only its TOP value means anything here: at max
+   * splurge the traveller has asked for the expensive things, so `sortEntries`
+   * leads with the most expensive instead of running the recommended ranking.
+   *
+   * Read only on the 'recommended' path, deliberately. An explicit Sort choice
+   * is never overridden by a slider — see `rankSplurge`. Omitted means the
+   * ranking behaves exactly as it always has; Explore is the only caller and
+   * passes it on every path.
+   */
+  price?: number;
 };
+
+/** The Price slider's top value — "max splurge" in the UI. */
+const SPLURGE_MAX = 100;
+
+/**
+ * Most expensive first, for the splurge end of the Price slider.
+ *
+ * Ranks BEFORE sorting, which is the whole substance of this function — a plain
+ * price sort would look identical on a page of distinct prices and be wrong on
+ * this one. Prices here repeat heavily: measured on the live catalog at
+ * price=100, 60 of 119 entries share a price with another at max chill and 133
+ * of 204 at mid vibe. `Array.prototype.sort` is stable, so whatever order those
+ * ties arrive in is the order they keep — and they arrive in
+ * `filterExploreEntries`' `sortScore` order, the `is_best_seller` ranking this
+ * file removed as the default precisely because it claimed something untrue.
+ * Running `rankRecommended` first makes the tiebreak the recommended ranking
+ * instead, so the page degrades to what the traveller would otherwise have seen
+ * rather than to a ranking we already rejected.
+ *
+ * Splits the semantic tail off as `rankRecommended` does. Without that split a
+ * semantic-only hit with a big price would land at position 1, and `entrySearch`
+ * promises substring hits "stay first, always" — `.env.production` gives that
+ * appending as the reason VITE_SEMANTIC_SEARCH could ship at its recall. This
+ * function inherits the constraint by substituting for `rankRecommended`, not
+ * because sorting needs it: the explicit 'price-desc' key below orders the whole
+ * list, tail included, because there the traveller asked for one order over
+ * everything.
+ *
+ * Sorting `rankRecommended`'s result in place is safe — it returns either a
+ * fresh array or the very slice passed in, never the caller's array.
+ */
+function rankSplurge(entries: ExploreEntry[], ctx: RankContext): ExploreEntry[] {
+  const cut = Math.max(0, entries.length - (ctx.semanticTail ?? 0));
+  return [
+    ...rankRecommended(entries.slice(0, cut), { ...ctx, semanticTail: 0 })
+      .sort((a, b) => priceOf(b) - priceOf(a)),
+    ...entries.slice(cut),
+  ];
+}
 
 export function rankRecommended(
   entries: ExploreEntry[],
@@ -1006,7 +1056,12 @@ export function sortEntries(
   sort: SortKey,
   ctx?: RankContext,
 ): ExploreEntry[] {
-  if (sort === 'recommended') return ctx ? rankRecommended(entries, ctx) : entries;
+  if (sort === 'recommended') {
+    if (!ctx) return entries;
+    return ctx.price === SPLURGE_MAX
+      ? rankSplurge(entries, ctx)
+      : rankRecommended(entries, ctx);
+  }
   const out = [...entries];
   switch (sort) {
     case 'price-asc':

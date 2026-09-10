@@ -842,6 +842,65 @@ describe('sortEntries', () => {
     expect(sortEntries(list, 'recommended')).toBe(list);
   });
 
+  // --- max splurge orders by price, but only while Sort is "Recommended" ----
+  // Owner's call 2026-09-10: dragging Price to the top is a request for the
+  // expensive things, so lead with the most expensive. Keyed on the PRICE slider
+  // alone — it holds at any Vibe, because "most expensive first" is a statement
+  // about price and would be mysterious if it only worked while chill.
+  test('at max splurge, "recommended" leads with the most expensive', () => {
+    const list = [item('mid', { price_usd: 120 }), item('top', { price_usd: 3656 }), item('low', { price_usd: 30 })];
+    expect(ids(sortEntries(list, 'recommended', { tags: new Set(), hasPersona: false, price: 100 })))
+      .toEqual(['top', 'mid', 'low']);
+  });
+
+  test('equal prices keep the recommended order, not the incoming house order', () => {
+    // This tiebreak decides most of the page, so it is not a corner case:
+    // measured on the live catalog at price=100, 60 of 119 entries share a price
+    // with another at max chill (50%), and 133 of 204 at mid vibe (65%).
+    // Without ranking first, those all fall back to the order
+    // `filterExploreEntries` left them in — `sortScore`, the `is_best_seller`
+    // ranking this file removed as the default for claiming something untrue.
+    const list = [
+      item('weak', { price_usd: 300, rating: 4.0, review_count: 5 }),
+      item('strong', { price_usd: 300, rating: 4.9, review_count: 900 }),
+    ];
+    expect(ids(sortEntries(list, 'recommended', { tags: new Set(), hasPersona: false, price: 100 })))
+      .toEqual(['strong', 'weak']);
+  });
+
+  test('holds at max splurge whatever the Vibe slider says', () => {
+    // The vibe never reaches sortEntries, so this is really a guard against
+    // someone later keying the behaviour on adventureLevel.
+    const list = [item('mid', { price_usd: 120 }), item('top', { price_usd: 3656 })];
+    for (const adventureLevel of [0, 50, 100]) {
+      expect(ids(sortEntries(list, 'recommended', { tags: new Set(), hasPersona: false, price: 100, adventureLevel })))
+        .toEqual(['top', 'mid']);
+    }
+  });
+
+  test('below max splurge the recommended ranking is untouched', () => {
+    const list = [item('mid', { price_usd: 120 }), item('top', { price_usd: 3656 }), item('low', { price_usd: 30 })];
+    const at99 = ids(sortEntries(list, 'recommended', { tags: new Set(), hasPersona: false, price: 99 }));
+    const noPrice = ids(sortEntries(list, 'recommended', { tags: new Set(), hasPersona: false }));
+    expect(at99).toEqual(noPrice);
+  });
+
+  test('an explicit Sort choice wins over the splurge slider', () => {
+    // The whole point of the "only while Recommended" rule: nothing the
+    // traveller deliberately picked is silently overridden.
+    const list = [item('mid', { price_usd: 120 }), item('top', { price_usd: 3656 }), item('low', { price_usd: 30 })];
+    expect(ids(sortEntries(list, 'price-asc', { tags: new Set(), hasPersona: false, price: 100 })))
+      .toEqual(['low', 'mid', 'top']);
+  });
+
+  test('splurge order leaves the semantic tail appended beneath it', () => {
+    // Same boundary rankRecommended keeps: substring hits stay first, always.
+    // Without the tail split the $3656 semantic hit would jump to position 1.
+    const list = [item('mid', { price_usd: 120 }), item('low', { price_usd: 30 }), item('tail', { price_usd: 3656 })];
+    expect(ids(sortEntries(list, 'recommended', { tags: new Set(), hasPersona: false, price: 100, semanticTail: 1 })))
+      .toEqual(['mid', 'low', 'tail']);
+  });
+
   test('price sorts run both ways, with free picks at the cheap end', () => {
     const list = [item('mid', { price_usd: 120 }), local('free'), item('top', { price_usd: 3656 })];
     expect(ids(sortEntries(list, 'price-asc'))).toEqual(['free', 'mid', 'top']);
