@@ -29,6 +29,10 @@ export function SpaLink({
       className={className}
       style={style}
       onClick={(e) => {
+        // e.button !== 0: defensive only. A real middle click on an <a> fires
+        // auxclick, not click, in Chrome and Firefox, so this branch is not
+        // reachable that way — the browser's native new-tab behaviour happens
+        // regardless. Kept for a synthesized click that carries a non-zero button.
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
         e.preventDefault();
         setPage(page);
