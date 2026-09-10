@@ -2,9 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { renderDataPage, renderCuratedPage, renderIndexPage, escapeHtml, platformSplitWorthShowing } from './render';
 import type { SeoCatalogItem } from './catalog';
 import { combinedBreakdown } from '../data/reviewBreakdown';
+import { whatToExpectFor } from '../data/whatToExpect';
 import SNAPSHOT from '../data/seoCatalog.json';
 import { selectPages } from './floor';
 import { ACTIVITIES } from '../data/activities';
+import { ORIGIN } from '../lib/head';
 
 const ITEMS = (SNAPSHOT as { items: SeoCatalogItem[] }).items;
 
@@ -129,6 +131,69 @@ describe('renderDataPage', () => {
     // stamped `noindex, follow` on EVERY page would pass the whole gone block
     // while quietly de-indexing all 39 product pages.
     expect(page()).not.toContain('name="robots"');
+  });
+});
+
+// Fix 5 — the operator's own "What to expect" copy is republished (shortened,
+// via summarise()) under our own "What this involves" heading. The spec ("The
+// data page", item 4) requires anything verbatim be short and attributed, so a
+// reader can tell the passage is the operator's description, not ours.
+describe('the "What this involves" attribution', () => {
+  const WITH_PROSE = ITEMS.filter((i) => whatToExpectFor(i.id));
+  const WITHOUT_PROSE = ITEMS.filter((i) => !whatToExpectFor(i.id));
+
+  // Non-vacuity floor: if the catalog ever stopped carrying whatToExpect data,
+  // the assertion below would run zero times and pass for the wrong reason.
+  it('is actually exercised by at least one item in the catalog', () => {
+    expect(WITH_PROSE.length).toBeGreaterThan(0);
+    expect(WITHOUT_PROSE.length).toBeGreaterThan(0);
+  });
+
+  it('names the operator as the source whenever the section renders', () => {
+    for (const item of WITH_PROSE.slice(0, 20)) {
+      const html = renderDataPage({ item, slug: 's', cssHref: '/a.css', buildDate: '2026-09-10', related: [] });
+      expect(html).toContain('<h2>What this involves</h2>');
+      expect(html).toContain('seo-source');
+      expect(html).toContain("In the operator's own words.");
+    }
+  });
+
+  it('renders neither the section nor the attribution when there is no prose', () => {
+    for (const item of WITHOUT_PROSE.slice(0, 20)) {
+      const html = renderDataPage({ item, slug: 's', cssHref: '/a.css', buildDate: '2026-09-10', related: [] });
+      expect(html).not.toContain('What this involves');
+      expect(html).not.toContain('seo-source');
+    }
+  });
+});
+
+// Fix 6 — product pages crumbed "Things to do" to /explore (an app route),
+// curated pages crumbed to /things-to-do/ (the generated hub). The JSON-LD
+// BreadcrumbList agreed with the /explore version, so the two page types
+// disagreed with each other and the 39 product pages never linked the hub the
+// footer advertises. Both crumb types now point at the same hub URL.
+describe('breadcrumb seam', () => {
+  it('the visible crumb and the JSON-LD breadcrumb name the same hub URL', () => {
+    const html = page();
+    const crumbMatch = html.match(/<a href="([^"]+)">Things to do<\/a>/);
+    const jsonMatch = html.match(/"name": "Things to do",\s*"item": "([^"]+)"/);
+    expect(crumbMatch?.[1]).toBe('/things-to-do/');
+    expect(jsonMatch?.[1]).toBe(`${ORIGIN}/things-to-do/`);
+    // Not just independently correct — they must name the SAME url.
+    expect(new URL(jsonMatch![1]).pathname).toBe(crumbMatch![1]);
+  });
+
+  it('never points the crumb or the JSON-LD at the /explore app route', () => {
+    const html = page();
+    expect(html).not.toContain('>/explore<');
+    expect(html).not.toContain('"item": "https://10daysonaruba.com/explore"');
+  });
+
+  it('the curated page crumb names the same hub as the product page crumb', () => {
+    const productCrumb = page().match(/<a href="([^"]+)">Things to do<\/a>/)?.[1];
+    const curatedCrumb = curated().match(/<a href="([^"]+)">Things to do<\/a>/)?.[1];
+    expect(curatedCrumb).toBe('/things-to-do/');
+    expect(curatedCrumb).toBe(productCrumb);
   });
 });
 

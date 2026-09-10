@@ -91,14 +91,14 @@ ${jsonLd(item, canonical)}
 </head>
 <body>
 <main class="seo-page">
-<nav class="seo-crumbs"><a href="/">10 days on Aruba</a> › <a href="/explore">Things to do</a> › <span>${title}</span></nav>
+<nav class="seo-crumbs"><a href="/">10 days on Aruba</a> › <a href="/things-to-do/">Things to do</a> › <span>${title}</span></nav>
 
 <h1>${title}</h1>
 ${item.image_url ? `<img src="${escapeHtml(item.image_url)}" alt="${title}" width="800" height="533" loading="lazy">` : ''}
 
 ${breakdown ? ratingBlock(item.id, breakdown) : ''}
 ${factsTable(item, times)}
-${prose ? `<section><h2>What this involves</h2><p>${escapeHtml(summarise(prose))}</p></section>` : ''}
+${prose ? `<section><h2>What this involves</h2><p>${escapeHtml(summarise(prose))}</p><p class="seo-source">In the operator's own words.</p></section>` : ''}
 ${faqBlock(item, times)}
 
 ${item.gone
@@ -205,7 +205,7 @@ function jsonLd(item: SeoCatalogItem, canonical: string): string {
     '@type': 'BreadcrumbList',
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: '10 days on Aruba', item: ORIGIN + '/' },
-      { '@type': 'ListItem', position: 2, name: 'Things to do', item: ORIGIN + '/explore' },
+      { '@type': 'ListItem', position: 2, name: 'Things to do', item: ORIGIN + '/things-to-do/' },
       { '@type': 'ListItem', position: 3, name: item.title, item: canonical },
     ],
   };
