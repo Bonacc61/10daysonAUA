@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { ACTIVITIES } from '../data/activities';
-import { parseGuide } from './guides';
+import { loadGuide } from './guides';
 
 // These assert on the OUTPUT of `npm run build`. They skip when dist/ has not
 // been built, so `npm test` stays fast and offline for everyone else.
@@ -205,8 +205,10 @@ d('generated output in dist/', () => {
     const wanted: string[] = [];
     for (const file of files) {
       const slug = file.replace(/\.md$/, '');
-      const g = parseGuide(slug, readFileSync(`content/guides/${file}`, 'utf8'));
-      if (g.status === 'published') wanted.push(slug);
+      const loaded = loadGuide(slug, readFileSync(`content/guides/${file}`, 'utf8'));
+      // A draft too broken to parse is dropped by the generator with a
+      // warning, so it is not expected in dist/ either.
+      if ('guide' in loaded && loaded.guide.status === 'published') wanted.push(slug);
     }
     const built = existsSync('dist/guides')
       ? readdirSync('dist/guides', { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)
@@ -226,9 +228,9 @@ d('generated output in dist/', () => {
 
     for (const file of files) {
       const slug = file.replace(/\.md$/, '');
-      const g = parseGuide(slug, readFileSync(`content/guides/${file}`, 'utf8'));
+      const loaded = loadGuide(slug, readFileSync(`content/guides/${file}`, 'utf8'));
       const url = `/guides/${slug}/`;
-      const listed = g.status === 'published';
+      const listed = 'guide' in loaded && loaded.guide.status === 'published';
       expect(xml.includes(url), `${slug} in sitemap.xml`).toBe(listed);
       expect(llms.includes(url), `${slug} in llms.txt`).toBe(listed);
       expect(hub.includes(url), `${slug} on the /things-to-do/ hub`).toBe(listed);

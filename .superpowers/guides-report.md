@@ -171,3 +171,76 @@ Every one: break it, confirm red, revert, confirm green.
    semantic `<h3>` questions are wanted in the visible HTML, the guides should
    be written with headings rather than the renderer rewriting them.
 4. `content/guides/` was untracked; it is committed on this branch, draft intact.
+
+---
+
+# Follow-up: comments in frontmatter, and tolerating a broken draft
+
+Both changes came from the owner actually using the pipeline; the build guard
+named the exact line in each case.
+
+## Change 1 — comments
+
+- **Full-line comments** (first non-whitespace character `#`) are skipped
+  anywhere in the block, including between list items, where they must not
+  close the open list.
+- **Trailing comments on list items only**: stripped from the first ` #`, then
+  trimmed. `- 472918P1      # Award-Winning Private Turtle Snorkeling` yields
+  `472918P1`.
+- **Scalars are left alone, deliberately.** `title:` and `description:` are free
+  text; `title: "Aruba on a budget: the #1 question"` is a legitimate title, and
+  truncating it at the hash would be a quiet bug surfacing weeks later as a
+  mysteriously short `<title>`. The reasoning is commented at the scalar branch
+  and at `stripTrailingComment`, and a test proves a `#` survives in both
+  `title` and `description`.
+
+## Change 2 — a malformed draft must not block a deploy
+
+`loadGuide()` in `src/seo/guides.ts` wraps `parseGuide`. On failure it consults
+`looksLikeDraft()` over the RAW frontmatter — crude by necessity, because
+`status` lives inside the frontmatter and a file that will not parse cannot be
+asked whether it is a draft. If it looks like a draft: warn on stderr naming the
+file and the problem, skip it, build succeeds. Otherwise: rethrow, build fails.
+
+The marker regex is deliberately lenient (`status: draft   # still editing`
+counts) but is scoped to the fenced block, so the word cannot be picked up out
+of the prose. Every direction it errs in is the safe one: a false positive skips
+a page that was never going to publish; a false negative fails the build, which
+is the behaviour that already existed.
+
+Recorded at the code: an invalid draft costs a warning nobody has to act on
+today; a blocked build costs every deploy until someone finds it. Same asymmetry
+as the pid/mcid skip in `tools/build-seo.ts`.
+
+`src/seo/integration.test.ts` now reads guides through `loadGuide` too, so the
+test's expectation of `dist/` matches what the generator actually does.
+`guides.test.ts` stays stricter — it still requires every COMMITTED guide to
+parse, because a broken guide in the repo is worth a test failure even though it
+is not worth a blocked deploy. That difference is commented.
+
+## Verification
+
+- **(a)** The draft as it now stands, with `#` comments: `npm run build` exit 0,
+  `39 product + 19 curated pages + index, 0 guides, 65 sitemap urls`,
+  `dist/guides` absent.
+- **(b)** Flipped to `published`: builds, emits
+  `dist/guides/snorkeling-free-vs-paid/index.html` (14,087 bytes), sitemap 66,
+  all four `/things-to-do/` links resolve to files on disk, FAQPage with 6
+  questions, no `aggregateRating`. Reverted; `git diff` shows `status: draft` as
+  an unchanged context line.
+- **(c)** A draft with `title:` deleted: build **succeeds**, warning names the
+  file and the problem. Mutation — draft-skip removed — build exits 2. Second
+  mutation, `looksLikeDraft` forced true (a broken PUBLISHED guide would be
+  silently skipped): 4 tests fail.
+- **(d)** A published guide with an unknown product id: build exits 1, naming
+  guide and id. Still holds.
+- **(e)** `title: "Ref probe: the #1 check"` rendered as `<title>Ref probe: the
+  #1 check — 10 days on Aruba</title>`, the same in `<h1>` and in the Article
+  `headline`.
+
+Comment-support mutations, each caught: full-line skip removed (4 fail),
+trailing strip removed (1), trailing strip wrongly applied to scalars (1),
+draft marker unscoped from the fence (1). All reverted, 31 green.
+
+`npx vitest run` 1705 passed / 97 files. `npm run typecheck` clean.
+`CI=true npm run build` exit 0. `seoCatalog.json` and `slugs.json` untouched.

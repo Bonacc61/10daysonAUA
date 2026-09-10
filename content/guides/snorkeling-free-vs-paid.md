@@ -3,21 +3,24 @@ title: "Snorkeling in Aruba: when the free beach beats the boat trip"
 description: "Aruba's best snorkeling is often free and reachable from shore. Here is when to save the $65, and the three cases where paying is genuinely the better call."
 date: 2026-09-10
 status: draft
+# Registry IDs, not slugs — a slug can be regenerated, an id cannot. Every one
+# is checked against the generator at build time, so a typo here fails the build
+# rather than shipping a dead link.
 products:
-  - 5593159P4
-  - dolphin-catamaran-snorkel-and-sail-with-open-bar
-  - arusun-catamaran-sail-with-snorkeling-in-aruba
-  - award-winning-private-turtle-snorkeling-aruba-video-included
-  - aruba-turtle-snorkeling-private-tour-with-underwater-footage
-  - small-group-snorkeling-at-mangel-halto-aruba
-  - snorkel-with-turtles-at-ww2-shipwreck-includes-sunset-bbq
-  - antilla-shipwreck-snorkel-cruise
+  - 472918P1      # Award-Winning Private Turtle Snorkeling — 5.0★, 212
+  - 325347P3      # Turtle Snorkeling Private Tour + Footage — 4.9★, 733
+  - 8936P1        # Arusun Catamaran Sail with Snorkeling — 4.8★, 2649
+  - 119085P1      # Dolphin Catamaran Snorkel & Sail — 4.8★, 2783
+  - 103088P3      # Adults Only Catalina Bay Small Group — 4.8★, 114
+  - 6593BRUNCH    # Morning Snorkel Sail + Champagne Brunch — 4.7★, 2200
+  - 186518P5      # Small Group Snorkeling at Mangel Halto — 4.6★, 104
+  - 445910P1      # Snorkel + WW2 Wreck, Sunset & BBQ — 4.5★, 346
 curated:
-  - malmok-beach-snorkel
-  - tres-trapi-turtle-cove
-  - mangel-halto-lagoon
-  - baby-beach-snorkel-lagoon
-  - boca-catalina-shore
+  - malmok-beach
+  - tres-trapi
+  - mangel-halto
+  - baby-beach-snorkel
+  - antilla-wreck-dive
 ---
 
 # Snorkeling in Aruba: when the free beach beats the boat trip

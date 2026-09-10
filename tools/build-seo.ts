@@ -14,7 +14,7 @@ import { selectPages, departedPages } from '../src/seo/floor';
 import type { SeoCatalogItem, SeoCatalogSnapshot } from '../src/seo/catalog';
 import { mintedIds, proposeRegistry, slugFor, urlFor } from '../src/seo/slugs';
 import { renderDataPage, renderCuratedPage, renderIndexPage, renderGuidePage } from '../src/seo/render';
-import { parseGuide, type Guide } from '../src/seo/guides';
+import { loadGuide, type Guide } from '../src/seo/guides';
 import { advertised, pickRelated, type Link } from '../src/seo/links';
 import { renderSitemap, publicRouteEntries, renderLlmsTxt } from '../src/seo/sitemap';
 import { ORIGIN } from '../src/lib/head';
@@ -237,12 +237,23 @@ function emitGuides(ctx: {
   buildDate: string;
   collectUrl: string | null;
 }): Link[] {
-  const guides = existsSync(GUIDES)
-    ? readdirSync(GUIDES)
-        .filter((f) => f.endsWith('.md'))
-        .sort()
-        .map((f) => parseGuide(f.replace(/\.md$/, ''), readFileSync(`${GUIDES}/${f}`, 'utf8')))
-    : [];
+  const files = existsSync(GUIDES) ? readdirSync(GUIDES).filter((f) => f.endsWith('.md')).sort() : [];
+
+  // A draft that does not parse is warned about and dropped here; a file that
+  // does not say it is a draft still throws out of loadGuide and fails the
+  // build. See src/seo/guides.ts for why the two are treated differently.
+  const guides: Guide[] = [];
+  let unreadable = 0;
+  for (const file of files) {
+    const slug = file.replace(/\.md$/, '');
+    const loaded = loadGuide(slug, readFileSync(`${GUIDES}/${file}`, 'utf8'));
+    if ('skipped' in loaded) {
+      unreadable++;
+      console.error(`seo: WARNING — draft guide "${GUIDES}/${file}" SKIPPED, it does not parse: ${loaded.skipped}`);
+      continue;
+    }
+    guides.push(loaded.guide);
+  }
 
   const links: Link[] = [];
   for (const guide of guides) {
@@ -262,7 +273,10 @@ function emitGuides(ctx: {
     writeFileSync(`${dir}/index.html`, html);
     links.push({ title: guide.title, url: urlFor(guide.slug, 'guides') });
   }
-  console.error(`seo: ${links.length} guide(s) published, ${guides.length - links.length} skipped as unpublished.`);
+  console.error(
+    `seo: ${links.length} guide(s) published, ${guides.length - links.length} skipped as unpublished` +
+      (unreadable ? `, ${unreadable} skipped as unreadable drafts` : '') + '.',
+  );
   return links;
 }
 

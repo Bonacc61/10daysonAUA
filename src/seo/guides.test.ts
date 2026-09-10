@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
-import { parseGuide, extractFaqs } from './guides';
+import { parseGuide, extractFaqs, loadGuide } from './guides';
 
 // A hand-written fixture rather than the real guide: every expected value below
 // is written out here, so nothing is derived from the module under test. The
@@ -98,6 +98,98 @@ describe('frontmatter', () => {
   });
 });
 
+describe('comments in the frontmatter', () => {
+  // The lists are opaque Viator product codes. An editor who cannot write down
+  // what 472918P1 is has to look it up every time, so annotation is a feature
+  // rather than sloppiness the parser should punish.
+  const ANNOTATED = `---
+# Registry ids, not slugs.
+title: "Snorkeling: free vs paid"
+description: "When the free beach beats the boat."
+date: 2026-09-10
+status: published
+products:
+  - 472918P1      # Award-Winning Private Turtle Snorkeling — 5.0★, 212
+  # a comment between two items must not close the list
+  - 8936P1  # Arusun Catamaran Sail with Snorkeling
+curated:
+  - tres-trapi
+---
+
+Body.
+`;
+
+  it('skips whole-line comments and strips trailing ones off list items', () => {
+    const g = parseGuide('annotated', ANNOTATED);
+    expect(g.products).toEqual(['472918P1', '8936P1']);
+    expect(g.curated).toEqual(['tres-trapi']);
+    expect(g.title).toBe('Snorkeling: free vs paid');
+  });
+
+  // The other half of the rule, and the one with teeth: a scalar is free text.
+  // Truncating a title at a hash would be a quiet bug that surfaces weeks later
+  // as a mysteriously short <title>.
+  it('leaves a # inside a scalar alone', () => {
+    const withHash = ANNOTATED
+      .replace('title: "Snorkeling: free vs paid"', 'title: "Aruba on a budget: the #1 question"')
+      .replace('description: "When the free beach beats the boat."', 'description: "Costs, tips # and traps."');
+    const g = parseGuide('hashy', withHash);
+    expect(g.title).toBe('Aruba on a budget: the #1 question');
+    expect(g.description).toBe('Costs, tips # and traps.');
+  });
+
+  it('still rejects a line that is neither a comment, a pair nor a list item', () => {
+    const broken = ANNOTATED.replace('status: published', 'status: published\nthis is not yaml');
+    expect(() => parseGuide('x', broken)).toThrow(/does not understand/);
+  });
+});
+
+describe('loadGuide — a broken DRAFT must not take the build down', () => {
+  const VALID = `---
+title: "T"
+description: "D"
+date: 2026-09-10
+status: draft
+---
+
+Body.
+`;
+
+  it('returns the guide when the file parses', () => {
+    const loaded = loadGuide('ok', VALID);
+    expect('guide' in loaded && loaded.guide.title).toBe('T');
+  });
+
+  it('skips a draft whose frontmatter is broken, and says why', () => {
+    const noTitle = VALID.replace('title: "T"\n', '');
+    const loaded = loadGuide('broken-draft', noTitle);
+    expect('skipped' in loaded).toBe(true);
+    expect('skipped' in loaded && loaded.skipped).toMatch(/missing required frontmatter "title"/);
+  });
+
+  it('still throws when the same breakage is not marked draft', () => {
+    const published = VALID.replace('status: draft', 'status: published').replace('title: "T"\n', '');
+    expect(() => loadGuide('broken-published', published)).toThrow(/missing required frontmatter "title"/);
+  });
+
+  it('throws for a file with no status line at all — absence is not a draft', () => {
+    const noStatus = VALID.replace('status: draft\n', '');
+    expect(() => loadGuide('no-status', noStatus)).toThrow(/missing required frontmatter "status"/);
+  });
+
+  it('reads the draft marker through a trailing comment, erring towards skipping', () => {
+    const commented = VALID.replace('status: draft', 'status: draft   # still editing').replace('title: "T"\n', '');
+    expect('skipped' in loadGuide('x', commented)).toBe(true);
+  });
+
+  it('does not mistake the word draft in the body for the status', () => {
+    const body = VALID.replace('status: draft', 'status: published')
+      .replace('title: "T"\n', '')
+      .replace('Body.', 'This guide is not a status: draft of anything.');
+    expect(() => loadGuide('x', body)).toThrow();
+  });
+});
+
 describe('markdown rendering', () => {
   it('renders the table as a real table, with the cell emphasis intact', () => {
     const html = guide().bodyHtml;
@@ -166,6 +258,10 @@ describe('content/guides on disk', () => {
     expect(files.length).toBeGreaterThan(0);
   });
 
+  // Stricter than the generator on purpose. The BUILD tolerates a draft that
+  // does not parse, because a work-in-progress guide must never block a deploy
+  // — but a broken guide that has been COMMITTED is still something someone
+  // should be told about, and a test failure is the cheap way to say it.
   it.each(files)('%s parses, and its status is one the gate understands', (file) => {
     const g = parseGuide(file.replace(/\.md$/, ''), readFileSync(`content/guides/${file}`, 'utf8'));
     expect(['published', 'draft']).toContain(g.status);
