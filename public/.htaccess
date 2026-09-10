@@ -15,6 +15,26 @@
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 </IfModule>
 
+# Shared itineraries at /i/<id> hold a traveller's trip at a public URL.
+# applyHead() (src/lib/head.ts) stamps <meta name="robots" content="noindex,
+# follow"> at runtime, but the served shell is static HTML with no meta tag
+# yet — and robots.txt now explicitly invites GPTBot, ClaudeBot and
+# PerplexityBot, none of which execute JavaScript. No content leaks (the shell
+# is empty until React hydrates), but the URL itself is indexable by exactly
+# the crawlers this branch just courted. The SPA fallback above means every
+# /i/<id> request is ultimately served from index.html, so a <Files> or
+# <FilesMatch> match can't tell one route from another — mod_rewrite (loaded;
+# proven by the two blocks above) tags the request with an env var by
+# REQUEST_URI, and mod_headers (loaded; the cache rules below depend on it
+# too) sends the header off that var, so the tag holds with JavaScript off.
+<IfModule mod_rewrite.c>
+  RewriteCond %{REQUEST_URI} ^/i/ [NC]
+  RewriteRule ^ - [E=NOINDEX_SHARE:1]
+</IfModule>
+<IfModule mod_headers.c>
+  Header set X-Robots-Tag "noindex, follow" env=NOINDEX_SHARE
+</IfModule>
+
 # Cache hashed build assets for a year (filenames change on every build).
 #
 # THIS WAS SILENTLY DOING NOTHING. The rules below used to live only in an
