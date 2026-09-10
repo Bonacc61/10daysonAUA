@@ -41,13 +41,29 @@ jobs:
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
           SFTP_PATH: ${{ secrets.SFTP_PATH }}
         run: |
+          # Every generated page carries the same hazard index.html does — see the
+          # comment on the put lines below — and there are 59 of them, so the list
+          # is built rather than written out. `things-to-do/<slug>/index.html`
+          # becomes `put -O <remote>/things-to-do/<slug> ./dist/...`; the mirror
+          # above has already created those directories.
+          FORCE_PUTS=$(cd dist && find things-to-do -name index.html \
+            | sed "s|^\(.*\)/index.html\$|put -O $SFTP_PATH/\1 ./dist/\1/index.html|")
           lftp -u "$SFTP_USER,$SFTP_PASSWORD" "sftp://$SFTP_HOST" <<EOF
           set sftp:auto-confirm yes
           set net:max-retries 2
           set net:reconnect-interval-base 5
           mirror --reverse --delete --verbose ./dist/ $SFTP_PATH
-          # Force index.html every time: its byte-size is identical when only the
-          # hashed asset name inside changes, so lftp's size/time mirror skips it.
+          # Force these every time: lftp's mirror compares size and mtime and
+          # SKIPS a file whose size is unchanged. index.html's byte-size is
+          # identical when only the hashed asset name inside it changes — and the
+          # generated surface has exactly the same property, because the 8-char
+          # CSS hash and the ISO build date stamped into every page and into
+          # sitemap.xml are both fixed-width. A skipped page combined with the
+          # --delete above is the bad case: the old stylesheet is gone, the stale
+          # page still links it, and the page renders unstyled in production.
           put -O $SFTP_PATH ./dist/index.html
+          put -O $SFTP_PATH ./dist/sitemap.xml
+          put -O $SFTP_PATH ./dist/llms.txt
+          $FORCE_PUTS
           bye
           EOF
