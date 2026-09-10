@@ -33,6 +33,43 @@ describe('pageMeta', () => {
       expect(pageMeta(p).index).toBe(true);
     }
   });
+
+  it('independently validates the public/private partition', () => {
+    // Hardcoded lists, not derived from PRIVATE_PAGES. This test catches when a
+    // page is removed from PRIVATE_PAGES — the above test cannot, because it only
+    // iterates the pages already in PRIVATE_PAGES.
+    const EXPECTED_PUBLIC: PageId[] = [
+      'landing', 'explore', 'questionnaire', 'privacy', 'terms', 'surprise',
+    ];
+    const EXPECTED_PRIVATE: PageId[] = [
+      'itinerary', 'map', 'dashboard', 'preview', 'stats',
+    ];
+
+    // Disjoint: no page is in both lists
+    const publicSet = new Set(EXPECTED_PUBLIC);
+    const privateSet = new Set(EXPECTED_PRIVATE);
+    for (const p of publicSet) {
+      expect(privateSet.has(p)).toBe(false);
+    }
+    for (const p of privateSet) {
+      expect(publicSet.has(p)).toBe(false);
+    }
+
+    // Union is exactly all pages: no page added, removed, or uncategorized
+    const allPages = new Set(Object.keys(PAGE_TO_PATH) as PageId[]);
+    const unionSize = publicSet.size + privateSet.size;
+    expect(unionSize).toBe(allPages.size);
+    for (const p of publicSet) expect(allPages.has(p)).toBe(true);
+    for (const p of privateSet) expect(allPages.has(p)).toBe(true);
+
+    // Index values are correct
+    for (const p of EXPECTED_PUBLIC) {
+      expect(pageMeta(p).index).toBe(true);
+    }
+    for (const p of EXPECTED_PRIVATE) {
+      expect(pageMeta(p).index).toBe(false);
+    }
+  });
 });
 
 describe('sharedItineraryMeta', () => {
