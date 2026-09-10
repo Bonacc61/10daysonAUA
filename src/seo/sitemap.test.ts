@@ -14,7 +14,7 @@ describe('renderSitemap', () => {
 
   it('escapes ampersands so the XML stays well formed', () => {
     const xml = renderSitemap([{ loc: 'https://10daysonaruba.com/a?x=1&y=2', lastmod: '2026-09-10' }]);
-    expect(xml).toContain('&amp;');
+    expect(xml).toContain('https://10daysonaruba.com/a?x=1&amp;y=2');
     expect(xml).not.toMatch(/&(?!amp;)/);
   });
 
@@ -27,6 +27,19 @@ describe('publicRouteEntries', () => {
   it('includes the landing page', () => {
     expect(publicRouteEntries('2026-09-10').map((e) => e.loc))
       .toContain('https://10daysonaruba.com/');
+  });
+
+  it('returns exactly the six public routes', () => {
+    const EXPECTED = [
+      'https://10daysonaruba.com/',
+      'https://10daysonaruba.com/questionnaire',
+      'https://10daysonaruba.com/explore',
+      'https://10daysonaruba.com/privacy',
+      'https://10daysonaruba.com/terms',
+      'https://10daysonaruba.com/surprise',
+    ];
+    const locs = publicRouteEntries('2026-09-10').map((e) => e.loc).sort();
+    expect(locs).toEqual(EXPECTED.sort());
   });
 
   // A noindex page in a sitemap is a direct contradiction: the sitemap asks for
