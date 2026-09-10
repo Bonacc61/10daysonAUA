@@ -67,6 +67,14 @@ type Summary = {
   /** Optional: absent until the 20260825150000 migration is applied, and the
    *  card hides itself rather than draw zeros that read as instant bounces. */
   questionnaireFunnel?: { viewed: number; started: number; reached: Record<string, number> };
+  /** Optional: absent until the 20260910120000 migration is applied. The whole
+   *  section hides itself rather than draw zeros, same rule as the one above. */
+  seo?: {
+    /** Click-outs and visitors per group. NEVER a conversion rate — see the section copy. */
+    clickOuts: { seoVisitors: number; seoClicks: number; plannerVisitors: number; plannerClicks: number };
+    answerEngines: (Counted & { host: string })[];
+    toPlanner: { visitors: number; questionnaire: number };
+  };
   products: { product: string; clicks: number; visitors: number }[];
   partners: { host: string; clicks: number }[];
 };
@@ -548,6 +556,12 @@ export default function Stats({ setPage }: Props) {
           {data.questionnaireFunnel && (
             <Section title="Questionnaire drop-off">
               <QuestionnaireDropoff qf={data.questionnaireFunnel} oneDay={isOneDay} />
+            </Section>
+          )}
+
+          {data.seo && (
+            <Section title="Content pages, and the answer engines">
+              <SeoSurface seo={data.seo} oneDay={isOneDay} />
             </Section>
           )}
 
@@ -1174,6 +1188,120 @@ function QuestionnaireDropoff({ qf, oneDay }: {
       </Explain>
       <BarList rows={rows} color={SERIES[1]} unit={oneDay ? 'unique' : 'visits'} />
     </>
+  );
+}
+
+/**
+ * The generated content pages, at the decision point.
+ *
+ * The SEO strategy (docs/superpowers/specs/2026-09-10-seo-geo-strategy-design.md)
+ * commits to expanding or CUTTING the 58 static pages at about six weeks, "from
+ * numbers, not vibes". These are the three numbers that decision needs, and the
+ * section is deliberately not bigger than that.
+ *
+ * Two rules shape everything below, and both are the spec's:
+ *
+ *   - NOTHING HERE IS A CONVERSION RATE. Viator returns no booking signal, so
+ *     the only outcome this pipe can see is a click leaving the site. The
+ *     caution sits ON the comparison rather than in a footnote, for the same
+ *     reason the partners section carries its own: this is the figure someone
+ *     would quote, and "content pages convert at 7%" is a sentence nobody can
+ *     support.
+ *   - A RATE ON A TINY BASE IS NOISE. Below MIN_RATE_BASE visitors no rate is
+ *     printed at all — the base is shown instead. A bare "0.67 per visitor"
+ *     computed from two clicks reads exactly as authoritative as one computed
+ *     from two hundred, which is how a flat graph at week three turns into a
+ *     decision.
+ */
+// Chosen so one extra click cannot move the printed figure by more than about
+// 0.03 per visitor. Below it the rate is withheld, not greyed: a number that
+// should not be read should not be on the page.
+const MIN_RATE_BASE = 30;
+
+function SeoSurface({ seo, oneDay }: { seo: NonNullable<Summary['seo']>; oneDay: boolean }) {
+  const c = seo.clickOuts;
+  const unit = oneDay ? 'unique' : 'visits';
+  const groups = [
+    { label: 'Read a content page', visitors: c.seoVisitors, clicks: c.seoClicks },
+    { label: 'Never opened one', visitors: c.plannerVisitors, clicks: c.plannerClicks },
+  ];
+  const p = seo.toPlanner;
+  return (
+    <div data-testid="seo-surface">
+      <h3 style={h3}>Clicks sent out, per visitor</h3>
+      {/* REQUIRED LABEL — spec. The section's headline figure is a ratio, which
+          is the shape a conversion rate has; this says what it is not. */}
+      <p style={warn} data-testid="seo-clicks-caution">
+        <strong>Clicks sent, not bookings.</strong> Viator reports nothing back about what
+        follows a click, so this compares the two groups on the only outcome this page can
+        see — a link leaving the site. It is not a conversion rate and it is not revenue,
+        and it must not be described as either.
+      </p>
+      <ul style={{ listStyle: 'none', margin: '0 0 12px', padding: 0, display: 'grid', gap: 10 }}>
+        {groups.map((g) => (
+          <li key={g.label} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 10, fontSize: 13 }}>
+            <span style={{ flex: '1 1 180px', overflowWrap: 'anywhere' }}>{g.label}</span>
+            <span className="font-display" style={{ fontSize: 22, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+              {g.visitors >= MIN_RATE_BASE
+                ? `${(g.clicks / g.visitors).toFixed(2)} per visitor`
+                : 'not enough to rate'}
+            </span>
+            {/* The base is printed whether or not the rate was: it is what tells
+                a reader how much weight the row carries. */}
+            <span style={{ opacity: 0.6, fontVariantNumeric: 'tabular-nums' }}>
+              {g.clicks.toLocaleString('en-GB')} click{g.clicks === 1 ? '' : 's'} from{' '}
+              {g.visitors.toLocaleString('en-GB')} {g.visitors === 1 ? unit.replace(/s$/, '') : unit}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {groups.some((g) => g.visitors < MIN_RATE_BASE) && (
+        <p style={{ ...muted, fontSize: 12 }} data-testid="seo-small-base">
+          A group under {MIN_RATE_BASE} {unit} gets no rate at all. One more click would move it
+          by more than the difference being looked for, so the number would be noise wearing two
+          decimal places.
+        </p>
+      )}
+      <p style={{ ...muted, fontSize: 12 }}>
+        A visitor counts in the first row if any page they opened in this window was under{' '}
+        <code>/things-to-do</code>, and in the second otherwise.{' '}
+        {oneDay
+          ? 'Within one day this is an exact count of people.'
+          : 'Across a window these are daily visitor codes, so a person who came on two days is two — and the two rows can never be added into a monthly total.'}
+      </p>
+
+      <h3 style={h3}>Visits from answer engines</h3>
+      <Explain>
+        Arrivals whose previous page was a named AI assistant. This is the only part of the
+        answer-engine picture that can be seen at all: a model that reads a page and repeats it
+        to someone who never clicks leaves no trace anywhere, so treat a handful of visits as the
+        visible edge of something larger and unmeasured, never as the size of it. The list is a
+        fixed set of hosts, not a pattern — small numbers spread over six hosts would otherwise
+        disappear into the referrer list further down this page.
+      </Explain>
+      {seo.answerEngines.length > 0
+        ? <BarList rows={seo.answerEngines.map((a) => ({ label: a.host, n: a.n }))} color={SERIES[2]} unit={unit} />
+        : <p style={muted}>No visits from a named assistant in this window.</p>}
+
+      <h3 style={h3}>From a content page into the planner</h3>
+      <Explain>
+        The content pages link to the questionnaire with a tag of their own, so an arrival
+        through one is counted here. The second row is whoever then answered a question — the
+        landing itself is not a signal, since the link puts them on the questionnaire already.
+      </Explain>
+      <BarList
+        rows={[
+          { label: 'Arrived from a content page', n: p.visitors },
+          {
+            label: 'Answered a question',
+            n: p.questionnaire,
+            sub: p.visitors > 0 ? `${Math.round((p.questionnaire / p.visitors) * 100)}% of them` : undefined,
+          },
+        ]}
+        color={SERIES[0]}
+        unit={unit}
+      />
+    </div>
   );
 }
 
