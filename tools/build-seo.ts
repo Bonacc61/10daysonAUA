@@ -176,7 +176,10 @@ function main(): void {
   mkdirSync(`${DIST}/things-to-do`, { recursive: true });
   writeFileSync(
     `${DIST}/things-to-do/index.html`,
-    renderIndexPage({ entries: emitted, cssHref, buildDate }),
+    // withCollectUrl here too: the hub carries the same beacon as every page
+    // under it, and without the substitution it would ship the literal
+    // __COLLECT_URL__ and count nothing.
+    withCollectUrl(renderIndexPage({ entries: emitted, cssHref, buildDate }), collectUrl),
   );
 
   const entries = [

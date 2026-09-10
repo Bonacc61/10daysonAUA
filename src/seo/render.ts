@@ -309,9 +309,18 @@ ${related.length ? `<section><h2>Nearby and similar</h2><ul>${
  * "did SEO send anyone" question would be unanswerable. Writes nothing to the
  * device, so it needs no consent banner, exactly like its app counterpart.
  * VITE_COLLECT_FN_URL is substituted at generate time by tools/build-seo.ts.
+ *
+ * `ref` is document.referrer, and it is the point of these pages. The server
+ * reduces it to a HOST (`referrerHost` in supabase/functions/collect) — never
+ * the full URL — and a referring host is the only observable GEO signal there
+ * is: Viator sends no return signal and ChatGPT sends no click id, so
+ * `chatgpt.com` or `perplexity.ai` arriving in that column is the entire
+ * evidence that an answer engine cited us. Sent only when non-empty, matching
+ * `send()`'s `document.referrer || undefined` in src/lib/beacon.ts — a direct
+ * visit has an empty referrer and would otherwise store a meaningless ''.
  */
 const BEACON = `(function(){try{if(localStorage.getItem('10doa:no-analytics')==='true')return}catch(e){return}
-var u='__COLLECT_URL__';if(!u)return;var b=JSON.stringify({name:'pageview',path:location.pathname});
+var u='__COLLECT_URL__';if(!u)return;var b=JSON.stringify({name:'pageview',path:location.pathname,ref:document.referrer||undefined});
 try{navigator.sendBeacon?navigator.sendBeacon(u,new Blob([b],{type:'text/plain'})):fetch(u,{method:'POST',body:b,keepalive:true,headers:{'content-type':'text/plain'}})}catch(e){}})();`;
 
 /**
@@ -349,6 +358,7 @@ export function renderIndexPage(input: {
 <p class="seo-plan"><a href="/questionnaire?ref=seo-index">Build a full Aruba itinerary</a></p>
 <p class="seo-freshness">Data updated ${buildDate}</p>
 </main>
+<script>${BEACON}</script>
 </body>
 </html>
 `;

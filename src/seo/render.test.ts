@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderDataPage, renderCuratedPage, escapeHtml, platformSplitWorthShowing } from './render';
+import { renderDataPage, renderCuratedPage, renderIndexPage, escapeHtml, platformSplitWorthShowing } from './render';
 import type { SeoCatalogItem } from './catalog';
 import { combinedBreakdown } from '../data/reviewBreakdown';
 import SNAPSHOT from '../data/seoCatalog.json';
@@ -304,5 +304,60 @@ describe('renderCuratedPage', () => {
     expect(html).toContain('mcid=42383');
     expect(html).toContain('medium=link');
     expect(html).toContain('rel="noopener sponsored"');
+  });
+});
+
+// The generated surface loads no app bundle, so src/lib/beacon.ts never runs on
+// it. Whatever these three renderers inline IS the analytics for all 59 pages.
+// The index page shipped without any beacon at all until 2026-09-10 — the hub
+// the footer points at was the one page nobody could count.
+describe('the inlined beacon', () => {
+  const SURFACES: Record<string, () => string> = {
+    'product page': () => page(),
+    'curated page': () => curated(),
+    'index page': () =>
+      renderIndexPage({
+        entries: [{ title: 'Another Thing', url: '/things-to-do/another-thing/' }],
+        cssHref: '/assets/index-abc.css',
+        buildDate: '2026-09-10',
+      }),
+  };
+  const NAMES = Object.keys(SURFACES);
+
+  // Non-vacuity floor: if a renderer is ever dropped from the table above, the
+  // it.each below would silently stop testing it.
+  it('covers every renderer this module exports', () => {
+    expect(new Set(NAMES)).toEqual(new Set(['product page', 'curated page', 'index page']));
+  });
+
+  it.each(NAMES)('%s carries the beacon at all', (name) => {
+    // The placeholder tools/build-seo.ts substitutes. Its presence is the only
+    // proof the <script> in the output is the beacon and not something else.
+    expect(SURFACES[name]()).toContain('__COLLECT_URL__');
+  });
+
+  it.each(NAMES)('%s sends the referrer, the only GEO signal there is', (name) => {
+    // chatgpt.com / perplexity.ai in the referrer column is the entire evidence
+    // that an answer engine cited us — there is no click id and no return
+    // signal from Viator. The server reduces it to a host before storing.
+    expect(SURFACES[name]()).toContain('ref:document.referrer||undefined');
+  });
+
+  it.each(NAMES)('%s honours the opt-out and writes nothing to the device', (name) => {
+    const html = SURFACES[name]();
+    expect(html).toContain("localStorage.getItem('10doa:no-analytics')==='true'");
+    // Reading the opt-out is the ONLY storage call the beacon may make. A
+    // setItem here would turn a cookieless beacon into one that needs consent.
+    expect(html).not.toContain('setItem');
+    expect(html).not.toContain('document.cookie');
+  });
+
+  it.each(NAMES)('%s posts as text/plain so the request is never preflighted', (name) => {
+    // beacon.ts:"only text/plain, form-urlencoded and multipart are
+    // CORS-safelisted" — application/json would add a preflight, and a failed
+    // preflight means the POST never leaves the browser.
+    const html = SURFACES[name]();
+    expect(html).toContain("type:'text/plain'");
+    expect(html).not.toContain('application/json');
   });
 });

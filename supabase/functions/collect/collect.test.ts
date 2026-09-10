@@ -41,6 +41,28 @@ describe('collect — path normalisation is an allowlist', () => {
   it('treats a trailing slash as the same route', () => {
     expect(normalisePath('/explore/')).toBe('/explore');
   });
+
+  // The generated static surface (tools/build-seo.ts) is 59 pages that the
+  // React router never sees. Without these two lines every one of them reports
+  // as 'other', and "did organic search send anyone" is unanswerable.
+  it('keeps the generated hub, with or without its trailing slash', () => {
+    expect(normalisePath('/things-to-do')).toBe('/things-to-do');
+    expect(normalisePath('/things-to-do/')).toBe('/things-to-do');
+  });
+
+  it('collapses a generated page slug rather than storing it', () => {
+    // Not privacy — these slugs are ours — but the allowlist rule: this bundle
+    // cannot read content/slugs.json, so matching the shape and keeping the
+    // match would store whatever anyone types after /things-to-do/.
+    expect(normalisePath('/things-to-do/jolly-pirates-sunset-sail')).toBe('/things-to-do/:slug');
+    expect(normalisePath('/things-to-do/jolly-pirates-sunset-sail/')).toBe('/things-to-do/:slug');
+    expect(normalisePath('/things-to-do/anything-at-all?utm_source=x')).toBe('/things-to-do/:slug');
+    // One level only: a deeper path is not a page this generator emits.
+    expect(normalisePath('/things-to-do/a/b')).toBe('other');
+    // And the collapsed form is genuinely lossy — two different pages must not
+    // be distinguishable in the column.
+    expect(normalisePath('/things-to-do/one-page')).toBe(normalisePath('/things-to-do/another-page'));
+  });
 });
 
 describe('collect — referrer is reduced to a host', () => {

@@ -170,4 +170,19 @@ d('generated output in dist/', () => {
     for (const p of pages()) expect(p.html).not.toContain('__COLLECT_URL__');
     expect(readFileSync('dist/things-to-do/index.html', 'utf8')).not.toContain('__COLLECT_URL__');
   });
+
+  // The counterpart to the test above, and the reason it is needed: "no
+  // placeholder left" passes trivially on a page that carries no beacon at all,
+  // which is exactly how the hub shipped uncounted.
+  it('gives every built page a beacon that reports the referrer', () => {
+    const all = [
+      ...pages().map((p) => ({ where: p.slug, html: p.html })),
+      { where: 'index', html: readFileSync('dist/things-to-do/index.html', 'utf8') },
+    ];
+    expect(all.length, 'no built pages to check').toBeGreaterThan(30);
+    for (const { where, html } of all) {
+      expect(html, `${where} has no beacon`).toContain("name:'pageview'");
+      expect(html, `${where} sends no referrer`).toContain('ref:document.referrer');
+    }
+  });
 });
