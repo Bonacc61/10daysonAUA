@@ -24,9 +24,15 @@ export const BOT_RE = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|em
 // ONE DELIBERATE EXCEPTION: '/stats' is absent on purpose. It is the operator's
 // own dashboard, not traveller traffic, and App.tsx skips the beacon for it —
 // adding it here would start counting visits to the numbers in the numbers.
+// '/things-to-do' is NOT in App.tsx — it is the generated static surface built
+// by tools/build-seo.ts, which never reaches the React router. It is listed for
+// the same reason: without it all 59 generated pages report as 'other', and the
+// one question the SEO work exists to answer ("did organic search send anyone")
+// becomes unanswerable.
 const KNOWN_PATHS = new Set([
   '/', '/questionnaire', '/itinerary', '/explore', '/map',
   '/privacy', '/terms', '/surprise', '/dashboard', '/preview',
+  '/things-to-do',
 ]);
 
 export function normalisePath(raw: unknown): string {
@@ -35,9 +41,17 @@ export function normalisePath(raw: unknown): string {
   // traveller's typed words, and the project rule forbids storing those.
   const path = raw.split('?')[0].split('#')[0].replace(/\/+$/, '') || '/';
   if (KNOWN_PATHS.has(path)) return path;
-  // Collapse the one dynamic route. Storing the raw slug would tie a pageview to
-  // a specific shared itinerary, which is a person's plan.
+  // Collapse the dynamic routes. Storing the raw share slug would tie a pageview
+  // to a specific shared itinerary, which is a person's plan.
   if (/^\/i\/[A-Za-z0-9_-]+$/.test(path)) return '/i/:slug';
+  // The generated content pages collapse too, and the reason is the allowlist
+  // rule above rather than privacy: their slugs come from content/slugs.json,
+  // which this function cannot read — it is a Deno bundle, deployed separately
+  // from the site build. Matching the SHAPE instead would store whatever anyone
+  // types after /things-to-do/, which is exactly the "clean it up and keep it"
+  // path this module refuses to take. Which page earned the visit is answered
+  // by the ?ref=seo-<slug> campaign on the planner CTA, not by this column.
+  if (/^\/things-to-do\/[a-z0-9-]+$/.test(path)) return '/things-to-do/:slug';
   return 'other';
 }
 

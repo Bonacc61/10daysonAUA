@@ -26,6 +26,30 @@
     <meta name="twitter:description" content="Pick activities, answer 8 quick questions, get a full day-by-day itinerary — beaches, food, watersports and more." />
     <meta name="twitter:image"       content="https://10daysonaruba.com/og.jpg" />
 
+    <!-- Site-level structured data. Static rather than injected by JS: a
+         crawler that does not execute JavaScript still reads it, and these two
+         entities never change per route. Entity consistency is what lets an
+         answer engine connect scattered mentions of the site to this domain.
+         Deliberately no aggregateRating anywhere — see src/seo/jsonld.test.ts. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "10 Days on Aruba",
+      "url": "https://10daysonaruba.com/",
+      "description": "A free Aruba trip planner that turns 8 questions into a day-by-day itinerary."
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "10 Days on Aruba",
+      "url": "https://10daysonaruba.com/",
+      "logo": "https://10daysonaruba.com/logo-horizontal.png"
+    }
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />

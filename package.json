@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit -p tsconfig.app.json && vite build",
+    "build": "tsc --noEmit -p tsconfig.app.json && vite build && npm run seo:generate",
+    "seo:generate": "node_modules/.bin/esbuild tools/build-seo.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/build-seo.mjs --log-level=warning && node node_modules/.cache/build-seo.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "trace": "node tools/run-trace.cjs",
@@ -20,7 +21,8 @@
     "probe:start-times": "node tools/run-probe-start-times.cjs",
     "probe:suitability": "node tools/run-probe-suitability.cjs",
     "build:suitability": "node tools/run-build-suitability.cjs",
-    "build:curated": "node tools/run-build-curated.cjs"
+    "build:curated": "node tools/run-build-curated.cjs",
+    "seo:refresh": "node tools/run-build-seo-catalog.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

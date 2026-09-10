@@ -10,6 +10,11 @@ export default defineConfig({
   define: {
     __APP_BUILD__: JSON.stringify(BUILD),
   },
+  build: {
+    // Written so the post-build SEO generator can find the fingerprinted
+    // stylesheet to link from generated pages. See src/seo/assets.ts.
+    manifest: true,
+  },
   server: {
     allowedHosts: true,
   },
