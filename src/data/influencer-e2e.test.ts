@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'fs';
 import { generatePlan } from './itineraryGenerator';
-import { isContentProduct } from './itemFit';
+import { isPhotoService } from './itemFit';
 import { ACTIVITIES } from './activities';
 import type { Catalog } from './activitySource';
 import type { Answers } from '../App';
@@ -38,9 +38,24 @@ describe.skipIf(!ANON_KEY)('influencer flag — live catalog', () => {
     startOffset: 7, lodging: 'Palm Beach', flags: [], specialNotes: '',
   };
 
-  // Content products placed across N seeded plans, and their titles.
-  function contentPlaced(answers: Answers, seeds = 12) {
+  // Photo services placed across N seeded plans — by ID, and by title for the
+  // failure message.
+  //
+  // Detects with `isPhotoService`, NOT `isContentProduct`, and that is the whole
+  // point rather than a detail. `isPhotoService` is the predicate the ENGINE
+  // gates auto-fill on (`bookableTier`), so it is the one that decides what the
+  // influencer flag can reach. `isContentProduct` (`/photo|video/i`) only drives
+  // the scoring boost, and it is a title-word test on strings Viator's operators
+  // control.
+  //
+  // Measured 2026-09-10, and this is what broke the test: the champion of the
+  // photo cluster is now "Clear Kayak Experience" (5593159P4), which contains
+  // neither "photo" nor "video". The engine placed it in all 12 seeds and this
+  // function counted zero. Four catalog products sit in that gap, including a
+  // 299-review one. Detecting on the engine's own gate removes the class.
+  function photoPlaced(answers: Answers, seeds = 12) {
     const titles: string[] = [];
+    const ids: string[] = [];
     let tripsWithOne = 0;
     for (let seed = 0; seed < seeds; seed += 1) {
       let n = 0;
@@ -48,12 +63,12 @@ describe.skipIf(!ANON_KEY)('influencer flag — live catalog', () => {
         for (const s of [...day.morning, ...day.afternoon, ...day.evening]) {
           if (s.kind !== 'group') continue;
           const item = byId.get(s.bestSellerId);
-          if (item && isContentProduct(item)) { n += 1; titles.push(item.title); }
+          if (item && isPhotoService(item)) { n += 1; titles.push(item.title); ids.push(item.id); }
         }
       }
       if (n > 0) tripsWithOne += 1;
     }
-    return { tripsWithOne, seeds, titles };
+    return { tripsWithOne, seeds, titles, ids };
   }
 
   // PINS the measured behaviour, and it has now been rewritten twice.
@@ -105,8 +120,8 @@ describe.skipIf(!ANON_KEY)('influencer flag — live catalog', () => {
   // not an end-of-branch edit. The predicate itself is guarded in both
   // directions by unit tests in bookables.test.ts.
   it('places the clear-kayak photoshoot for an influencer and for nobody else', () => {
-    const off = contentPlaced(base);
-    const on = contentPlaced({ ...base, flags: ['influencer'] });
+    const off = photoPlaced(base);
+    const on = photoPlaced({ ...base, flags: ['influencer'] });
     console.log(`OFF: ${off.tripsWithOne}/${off.seeds} trips, ${off.titles.length} placements`);
     console.log([...new Set(off.titles)].map((t) => `  - ${t}`).join('\n'));
     console.log(`ON : ${on.tripsWithOne}/${on.seeds} trips, ${on.titles.length} placements`);
@@ -117,9 +132,22 @@ describe.skipIf(!ANON_KEY)('influencer flag — live catalog', () => {
     expect(off.titles.length).toBe(0);
     expect(on.tripsWithOne).toBe(on.seeds);
     // Both halves matter. Asserting only the count would pass if the flag
-    // started handing out photo services the owner never asked for, so pin
-    // WHICH product: the clear-kayak shoot, and nothing else.
-    expect([...new Set(on.titles)]).toEqual(["50%OFF Aruba\u2018s #1Clear Kayak Experience@arubaphotoshootexperience"]);
+    // started handing out photo services the owner never asked for, so pin that
+    // it is ONE product, not a spray.
+    expect([...new Set(on.ids)], `titles: ${[...new Set(on.titles)].join(' | ')}`).toHaveLength(1);
+
+    // Pinned by ID, not by title. The previous version of this line pinned
+    // "50%OFF Aruba\u2018s #1Clear Kayak Experience@arubaphotoshootexperience" \u2014 a
+    // string Viator's operator controls \u2014 and it broke when they renamed the
+    // listing, with nothing wrong in the engine. Product codes do not change;
+    // that is the same premise content/slugs.json relies on.
+    //
+    // A failure HERE is real signal rather than noise: it means the champion of
+    // the photo cluster moved, and `championsByExperience` picks one item per
+    // cluster, so a different champion changes what every influencer plan
+    // contains. Re-measure before updating the id \u2014 do not just paste the new
+    // one in.
+    expect([...new Set(on.ids)], `titles: ${[...new Set(on.titles)].join(' | ')}`).toEqual(['5593159P4']);
   });
 
   it('still fills every plan (the boost does not starve other slots)', () => {
